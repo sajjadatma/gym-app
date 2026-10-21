@@ -1,0 +1,39 @@
+import { expect, test } from "@playwright/test"
+
+test.use({ storageState: { cookies: [], origins: [] } })
+
+test("invalid login shows a Persian error and does not store a token", async ({
+  page,
+}) => {
+  await page.goto("/login")
+  await page.getByLabel(/ایمیل/).fill("ali@example.com")
+  await page.getByLabel(/رمز عبور/).fill("wrong-password")
+  await page.getByRole("button", { name: "ورود" }).click()
+  await expect(page.getByRole("alert")).toContainText(
+    "ایمیل یا رمز عبور نادرست است.",
+  )
+  await expect(page).toHaveURL(/\/login$/)
+  const token = await page.evaluate(() => localStorage.getItem("access_token"))
+  expect(token).toBeNull()
+})
+
+test("unauthenticated users are redirected to login", async ({ page }) => {
+  await page.goto("/athletes")
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(
+    page.getByRole("heading", { name: "ورود به فرم‌یار" }),
+  ).toBeVisible()
+})
+
+test("invitation and password recovery pages validate input", async ({
+  page,
+}) => {
+  await page.goto("/accept-invitation")
+  await expect(page.getByRole("alert")).toContainText(
+    "این دعوت‌نامه معتبر نیست یا منقضی شده است.",
+  )
+  await page.goto("/recover-password")
+  await page.getByLabel(/ایمیل/).fill("not-an-email")
+  await page.getByRole("button", { name: "ارسال پیوند بازیابی" }).click()
+  await expect(page.getByRole("alert")).toContainText("ایمیل معتبر وارد کنید.")
+})

@@ -1,0 +1,601 @@
+import { ChevronDown, ChevronUp, Copy, Plus, Trash2 } from "lucide-react"
+import { useState } from "react"
+
+import type {
+  DayInput,
+  ExerciseInput,
+  ExercisePublic,
+  SetInput,
+} from "@/client"
+import { Button, IconButton, SelectField, TextField } from "@/components/M3"
+import { useI18n } from "@/i18n"
+
+function moveItem<T>(items: T[], index: number, delta: number): T[] {
+  const next = [...items]
+  const target = index + delta
+  if (target < 0 || target >= next.length) return items
+  ;[next[index], next[target]] = [next[target], next[index]]
+  return next
+}
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
+function toNumber(value: string): number | null {
+  if (value.trim() === "") return null
+  const number = Number(value)
+  return Number.isNaN(number) ? null : number
+}
+
+function defaultValueSet(setNumber: number): SetInput {
+  return {
+    set_number: setNumber,
+    reps_min: 8,
+    reps_max: 12,
+    weight_kg: null,
+    intensity: null,
+    rest_seconds: 60,
+    duration_seconds: null,
+    note: null,
+  }
+}
+
+function defaultValueExercise(exercise: ExercisePublic): ExerciseInput {
+  return {
+    exercise_id: exercise.id,
+    order_index: 0,
+    notes: null,
+    sets: [defaultValueSet(1)],
+  }
+}
+
+export function ProgramStructureEditor({
+  days,
+  onChange,
+  exerciseOptions,
+  readOnly = false,
+}: {
+  days: DayInput[]
+  onChange: (days: DayInput[]) => void
+  exerciseOptions: ExercisePublic[]
+  readOnly?: boolean
+}) {
+  const { t, formatNumber } = useI18n()
+
+  function updateDay(index: number, patch: Partial<DayInput>) {
+    onChange(
+      days.map((day, dayIndex) =>
+        dayIndex === index ? { ...day, ...patch } : day,
+      ),
+    )
+  }
+
+  function updateExercise(
+    dayIndex: number,
+    exerciseIndex: number,
+    patch: Partial<ExerciseInput>,
+  ) {
+    const day = days[dayIndex]
+    const exercises = day.exercises.map((exercise, index) =>
+      index === exerciseIndex ? { ...exercise, ...patch } : exercise,
+    )
+    updateDay(dayIndex, { exercises })
+  }
+
+  function updateSet(
+    dayIndex: number,
+    exerciseIndex: number,
+    setIndex: number,
+    patch: Partial<SetInput>,
+  ) {
+    const exercise = days[dayIndex].exercises[exerciseIndex]
+    const sets = exercise.sets.map((set, index) =>
+      index === setIndex ? { ...set, ...patch } : set,
+    )
+    updateExercise(dayIndex, exerciseIndex, { sets })
+  }
+
+  function addDay() {
+    onChange([
+      ...days,
+      {
+        day_number: days.length + 1,
+        title: `${t("program.day")} ${days.length + 1}`,
+        notes: null,
+        exercises: [],
+      },
+    ])
+  }
+
+  function duplicateDay(index: number) {
+    const copy = clone(days[index])
+    copy.title = `${copy.title} (${t("program.duplicateDay")})`
+    const next = [...days]
+    next.splice(index + 1, 0, copy)
+    onChange(next)
+  }
+
+  function addExercise(dayIndex: number, exerciseId: string) {
+    const exercise = exerciseOptions.find((item) => item.id === exerciseId)
+    if (!exercise) return
+    const day = days[dayIndex]
+    const nextExercise = defaultValueExercise(exercise)
+    nextExercise.order_index = day.exercises.length
+    updateDay(dayIndex, { exercises: [...day.exercises, nextExercise] })
+  }
+
+  function duplicateExercise(dayIndex: number, exerciseIndex: number) {
+    const day = days[dayIndex]
+    const copy = clone(day.exercises[exerciseIndex])
+    copy.sets = copy.sets.map((set, index) => ({
+      ...set,
+      set_number: index + 1,
+    }))
+    const exercises = [...day.exercises]
+    exercises.splice(exerciseIndex + 1, 0, copy)
+    updateDay(dayIndex, { exercises })
+  }
+
+  function addSet(dayIndex: number, exerciseIndex: number) {
+    const exercise = days[dayIndex].exercises[exerciseIndex]
+    const sets = [...exercise.sets, defaultValueSet(exercise.sets.length + 1)]
+    updateExercise(dayIndex, exerciseIndex, { sets })
+  }
+
+  function duplicateSet(
+    dayIndex: number,
+    exerciseIndex: number,
+    setIndex: number,
+  ) {
+    const exercise = days[dayIndex].exercises[exerciseIndex]
+    const copy = clone(exercise.sets[setIndex])
+    const sets = [...exercise.sets]
+    sets.splice(setIndex + 1, 0, copy)
+    updateExercise(dayIndex, exerciseIndex, {
+      sets: sets.map((set, index) => ({ ...set, set_number: index + 1 })),
+    })
+  }
+
+  function removeSet(
+    dayIndex: number,
+    exerciseIndex: number,
+    setIndex: number,
+  ) {
+    const exercise = days[dayIndex].exercises[exerciseIndex]
+    updateExercise(dayIndex, exerciseIndex, {
+      sets: exercise.sets
+        .filter((_, index) => index !== setIndex)
+        .map((set, index) => ({ ...set, set_number: index + 1 })),
+    })
+  }
+
+  return (
+    <div className="stack">
+      {days.length === 0 ? (
+        <div className="m3-empty">
+          <h3>{t("program.noDays")}</h3>
+          {!readOnly ? (
+            <Button icon={<Plus size={16} />} onClick={addDay}>
+              {t("program.addDay")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {days.map((day, dayIndex) => (
+        <section className="m3-day" key={`${day.title}-${dayIndex}`}>
+          <header className="m3-day__header">
+            <div className="m3-day__title">
+              <span className="m3-day__number">
+                {formatNumber(dayIndex + 1)}
+              </span>
+              <input
+                className="m3-day-title-input"
+                value={day.title}
+                onChange={(event) =>
+                  updateDay(dayIndex, { title: event.target.value })
+                }
+                aria-label={t("program.dayTitle")}
+                disabled={readOnly}
+              />
+            </div>
+            {!readOnly ? (
+              <div className="m3-day__tools">
+                <IconButton
+                  label={t("program.moveUp")}
+                  onClick={() => onChange(moveItem(days, dayIndex, -1))}
+                  disabled={dayIndex === 0}
+                >
+                  <ChevronUp size={18} />
+                </IconButton>
+                <IconButton
+                  label={t("program.moveDown")}
+                  onClick={() => onChange(moveItem(days, dayIndex, 1))}
+                  disabled={dayIndex === days.length - 1}
+                >
+                  <ChevronDown size={18} />
+                </IconButton>
+                <IconButton
+                  label={t("program.duplicateDay")}
+                  onClick={() => duplicateDay(dayIndex)}
+                >
+                  <Copy size={17} />
+                </IconButton>
+                <IconButton
+                  label={t("program.removeDay")}
+                  onClick={() =>
+                    onChange(days.filter((_, index) => index !== dayIndex))
+                  }
+                >
+                  <Trash2 size={17} />
+                </IconButton>
+              </div>
+            ) : null}
+          </header>
+          <div className="m3-day__body">
+            <TextField
+              label={t("program.dayNotes")}
+              value={day.notes ?? ""}
+              onChange={(event) =>
+                updateDay(dayIndex, { notes: event.target.value || null })
+              }
+              multiline
+              rows={2}
+              disabled={readOnly}
+            />
+
+            {day.exercises.length === 0 ? (
+              <p className="muted" style={{ fontSize: 12 }}>
+                {t("program.noExercises")}
+              </p>
+            ) : null}
+
+            {day.exercises.map((exercise, exerciseIndex) => {
+              const libraryEntry = exerciseOptions.find(
+                (item) => item.id === exercise.exercise_id,
+              )
+              return (
+                <div
+                  className="m3-exercise-block"
+                  key={`${exercise.exercise_id}-${exerciseIndex}`}
+                >
+                  <div className="m3-exercise-block__head">
+                    <div style={{ flex: 1, minWidth: 220 }}>
+                      <SelectField
+                        label={t("program.exercise")}
+                        value={exercise.exercise_id}
+                        onChange={(value) =>
+                          updateExercise(dayIndex, exerciseIndex, {
+                            exercise_id: value,
+                          })
+                        }
+                        options={exerciseOptions.map((item) => ({
+                          value: item.id,
+                          label: `${item.name_fa} · ${item.muscle_group}`,
+                        }))}
+                        disabled={readOnly}
+                      />
+                      {libraryEntry ? (
+                        <div className="m3-exercise-block__meta">
+                          {t("program.muscleGroup")}:{" "}
+                          {libraryEntry.muscle_group}
+                        </div>
+                      ) : null}
+                    </div>
+                    {!readOnly ? (
+                      <div className="m3-exercise-block__tools">
+                        <IconButton
+                          label={t("program.moveUp")}
+                          onClick={() => {
+                            const exercises = moveItem(
+                              day.exercises,
+                              exerciseIndex,
+                              -1,
+                            )
+                            updateDay(dayIndex, { exercises })
+                          }}
+                          disabled={exerciseIndex === 0}
+                        >
+                          <ChevronUp size={17} />
+                        </IconButton>
+                        <IconButton
+                          label={t("program.moveDown")}
+                          onClick={() => {
+                            const exercises = moveItem(
+                              day.exercises,
+                              exerciseIndex,
+                              1,
+                            )
+                            updateDay(dayIndex, { exercises })
+                          }}
+                          disabled={exerciseIndex === day.exercises.length - 1}
+                        >
+                          <ChevronDown size={17} />
+                        </IconButton>
+                        <IconButton
+                          label={t("program.duplicateExercise")}
+                          onClick={() =>
+                            duplicateExercise(dayIndex, exerciseIndex)
+                          }
+                        >
+                          <Copy size={16} />
+                        </IconButton>
+                        <IconButton
+                          label={t("program.removeExercise")}
+                          onClick={() =>
+                            updateDay(dayIndex, {
+                              exercises: day.exercises.filter(
+                                (_, index) => index !== exerciseIndex,
+                              ),
+                            })
+                          }
+                        >
+                          <Trash2 size={16} />
+                        </IconButton>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <TextField
+                    label={t("program.exerciseNotes")}
+                    value={exercise.notes ?? ""}
+                    onChange={(event) =>
+                      updateExercise(dayIndex, exerciseIndex, {
+                        notes: event.target.value || null,
+                      })
+                    }
+                    disabled={readOnly}
+                    containerClassName="m3-mt-xs"
+                  />
+
+                  <div className="m3-set-editor">
+                    <table className="m3-table">
+                      <thead>
+                        <tr>
+                          <th>{t("program.set")}</th>
+                          <th>{t("program.repsMin")}</th>
+                          <th>{t("program.repsMax")}</th>
+                          <th>
+                            {t("program.weight")} ({t("common.units.kg")})
+                          </th>
+                          <th>{t("program.intensity")}</th>
+                          <th>
+                            {t("program.rest")} ({t("common.units.seconds")})
+                          </th>
+                          <th>
+                            {t("program.duration")} ({t("common.units.seconds")}
+                            )
+                          </th>
+                          <th>{t("program.setNote")}</th>
+                          {!readOnly ? <th>{t("common.actions")}</th> : null}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {exercise.sets.map((set, setIndex) => (
+                          <tr key={`${set.set_number}-${setIndex}`}>
+                            <td
+                              style={{ textAlign: "center", fontWeight: 700 }}
+                            >
+                              {formatNumber(setIndex + 1)}
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                min={0}
+                                value={set.reps_min ?? ""}
+                                aria-label={t("program.repsMin")}
+                                disabled={readOnly}
+                                onChange={(event) =>
+                                  updateSet(dayIndex, exerciseIndex, setIndex, {
+                                    reps_min: toNumber(event.target.value),
+                                  })
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                min={0}
+                                value={set.reps_max ?? ""}
+                                aria-label={t("program.repsMax")}
+                                disabled={readOnly}
+                                onChange={(event) =>
+                                  updateSet(dayIndex, exerciseIndex, setIndex, {
+                                    reps_max: toNumber(event.target.value),
+                                  })
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                min={0}
+                                step="0.5"
+                                value={set.weight_kg ?? ""}
+                                aria-label={t("program.weight")}
+                                disabled={readOnly}
+                                onChange={(event) =>
+                                  updateSet(dayIndex, exerciseIndex, setIndex, {
+                                    weight_kg: toNumber(event.target.value),
+                                  })
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                value={set.intensity ?? ""}
+                                aria-label={t("program.intensity")}
+                                disabled={readOnly}
+                                onChange={(event) =>
+                                  updateSet(dayIndex, exerciseIndex, setIndex, {
+                                    intensity: event.target.value || null,
+                                  })
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                min={0}
+                                value={set.rest_seconds ?? ""}
+                                aria-label={t("program.rest")}
+                                disabled={readOnly}
+                                onChange={(event) =>
+                                  updateSet(dayIndex, exerciseIndex, setIndex, {
+                                    rest_seconds: toNumber(event.target.value),
+                                  })
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                min={0}
+                                value={set.duration_seconds ?? ""}
+                                aria-label={t("program.duration")}
+                                disabled={readOnly}
+                                onChange={(event) =>
+                                  updateSet(dayIndex, exerciseIndex, setIndex, {
+                                    duration_seconds: toNumber(
+                                      event.target.value,
+                                    ),
+                                  })
+                                }
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                value={set.note ?? ""}
+                                aria-label={t("program.setNote")}
+                                disabled={readOnly}
+                                onChange={(event) =>
+                                  updateSet(dayIndex, exerciseIndex, setIndex, {
+                                    note: event.target.value || null,
+                                  })
+                                }
+                              />
+                            </td>
+                            {!readOnly ? (
+                              <td>
+                                <div
+                                  className="row"
+                                  style={{ gap: 2, flexWrap: "nowrap" }}
+                                >
+                                  <IconButton
+                                    label={t("program.duplicateSet")}
+                                    onClick={() =>
+                                      duplicateSet(
+                                        dayIndex,
+                                        exerciseIndex,
+                                        setIndex,
+                                      )
+                                    }
+                                  >
+                                    <Copy size={14} />
+                                  </IconButton>
+                                  <IconButton
+                                    label={t("program.removeSet")}
+                                    onClick={() =>
+                                      removeSet(
+                                        dayIndex,
+                                        exerciseIndex,
+                                        setIndex,
+                                      )
+                                    }
+                                  >
+                                    <Trash2 size={14} />
+                                  </IconButton>
+                                </div>
+                              </td>
+                            ) : null}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {exercise.sets.length === 0 ? (
+                      <p className="muted" style={{ fontSize: 11, padding: 8 }}>
+                        {t("program.noSets")}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {!readOnly ? (
+                    <div className="row" style={{ marginTop: 8 }}>
+                      <Button
+                        variant="text"
+                        size="sm"
+                        icon={<Plus size={14} />}
+                        onClick={() => addSet(dayIndex, exerciseIndex)}
+                      >
+                        {t("program.addSet")}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
+
+            {!readOnly ? (
+              <AddExercise
+                exerciseOptions={exerciseOptions}
+                onAdd={(exerciseId) => addExercise(dayIndex, exerciseId)}
+              />
+            ) : null}
+          </div>
+        </section>
+      ))}
+
+      {!readOnly && days.length > 0 ? (
+        <div>
+          <Button variant="outlined" icon={<Plus size={16} />} onClick={addDay}>
+            {t("program.addDay")}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function AddExercise({
+  exerciseOptions,
+  onAdd,
+}: {
+  exerciseOptions: ExercisePublic[]
+  onAdd: (exerciseId: string) => void
+}) {
+  const { t } = useI18n()
+  const [selected, setSelected] = useState("")
+
+  return (
+    <div className="m3-builder-add-exercise">
+      <SelectField
+        label={t("program.addExercise")}
+        value={selected}
+        onChange={setSelected}
+        options={exerciseOptions.map((item) => ({
+          value: item.id,
+          label: `${item.name_fa} · ${item.muscle_group}`,
+        }))}
+        placeholder={t("program.chooseExercise")}
+      />
+      <Button
+        icon={<Plus size={15} />}
+        disabled={!selected}
+        onClick={() => {
+          onAdd(selected)
+          setSelected("")
+        }}
+      >
+        {t("common.add")}
+      </Button>
+    </div>
+  )
+}

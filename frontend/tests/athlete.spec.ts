@@ -1,0 +1,49 @@
+import fs from "node:fs"
+import path from "node:path"
+import { expect, test } from "@playwright/test"
+
+test("athlete sees active program, sets and can generate a Persian PDF", async ({
+  page,
+}) => {
+  await page.goto("/my")
+  await expect(page.getByRole("heading", { name: "برنامه من" })).toBeVisible()
+  await expect(page.getByText("برنامه قدرتی ۸ هفته‌ای").first()).toBeVisible()
+  await expect(page.locator(".m3-mobile-nav")).toBeVisible()
+
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  )
+  expect(overflow).toBeLessThanOrEqual(1)
+
+  await page.getByRole("button", { name: "مشاهده" }).first().click()
+  await expect(page).toHaveURL(/\/my\/programs\/[^/]+$/)
+  await expect(page.getByText("پرس سینه هالتر").first()).toBeVisible()
+  await expect(page.getByText("PRIVATE-DEMO-NOTE")).toHaveCount(0)
+
+  const versionId = page.url().split("/").pop()
+  await page.goto(`/print/${versionId}`)
+  await expect(page.getByText("نسخه چاپی برنامه")).toHaveCount(0)
+  await expect(page.getByText("چاپ یا ذخیره PDF")).toBeVisible()
+  await expect(page.locator(".m3-print-sheet")).toBeVisible()
+  await expect(page.getByText("PRIVATE-DEMO-NOTE")).toHaveCount(0)
+
+  const pdfPath = path.join("test-results", "program-print.pdf")
+  fs.mkdirSync("test-results", { recursive: true })
+  await page.emulateMedia({ media: "print" })
+  await page.pdf({ path: pdfPath, format: "A4", printBackground: true })
+  const pdf = fs.readFileSync(pdfPath)
+  expect(pdf.subarray(0, 4).toString()).toBe("%PDF")
+  expect(pdf.length).toBeGreaterThan(1000)
+})
+
+test("athlete profile is editable and hides the coach private note", async ({
+  page,
+}) => {
+  await page.goto("/my/profile")
+  await expect(page.getByRole("heading", { name: "پرونده من" })).toBeVisible()
+  await expect(page.getByText("PRIVATE-DEMO-NOTE")).toHaveCount(0)
+  const phone = page.getByLabel("تلفن")
+  await phone.fill("09121112233")
+  await page.getByRole("button", { name: "ذخیره پرونده" }).click()
+  await expect(page.getByText("پرونده شما ذخیره شد.")).toBeVisible()
+})
