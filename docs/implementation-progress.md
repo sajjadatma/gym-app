@@ -19,6 +19,7 @@ This checklist is keyed to section 14 acceptance criteria. Stale claims must be 
 - [x] Reusable templates with independent copies.
 - [x] Persian RTL Material Design 3 UI, Jalali presentation, locale switch (fa/en), A4 print/PDF.
 - [x] Responsive PWA manifest, icons and service worker; local production serving with SPA fallback.
+- [x] Production-quality Material 3 Select, searchable ComboBox and Persian/Gregorian React Aria DatePicker controls.
 - [x] Automated backend tests and Playwright tests (desktop + emulated mobile + production PWA).
 - [x] Local reset/bootstrap/verification scripts and documentation.
 
@@ -47,7 +48,7 @@ This checklist is keyed to section 14 acceptance criteria. Stale claims must be 
 - [x] **11. Responsive PWA works on desktop and emulated mobile; backend permissions tested.**
   Evidence: Playwright desktop + Pixel 5 projects; production `PWA_PROD=1` service-worker registration check; backend access-control suite.
 - [x] **12. Persian/RTL default, Jalali display, ISO/Gregorian storage, translation resources, locale switch adjusts direction/formatting, Material Design 3 only.**
-  Evidence: all visible strings in `src/i18n.tsx`; `DateField` Jalali picker; Playwright language switch (`dir=ltr`/`rtl`); Material 3 component layer (`src/components/M3.tsx`, `src/index.css`); no shadcn/Tailwind UI dependencies.
+  Evidence: all visible strings in `src/i18n.tsx`; React Aria + `@internationalized/date` Jalali/Gregorian DatePicker, Select and searchable ComboBox; Playwright language switch (`dir=ltr`/`rtl`), ISO round-trip and leap-year tests; Material 3 component layer (`src/components/M3.tsx`, `src/index.css`); no shadcn/Tailwind UI dependencies.
 
 ## Runtime decisions (documented assumptions)
 
@@ -70,11 +71,11 @@ uv run pytest -q
 
 cd ../frontend
 bunx playwright test
-# 16 passed (desktop + Pixel 5 + auth/PWA/manifest)
+# 29 passed (desktop + Pixel 5 + auth/PWA/manifest + controls + field labels)
 
 bun run build
 PLAYWRIGHT_BASE_URL=http://localhost:8000 PWA_PROD=1 bunx playwright test
-# 16 passed, including service-worker registration
+# 25 passed, including service-worker registration
 
 cd ../backend
 uv run alembic check

@@ -16,7 +16,7 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
-  SelectField,
+  SearchableSelectField,
   Spinner,
 } from "@/components/M3"
 import { useI18n } from "@/i18n"
@@ -228,7 +228,7 @@ export function TemplatesPage() {
           {athletesQuery.isLoading ? (
             <Spinner label={t("common.loading")} />
           ) : (
-            <SelectField
+            <SearchableSelectField
               label={t("templates.selectAthlete")}
               value={athleteId}
               onChange={setAthleteId}

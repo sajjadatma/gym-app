@@ -21,6 +21,7 @@ backend/coverage/
 backend/app/frontend/
 backend/uploads/
 uploads/
+.tmp-pgdata/
 
 # Node
 node_modules/

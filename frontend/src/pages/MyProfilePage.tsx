@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Download, FileUp, Mail, Save, UserRound } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import { AthletesService } from "@/client"
@@ -33,6 +33,7 @@ export function MyProfilePage() {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const uploadId = useId()
   const [form, setForm] = useState({
     phone: "",
     birth_date: null as string | null,
@@ -255,6 +256,7 @@ export function MyProfilePage() {
             />
             <DateField
               label={t("athletes.birthDate")}
+              maxToday
               value={form.birth_date}
               onChange={(value) => setForm({ ...form, birth_date: value })}
             />
@@ -383,12 +385,18 @@ export function MyProfilePage() {
           </div>
         </div>
         <div className="m3-upload">
-          <p className="muted" style={{ fontSize: 12 }}>
+          <p id={`${uploadId}-hint`} className="muted" style={{ fontSize: 12 }}>
             {t("athletes.uploadHint")}
           </p>
+          <label className="m3-field__label" htmlFor={uploadId}>
+            {t("my.upload")}
+          </label>
           <div className="m3-upload__row">
             <input
               ref={fileInput}
+              id={uploadId}
+              aria-describedby={`${uploadId}-hint`}
+              disabled={uploading}
               type="file"
               accept="application/pdf,image/jpeg,image/png"
               className="sr-only"

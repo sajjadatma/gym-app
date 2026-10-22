@@ -56,10 +56,16 @@ test("admin builds, saves and publishes a program through the UI", async ({
   ).toBeVisible()
   await page.getByRole("button", { name: "افزودن روز" }).click()
   const addExercise = page.locator(".m3-builder-add-exercise")
-  await addExercise.locator("select").selectOption({
-    label: "پرس سینه هالتر · سینه",
-  })
-  await addExercise.getByRole("button", { name: "افزودن" }).click()
+  const exerciseSearch = addExercise.getByRole("combobox")
+  await exerciseSearch.click()
+  await exerciseSearch.fill("پرس سینه هالتر")
+  await expect(
+    page.getByRole("option", { name: "پرس سینه هالتر · سینه" }),
+  ).toBeVisible()
+  await page.keyboard.press("ArrowDown")
+  await page.keyboard.press("Enter")
+  await expect(exerciseSearch).toHaveValue(/پرس سینه هالتر/)
+  await addExercise.getByRole("button", { name: "افزودن", exact: true }).click()
   await expect(
     page.locator(".m3-set-editor input[type=number]").first(),
   ).toHaveValue("8")

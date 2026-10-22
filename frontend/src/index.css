@@ -660,23 +660,6 @@ button:disabled {
   line-height: 1.75;
 }
 
-.m3-field__select {
-  appearance: none;
-  cursor: pointer;
-  padding-inline-end: 22px;
-}
-
-.m3-field__control--select {
-  position: relative;
-}
-
-.m3-field__chevron {
-  position: absolute;
-  inset-inline-end: 14px;
-  pointer-events: none;
-  color: var(--m3-on-surface-variant);
-}
-
 .m3-field__leading,
 .m3-field__suffix {
   color: var(--m3-on-surface-variant);
@@ -697,93 +680,6 @@ button:disabled {
 
 .m3-field__message--error {
   color: var(--m3-error);
-}
-
-.m3-field--date {
-  position: relative;
-}
-
-.m3-field__date-button {
-  width: 100%;
-  text-align: start;
-  font-size: 14px;
-  color: var(--m3-on-surface);
-}
-
-.m3-field__placeholder {
-  color: var(--m3-on-surface-variant);
-}
-
-.m3-date-popover {
-  position: absolute;
-  top: calc(100% + 8px);
-  inset-inline-start: 0;
-  width: min(330px, calc(100vw - 32px));
-  z-index: 60;
-  padding: 12px;
-  border-radius: 20px;
-  background: var(--m3-surface-container-high);
-  box-shadow: var(--m3-shadow-3);
-}
-
-.m3-date-popover__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.m3-date-popover__header strong {
-  font-size: 14px;
-}
-
-.m3-date-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 2px;
-  text-align: center;
-}
-
-.m3-date-grid--head span {
-  padding: 6px 0;
-  font-size: 11px;
-  color: var(--m3-on-surface-variant);
-}
-
-.m3-date-day {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  margin: 0 auto;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--m3-on-surface);
-  font-size: 13px;
-}
-
-.m3-date-day:hover {
-  background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent);
-}
-
-.m3-date-day.is-today {
-  border: 1px solid var(--m3-primary);
-}
-
-.m3-date-day.is-selected {
-  background: var(--m3-primary);
-  color: var(--m3-on-primary);
-}
-
-.m3-date-popover__footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 8px;
-  margin-top: 6px;
-  border-top: 1px solid var(--m3-outline-variant);
 }
 
 .m3-text-button {
@@ -2421,30 +2317,13 @@ button:disabled {
   }
 }
 
-.m3-day-title-input {
-  min-width: 100px;
+.m3-day-title-field {
   flex: 1;
-  padding: 6px 8px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--m3-on-surface);
-  font-size: 13.5px;
-  font-weight: 700;
+  min-width: 140px;
 }
 
-.m3-day-title-input:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--m3-on-surface) 5%, transparent);
-}
-
-.m3-day-title-input:focus {
-  outline: none;
-  border-color: var(--m3-primary);
-  background: var(--m3-surface-container-high);
-}
-
-.m3-day-title-input:disabled {
-  opacity: 0.85;
+.m3-day-title-field .m3-field__control {
+  min-height: 44px;
 }
 
 .m3-set-editor .m3-table input[type="number"] {
@@ -2470,4 +2349,510 @@ button:disabled {
 
 .m3-mt-xs {
   margin-top: 8px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Material Design 3 pickers share the standard filled field styles.  */
+/* ------------------------------------------------------------------ */
+
+.m3-picker-field[data-open] .m3-field__control,
+.m3-picker-field[data-focused] .m3-field__control {
+  border-color: var(--m3-primary);
+  background: var(--m3-surface-container-high);
+}
+
+.m3-picker-field.is-invalid .m3-field__label,
+.m3-picker-field[data-invalid] .m3-field__label {
+  color: var(--m3-error);
+}
+
+.m3-picker-field.is-invalid .m3-field__control,
+.m3-picker-field[data-invalid] .m3-field__control {
+  border-color: var(--m3-error);
+}
+
+.m3-picker-field[data-disabled] .m3-field__control {
+  opacity: 0.55;
+}
+
+/* Select ------------------------------------------------------------ */
+
+.m3-select__button {
+  justify-content: flex-start;
+  cursor: default;
+  font: inherit;
+  text-align: start;
+  outline: none;
+}
+
+.m3-select__button[data-pressed] {
+  background: var(--m3-surface-container-high);
+}
+
+.m3-select__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14.5px;
+}
+
+.m3-select__value[data-placeholder] {
+  color: color-mix(in srgb, var(--m3-on-surface-variant) 72%, transparent);
+}
+
+.m3-select__chevron {
+  flex: 0 0 auto;
+  color: var(--m3-on-surface-variant);
+  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+.m3-select[data-open] .m3-select__chevron {
+  transform: rotate(180deg);
+}
+
+.m3-select[data-disabled] .m3-select__chevron {
+  color: inherit;
+}
+
+.m3-select-popover,
+.m3-calendar__picker-popover {
+  z-index: 100000;
+  max-width: calc(100vw - 20px);
+  max-height: min(360px, calc(100vh - 24px));
+  padding: 6px;
+  overflow: hidden;
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: 8px;
+  background: var(--m3-surface-container-high);
+  box-shadow: var(--m3-shadow-2);
+  outline: none;
+  animation: m3-popover-in 120ms ease-out;
+}
+
+.m3-select-popover {
+  width: var(--trigger-width, 220px);
+}
+
+@keyframes m3-popover-in {
+  from {
+    transform: scale(0.98) translateY(-3px);
+  }
+}
+
+.m3-listbox {
+  max-height: min(330px, calc(100vh - 48px));
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  outline: none;
+}
+
+.m3-listbox__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  color: var(--m3-on-surface);
+  font-size: 14px;
+  line-height: 1.5;
+  outline: none;
+  cursor: default;
+  transition: background 100ms ease;
+}
+
+.m3-listbox__item[data-hovered],
+.m3-listbox__item[data-focused] {
+  background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent);
+}
+
+.m3-listbox__item[data-selected] {
+  background: var(--m3-secondary-container);
+  color: var(--m3-on-secondary-container);
+}
+
+.m3-listbox__item[data-focus-visible] {
+  outline: 2px solid var(--m3-primary);
+  outline-offset: -2px;
+}
+
+.m3-listbox__item[data-disabled] {
+  opacity: 0.38;
+}
+
+.m3-listbox__indicator {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  opacity: 0;
+  color: var(--m3-primary);
+}
+
+.m3-listbox__item[data-selected] .m3-listbox__indicator {
+  opacity: 1;
+}
+
+.m3-listbox__label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.m3-listbox__empty {
+  padding: 16px 12px;
+  color: var(--m3-on-surface-variant);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ComboBox ---------------------------------------------------------- */
+
+.m3-combobox__control {
+  padding-inline: 12px 8px;
+  gap: 6px;
+}
+
+.m3-combobox__search {
+  flex: 0 0 auto;
+  color: var(--m3-on-surface-variant);
+}
+
+.m3-combobox__input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 50px;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--m3-on-surface);
+  font: inherit;
+  font-size: 14.5px;
+}
+
+.m3-combobox__input::placeholder {
+  color: color-mix(in srgb, var(--m3-on-surface-variant) 72%, transparent);
+}
+
+.m3-combobox__trigger {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--m3-on-surface-variant);
+  cursor: default;
+}
+
+.m3-combobox__trigger:hover {
+  background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent);
+}
+
+.m3-combobox__trigger:focus-visible {
+  outline: 2px solid var(--m3-primary);
+}
+
+.m3-combobox[data-open] .m3-combobox__trigger svg {
+  transform: rotate(180deg);
+}
+
+.m3-combobox__trigger svg {
+  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* DatePicker -------------------------------------------------------- */
+
+.m3-date-field__control {
+  padding-inline: 12px 8px;
+  gap: 4px;
+}
+
+.m3-date-field__input {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  height: 50px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  font-size: 14.5px;
+  outline: none;
+}
+
+.m3-date-field__input::-webkit-scrollbar {
+  display: none;
+}
+
+.m3-date-segment {
+  display: inline-block;
+  padding: 4px 2px;
+  border-radius: 4px;
+  color: var(--m3-on-surface);
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  white-space: nowrap;
+}
+
+.m3-date-segment[data-type="literal"] {
+  padding-inline: 0;
+  color: var(--m3-on-surface-variant);
+}
+
+.m3-date-segment[data-placeholder] {
+  color: color-mix(in srgb, var(--m3-on-surface-variant) 68%, transparent);
+}
+
+.m3-date-segment[data-focused] {
+  background: var(--m3-primary-container);
+  color: var(--m3-on-primary-container);
+}
+
+.m3-date-segment[data-disabled] {
+  color: inherit;
+}
+
+.m3-date-field__trigger {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--m3-on-surface-variant);
+  cursor: default;
+}
+
+.m3-date-field__trigger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent);
+}
+
+.m3-date-field__trigger:focus-visible {
+  outline: 2px solid var(--m3-primary);
+}
+
+.m3-date-field[data-disabled] .m3-date-field__trigger {
+  color: inherit;
+}
+
+.m3-date-popover {
+  z-index: 100000;
+  padding: 0;
+  overflow: visible;
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: 16px;
+  background: var(--m3-surface-container-high);
+  box-shadow: var(--m3-shadow-3);
+  outline: none;
+  animation: m3-popover-in 140ms ease-out;
+}
+
+.m3-date-dialog {
+  width: 340px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 24px);
+  padding: 16px;
+  overflow-y: auto;
+  outline: none;
+}
+
+.m3-calendar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.m3-calendar__nav {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--m3-on-surface-variant);
+  cursor: default;
+}
+
+.m3-calendar__nav:hover {
+  background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent);
+}
+
+.m3-calendar__nav:focus-visible {
+  outline: 2px solid var(--m3-primary);
+}
+
+.m3-calendar__pickers {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.m3-calendar__picker-label {
+  display: block;
+  color: var(--m3-on-surface-variant);
+  font-size: 12px;
+  padding-inline: 10px;
+  line-height: 1.5;
+}
+
+.m3-calendar__picker {
+  min-width: 0;
+}
+
+.m3-calendar__picker-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 44px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--m3-on-surface);
+  font-size: 14px;
+  font-weight: 650;
+  cursor: default;
+}
+
+.m3-calendar__picker-button:hover {
+  background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent);
+}
+
+.m3-calendar__picker-button:focus-visible {
+  outline: 2px solid var(--m3-primary);
+}
+
+.m3-calendar__picker-popover {
+  min-width: 150px;
+  max-height: 300px;
+  padding: 6px;
+}
+
+.m3-calendar__picker-list {
+  max-height: 280px;
+}
+
+.m3-calendar__grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.m3-calendar__grid th,
+.m3-calendar__grid td {
+  padding: 0;
+  text-align: center;
+}
+
+.m3-calendar__weekday {
+  padding: 6px 0;
+  color: var(--m3-on-surface-variant);
+  font-size: 10.5px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+.m3-calendar__day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 44px;
+  min-height: 44px;
+  aspect-ratio: 1;
+  margin: 1px auto;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  color: var(--m3-on-surface);
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  cursor: default;
+}
+
+.m3-calendar__day:hover,
+.m3-calendar__day[data-hovered] {
+  background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent);
+}
+
+.m3-calendar__day[data-focus-visible] {
+  outline: 2px solid var(--m3-primary);
+  outline-offset: 1px;
+}
+
+.m3-calendar__day.is-today {
+  border-color: var(--m3-primary);
+}
+
+.m3-calendar__day.is-selected,
+.m3-calendar__day[data-selected] {
+  border-color: var(--m3-primary);
+  background: var(--m3-primary);
+  color: var(--m3-on-primary);
+}
+
+.m3-calendar__day.is-outside-month,
+.m3-calendar__day[data-outside-month] {
+  visibility: hidden;
+}
+
+.m3-calendar__day[data-disabled] {
+  opacity: 0.38;
+}
+
+.m3-calendar__day[data-unavailable] {
+  color: var(--m3-error);
+  text-decoration: line-through;
+}
+
+.m3-calendar__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--m3-outline-variant);
+}
+
+@media (max-width: 420px) {
+  .m3-date-dialog {
+    width: calc(100vw - 16px);
+    padding: 12px;
+  }
+
+  .m3-calendar__day {
+    font-size: 12.5px;
+  }
+
+  .m3-select-popover {
+    max-width: calc(100vw - 16px);
+  }
+}
+
+.m3-calendar__actions .m3-text-button {
+  min-height: 44px;
+}
+
+.m3-calendar__actions .m3-text-button:disabled {
+  opacity: 0.38;
+  cursor: default;
 }

@@ -9,7 +9,7 @@ The product is **local development/manual acceptance only**. There is no deploym
 ## Stack
 
 - **Backend:** FastAPI, SQLModel, PostgreSQL, Alembic, PyJWT, Argon2/bcrypt password hashing, Pytest.
-- **Frontend:** React 19, TypeScript, Vite, TanStack Router/Query, Axios, Material Design 3 tokens/components, Vazirmatn.
+- **Frontend:** React 19, TypeScript, Vite, TanStack Router/Query, Axios, React Aria accessibility primitives, `@internationalized/date`, Material Design 3 tokens/components, Vazirmatn.
 - **Local services:** PostgreSQL 17 (Homebrew) and Mailpit for invitations/password recovery.
 - **PWA:** web manifest, icons and a minimal service worker. Service worker is registered in production builds; the FastAPI app serves the built SPA with deep-link fallback.
 - **UI system:** Material Design 3 only. The template's shadcn/Tailwind presentation layer was replaced; Tailwind is not used.

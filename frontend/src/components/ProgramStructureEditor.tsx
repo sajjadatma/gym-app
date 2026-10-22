@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, Copy, Plus, Trash2 } from "lucide-react"
-import { useState } from "react"
+import { type InputHTMLAttributes, useId, useState } from "react"
 
 import type {
   DayInput,
@@ -7,8 +7,30 @@ import type {
   ExercisePublic,
   SetInput,
 } from "@/client"
-import { Button, IconButton, SelectField, TextField } from "@/components/M3"
+import {
+  Button,
+  IconButton,
+  SearchableSelectField,
+  TextField,
+} from "@/components/M3"
 import { useI18n } from "@/i18n"
+
+// Table column headings provide the visible labels; each control also has an
+// explicitly associated HTML label for keyboard and assistive-technology users.
+function SetField({
+  label,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & { label: string }) {
+  const id = useId()
+  return (
+    <>
+      <label className="sr-only" htmlFor={id}>
+        {label}
+      </label>
+      <input {...props} id={id} />
+    </>
+  )
+}
 
 function moveItem<T>(items: T[], index: number, delta: number): T[] {
   const next = [...items]
@@ -184,19 +206,19 @@ export function ProgramStructureEditor({
       ) : null}
 
       {days.map((day, dayIndex) => (
-        <section className="m3-day" key={`${day.title}-${dayIndex}`}>
+        <section className="m3-day" key={dayIndex}>
           <header className="m3-day__header">
             <div className="m3-day__title">
               <span className="m3-day__number">
                 {formatNumber(dayIndex + 1)}
               </span>
-              <input
-                className="m3-day-title-input"
+              <TextField
+                label={t("program.dayTitle")}
+                containerClassName="m3-day-title-field"
                 value={day.title}
                 onChange={(event) =>
                   updateDay(dayIndex, { title: event.target.value })
                 }
-                aria-label={t("program.dayTitle")}
                 disabled={readOnly}
               />
             </div>
@@ -262,7 +284,7 @@ export function ProgramStructureEditor({
                 >
                   <div className="m3-exercise-block__head">
                     <div style={{ flex: 1, minWidth: 220 }}>
-                      <SelectField
+                      <SearchableSelectField
                         label={t("program.exercise")}
                         value={exercise.exercise_id}
                         onChange={(value) =>
@@ -353,22 +375,24 @@ export function ProgramStructureEditor({
                     <table className="m3-table">
                       <thead>
                         <tr>
-                          <th>{t("program.set")}</th>
-                          <th>{t("program.repsMin")}</th>
-                          <th>{t("program.repsMax")}</th>
-                          <th>
+                          <th scope="col">{t("program.set")}</th>
+                          <th scope="col">{t("program.repsMin")}</th>
+                          <th scope="col">{t("program.repsMax")}</th>
+                          <th scope="col">
                             {t("program.weight")} ({t("common.units.kg")})
                           </th>
-                          <th>{t("program.intensity")}</th>
-                          <th>
+                          <th scope="col">{t("program.intensity")}</th>
+                          <th scope="col">
                             {t("program.rest")} ({t("common.units.seconds")})
                           </th>
-                          <th>
+                          <th scope="col">
                             {t("program.duration")} ({t("common.units.seconds")}
                             )
                           </th>
-                          <th>{t("program.setNote")}</th>
-                          {!readOnly ? <th>{t("common.actions")}</th> : null}
+                          <th scope="col">{t("program.setNote")}</th>
+                          {!readOnly ? (
+                            <th scope="col">{t("common.actions")}</th>
+                          ) : null}
                         </tr>
                       </thead>
                       <tbody>
@@ -380,12 +404,12 @@ export function ProgramStructureEditor({
                               {formatNumber(setIndex + 1)}
                             </td>
                             <td>
-                              <input
+                              <SetField
                                 type="number"
-                                inputMode="decimal"
+                                inputMode="numeric"
                                 min={0}
                                 value={set.reps_min ?? ""}
-                                aria-label={t("program.repsMin")}
+                                label={t("program.repsMin")}
                                 disabled={readOnly}
                                 onChange={(event) =>
                                   updateSet(dayIndex, exerciseIndex, setIndex, {
@@ -395,12 +419,12 @@ export function ProgramStructureEditor({
                               />
                             </td>
                             <td>
-                              <input
+                              <SetField
                                 type="number"
-                                inputMode="decimal"
+                                inputMode="numeric"
                                 min={0}
                                 value={set.reps_max ?? ""}
-                                aria-label={t("program.repsMax")}
+                                label={t("program.repsMax")}
                                 disabled={readOnly}
                                 onChange={(event) =>
                                   updateSet(dayIndex, exerciseIndex, setIndex, {
@@ -410,13 +434,13 @@ export function ProgramStructureEditor({
                               />
                             </td>
                             <td>
-                              <input
+                              <SetField
                                 type="number"
-                                inputMode="decimal"
                                 min={0}
                                 step="0.5"
+                                inputMode="decimal"
                                 value={set.weight_kg ?? ""}
-                                aria-label={t("program.weight")}
+                                label={t("program.weight")}
                                 disabled={readOnly}
                                 onChange={(event) =>
                                   updateSet(dayIndex, exerciseIndex, setIndex, {
@@ -426,10 +450,10 @@ export function ProgramStructureEditor({
                               />
                             </td>
                             <td>
-                              <input
+                              <SetField
                                 type="text"
                                 value={set.intensity ?? ""}
-                                aria-label={t("program.intensity")}
+                                label={t("program.intensity")}
                                 disabled={readOnly}
                                 onChange={(event) =>
                                   updateSet(dayIndex, exerciseIndex, setIndex, {
@@ -439,12 +463,12 @@ export function ProgramStructureEditor({
                               />
                             </td>
                             <td>
-                              <input
+                              <SetField
                                 type="number"
-                                inputMode="decimal"
+                                inputMode="numeric"
                                 min={0}
                                 value={set.rest_seconds ?? ""}
-                                aria-label={t("program.rest")}
+                                label={t("program.rest")}
                                 disabled={readOnly}
                                 onChange={(event) =>
                                   updateSet(dayIndex, exerciseIndex, setIndex, {
@@ -454,12 +478,12 @@ export function ProgramStructureEditor({
                               />
                             </td>
                             <td>
-                              <input
+                              <SetField
                                 type="number"
-                                inputMode="decimal"
+                                inputMode="numeric"
                                 min={0}
                                 value={set.duration_seconds ?? ""}
-                                aria-label={t("program.duration")}
+                                label={t("program.duration")}
                                 disabled={readOnly}
                                 onChange={(event) =>
                                   updateSet(dayIndex, exerciseIndex, setIndex, {
@@ -471,10 +495,10 @@ export function ProgramStructureEditor({
                               />
                             </td>
                             <td>
-                              <input
+                              <SetField
                                 type="text"
                                 value={set.note ?? ""}
-                                aria-label={t("program.setNote")}
+                                label={t("program.setNote")}
                                 disabled={readOnly}
                                 onChange={(event) =>
                                   updateSet(dayIndex, exerciseIndex, setIndex, {
@@ -576,7 +600,7 @@ function AddExercise({
 
   return (
     <div className="m3-builder-add-exercise">
-      <SelectField
+      <SearchableSelectField
         label={t("program.addExercise")}
         value={selected}
         onChange={setSelected}

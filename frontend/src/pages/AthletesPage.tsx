@@ -13,6 +13,7 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
+  SearchableSelectField,
   SelectField,
   Spinner,
   StatusBadge,
@@ -177,15 +178,14 @@ export function AthletesPage() {
       />
 
       <div className="m3-filter-bar">
-        <div className="m3-search">
-          <Search size={18} />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder={t("athletes.search")}
-            aria-label={t("athletes.search")}
-          />
-        </div>
+        <TextField
+          label={t("athletes.search")}
+          type="search"
+          name="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          leading={<Search size={18} aria-hidden />}
+        />
         {isAdmin ? (
           <Switch
             checked={includeArchived}
@@ -332,7 +332,7 @@ export function AthletesPage() {
               }
             />
             {isAdmin ? (
-              <SelectField
+              <SearchableSelectField
                 label={t("athletes.coach")}
                 value={form.coach_user_id}
                 onChange={(value) => setForm({ ...form, coach_user_id: value })}

@@ -17,7 +17,7 @@ import {
   ShieldAlert,
   UserRound,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import {
@@ -37,6 +37,7 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
+  SearchableSelectField,
   SelectField,
   Spinner,
   StatusBadge,
@@ -75,6 +76,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
   const [programEnd, setProgramEnd] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  const uploadId = useId()
   const [form, setForm] = useState({
     full_name: "",
     phone: "",
@@ -551,6 +553,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
             <div className="grid-2" style={{ marginTop: 14 }}>
               <DateField
                 label={t("athletes.birthDate")}
+                maxToday
                 value={form.birth_date}
                 onChange={(value) => setForm({ ...form, birth_date: value })}
               />
@@ -864,12 +867,22 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
             </div>
           </div>
           <div className="m3-upload">
-            <p className="muted" style={{ fontSize: 12 }}>
+            <p
+              id={`${uploadId}-hint`}
+              className="muted"
+              style={{ fontSize: 12 }}
+            >
               {t("athletes.uploadHint")}
             </p>
+            <label className="m3-field__label" htmlFor={uploadId}>
+              {t("athletes.uploadBodyFile")}
+            </label>
             <div className="m3-upload__row">
               <input
                 ref={fileInput}
+                id={uploadId}
+                aria-describedby={`${uploadId}-hint`}
+                disabled={uploading}
                 type="file"
                 accept="application/pdf,image/jpeg,image/png"
                 className="sr-only"
@@ -949,7 +962,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
             <span className="muted">{t("athletes.currentCoach")}:</span>
             <strong>{athlete.coach_name ?? t("athletes.noCoach")}</strong>
           </div>
-          <SelectField
+          <SearchableSelectField
             label={t("athletes.newCoach")}
             value={newCoachId}
             onChange={setNewCoachId}
@@ -1004,11 +1017,13 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
             <DateField
               label={t("program.startDate")}
               value={programStart}
+              maxValue={programEnd}
               onChange={setProgramStart}
             />
             <DateField
               label={t("program.endDate")}
               value={programEnd}
+              minValue={programStart}
               onChange={setProgramEnd}
             />
           </div>

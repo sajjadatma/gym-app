@@ -147,15 +147,14 @@ export function ExercisesPage() {
       />
 
       <div className="m3-filter-bar">
-        <div className="m3-search">
-          <Search size={18} />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder={t("exercises.search")}
-            aria-label={t("exercises.search")}
-          />
-        </div>
+        <TextField
+          label={t("exercises.search")}
+          type="search"
+          name="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          leading={<Search size={18} aria-hidden />}
+        />
         <Chip selected={!group} onClick={() => setGroup("")}>
           {t("exercises.allGroups")}
         </Chip>

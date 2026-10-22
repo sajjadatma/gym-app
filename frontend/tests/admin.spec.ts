@@ -45,6 +45,10 @@ test("athlete list, detail and read-only program builder", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "برنامه قدرتی ۸ هفته‌ای" }),
   ).toBeVisible()
+  await expect(page.getByRole("combobox").first()).toBeDisabled()
+  await expect(
+    page.getByRole("button", { name: "انتخاب تاریخ" }).first(),
+  ).toBeDisabled()
 })
 
 test("add-athlete validation keeps the form and shows a Persian error", async ({

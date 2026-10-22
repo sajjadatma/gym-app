@@ -1,26 +1,99 @@
-import { jalaaliMonthLength, toGregorian, toJalaali } from "jalaali-js"
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react"
-import { useEffect, useId, useRef, useState } from "react"
+import {
+  type CalendarDate,
+  GregorianCalendar,
+  getLocalTimeZone,
+  PersianCalendar,
+  parseDate,
+  toCalendar,
+  today,
+} from "@internationalized/date"
+import {
+  CalendarDays,
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react"
+import { useState } from "react"
+import {
+  Button as AriaButton,
+  Dialog as AriaDialog,
+  Select as AriaSelect,
+  Calendar,
+  CalendarCell,
+  CalendarGrid,
+  CalendarGridBody,
+  CalendarGridHeader,
+  CalendarHeaderCell,
+  CalendarHeading,
+  CalendarMonthPicker,
+  CalendarYearPicker,
+  DateInput,
+  DatePicker,
+  DateSegment,
+  FieldError,
+  Group,
+  I18nProvider,
+  Label,
+  ListBox,
+  ListBoxItem,
+  Popover,
+  SelectValue,
+  Text,
+} from "react-aria-components"
 
 import { useI18n } from "../i18n"
-import { IconButton } from "./M3"
+import { useMobileViewport } from "../lib/useMobileViewport"
 
-function pad(value: number) {
-  return String(value).padStart(2, "0")
-}
-
-function isoFromParts(year: number, month: number, day: number) {
-  return `${String(year).padStart(4, "0")}-${pad(month)}-${pad(day)}`
-}
-
-function parseIso(value: string): { year: number; month: number; day: number } {
-  const [year, month, day] = value.split("-").map(Number)
-  return { year, month, day }
-}
-
-function todayIso() {
-  const now = new Date()
-  return isoFromParts(now.getFullYear(), now.getMonth() + 1, now.getDate())
+function CalendarPicker({
+  ariaLabel,
+  value,
+  onChange,
+  items,
+}: {
+  ariaLabel: string
+  value: string | number
+  onChange: (key: string | number | null) => void
+  items: Array<{ id: number; formatted: string }>
+}) {
+  return (
+    <AriaSelect
+      value={value}
+      onChange={onChange}
+      className="m3-calendar__picker"
+    >
+      <Label className="m3-calendar__picker-label">{ariaLabel}</Label>
+      <AriaButton className="m3-calendar__picker-button">
+        <SelectValue />
+        <ChevronDown size={14} aria-hidden />
+      </AriaButton>
+      <Popover
+        className="m3-calendar__picker-popover"
+        offset={4}
+        containerPadding={8}
+        placement="bottom start"
+      >
+        <ListBox items={items} className="m3-listbox m3-calendar__picker-list">
+          {(item) => (
+            <ListBoxItem
+              id={item.id}
+              textValue={item.formatted}
+              className="m3-listbox__item"
+            >
+              {({ isSelected }) => (
+                <>
+                  <span className="m3-listbox__indicator" aria-hidden>
+                    {isSelected ? <Check size={16} /> : null}
+                  </span>
+                  <span className="m3-listbox__label">{item.formatted}</span>
+                </>
+              )}
+            </ListBoxItem>
+          )}
+        </ListBox>
+      </Popover>
+    </AriaSelect>
+  )
 }
 
 export function DateField({
@@ -31,6 +104,10 @@ export function DateField({
   helper,
   required,
   disabled,
+  id,
+  minValue,
+  maxValue,
+  maxToday,
 }: {
   label: string
   value: string | null | undefined
@@ -39,226 +116,198 @@ export function DateField({
   helper?: string
   required?: boolean
   disabled?: boolean
+  id?: string
+  minValue?: string | null
+  maxValue?: string | null
+  maxToday?: boolean
 }) {
-  const { locale, direction, formatDate, localizeDigits, t } = useI18n()
-  const id = useId()
-  const wrapperRef = useRef<HTMLDivElement>(null)
+  const { locale, direction, t } = useI18n()
+  const isMobile = useMobileViewport()
   const [open, setOpen] = useState(false)
-  const [view, setView] = useState(() => {
-    const base = value ? parseIso(value) : parseIso(todayIso())
-    if (locale === "fa") {
-      const jalali = toJalaali(base.year, base.month, base.day)
-      return { year: jalali.jy, month: jalali.jm }
-    }
-    return { year: base.year, month: base.month }
-  })
+  const localeTag =
+    locale === "fa" ? "fa-IR-u-ca-persian" : "en-US-u-ca-gregory"
+  const calendar =
+    locale === "fa" ? new PersianCalendar() : new GregorianCalendar()
+  const selected = value ? toCalendar(parseDate(value), calendar) : null
+  const todayValue = toCalendar(today(getLocalTimeZone()), calendar)
+  const minimum = minValue
+    ? toCalendar(parseDate(minValue), calendar)
+    : undefined
+  const maximum = maxToday
+    ? todayValue
+    : maxValue
+      ? toCalendar(parseDate(maxValue), calendar)
+      : undefined
+  const canSelectToday =
+    (!minimum || todayValue.compare(minimum) >= 0) &&
+    (!maximum || todayValue.compare(maximum) <= 0)
 
-  useEffect(() => {
-    if (!open) return
-    const handleOutside = (event: MouseEvent) => {
-      if (!wrapperRef.current?.contains(event.target as Node)) setOpen(false)
+  function handleChange(next: CalendarDate | null) {
+    if (!next) {
+      onChange(null)
+      return
     }
-    document.addEventListener("mousedown", handleOutside)
-    return () => document.removeEventListener("mousedown", handleOutside)
-  }, [open])
-
-  function openPicker() {
-    if (disabled) return
-    const base = value ? parseIso(value) : parseIso(todayIso())
-    if (locale === "fa") {
-      const jalali = toJalaali(base.year, base.month, base.day)
-      setView({ year: jalali.jy, month: jalali.jm })
-    } else {
-      setView({ year: base.year, month: base.month })
-    }
-    setOpen((current) => !current)
+    onChange(toCalendar(next, new GregorianCalendar()).toString())
   }
-
-  function moveMonth(delta: number) {
-    setView((current) => {
-      let month = current.month + delta
-      let year = current.year
-      if (month < 1) {
-        month = 12
-        year -= 1
-      } else if (month > 12) {
-        month = 1
-        year += 1
-      }
-      return { year, month }
-    })
-  }
-
-  let daysInMonth: number
-  let firstWeekday: number
-  let monthLabel: string
-  let cells: Array<{ day: number; iso: string } | null>
-
-  if (locale === "fa") {
-    daysInMonth = jalaaliMonthLength(view.year, view.month)
-    const first = toGregorian(view.year, view.month, 1)
-    const firstDate = new Date(first.gy, first.gm - 1, first.gd)
-    firstWeekday = (firstDate.getDay() + 1) % 7
-    monthLabel = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-      year: "numeric",
-      month: "long",
-    }).format(firstDate)
-    cells = Array.from({ length: firstWeekday }).map(() => null)
-    for (let day = 1; day <= daysInMonth; day += 1) {
-      const gregorian = toGregorian(view.year, view.month, day)
-      cells.push({
-        day,
-        iso: isoFromParts(gregorian.gy, gregorian.gm, gregorian.gd),
-      })
-    }
-  } else {
-    const firstDate = new Date(view.year, view.month - 1, 1)
-    daysInMonth = new Date(view.year, view.month, 0).getDate()
-    firstWeekday = firstDate.getDay()
-    monthLabel = new Intl.DateTimeFormat("en-US", {
-      year: "numeric",
-      month: "long",
-    }).format(firstDate)
-    cells = Array.from({ length: firstWeekday }).map(() => null)
-    for (let day = 1; day <= daysInMonth; day += 1) {
-      cells.push({
-        day,
-        iso: isoFromParts(view.year, view.month, day),
-      })
-    }
-  }
-
-  const weekStart =
-    locale === "fa" ? new Date(2024, 0, 6) : new Date(2024, 0, 7)
-  const weekdayLabels = Array.from({ length: 7 }).map((_, index) => {
-    const date = new Date(weekStart)
-    date.setDate(weekStart.getDate() + index)
-    return new Intl.DateTimeFormat(locale === "fa" ? "fa-IR" : "en-US", {
-      weekday: "narrow",
-    }).format(date)
-  })
-
-  const selectedIso = value ?? null
-  const today = todayIso()
 
   return (
-    <div className="m3-field m3-field--date" ref={wrapperRef}>
-      <span className="m3-field__label" id={`${id}-label`}>
-        {label}
-        {required ? (
-          <span className="m3-field__required" aria-hidden>
-            *
-          </span>
-        ) : null}
-      </span>
-      <button
-        type="button"
-        className={`m3-field__control m3-field__date-button ${
-          error ? "m3-field--error" : ""
-        }`}
-        onClick={openPicker}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-labelledby={`${id}-label`}
-        disabled={disabled}
+    <I18nProvider locale={localeTag}>
+      <DatePicker
+        id={id}
+        value={selected}
+        onChange={handleChange}
+        isOpen={open}
+        onOpenChange={setOpen}
+        isRequired={required}
+        isDisabled={disabled}
+        isInvalid={Boolean(error)}
+        minValue={minimum}
+        maxValue={maximum}
+        placeholderValue={todayValue}
+        granularity="day"
+        firstDayOfWeek={locale === "fa" ? "sat" : "sun"}
+        dir={direction}
+        className={`m3-field m3-picker-field m3-date-field ${error ? "is-invalid" : ""}`}
       >
-        <CalendarDays size={19} aria-hidden />
-        <span className={selectedIso ? "" : "m3-field__placeholder"}>
-          {selectedIso ? formatDate(selectedIso, true) : t("common.selectDate")}
-        </span>
-      </button>
-      {error ? (
-        <p className="m3-field__message m3-field__message--error">{error}</p>
-      ) : helper ? (
-        <p className="m3-field__message">{helper}</p>
-      ) : null}
-      {open ? (
-        <div
+        <Label className="m3-field__label">
+          {label}
+          {required ? (
+            <span className="m3-field__required" aria-hidden>
+              *
+            </span>
+          ) : null}
+        </Label>
+        <Group className="m3-field__control m3-date-field__control">
+          <DateInput className="m3-date-field__input">
+            {(segment) => (
+              <DateSegment segment={segment} className="m3-date-segment" />
+            )}
+          </DateInput>
+          <AriaButton
+            className="m3-date-field__trigger"
+            aria-label={t("common.selectDate")}
+          >
+            <CalendarDays size={19} aria-hidden />
+          </AriaButton>
+        </Group>
+        <FieldError className="m3-field__message m3-field__message--error">
+          {error}
+        </FieldError>
+        {!error && helper ? (
+          <Text slot="description" className="m3-field__message">
+            {helper}
+          </Text>
+        ) : null}
+        <Popover
           className="m3-date-popover"
-          role="dialog"
-          aria-modal="false"
-          aria-label={label}
+          offset={8}
+          containerPadding={12}
+          placement={isMobile ? "top start" : "bottom start"}
         >
-          <header className="m3-date-popover__header">
-            <IconButton
-              label={
-                direction === "rtl" ? t("common.next") : t("common.previous")
-              }
-              onClick={() => moveMonth(direction === "rtl" ? 1 : -1)}
+          <AriaDialog className="m3-date-dialog" aria-label={label}>
+            <Calendar
+              aria-label={label}
+              firstDayOfWeek={locale === "fa" ? "sat" : "sun"}
             >
-              {direction === "rtl" ? (
-                <ChevronRight size={20} />
-              ) : (
-                <ChevronLeft size={20} />
-              )}
-            </IconButton>
-            <strong>{monthLabel}</strong>
-            <IconButton
-              label={
-                direction === "rtl" ? t("common.previous") : t("common.next")
-              }
-              onClick={() => moveMonth(direction === "rtl" ? -1 : 1)}
-            >
-              {direction === "rtl" ? (
-                <ChevronLeft size={20} />
-              ) : (
-                <ChevronRight size={20} />
-              )}
-            </IconButton>
-          </header>
-          <div className="m3-date-grid m3-date-grid--head" aria-hidden>
-            {weekdayLabels.map((label, index) => (
-              <span key={`${label}-${index}`}>{label}</span>
-            ))}
-          </div>
-          <div className="m3-date-grid">
-            {cells.map((cell, index) =>
-              cell ? (
+              <CalendarHeading className="sr-only" />
+              <header className="m3-calendar__header">
+                <AriaButton
+                  slot="previous"
+                  className="m3-calendar__nav"
+                  aria-label={t("common.previous")}
+                >
+                  {direction === "rtl" ? (
+                    <ChevronRight size={20} aria-hidden />
+                  ) : (
+                    <ChevronLeft size={20} aria-hidden />
+                  )}
+                </AriaButton>
+                <div className="m3-calendar__pickers">
+                  <CalendarMonthPicker>
+                    {(props) => (
+                      <CalendarPicker
+                        ariaLabel={props["aria-label"]}
+                        value={props.value}
+                        onChange={props.onChange}
+                        items={props.items}
+                      />
+                    )}
+                  </CalendarMonthPicker>
+                  <CalendarYearPicker visibleYears={100}>
+                    {(props) => (
+                      <CalendarPicker
+                        ariaLabel={props["aria-label"]}
+                        value={props.value}
+                        onChange={props.onChange}
+                        items={props.items}
+                      />
+                    )}
+                  </CalendarYearPicker>
+                </div>
+                <AriaButton
+                  slot="next"
+                  className="m3-calendar__nav"
+                  aria-label={t("common.next")}
+                >
+                  {direction === "rtl" ? (
+                    <ChevronLeft size={20} aria-hidden />
+                  ) : (
+                    <ChevronRight size={20} aria-hidden />
+                  )}
+                </AriaButton>
+              </header>
+              <CalendarGrid className="m3-calendar__grid">
+                <CalendarGridHeader>
+                  {(day) => (
+                    <CalendarHeaderCell className="m3-calendar__weekday">
+                      {day}
+                    </CalendarHeaderCell>
+                  )}
+                </CalendarGridHeader>
+                <CalendarGridBody>
+                  {(date) => (
+                    <CalendarCell
+                      date={date}
+                      className={({ isSelected, isOutsideMonth }) =>
+                        `m3-calendar__day ${
+                          isSelected ? "is-selected" : ""
+                        } ${isOutsideMonth ? "is-outside-month" : ""} ${
+                          date.compare(todayValue) === 0 ? "is-today" : ""
+                        }`
+                      }
+                    />
+                  )}
+                </CalendarGridBody>
+              </CalendarGrid>
+              <footer className="m3-calendar__actions">
                 <button
-                  key={cell.iso}
                   type="button"
-                  aria-label={formatDate(cell.iso)}
-                  className={`m3-date-day ${
-                    cell.iso === selectedIso ? "is-selected" : ""
-                  } ${cell.iso === today ? "is-today" : ""}`}
+                  className="m3-text-button"
+                  disabled={!canSelectToday}
                   onClick={() => {
-                    onChange(cell.iso)
+                    handleChange(todayValue)
                     setOpen(false)
                   }}
                 >
-                  {localizeDigits(cell.day)}
+                  {t("common.today")}
                 </button>
-              ) : (
-                <span key={`empty-${index}`} />
-              ),
-            )}
-          </div>
-          <footer className="m3-date-popover__footer">
-            <button
-              type="button"
-              className="m3-text-button"
-              onClick={() => {
-                onChange(today)
-                setOpen(false)
-              }}
-            >
-              {t("common.today")}
-            </button>
-            {selectedIso ? (
-              <button
-                type="button"
-                className="m3-text-button"
-                onClick={() => {
-                  onChange(null)
-                  setOpen(false)
-                }}
-              >
-                {t("common.clear")}
-              </button>
-            ) : null}
-          </footer>
-        </div>
-      ) : null}
-    </div>
+                {value ? (
+                  <button
+                    type="button"
+                    className="m3-text-button"
+                    onClick={() => {
+                      handleChange(null)
+                      setOpen(false)
+                    }}
+                  >
+                    {t("common.clear")}
+                  </button>
+                ) : null}
+              </footer>
+            </Calendar>
+          </AriaDialog>
+        </Popover>
+      </DatePicker>
+    </I18nProvider>
   )
 }

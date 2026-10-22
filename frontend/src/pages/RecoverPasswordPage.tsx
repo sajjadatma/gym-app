@@ -52,11 +52,6 @@ export function RecoverPasswordPage() {
         </div>
       ) : (
         <form className="m3-auth-form" onSubmit={handleSubmit} noValidate>
-          {error ? (
-            <div className="m3-inline-alert" role="alert">
-              {error}
-            </div>
-          ) : null}
           <TextField
             label={t("auth.email")}
             type="email"

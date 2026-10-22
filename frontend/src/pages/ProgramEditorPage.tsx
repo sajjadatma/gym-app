@@ -377,12 +377,14 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
                 <DateField
                   label={t("program.startDate")}
                   value={meta.start_date}
+                  maxValue={meta.end_date}
                   onChange={(value) => updateMeta({ start_date: value })}
                   disabled={!canEdit}
                 />
                 <DateField
                   label={t("program.endDate")}
                   value={meta.end_date}
+                  minValue={meta.start_date}
                   onChange={(value) => updateMeta({ end_date: value })}
                   disabled={!canEdit}
                 />

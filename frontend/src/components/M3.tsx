@@ -1,4 +1,4 @@
-import { ChevronDown, X } from "lucide-react"
+import { Check, ChevronDown, Search, X } from "lucide-react"
 import {
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
@@ -9,9 +9,25 @@ import {
   useRef,
   useState,
 } from "react"
+import {
+  Button as AriaButton,
+  ComboBox as AriaComboBox,
+  Input as AriaInput,
+  Label as AriaLabel,
+  Popover as AriaPopover,
+  Select as AriaSelect,
+  Text as AriaText,
+  FieldError,
+  Group,
+  I18nProvider,
+  ListBox,
+  ListBoxItem,
+  SelectValue,
+} from "react-aria-components"
 import { createPortal } from "react-dom"
 
 import { useI18n } from "../i18n"
+import { useMobileViewport } from "../lib/useMobileViewport"
 
 type ButtonVariant = "filled" | "tonal" | "outlined" | "text" | "danger"
 type ButtonSize = "sm" | "md"
@@ -147,11 +163,16 @@ export function TextField({
   className = "",
   id,
   required,
+  "aria-describedby": describedBy,
   ...props
 }: TextFieldProps) {
   const generatedId = useId()
   const fieldId = id ?? generatedId
   const messageId = `${fieldId}-message`
+  const description =
+    [describedBy, error || helper ? messageId : undefined]
+      .filter(Boolean)
+      .join(" ") || undefined
   const inputClasses = `m3-field__input ${className}`
   return (
     <div
@@ -174,7 +195,7 @@ export function TextField({
             rows={rows}
             required={required}
             aria-invalid={Boolean(error)}
-            aria-describedby={error || helper ? messageId : undefined}
+            aria-describedby={description}
             {...(props as unknown as TextareaHTMLAttributes<HTMLTextAreaElement>)}
           />
         ) : (
@@ -183,7 +204,7 @@ export function TextField({
             className={inputClasses}
             required={required}
             aria-invalid={Boolean(error)}
-            aria-describedby={error || helper ? messageId : undefined}
+            aria-describedby={description}
             {...props}
           />
         )}
@@ -193,6 +214,7 @@ export function TextField({
         <p
           className="m3-field__message m3-field__message--error"
           id={messageId}
+          role="alert"
         >
           {error}
         </p>
@@ -206,6 +228,101 @@ export function TextField({
 }
 
 export type SelectOption = { value: string; label: string }
+
+type M3SelectItem = {
+  id: string
+  label: string
+}
+
+const EMPTY_OPTION_KEY = "__m3_empty_option__"
+
+function selectItems(options: SelectOption[]): M3SelectItem[] {
+  return options.map((option) => ({
+    id: option.value === "" ? EMPTY_OPTION_KEY : option.value,
+    label: option.label,
+  }))
+}
+
+function valueToKey(value: string, options: SelectOption[]): string | null {
+  if (value === "") {
+    return options.some((option) => option.value === "")
+      ? EMPTY_OPTION_KEY
+      : null
+  }
+  return value
+}
+
+function keyToValue(key: string | number | null): string {
+  if (key === null || key === EMPTY_OPTION_KEY) return ""
+  return String(key)
+}
+
+function FieldSupport({ error, helper }: { error?: string; helper?: string }) {
+  return (
+    <>
+      <FieldError className="m3-field__message m3-field__message--error">
+        {error}
+      </FieldError>
+      {!error && helper ? (
+        <AriaText slot="description" className="m3-field__message">
+          {helper}
+        </AriaText>
+      ) : null}
+    </>
+  )
+}
+
+function listBoxItem(item: M3SelectItem) {
+  return (
+    <ListBoxItem
+      id={item.id}
+      textValue={item.label}
+      className="m3-listbox__item"
+    >
+      {({ isSelected }) => (
+        <>
+          <span className="m3-listbox__indicator" aria-hidden>
+            {isSelected ? <Check size={18} /> : null}
+          </span>
+          <span className="m3-listbox__label">{item.label}</span>
+        </>
+      )}
+    </ListBoxItem>
+  )
+}
+
+function EmptyListBoxState({ emptyLabel }: { emptyLabel: string }) {
+  return <div className="m3-listbox__empty">{emptyLabel}</div>
+}
+
+function SelectListBox({
+  items,
+  emptyLabel,
+}: {
+  items: M3SelectItem[]
+  emptyLabel: string
+}) {
+  return (
+    <ListBox
+      items={items}
+      className="m3-listbox"
+      renderEmptyState={() => <EmptyListBoxState emptyLabel={emptyLabel} />}
+    >
+      {listBoxItem}
+    </ListBox>
+  )
+}
+
+function ComboBoxListBox({ emptyLabel }: { emptyLabel: string }) {
+  return (
+    <ListBox
+      className="m3-listbox"
+      renderEmptyState={() => <EmptyListBoxState emptyLabel={emptyLabel} />}
+    >
+      {listBoxItem}
+    </ListBox>
+  )
+}
 
 export function SelectField({
   label,
@@ -232,54 +349,131 @@ export function SelectField({
   disabled?: boolean
   containerClassName?: string
 }) {
-  const generatedId = useId()
-  const fieldId = id ?? generatedId
-  const messageId = `${fieldId}-message`
+  const { t, direction, locale } = useI18n()
+  const isMobile = useMobileViewport()
+  const localeTag =
+    locale === "fa" ? "fa-IR-u-ca-persian" : "en-US-u-ca-gregory"
+  const items = selectItems(options)
+  const selectedKey = valueToKey(value, options)
   return (
-    <div
-      className={`m3-field ${error ? "m3-field--error" : ""} ${containerClassName}`}
-    >
-      <label className="m3-field__label" htmlFor={fieldId}>
-        {label}
-        {required ? (
-          <span className="m3-field__required" aria-hidden>
-            *
-          </span>
-        ) : null}
-      </label>
-      <div className="m3-field__control m3-field__control--select">
-        <select
-          id={fieldId}
-          className="m3-field__input m3-field__select"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          required={required}
-          disabled={disabled}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error || helper ? messageId : undefined}
+    <I18nProvider locale={localeTag}>
+      <AriaSelect
+        id={id}
+        value={selectedKey}
+        onChange={(key) => onChange(keyToValue(key))}
+        isDisabled={disabled}
+        isInvalid={Boolean(error)}
+        isRequired={required}
+        placeholder={placeholder ?? t("common.choose")}
+        dir={direction}
+        className={`m3-field m3-picker-field m3-select ${error ? "is-invalid" : ""} ${containerClassName}`}
+      >
+        <AriaLabel className="m3-field__label">
+          {label}
+          {required ? (
+            <span className="m3-field__required" aria-hidden>
+              *
+            </span>
+          ) : null}
+        </AriaLabel>
+        <AriaButton className="m3-field__control m3-select__button">
+          <SelectValue className="m3-select__value" />
+          <ChevronDown className="m3-select__chevron" size={20} aria-hidden />
+        </AriaButton>
+        <FieldSupport error={error} helper={helper} />
+        <AriaPopover
+          className="m3-select-popover"
+          offset={6}
+          containerPadding={12}
+          placement={isMobile ? "top start" : "bottom start"}
+          dir={direction}
         >
-          {placeholder ? <option value="">{placeholder}</option> : null}
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <ChevronDown size={18} className="m3-field__chevron" aria-hidden />
-      </div>
-      {error ? (
-        <p
-          className="m3-field__message m3-field__message--error"
-          id={messageId}
+          <SelectListBox items={items} emptyLabel={t("common.noResults")} />
+        </AriaPopover>
+      </AriaSelect>
+    </I18nProvider>
+  )
+}
+
+export function SearchableSelectField({
+  label,
+  value,
+  onChange,
+  options,
+  error,
+  helper,
+  required,
+  placeholder,
+  id,
+  disabled,
+  containerClassName = "",
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: SelectOption[]
+  error?: string
+  helper?: string
+  required?: boolean
+  placeholder?: string
+  id?: string
+  disabled?: boolean
+  containerClassName?: string
+}) {
+  const { t, direction, locale } = useI18n()
+  const isMobile = useMobileViewport()
+  const localeTag =
+    locale === "fa" ? "fa-IR-u-ca-persian" : "en-US-u-ca-gregory"
+  const items = selectItems(options)
+  const selectedKey = valueToKey(value, options)
+  return (
+    <I18nProvider locale={localeTag}>
+      <AriaComboBox
+        id={id}
+        value={selectedKey}
+        onChange={(key) => onChange(keyToValue(key))}
+        defaultItems={items}
+        isDisabled={disabled}
+        isInvalid={Boolean(error)}
+        isRequired={required}
+        allowsEmptyCollection
+        menuTrigger="focus"
+        dir={direction}
+        className={`m3-field m3-picker-field m3-combobox ${error ? "is-invalid" : ""} ${containerClassName}`}
+      >
+        <AriaLabel className="m3-field__label">
+          {label}
+          {required ? (
+            <span className="m3-field__required" aria-hidden>
+              *
+            </span>
+          ) : null}
+        </AriaLabel>
+        <Group className="m3-field__control m3-combobox__control">
+          <Search size={18} className="m3-combobox__search" aria-hidden />
+          <AriaInput
+            className="m3-combobox__input"
+            placeholder={placeholder ?? t("common.choose")}
+          />
+          <AriaButton
+            className="m3-combobox__trigger"
+            aria-label={t("common.showOptions")}
+          >
+            <ChevronDown size={20} aria-hidden />
+          </AriaButton>
+        </Group>
+        <FieldSupport error={error} helper={helper} />
+        <AriaPopover
+          className="m3-select-popover m3-combobox__popover"
+          offset={6}
+          containerPadding={12}
+          placement={isMobile ? "top start" : "bottom start"}
+          dir={direction}
         >
-          {error}
-        </p>
-      ) : helper ? (
-        <p className="m3-field__message" id={messageId}>
-          {helper}
-        </p>
-      ) : null}
-    </div>
+          <ComboBoxListBox emptyLabel={t("common.noResults")} />
+        </AriaPopover>
+      </AriaComboBox>
+    </I18nProvider>
   )
 }
 
@@ -300,6 +494,7 @@ export function Switch({
       <button
         type="button"
         role="switch"
+        aria-label={label}
         aria-checked={checked}
         className="m3-switch__track"
         data-checked={checked}
@@ -426,7 +621,13 @@ export function Dialog({
       ;(firstField ?? focusable()[0])?.focus()
     })
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onCloseRef.current()
+      if (event.key === "Escape") {
+        const openPopover = document.querySelector(
+          ".m3-select-popover, .m3-date-popover, .m3-calendar__picker-popover",
+        )
+        if (openPopover?.getClientRects().length) return
+        onCloseRef.current()
+      }
       if (event.key !== "Tab") return
       const items = focusable()
       if (!items.length) return
@@ -440,12 +641,12 @@ export function Dialog({
         first.focus()
       }
     }
-    document.addEventListener("keydown", onKey)
+    document.addEventListener("keydown", onKey, true)
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = "hidden"
     return () => {
       window.cancelAnimationFrame(frame)
-      document.removeEventListener("keydown", onKey)
+      document.removeEventListener("keydown", onKey, true)
       document.body.style.overflow = previousOverflow
       previousFocus?.focus()
     }
