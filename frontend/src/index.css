@@ -1794,6 +1794,169 @@ button:disabled {
 /* Athlete experience                                                */
 /* ------------------------------------------------------------------ */
 
+.m3-profile-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.9fr);
+  gap: 24px;
+  align-items: stretch;
+  padding: 24px;
+  border-radius: 24px;
+  border: 1px solid var(--m3-outline-variant);
+  background:
+    radial-gradient(
+      140% 180% at 100% 0%,
+      color-mix(in srgb, var(--m3-primary) 10%, transparent),
+      transparent 58%
+    ),
+    var(--m3-surface-container-lowest);
+  box-shadow: var(--m3-shadow-1);
+}
+
+.m3-profile-hero__identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 0;
+}
+
+.m3-profile-hero__avatar .m3-avatar {
+  width: 64px;
+  height: 64px;
+  font-size: 20px;
+}
+
+.m3-profile-hero__info {
+  min-width: 0;
+  flex: 1;
+}
+
+.m3-profile-hero__name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.m3-profile-hero__title {
+  font-size: 1.45rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.m3-profile-hero__contacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.m3-contact-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--m3-surface-container);
+  color: var(--m3-on-surface-variant);
+  font-size: 12px;
+  text-decoration: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+a.m3-contact-chip:hover {
+  background: var(--m3-secondary-container);
+  color: var(--m3-on-secondary-container);
+  border-color: color-mix(in srgb, var(--m3-primary) 30%, transparent);
+}
+
+a.m3-contact-chip:focus-visible {
+  outline: 2px solid var(--m3-primary);
+  outline-offset: 2px;
+}
+
+.m3-profile-hero__program {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid
+    color-mix(in srgb, var(--m3-primary) 22%, var(--m3-outline-variant));
+  background: color-mix(
+    in srgb,
+    var(--m3-primary) 7%,
+    var(--m3-surface-container)
+  );
+}
+
+.m3-profile-hero__program.is-empty {
+  justify-content: center;
+  border-style: dashed;
+  border-color: var(--m3-outline-variant);
+  background: transparent;
+}
+
+.m3-profile-hero__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--m3-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.m3-profile-hero__program-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 1.15rem;
+  font-weight: 750;
+  line-height: 1.4;
+}
+
+.m3-profile-hero__version {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--m3-surface-container-high);
+  color: var(--m3-on-surface-variant);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.m3-profile-hero__program-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  color: var(--m3-on-surface-variant);
+  font-size: 11.5px;
+}
+
+.m3-profile-hero__program-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.m3-profile-hero__program .m3-button {
+  margin-top: 4px;
+}
+
+.m3-profile-hero__empty {
+  margin: 0;
+  color: var(--m3-on-surface-variant);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
 .m3-athlete-hero {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -1801,8 +1964,15 @@ button:disabled {
   align-items: center;
   padding: 24px;
   border-radius: 24px;
-  background: var(--m3-surface-container-low);
+  background:
+    radial-gradient(
+      140% 180% at 100% 0%,
+      color-mix(in srgb, var(--m3-primary) 10%, transparent),
+      transparent 58%
+    ),
+    var(--m3-surface-container-low);
   border: 1px solid var(--m3-outline-variant);
+  box-shadow: var(--m3-shadow-1);
 }
 
 .m3-athlete-hero__program {
@@ -2274,6 +2444,18 @@ button:disabled {
 
   .m3-athlete-hero {
     grid-template-columns: 1fr;
+  }
+
+  .m3-profile-hero {
+    grid-template-columns: 1fr;
+    padding: 18px;
+    gap: 18px;
+  }
+
+  .m3-profile-hero__avatar .m3-avatar {
+    width: 54px;
+    height: 54px;
+    font-size: 17px;
   }
 
   .m3-print-page {

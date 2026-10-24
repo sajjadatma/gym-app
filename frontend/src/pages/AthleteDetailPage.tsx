@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import {
   Archive,
-  ArrowRight,
+  ArrowLeft,
   CalendarDays,
   ClipboardList,
   Download,
@@ -451,7 +451,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 </Button>
               </>
             ) : null}
-            {canEdit ? (
+            {canEdit && activeProgram ? (
               <Button icon={<Plus size={17} />} onClick={openNewProgram}>
                 {t("athletes.createProgram")}
               </Button>
@@ -460,63 +460,113 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
         }
       />
 
-      <Card className="m3-card--outlined">
-        <div
-          className="row"
-          style={{ gap: 16, flexWrap: "nowrap", alignItems: "flex-start" }}
-        >
-          <Avatar name={athlete.profile.full_name ?? athlete.profile.email} />
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div className="row" style={{ gap: 8 }}>
-              <strong>
+      <section className="m3-profile-hero">
+        <div className="m3-profile-hero__identity">
+          <div className="m3-profile-hero__avatar">
+            <Avatar name={athlete.profile.full_name ?? athlete.profile.email} />
+          </div>
+          <div className="m3-profile-hero__info">
+            <div className="m3-profile-hero__name">
+              <span className="m3-profile-hero__title">
                 {athlete.profile.full_name ?? athlete.profile.email}
-              </strong>
+              </span>
               <StatusBadge
                 status={athlete.profile.is_archived ? "archived" : "active"}
               />
             </div>
-            <div className="m3-entity-card__meta" style={{ marginTop: 4 }}>
-              <span dir="ltr">
-                <Mail size={13} style={{ verticalAlign: "middle" }} />{" "}
-                {athlete.profile.email}
-              </span>
+            <div className="m3-profile-hero__contacts">
+              <a
+                className="m3-contact-chip"
+                href={`mailto:${athlete.profile.email}`}
+                dir="ltr"
+              >
+                <Mail size={14} aria-hidden />
+                <span>{athlete.profile.email}</span>
+              </a>
               {athlete.profile.phone ? (
-                <span dir="ltr">
-                  <Phone size={13} style={{ verticalAlign: "middle" }} />{" "}
-                  {athlete.profile.phone}
-                </span>
+                <a
+                  className="m3-contact-chip"
+                  href={`tel:${athlete.profile.phone}`}
+                  dir="ltr"
+                >
+                  <Phone size={14} aria-hidden />
+                  <span>{athlete.profile.phone}</span>
+                </a>
               ) : null}
-              <span>
-                <UserRound size={13} style={{ verticalAlign: "middle" }} />{" "}
-                {athlete.coach_name ?? t("athletes.noCoach")}
+              <span className="m3-contact-chip">
+                <UserRound size={14} aria-hidden />
+                <span>{athlete.coach_name ?? t("athletes.noCoach")}</span>
               </span>
             </div>
-            {activeProgram ? (
-              <div className="row" style={{ marginTop: 10 }}>
-                <span className="m3-status m3-status--active">
-                  {activeProgram.title} ·{" "}
+          </div>
+        </div>
+
+        <div
+          className={`m3-profile-hero__program ${
+            activeProgram ? "" : "is-empty"
+          }`}
+        >
+          <span className="m3-profile-hero__eyebrow">
+            <ClipboardList size={14} aria-hidden />
+            {activeProgram ? t("my.activeProgram") : t("program.title")}
+          </span>
+          {activeProgram ? (
+            <>
+              <div className="m3-profile-hero__program-name">
+                <span>{activeProgram.title}</span>
+                <span className="m3-profile-hero__version">
                   {t("program.versionLabel", {
                     version: formatNumber(activeProgram.version_number),
                   })}
                 </span>
-                <Button
-                  variant="text"
-                  size="sm"
-                  icon={<ArrowRight size={14} />}
-                  onClick={() =>
-                    navigate({
-                      to: "/programs/$versionId/edit",
-                      params: { versionId: activeProgram.id },
-                    })
-                  }
-                >
-                  {t("common.open")}
-                </Button>
               </div>
-            ) : null}
-          </div>
+              <div className="m3-profile-hero__program-meta">
+                <span>
+                  <ClipboardList size={13} aria-hidden />
+                  {t("program.days")}: {formatNumber(activeProgram.day_count)}
+                </span>
+                {activeProgram.coach_name ? (
+                  <span>
+                    <UserRound size={13} aria-hidden />
+                    {activeProgram.coach_name}
+                  </span>
+                ) : null}
+                {activeProgram.start_date ? (
+                  <span>
+                    <CalendarDays size={13} aria-hidden />
+                    {formatDate(activeProgram.start_date)}
+                    {activeProgram.end_date
+                      ? ` — ${formatDate(activeProgram.end_date)}`
+                      : ""}
+                  </span>
+                ) : null}
+              </div>
+              <Button
+                icon={<ArrowLeft size={16} />}
+                onClick={() =>
+                  navigate({
+                    to: "/programs/$versionId/edit",
+                    params: { versionId: activeProgram.id },
+                  })
+                }
+              >
+                {t("common.open")}
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="m3-profile-hero__empty">
+                {t("athletes.noProgramsHint")}
+              </p>
+              {canEdit ? (
+                <Button icon={<Plus size={16} />} onClick={openNewProgram}>
+                  {t("athletes.createProgram")}
+                </Button>
+              ) : null}
+            </>
+          )}
         </div>
-      </Card>
+      </section>
 
       <div style={{ height: 18 }} />
       <Tabs
@@ -757,11 +807,6 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 {t("program.versionHistory")}
               </p>
             </div>
-            {canEdit ? (
-              <Button icon={<Plus size={17} />} onClick={openNewProgram}>
-                {t("athletes.createProgram")}
-              </Button>
-            ) : null}
           </div>
           {programsQuery.isLoading ? (
             <Spinner label={t("common.loading")} />
@@ -867,13 +912,6 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
               icon={<ClipboardList size={26} />}
               title={t("athletes.noPrograms")}
               description={t("athletes.noProgramsHint")}
-              action={
-                canEdit ? (
-                  <Button icon={<Plus size={17} />} onClick={openNewProgram}>
-                    {t("athletes.createProgram")}
-                  </Button>
-                ) : undefined
-              }
             />
           )}
         </div>
