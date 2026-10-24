@@ -212,7 +212,7 @@ These were in scope for HARD-03/HARD-04, not for Stage A. **Resolved/verified in
 
 - **Stage A verdict:** every plan hypothesis has an independent verdict with code/test evidence. No application behavior was changed.
 - **Stage A interim GO/NO-GO (historical):** **NO-GO for public/networked use or real user data.** **CONDITIONAL GO for local manual acceptance with disposable/demo data**, with known high-risk behavior: reset-token replay (SEC-01), stale tokens after password change (SEC-02), and non-atomic file/DB delete/upload paths (DATA-01/02).
-- **Final Stage D2 posture:** **GO for local manual acceptance with disposable/demo data.** **NO-GO for public/networked use or real user data** until the deferred production-readiness items are addressed: login/recovery abuse controls (SEC-03), a documented and tested backup/restore procedure (HARD-05), and a public-hosting CSP/session-storage review (SEC-04 note). SEC-04 remains rejected for MVP1. DATA-03 was resolved by decision on 2026-10-25: any-status version deletion is deliberate, and permanent deletion of archived history by gym admins is an accepted tradeoff. A minimal CI workflow now exists but has not run yet; it is a quality gate, not proof of production readiness. See sections 9–10 for verification evidence and CI status.
+- **Final Stage D2 posture:** **GO for local manual acceptance with disposable/demo data.** **NO-GO for public/networked use or real user data** until the deferred production-readiness items are addressed: login/recovery abuse controls (SEC-03), a documented and tested backup/restore procedure (HARD-05), and a public-hosting CSP/session-storage review (SEC-04 note). SEC-04 remains rejected for MVP1. DATA-03 was resolved by decision on 2026-10-25: any-status version deletion is deliberate, and permanent deletion of archived history by gym admins is an accepted tradeoff. A minimal CI workflow now exists and its latest run (`40135595365`) is green; it is a quality gate, not proof of production readiness. See sections 9–10 for verification evidence and CI status.
 
 ---
 
@@ -284,7 +284,7 @@ These commands were re-run during Stage D2 after adding CI and produced the same
 - **SEC-03:** no login/recovery throttling; production blocker before network exposure.
 - **HARD-05:** no automated/tested backup-restore procedure; production blocker before real user data.
 - **SEC-04:** `localStorage` bearer-token tradeoff accepted for local MVP1; CSP/storage review required before public hosting.
-- **CI status:** `.github/workflows/ci.yml` exists and defines backend + frontend gates, but it **has not run yet** — pending the first push/PR trigger. Do not treat it as a green signal until a real run is observed. Playwright is intentionally excluded. Status remains pending after the final review round; it is left for the parent to finalize.
+- **CI status (finalized 2026-10-25):** `.github/workflows/ci.yml` has now run on GitHub-hosted runners. Run `40133342263` (`c51df2d`) — `frontend` success, `backend` **failure** at the Alembic migration smoke test (masked-password defect in `tests/test_migrations.py`; fixed in `04b5a5a`). Run `40134979359` (`448206b`) — **success** (2m0s). Final run `40135595365` (`df6c974`) — **success**: backend job (ruff, mypy, pytest, migration smoke with Postgres 17 service) 1m53s, frontend job (lint:check, tsc, build) 25s. Playwright remains intentionally excluded from CI (documented in the workflow header). CI green is a quality gate, not proof of production readiness.
 
 ---
 
@@ -307,7 +307,7 @@ These commands were re-run during Stage D2 after adding CI and produced the same
 - **`frontend` job:** Bun 1.3.14 + Node 22; `bun install --frozen-lockfile`; `bun run lint:check`; `bunx tsc -p tsconfig.build.json --noEmit`; `bun run build`.
 - **Playwright is intentionally excluded.** It requires a running backend, the frontend server, seeded demo data, and a browser; that is a heavier integration environment outside this minimal gate. The exclusion is documented in the workflow header comment.
 - Actions are pinned to commit SHAs and `persist-credentials: false` is set, consistent with the repository's `zizmor` pre-commit hook. `uv run zizmor .github/workflows/ci.yml` reports no findings.
-- **CI status:** **added, not yet run.** No push was made, so no GitHub Actions run exists. The workflow is unverified in GitHub-hosted CI; the first push/PR trigger is pending. Local command equivalents pass, but that is not evidence that the hosted workflow passes (runner image, Python/Bun installation, service startup, and action versions remain unexercised).
+- **CI status (finalized 2026-10-25):** the workflow **has now run on GitHub-hosted runners**. Run `40133342263` (`c51df2d`): `frontend` success, `backend` **failure** — the migration smoke test failed with `FATAL: password authentication failed for user "postgres"` because `str(sqlalchemy.URL)` masks the password; fixed in `04b5a5a` (render_as_string with password, regression tests). Run `40134979359` (`448206b`): **success** (2m0s). Final run `40135595365` (`df6c974`): **success** — backend 1m53s, frontend 25s.
 - **Validation performed locally:** YAML parses; `zizmor` clean; the exact lint/type/test/build commands and both frozen install commands pass locally. `actionlint` was not available in this environment.
 
 ---
@@ -342,6 +342,6 @@ An independent review of the hardening work found eight issues after the Stage D
 - **DATA-05 back-compat:** optional `expected_revision` is intentional and test-pinned; stale clients can bypass conflict detection. Do not remove without an approved breaking-change decision.
 - **SEC-02 logout:** tokens survive client-side logout until expiry. A server-side logout/revocation design (single session vs all sessions) needs an explicit product decision before production.
 - **Schema metadata drift:** the `server_default` difference is harmless and visible to Alembic as a non-difference; no migration was added.
-- **CI status:** unchanged and still pending the first real GitHub Actions run (see §10.2). Left for the parent to finalize after the push.
+- **CI status:** finalized 2026-10-25 — run `40135595365` (`df6c974`) is green on GitHub-hosted runners (backend 1m53s incl. migration smoke with Postgres 17 service; frontend 25s). Earlier runs: `40133342263` failure (masked-password migration test, fixed in `04b5a5a`), `40134979359` success. See §10.2.
 - **Verification for this round:** `ruff`, `mypy`, full `pytest` (77 passed), migration tests (4 passed), Biome `lint:check`, `tsc`, production build, full Playwright (50 total / 49 passed / 1 skipped), and the production PWA subset (3 passed) all ran locally.
 
