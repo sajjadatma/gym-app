@@ -163,7 +163,7 @@ It prints only pass/fail metadata and the account identity, never the password.
 - `internal_coach_note` exists only in staff responses; it is absent from athlete APIs, the athlete UI and print/PDF output.
 - Invitations and password recovery use Mailpit locally; no external SMTP is configured.
 - No attendance, workout performance logging, analytics, chat, nutrition, payments, AI program generation or native app features are implemented.
-- No deployment or public CI/hosting is configured for MVP1.
+- No deployment or public hosting is configured for MVP1. Minimal GitHub Actions CI gates (lint, type checks, tests, migration smoke test, frontend build) are defined in `.github/workflows/ci.yml`; no deploy steps are included.
 
 ## Documentation
 
