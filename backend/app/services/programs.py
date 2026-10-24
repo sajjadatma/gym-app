@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from typing import Any, cast
 
 from fastapi import HTTPException
+from sqlalchemy import update
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, func, select
 
 from app.api.deps import AthleteAccess, GymContext, get_athlete_access
@@ -291,6 +294,7 @@ def version_summary(
         title=version.title,
         goal=version.goal,
         version_number=version.version_number,
+        revision=version.revision,
         status=cast(ProgramStatus, version.status),
         coach_id=version.coach_id,
         coach_name=version.coach_name,
@@ -388,6 +392,78 @@ def next_version_number(session: Session, program_id: uuid.UUID) -> int:
         )
     ).one()
     return int(current or 0) + 1
+
+
+VERSION_ALLOCATION_ATTEMPTS = 3
+
+
+def _is_version_number_conflict(exc: IntegrityError) -> bool:
+    diag = getattr(exc.orig, "diag", None)
+    if getattr(diag, "constraint_name", None) == "uq_program_version_number":
+        return True
+    return "uq_program_version_number" in str(exc.orig)
+
+
+def create_version_with_allocated_number(
+    session: Session,
+    *,
+    program_id: uuid.UUID,
+    title: str,
+    goal: str | None,
+    notes: str | None,
+    start_date: date | None,
+    end_date: date | None,
+    coach_id: uuid.UUID | None,
+    coach_name: str | None,
+) -> WorkoutProgramVersion:
+    last_error: IntegrityError | None = None
+    for _attempt in range(VERSION_ALLOCATION_ATTEMPTS):
+        try:
+            with session.begin_nested():
+                version = WorkoutProgramVersion(
+                    program_id=program_id,
+                    version_number=next_version_number(session, program_id),
+                    status="DRAFT",
+                    title=title,
+                    goal=goal,
+                    notes=notes,
+                    start_date=start_date,
+                    end_date=end_date,
+                    coach_id=coach_id,
+                    coach_name=coach_name,
+                )
+                session.add(version)
+                session.flush()
+            return version
+        except IntegrityError as exc:
+            if not _is_version_number_conflict(exc):
+                raise
+            last_error = exc
+    raise HTTPException(
+        status_code=409, detail="program_version_conflict"
+    ) from last_error
+
+
+def bump_version_revision(
+    session: Session,
+    *,
+    version: WorkoutProgramVersion,
+    expected_revision: int | None,
+) -> None:
+    statement = (
+        update(WorkoutProgramVersion)
+        .where(col(WorkoutProgramVersion.id) == version.id)
+        .values(revision=col(WorkoutProgramVersion.revision) + 1)
+    )
+    if expected_revision is not None:
+        statement = statement.where(
+            col(WorkoutProgramVersion.revision) == expected_revision
+        )
+    result = session.connection().execute(statement)
+    if result.rowcount != 1:
+        session.rollback()
+        raise HTTPException(status_code=409, detail="program_version_conflict")
+    session.expire(version, ["revision"])
 
 
 def template_days_public(template: ProgramTemplate) -> list[DayPublic]:

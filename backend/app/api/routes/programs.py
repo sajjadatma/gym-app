@@ -30,12 +30,13 @@ from app.models import (
     WorkoutProgramVersion,
 )
 from app.services.programs import (
+    bump_version_revision,
+    create_version_with_allocated_number,
     ensure_publishable,
     ensure_staff_write,
     get_or_create_program,
     insert_structure,
     load_version_context,
-    next_version_number,
     normalize_days,
     replace_version_days,
     structure_from_version,
@@ -125,10 +126,9 @@ def create_program(
         athlete_user_id=athlete_user_id,
         created_by_id=current_user.id,
     )
-    version = WorkoutProgramVersion(
+    version = create_version_with_allocated_number(
+        session,
         program_id=program.id,
-        version_number=next_version_number(session, program.id),
-        status="DRAFT",
         title=body.title,
         goal=body.goal,
         notes=body.notes,
@@ -137,8 +137,6 @@ def create_program(
         coach_id=current_user.id,
         coach_name=current_user.full_name or current_user.email,
     )
-    session.add(version)
-    session.flush()
 
     if body.template_id:
         template = session.get(ProgramTemplate, body.template_id)
@@ -199,6 +197,9 @@ def update_program_version(
     ensure_staff_write(access)
     if version.status == "ARCHIVED":
         raise HTTPException(status_code=400, detail="archived_program_is_read_only")
+    bump_version_revision(
+        session, version=version, expected_revision=body.expected_revision
+    )
     version.sqlmodel_update(
         {
             "title": body.title,
@@ -262,10 +263,9 @@ def create_new_draft(
         version_id=version_id,
     )
     ensure_staff_write(access)
-    version = WorkoutProgramVersion(
+    version = create_version_with_allocated_number(
+        session,
         program_id=program.id,
-        version_number=next_version_number(session, program.id),
-        status="DRAFT",
         title=source.title,
         goal=source.goal,
         notes=source.notes,
@@ -274,8 +274,6 @@ def create_new_draft(
         coach_id=current_user.id,
         coach_name=current_user.full_name or current_user.email,
     )
-    session.add(version)
-    session.flush()
     insert_structure(
         session,
         version_id=version.id,

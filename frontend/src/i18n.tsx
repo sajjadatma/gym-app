@@ -469,6 +469,7 @@ const fa = {
   "program.setNote": "توضیح ست",
   "program.saveDraft": "ذخیره پیش‌نویس",
   "program.saved": "برنامه ذخیره شد.",
+  "program.reloadLatest": "بارگذاری آخرین نسخه",
   "program.published": "برنامه منتشر شد.",
   "program.archivedMessage": "برنامه آرشیو شد.",
   "program.publish": "انتشار برنامه",
@@ -675,6 +676,8 @@ const fa = {
   "errors.only_drafts_can_be_published": "فقط پیش‌نویس قابل انتشار است.",
   "errors.active_program_conflict":
     "برنامه فعال دیگری وجود دارد. دوباره تلاش کنید.",
+  "errors.program_version_conflict":
+    "نسخه برنامه توسط کاربر دیگری تغییر کرده است. آخرین نسخه را بارگذاری کنید و دوباره تلاش کنید.",
   "errors.program_edit_forbidden": "اجازه ویرایش این برنامه را ندارید.",
   "errors.program_is_empty": "برنامه خالی است.",
   "errors.program_day_is_empty": "هر روز باید حداقل یک حرکت داشته باشد.",
@@ -1181,6 +1184,7 @@ const en: Record<TranslationKey, string> = {
   "program.setNote": "Set note",
   "program.saveDraft": "Save draft",
   "program.saved": "Program saved.",
+  "program.reloadLatest": "Load latest version",
   "program.published": "Program published.",
   "program.archivedMessage": "Program archived.",
   "program.publish": "Publish program",
@@ -1390,6 +1394,8 @@ const en: Record<TranslationKey, string> = {
     "Archived programs are read-only. Create a new version.",
   "errors.only_drafts_can_be_published": "Only drafts can be published.",
   "errors.active_program_conflict": "Another active program exists. Try again.",
+  "errors.program_version_conflict":
+    "This program version was changed by someone else. Load the latest version and try again.",
   "errors.program_edit_forbidden": "You cannot edit this program.",
   "errors.program_is_empty": "The program is empty.",
   "errors.program_day_is_empty": "Every day needs at least one exercise.",

@@ -735,6 +735,7 @@ class WorkoutProgramVersion(SQLModel, table=True):
         foreign_key="workout_program.id", ondelete="CASCADE", index=True
     )
     version_number: int
+    revision: int = Field(default=0)
     status: str = Field(default="DRAFT", max_length=20)
     title: str = Field(min_length=1, max_length=255)
     goal: str | None = Field(default=None, max_length=1000)
@@ -906,6 +907,7 @@ class ProgramVersionUpdate(SQLModel):
     start_date: date | None = None
     end_date: date | None = None
     days: list[DayInput]
+    expected_revision: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def validate_dates(self) -> ProgramVersionUpdate:
@@ -922,6 +924,7 @@ class ProgramVersionSummary(SQLModel):
     title: str
     goal: str | None = None
     version_number: int
+    revision: int
     status: ProgramStatus
     coach_id: uuid.UUID | None = None
     coach_name: str | None = None

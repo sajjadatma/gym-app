@@ -9,8 +9,8 @@ import {
   Save,
   Send,
 } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
-import { translateApiError } from "@/api"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { getApiErrorDetail, getApiStatus, translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import {
   type AthleteDetail,
@@ -18,6 +18,7 @@ import {
   type DayInput,
   ExercisesService,
   ProgramsService,
+  type ProgramVersionDetail,
 } from "@/client"
 import { DateField } from "@/components/DateField"
 import {
@@ -52,6 +53,7 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [conflict, setConflict] = useState(false)
   const [publishOpen, setPublishOpen] = useState(false)
   const [archiveOpen, setArchiveOpen] = useState(false)
   const [templateOpen, setTemplateOpen] = useState(false)
@@ -103,23 +105,29 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
   })
 
   const loadedVersion = useRef<string | null>(null)
-  useEffect(() => {
-    if (!version || loadedVersion.current === version.id) return
-    loadedVersion.current = version.id
+
+  const applyVersionToForm = useCallback((next: ProgramVersionDetail) => {
     setError(null)
+    setConflict(false)
     setPublishOpen(false)
     setArchiveOpen(false)
     setTemplateOpen(false)
     setMeta({
-      title: version.title,
-      goal: version.goal ?? "",
-      notes: version.notes ?? "",
-      start_date: version.start_date ?? null,
-      end_date: version.end_date ?? null,
+      title: next.title,
+      goal: next.goal ?? "",
+      notes: next.notes ?? "",
+      start_date: next.start_date ?? null,
+      end_date: next.end_date ?? null,
     })
-    setDays(version.days as DayInput[])
+    setDays(next.days as DayInput[])
     setDirty(false)
-  }, [version])
+  }, [])
+
+  useEffect(() => {
+    if (!version || loadedVersion.current === version.id) return
+    loadedVersion.current = version.id
+    applyVersionToForm(version)
+  }, [version, applyVersionToForm])
 
   if (!activeGym) {
     return (
@@ -142,6 +150,7 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
   }
 
   const athleteUserId = version.athlete_user_id
+  const currentRevision = version.revision
 
   function updateMeta(patch: Partial<typeof meta>) {
     setMeta((current) => ({ ...current, ...patch }))
@@ -151,6 +160,17 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
   function updateDays(next: DayInput[]) {
     setDays(next)
     setDirty(true)
+  }
+
+  async function reloadLatest() {
+    const result = await versionQuery.refetch()
+    if (!result.data) return
+    loadedVersion.current = result.data.id
+    queryClient.setQueryData(
+      ["program-version", activeGymId, versionId],
+      result.data,
+    )
+    applyVersionToForm(result.data)
   }
 
   async function saveDraft(showMessage = true): Promise<boolean> {
@@ -164,6 +184,7 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
     }
     setSaving(true)
     setError(null)
+    setConflict(false)
     try {
       const response = await ProgramsService.updateProgramVersion({
         path: { version_id: versionId },
@@ -174,6 +195,7 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
           start_date: meta.start_date,
           end_date: meta.end_date,
           days,
+          expected_revision: currentRevision,
         },
       })
       queryClient.setQueryData(
@@ -190,6 +212,10 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
       if (showMessage) show(t("program.saved"), "success")
       return true
     } catch (err) {
+      setConflict(
+        getApiStatus(err) === 409 &&
+          getApiErrorDetail(err) === "program_version_conflict",
+      )
       setError(translateApiError(err, t))
       return false
     } finally {
@@ -343,7 +369,12 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
 
       {error ? (
         <div className="m3-inline-alert" style={{ marginBottom: 14 }}>
-          {error}
+          <span>{error}</span>
+          {conflict ? (
+            <Button variant="text" onClick={() => void reloadLatest()}>
+              {t("program.reloadLatest")}
+            </Button>
+          ) : null}
         </div>
       ) : null}
 

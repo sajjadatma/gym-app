@@ -1588,6 +1588,10 @@ export type ProgramVersionDetail = {
      */
     version_number: number;
     /**
+     * Revision
+     */
+    revision: number;
+    /**
      * Status
      */
     status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
@@ -1666,6 +1670,10 @@ export type ProgramVersionSummary = {
      */
     version_number: number;
     /**
+     * Revision
+     */
+    revision: number;
+    /**
      * Status
      */
     status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
@@ -1731,6 +1739,10 @@ export type ProgramVersionUpdate = {
      * Days
      */
     days: Array<DayInput>;
+    /**
+     * Expected Revision
+     */
+    expected_revision?: number | null;
 };
 
 /**
