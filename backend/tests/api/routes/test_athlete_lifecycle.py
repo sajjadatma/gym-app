@@ -529,3 +529,132 @@ def test_deleting_athlete_of_other_gym_owner_keeps_account_and_other_gym(
         first_members_after.json()["count"]
         == first_members_before.json()["count"]
     )
+
+
+def test_restore_preserves_cross_gym_staff_membership_and_roles(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym_a, owner_a, coach_a, coach_member_a, _athlete = _setup(
+        client, superuser_headers
+    )
+    owner_b_email = unique_email("restore-owner-b")
+    gym_b = create_gym(
+        client,
+        superuser_headers,
+        name="Restore Gym B",
+        owner_email=owner_b_email,
+        password="owner-b-pass-123",
+    )["gym"]
+    raw_owner_b = auth_headers(client, owner_b_email, "owner-b-pass-123")
+    change_password(
+        client,
+        raw_owner_b,
+        current_password="owner-b-pass-123",
+        new_password="owner-b-pass-456",
+    )
+    owner_b = gym_headers(
+        client,
+        email=owner_b_email,
+        password="owner-b-pass-456",
+        gym_id=gym_b["id"],
+    )
+
+    shared_email = unique_email("shared-coach-athlete")
+    shared_member_b = add_member(
+        client,
+        owner_b,
+        gym_b["id"],
+        email=shared_email,
+        roles=["COACH"],
+        password="shared-pass-123",
+    )["member"]
+    athlete = create_athlete(
+        client,
+        coach_a,
+        email=shared_email,
+        coach_user_id=coach_member_a["user_id"],
+    )["athlete"]["profile"]
+    raw_shared = auth_headers(client, shared_email, "shared-pass-123")
+    change_password(
+        client,
+        raw_shared,
+        current_password="shared-pass-123",
+        new_password="shared-pass-456",
+    )
+    shared_a = gym_headers(
+        client, email=shared_email, password="shared-pass-456", gym_id=gym_a["id"]
+    )
+    shared_b = gym_headers(
+        client, email=shared_email, password="shared-pass-456", gym_id=gym_b["id"]
+    )
+    assert client.get("/api/v1/athletes/me", headers=shared_a).status_code == 200
+    assert (
+        client.get(f"/api/v1/gyms/{gym_b['id']}/coaches", headers=shared_b).status_code
+        == 200
+    )
+
+    def gym_b_members() -> list[dict[str, object]]:
+        response = client.get(
+            f"/api/v1/gyms/{gym_b['id']}/members", headers=owner_b
+        )
+        assert response.status_code == 200, response.text
+        return [
+            row
+            for row in response.json()["data"]
+            if row["user_id"] == shared_member_b["user_id"]
+        ]
+
+    before = gym_b_members()
+    assert len(before) == 1
+    assert set(before[0]["roles"]) == {"COACH"}
+    assert before[0]["is_active"] is True
+
+    assert (
+        client.post(
+            f"/api/v1/athletes/{athlete['user_id']}/archive", headers=owner_a
+        ).status_code
+        == 200
+    )
+    archived = client.get(
+        f"/api/v1/athletes/{athlete['user_id']}", headers=owner_a
+    )
+    assert archived.status_code == 200
+    assert archived.json()["profile"]["is_archived"] is True
+
+    cross_gym_restore = client.post(
+        f"/api/v1/athletes/{athlete['user_id']}/restore", headers=owner_b
+    )
+    assert cross_gym_restore.status_code == 404
+    assert cross_gym_restore.json()["detail"] == "athlete_not_found"
+    assert (
+        client.get(
+            f"/api/v1/athletes/{athlete['user_id']}", headers=owner_a
+        ).json()["profile"]["is_archived"]
+        is True
+    )
+
+    after_archive = gym_b_members()
+    assert after_archive == before
+    assert (
+        client.get(f"/api/v1/gyms/{gym_b['id']}/coaches", headers=shared_b).status_code
+        == 200
+    )
+
+    restored = client.post(
+        f"/api/v1/athletes/{athlete['user_id']}/restore", headers=owner_a
+    )
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["profile"]["is_archived"] is False
+
+    assert gym_b_members() == before
+    assert (
+        client.get(f"/api/v1/gyms/{gym_b['id']}/coaches", headers=shared_b).status_code
+        == 200
+    )
+    assert client.get("/api/v1/athletes/me", headers=shared_a).status_code == 200
+    assert (
+        client.get(
+            f"/api/v1/athletes/{athlete['user_id']}", headers=coach_a
+        ).status_code
+        == 200
+    )

@@ -292,6 +292,31 @@ def test_preview_and_import_report_malformed_csv(
 
 
 @pytest.mark.parametrize("path", ["/api/v1/athletes/import/preview", "/api/v1/athletes/import"])
+@pytest.mark.parametrize("content", [b"", _csv()])
+def test_preview_and_import_reject_empty_files(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    path: str,
+    content: bytes,
+) -> None:
+    _gym, owner, _coach, coach_member, _coach_email = _setup(
+        client, superuser_headers
+    )
+    response = client.post(
+        path,
+        headers=owner,
+        files={"file": ("athletes.csv", content, "text/csv")},
+        data={
+            "default_coach_user_id": coach_member["user_id"],
+            "activation_method": "password",
+            "initial_password": "BulkPass123!",
+        },
+    )
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"] == "empty_file"
+
+
+@pytest.mark.parametrize("path", ["/api/v1/athletes/import/preview", "/api/v1/athletes/import"])
 def test_import_preview_and_write_require_gym_admin(
     client: TestClient, superuser_headers: dict[str, str], path: str
 ) -> None:

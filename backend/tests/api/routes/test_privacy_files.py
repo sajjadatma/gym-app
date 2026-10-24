@@ -379,3 +379,80 @@ def test_failed_upload_commit_does_not_leave_orphan_file(
     )
     assert listed.status_code == 200
     assert listed.json() == []
+
+
+def test_body_analysis_files_are_scoped_to_the_requesting_gym(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    owner, athlete = _file_lifecycle_setup(client, superuser_headers)
+    pdf = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n"
+    upload = client.post(
+        f"/api/v1/athletes/{athlete['user_id']}/body-files",
+        headers=owner,
+        files={"file": ("private.pdf", pdf, "application/pdf")},
+    )
+    assert upload.status_code == 200, upload.text
+    file_id = upload.json()["id"]
+
+    other_owner_email = unique_email("other-file-owner")
+    other_gym = create_gym(
+        client,
+        superuser_headers,
+        name="Other File Gym",
+        owner_email=other_owner_email,
+        password="other-owner-pass-123",
+    )["gym"]
+    raw_other_owner = auth_headers(client, other_owner_email, "other-owner-pass-123")
+    change_password(
+        client,
+        raw_other_owner,
+        current_password="other-owner-pass-123",
+        new_password="other-owner-pass-456",
+    )
+    other_owner = gym_headers(
+        client,
+        email=other_owner_email,
+        password="other-owner-pass-456",
+        gym_id=other_gym["id"],
+    )
+    other_coach_email = unique_email("other-file-coach")
+    add_member(
+        client,
+        other_owner,
+        other_gym["id"],
+        email=other_coach_email,
+        roles=["COACH"],
+        password="other-coach-pass-123",
+    )
+    raw_other_coach = auth_headers(client, other_coach_email, "other-coach-pass-123")
+    change_password(
+        client,
+        raw_other_coach,
+        current_password="other-coach-pass-123",
+        new_password="other-coach-pass-456",
+    )
+    other_coach = gym_headers(
+        client,
+        email=other_coach_email,
+        password="other-coach-pass-456",
+        gym_id=other_gym["id"],
+    )
+
+    files_url = f"/api/v1/athletes/{athlete['user_id']}/body-files"
+    download_url = f"{files_url}/{file_id}/download"
+    assert client.get(files_url, headers=other_coach).status_code == 404
+    assert client.get(download_url, headers=other_coach).status_code == 404
+    assert client.get(download_url, headers=other_owner).status_code == 404
+    cross_upload = client.post(
+        files_url,
+        headers=other_coach,
+        files={"file": ("cross.pdf", pdf, "application/pdf")},
+    )
+    assert cross_upload.status_code == 404
+
+    still_available = client.get(download_url, headers=owner)
+    assert still_available.status_code == 200
+    assert still_available.content == pdf
+    assert [row["id"] for row in client.get(files_url, headers=owner).json()] == [
+        file_id
+    ]
