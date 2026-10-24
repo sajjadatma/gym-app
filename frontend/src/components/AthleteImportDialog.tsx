@@ -643,8 +643,16 @@ export function AthleteImportDialog({
               </Button>
             ) : null}
             <p className="muted m3-import-result__hint">
-              {t("athletes.importResultHint")}
+              {t("athletes.importResultHint")}{" "}
+              {activationMethod === "password"
+                ? t("athletes.importResultPasswordHint")
+                : t("athletes.importResultInviteHint")}
             </p>
+            {result.failed?.length ? (
+              <p className="muted m3-import-result__hint">
+                {t("athletes.importResultFailedHint")}
+              </p>
+            ) : null}
           </section>
         ) : null}
       </div>

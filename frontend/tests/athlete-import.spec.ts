@@ -55,7 +55,7 @@ test("manager imports athletes from CSV after previewing rows", async ({
   await expect(
     dialog.getByRole("heading", { name: "ورود انجام شد" }),
   ).toBeVisible()
-  await expect(dialog.getByText(/۱ ساخته شد/)).toBeVisible()
+  await expect(dialog.getByText(/ایجادشده: ۱/)).toBeVisible()
   await dialog.getByRole("button", { name: "پایان" }).click()
 
   await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(email)

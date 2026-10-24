@@ -309,9 +309,15 @@ const fa = {
     "برخی ردیف‌ها ستون ایمیل مربی خالی دارند. یک مربی پیش‌فرض انتخاب کنید تا همان‌جا دوباره بررسی شوند.",
   "athletes.importResultTitle": "ورود انجام شد",
   "athletes.importResultSummary":
-    "{created} ساخته شد · {skipped} رد شد · {failed} ناموفق",
+    "ایجادشده: {created} · ردشده: {skipped} · ناموفق: {failed}",
   "athletes.importResultHint":
-    "ورزشکاران ساخته‌شده اکنون در فهرست قابل مشاهده‌اند. در روش رمز عبور، رمز اولیه را به ورزشکاران اطلاع دهید.",
+    "ورزشکاران ساخته‌شده اکنون در فهرست قابل مشاهده‌اند.",
+  "athletes.importResultPasswordHint":
+    "رمز اولیه‌ای که انتخاب کردید را به ورزشکاران اطلاع دهید.",
+  "athletes.importResultInviteHint":
+    "دعوت‌نامه برای ورزشکاران ایجادشده ارسال شد.",
+  "athletes.importResultFailedHint":
+    "برای بررسی ردیف‌های ناموفق، گزارش خطاها را دانلود کنید.",
   "athletes.importDownloadErrors": "دانلود گزارش خطاها",
   "athletes.importAnother": "ورود فایل دیگر",
   "athletes.importDone": "پایان",
@@ -980,8 +986,13 @@ const en: Record<TranslationKey, string> = {
   "athletes.importResultTitle": "Import complete",
   "athletes.importResultSummary":
     "{created} created · {skipped} skipped · {failed} failed",
-  "athletes.importResultHint":
-    "Created athletes are now visible in the list. For password activation, share the initial password with them.",
+  "athletes.importResultHint": "Created athletes are now visible in the list.",
+  "athletes.importResultPasswordHint":
+    "Share the initial password you chose with them.",
+  "athletes.importResultInviteHint":
+    "Invitation emails were sent to the created athletes.",
+  "athletes.importResultFailedHint":
+    "Download the error report to review the failed rows.",
   "athletes.importDownloadErrors": "Download error report",
   "athletes.importAnother": "Import another file",
   "athletes.importDone": "Done",
