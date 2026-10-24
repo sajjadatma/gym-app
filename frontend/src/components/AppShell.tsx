@@ -24,6 +24,7 @@ type NavItem = {
   to: string
   label: TranslationKey
   icon: typeof LayoutDashboard
+  params?: Record<string, string>
 }
 
 const ROLE_MODE_LABELS: Record<RoleMode, TranslationKey> = {
@@ -126,15 +127,19 @@ export function AppShell() {
   }, [navigate])
 
   useEffect(() => {
-    if (
-      !isLoading &&
-      isSuperuser &&
-      gyms.length === 0 &&
-      pathname !== "/gyms"
-    ) {
+    if (isLoading || !isSuperuser) return
+    if (gyms.length === 0) {
+      if (pathname !== "/gyms") navigate({ to: "/gyms" as never })
+      return
+    }
+    const clubScoped =
+      /^\/(athletes|members|exercises|templates|programs|my)(\/|$)/.test(
+        pathname,
+      )
+    if (!activeGym && clubScoped) {
       navigate({ to: "/gyms" as never })
     }
-  }, [gyms.length, isLoading, isSuperuser, navigate, pathname])
+  }, [activeGym, gyms.length, isLoading, isSuperuser, navigate, pathname])
 
   if (isLoading) {
     return (
@@ -150,6 +155,9 @@ export function AppShell() {
     return null
   }
 
+  const workspaceTo = isSuperuser && activeGymId ? "/gyms/$gymId" : "/"
+  const workspaceParams =
+    isSuperuser && activeGymId ? { gymId: activeGymId } : undefined
   let navItems: NavItem[] = []
   if (!activeGym) {
     navItems = isSuperuser
@@ -160,19 +168,30 @@ export function AppShell() {
       : [{ to: "/", label: "nav.dashboard", icon: LayoutDashboard }]
   } else if (activeRole === "ATHLETE") {
     navItems = [
+      { to: "/", label: "nav.dashboard", icon: LayoutDashboard },
       { to: "/my", label: "nav.myProgram", icon: ClipboardList },
       { to: "/my/profile", label: "nav.myProfile", icon: UserRound },
     ]
   } else if (activeRole === "COACH") {
     navItems = [
-      { to: "/", label: "nav.dashboard", icon: LayoutDashboard },
+      {
+        to: workspaceTo,
+        params: workspaceParams,
+        label: "nav.dashboard",
+        icon: LayoutDashboard,
+      },
       { to: "/athletes", label: "nav.athletes", icon: Users },
       { to: "/exercises", label: "nav.exercises", icon: Dumbbell },
       { to: "/templates", label: "nav.templates", icon: Bookmark },
     ]
   } else {
     navItems = [
-      { to: "/", label: "nav.dashboard", icon: LayoutDashboard },
+      {
+        to: workspaceTo,
+        params: workspaceParams,
+        label: "nav.dashboard",
+        icon: LayoutDashboard,
+      },
       { to: "/gyms", label: "nav.gyms", icon: Building2 },
       { to: "/athletes", label: "nav.athletes", icon: Users },
       { to: "/members", label: "nav.members", icon: UserRound },
@@ -185,10 +204,22 @@ export function AppShell() {
     if (to === "/") return pathname === "/"
     if (to === "/my")
       return pathname === "/my" || pathname.startsWith("/my/programs")
+    if (to === "/gyms/$gymId") {
+      return (
+        Boolean(activeGymId) &&
+        (pathname === `/gyms/${activeGymId}` ||
+          pathname === `/gyms/${activeGymId}/settings`)
+      )
+    }
+    if (to === "/gyms") {
+      if (isSuperuser) return pathname === "/gyms" || pathname === "/gyms/"
+      return pathname === "/gyms" || pathname.startsWith("/gyms/")
+    }
     return pathname.startsWith(to)
   }
 
-  const go = (to: string) => navigate({ to: to as never })
+  const go = (item: NavItem) =>
+    navigate({ to: item.to as never, params: item.params as never })
 
   const roleLabel = (role: RoleMode) => t(ROLE_MODE_LABELS[role])
 
@@ -205,7 +236,7 @@ export function AppShell() {
               key={item.to}
               type="button"
               className={`m3-nav-rail__item ${isActive(item.to) ? "is-active" : ""}`}
-              onClick={() => go(item.to)}
+              onClick={() => go(item)}
               aria-current={isActive(item.to) ? "page" : undefined}
             >
               <span className="m3-nav-rail__icon">
@@ -267,7 +298,14 @@ export function AppShell() {
                       className={`m3-menu__item ${gym.id === activeGymId ? "is-active" : ""}`}
                       onClick={() => {
                         setActiveGym(gym.id)
-                        navigate({ to: "/" as never })
+                        navigate(
+                          isSuperuser
+                            ? {
+                                to: "/gyms/$gymId" as never,
+                                params: { gymId: gym.id } as never,
+                              }
+                            : { to: "/" as never },
+                        )
                       }}
                     >
                       <Building2 size={16} />
@@ -464,7 +502,7 @@ export function AppShell() {
               key={item.to}
               type="button"
               className={`m3-mobile-nav__item ${isActive(item.to) ? "is-active" : ""}`}
-              onClick={() => go(item.to)}
+              onClick={() => go(item)}
               aria-current={isActive(item.to) ? "page" : undefined}
             >
               <Icon size={20} strokeWidth={1.9} />

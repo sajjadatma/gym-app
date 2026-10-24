@@ -184,7 +184,9 @@ export function GymsPage() {
                 </div>
               ) : null}
               <div className="m3-entity-card__footer">
-                <span className="m3-text-button">{t("gyms.details")}</span>
+                <span className="m3-text-button">
+                  {isSuperuser ? t("gyms.enter") : t("gyms.details")}
+                </span>
               </div>
             </button>
           ))}

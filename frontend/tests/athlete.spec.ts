@@ -61,3 +61,10 @@ test("athlete profile saves without equipment, uses numbered days and redirects 
   await expect(page.getByText("پرونده شما ذخیره شد.")).toBeVisible()
   await expect(page).toHaveURL("/")
 })
+
+test("athlete landing highlights the dashboard nav item", async ({ page }) => {
+  await page.goto("/")
+  await expect(
+    page.locator(".m3-mobile-nav__item[aria-current='page']"),
+  ).toHaveText(/داشبورد/)
+})
