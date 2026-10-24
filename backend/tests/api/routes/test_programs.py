@@ -457,3 +457,63 @@ def test_program_weekday_must_be_unique_and_valid(
     )
     assert unknown.status_code == 400, unknown.text
     assert unknown.json()["detail"] == "invalid_weekday"
+
+
+def test_staff_can_delete_program_versions_in_any_status(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = _owner_headers(
+        client, superuser_headers, "Delete Gym", unique_email("owner")
+    )
+    coach_member, coach = _add_coach(client, owner, gym["id"], unique_email("coach"))
+    athlete_email = unique_email("athlete")
+    athlete = create_athlete(
+        client,
+        coach,
+        email=athlete_email,
+        coach_user_id=coach_member["user_id"],
+        password="athlete-pass-123",
+    )["athlete"]["profile"]
+
+    archived = create_and_publish_program(client, coach, athlete["user_id"])
+    active = create_and_publish_program(client, coach, athlete["user_id"])
+    draft = client.post(
+        f"/api/v1/program-versions/{active['id']}/new-draft", headers=coach
+    )
+    assert draft.status_code == 200, draft.text
+    draft_id = draft.json()["id"]
+
+    raw = auth_headers(client, athlete_email, "athlete-pass-123")
+    change_password(
+        client,
+        raw,
+        current_password="athlete-pass-123",
+        new_password="athlete-pass-456",
+    )
+    athlete_headers = gym_headers(
+        client,
+        email=athlete_email,
+        password="athlete-pass-456",
+        gym_id=gym["id"],
+    )
+    forbidden = client.delete(
+        f"/api/v1/program-versions/{active['id']}", headers=athlete_headers
+    )
+    assert forbidden.status_code == 403
+
+    for version_id in (archived["id"], draft_id, active["id"]):
+        deleted = client.delete(
+            f"/api/v1/program-versions/{version_id}", headers=coach
+        )
+        assert deleted.status_code == 200, deleted.text
+        assert deleted.json()["message"] == "program_version_deleted"
+
+    remaining = client.get(
+        f"/api/v1/athletes/{athlete['user_id']}/programs", headers=coach
+    ).json()
+    assert remaining["count"] == 0
+
+    missing = client.delete(
+        f"/api/v1/program-versions/{active['id']}", headers=coach
+    )
+    assert missing.status_code == 404

@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Save,
   ShieldAlert,
+  Trash2,
   UserRound,
 } from "lucide-react"
 import { useEffect, useId, useRef, useState } from "react"
@@ -72,6 +73,8 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
   const [programGoal, setProgramGoal] = useState("")
   const [programStart, setProgramStart] = useState<string | null>(null)
   const [programEnd, setProgramEnd] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] =
+    useState<ProgramVersionSummary | null>(null)
   const [uploading, setUploading] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const hydratedProfileRef = useRef<string | null>(null)
@@ -105,6 +108,8 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
         })
       ).data,
     enabled: Boolean(activeGymId),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   })
 
   const programsQuery = useQuery({
@@ -116,6 +121,8 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
         })
       ).data.data,
     enabled: Boolean(activeGymId),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   })
 
   const coachesQuery = useQuery({
@@ -127,6 +134,8 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
         })
       ).data.data,
     enabled: Boolean(activeGymId && isAdmin),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   })
 
   const athlete = athleteQuery.data
@@ -278,22 +287,24 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
     }
   }
 
-  async function createDraftFrom(version: ProgramVersionSummary) {
+  async function deleteProgramVersion() {
+    if (!deleteTarget) return
     setSaving(true)
     setError(null)
     try {
-      const response = await ProgramsService.createNewDraft({
-        path: { version_id: version.id },
+      await ProgramsService.deleteProgramVersion({
+        path: { version_id: deleteTarget.id },
       })
+      setDeleteTarget(null)
       await queryClient.invalidateQueries({
         queryKey: ["programs", activeGymId, athleteId],
       })
-      navigate({
-        to: "/programs/$versionId/edit",
-        params: { versionId: response.data.id },
+      await queryClient.invalidateQueries({
+        queryKey: ["program-version", activeGymId, deleteTarget.id],
       })
+      show(t("program.deleted"), "success")
     } catch (err) {
-      show(translateApiError(err, t), "error")
+      setError(translateApiError(err, t))
     } finally {
       setSaving(false)
     }
@@ -771,9 +782,28 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                         </span>
                       </div>
                       <div className="m3-version-row__meta">
-                        {t("program.days")}: {formatNumber(version.day_count)} ·{" "}
-                        {version.coach_name ?? ""} ·{" "}
-                        {formatDate(version.created_at)}
+                        <div>
+                          {t("program.days")}: {formatNumber(version.day_count)}{" "}
+                          · {version.coach_name ?? ""}
+                        </div>
+                        <div>
+                          {version.start_date ? (
+                            <>
+                              {t("program.startDate")}:{" "}
+                              {formatDate(version.start_date)}
+                              {version.end_date
+                                ? ` · ${t("program.endDate")}: ${formatDate(
+                                    version.end_date,
+                                  )}`
+                                : ""}
+                            </>
+                          ) : (
+                            <>
+                              {t("program.versionHistory")}:{" "}
+                              {formatDate(version.created_at)}
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -822,11 +852,10 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                       <Button
                         variant="text"
                         size="sm"
-                        icon={<RefreshCw size={14} />}
-                        disabled={saving}
-                        onClick={() => createDraftFrom(version)}
+                        icon={<Trash2 size={14} />}
+                        onClick={() => setDeleteTarget(version)}
                       >
-                        {t("program.newVersion")}
+                        {t("common.delete")}
                       </Button>
                     ) : null}
                   </div>
@@ -975,6 +1004,23 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
         cancelLabel={t("common.cancel")}
         onConfirm={archiveAthlete}
         onClose={() => setArchiveOpen(false)}
+        destructive
+        loading={saving}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title={t("program.deleteTitle")}
+        description={`${deleteTarget?.title ?? ""} · ${t(
+          "program.versionLabel",
+          {
+            version: formatNumber(deleteTarget?.version_number ?? 0),
+          },
+        )} — ${t("program.deleteWarning")}`}
+        confirmLabel={t("common.delete")}
+        cancelLabel={t("common.cancel")}
+        onConfirm={deleteProgramVersion}
+        onClose={() => setDeleteTarget(null)}
         destructive
         loading={saving}
       />

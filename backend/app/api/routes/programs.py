@@ -16,6 +16,7 @@ from app.api.deps import (
     get_athlete_access,
 )
 from app.models import (
+    Message,
     ProgramTemplate,
     ProgramTemplateDetail,
     ProgramVersionCreate,
@@ -216,6 +217,29 @@ def update_program_version(
     session.commit()
     session.refresh(version)
     return version_detail(session, version, program)
+
+
+@router.delete(
+    "/program-versions/{version_id}",
+    response_model=Message,
+)
+def delete_program_version(
+    *,
+    version_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUser,
+    ctx: GymContextDep,
+) -> Any:
+    version, _program, access = load_version_context(
+        session,
+        ctx=ctx,
+        current_user=current_user,
+        version_id=version_id,
+    )
+    ensure_staff_write(access)
+    session.delete(version)
+    session.commit()
+    return Message(message="program_version_deleted")
 
 
 @router.post(

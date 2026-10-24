@@ -1,4 +1,11 @@
-import { Check, ChevronDown, Search, X } from "lucide-react"
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  ChevronDown,
+  Search,
+  X,
+} from "lucide-react"
 import {
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
@@ -753,12 +760,15 @@ export function PageHeader({
   onBack?: () => void
   backLabel?: string
 }) {
+  const { direction, t } = useI18n()
+  const BackIcon = direction === "rtl" ? ArrowRight : ArrowLeft
   return (
     <header className="m3-page-header">
       <div className="m3-page-header__text">
         {onBack ? (
-          <button type="button" className="m3-text-back" onClick={onBack}>
-            {backLabel ?? "←"}
+          <button type="button" className="m3-back-button" onClick={onBack}>
+            <BackIcon size={18} aria-hidden />
+            <span>{backLabel ?? t("common.back")}</span>
           </button>
         ) : null}
         <h1>{title}</h1>

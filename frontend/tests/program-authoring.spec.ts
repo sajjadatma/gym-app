@@ -114,6 +114,38 @@ test("admin builds, saves and publishes a program through the UI", async ({
     "سینه / بازو",
   )
 
+  await page.goto(`/athletes/${athleteId}`)
+  const backButton = page.locator(".m3-back-button").first()
+  await expect(backButton).toBeVisible()
+  await expect(backButton.locator("svg")).toHaveCount(1)
+  await expect(
+    page.getByRole("button", { name: "ساخت نسخه جدید", exact: true }),
+  ).toHaveCount(0)
+  const tabsFit = await page
+    .locator(".m3-tabs")
+    .evaluate((el) => el.scrollWidth <= el.clientWidth + 1)
+  expect(tabsFit).toBe(true)
+  await page.getByRole("tab", { name: /برنامه‌ها/ }).click()
+
+  const versionRow = page
+    .locator(".m3-version-row")
+    .filter({ hasText: "برنامه ویرایش‌شده فعال" })
+  await expect(versionRow).toHaveCount(1)
+  await versionRow.getByRole("button", { name: "حذف", exact: true }).click()
+  const deleteDialog = page.getByRole("dialog")
+  await expect(deleteDialog).toBeVisible()
+  await expect(deleteDialog).toContainText("حذف نسخه برنامه")
+  await deleteDialog.getByRole("button", { name: "حذف", exact: true }).click()
+  await expect(page.getByText("نسخه برنامه حذف شد.")).toBeVisible()
+  await expect(versionRow).toHaveCount(0)
+  await page.reload()
+  await page.getByRole("tab", { name: /برنامه‌ها/ }).click()
+  await expect(
+    page.locator(".m3-version-row").filter({
+      hasText: "برنامه ویرایش‌شده فعال",
+    }),
+  ).toHaveCount(0)
+
   const archive = await request.post(
     `${API_URL}/api/v1/athletes/${athleteId}/archive`,
     { headers },

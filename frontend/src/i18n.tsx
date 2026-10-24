@@ -380,6 +380,10 @@ const fa = {
   "program.archiveConfirm":
     "این برنامه به آرشیو منتقل می‌شود. برای ورزشکار برنامه فعال دیگری انتخاب کنید یا نسخه جدید بسازید.",
   "program.newVersion": "ساخت نسخه جدید",
+  "program.deleteTitle": "حذف نسخه برنامه",
+  "program.deleteWarning":
+    "این نسخه و تمام روزها و حرکات آن برای همیشه حذف می‌شود.",
+  "program.deleted": "نسخه برنامه حذف شد.",
   "program.newVersionHint":
     "برنامه منتشرشده قابل ویرایش مستقیم نیست. برای تغییر، نسخه جدید بسازید.",
   "program.unsaved": "تغییرات ذخیره‌نشده دارید. صفحه را ترک می‌کنید؟",
@@ -959,6 +963,10 @@ const en: Record<TranslationKey, string> = {
   "program.archiveConfirm":
     "This program moves to the archive. Publish another version to keep an active program.",
   "program.newVersion": "Create new version",
+  "program.deleteTitle": "Delete program version",
+  "program.deleteWarning":
+    "This version and all of its days and exercises will be permanently deleted.",
+  "program.deleted": "Program version deleted.",
   "program.newVersionHint":
     "Published programs cannot be edited directly. Create a new version to make changes.",
   "program.unsaved": "You have unsaved changes. Leave this page?",

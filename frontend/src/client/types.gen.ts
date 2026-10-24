@@ -2911,6 +2911,42 @@ export type programsCreateProgramResponses = {
 
 export type programsCreateProgramResponse = programsCreateProgramResponses[keyof programsCreateProgramResponses];
 
+export type programsDeleteProgramVersionData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Version Id
+         */
+        version_id: string;
+    };
+    query?: never;
+    url: '/api/v1/program-versions/{version_id}';
+};
+
+export type programsDeleteProgramVersionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type programsDeleteProgramVersionError = programsDeleteProgramVersionErrors[keyof programsDeleteProgramVersionErrors];
+
+export type programsDeleteProgramVersionResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type programsDeleteProgramVersionResponse = programsDeleteProgramVersionResponses[keyof programsDeleteProgramVersionResponses];
+
 export type programsReadProgramVersionData = {
     body?: never;
     headers?: {

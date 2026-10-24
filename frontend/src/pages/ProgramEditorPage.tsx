@@ -6,7 +6,6 @@ import {
   ClipboardCheck,
   Eye,
   Printer,
-  RefreshCw,
   Save,
   Send,
 } from "lucide-react"
@@ -244,27 +243,6 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
     }
   }
 
-  async function createNewVersion() {
-    setSaving(true)
-    setError(null)
-    try {
-      const response = await ProgramsService.createNewDraft({
-        path: { version_id: versionId },
-      })
-      await queryClient.invalidateQueries({
-        queryKey: ["programs", activeGymId, athleteUserId],
-      })
-      navigate({
-        to: "/programs/$versionId/edit",
-        params: { versionId: response.data.id },
-      })
-    } catch (err) {
-      setError(translateApiError(err, t))
-    } finally {
-      setSaving(false)
-    }
-  }
-
   async function saveTemplate() {
     if (dirty && !(await saveDraft(false))) return
     if (!templateForm.name.trim()) {
@@ -328,16 +306,6 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
                 onClick={() => window.open(`/print/${version.id}`, "_blank")}
               >
                 {t("common.print")}
-              </Button>
-            ) : null}
-            {!canEdit && activeRole !== "ATHLETE" ? (
-              <Button
-                variant="tonal"
-                icon={<RefreshCw size={16} />}
-                onClick={createNewVersion}
-                loading={saving}
-              >
-                {t("program.newVersion")}
               </Button>
             ) : null}
             {version.status === "ACTIVE" && activeRole !== "ATHLETE" ? (

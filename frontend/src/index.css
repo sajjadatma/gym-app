@@ -839,17 +839,35 @@ button:disabled {
   flex-wrap: wrap;
 }
 
-.m3-text-back {
+.m3-back-button {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  border: 0;
-  background: transparent;
-  color: var(--m3-primary);
-  font-size: 12.5px;
+  gap: 8px;
+  min-height: 40px;
+  margin-bottom: 10px;
+  padding: 8px 16px 8px 12px;
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: 999px;
+  background: var(--m3-surface-container-low);
+  color: var(--m3-on-surface);
+  font: inherit;
+  font-size: 13px;
   font-weight: 600;
-  padding: 4px 0;
-  margin-bottom: 4px;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.m3-back-button:hover {
+  background: var(--m3-secondary-container);
+  color: var(--m3-on-secondary-container);
+  border-color: color-mix(in srgb, var(--m3-primary) 35%, transparent);
+}
+
+.m3-back-button:focus-visible {
+  outline: 2px solid var(--m3-primary);
+  outline-offset: 2px;
 }
 
 .m3-filter-bar {
@@ -895,10 +913,11 @@ button:disabled {
 
 .m3-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   border-bottom: 1px solid var(--m3-outline-variant);
   margin-bottom: 18px;
-  overflow-x: auto;
+  overflow: visible;
 }
 
 .m3-tabs__tab {
@@ -1932,6 +1951,8 @@ button:disabled {
 }
 
 .m3-version-row__meta {
+  display: grid;
+  gap: 2px;
   font-size: 10.5px;
   color: var(--m3-on-surface-variant);
 }
