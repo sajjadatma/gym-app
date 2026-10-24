@@ -32,11 +32,6 @@ test("manager imports athletes from CSV after previewing rows", async ({
     buffer: Buffer.from(csv, "utf8"),
   })
 
-  const coach = dialog.getByRole("combobox", { name: /مربی پیش‌فرض/ })
-  await coach.click()
-  await coach.fill("رضا")
-  await page.getByRole("option", { name: "رضا مربی", exact: true }).click()
-
   await dialog.getByRole("button", { name: /ارسال دعوت‌نامه/ }).click()
   await page
     .getByRole("option", { name: "رمز عبور اولیه", exact: true })
@@ -45,7 +40,13 @@ test("manager imports athletes from CSV after previewing rows", async ({
     .getByRole("textbox", { name: "رمز عبور اولیه" })
     .fill("BulkPass123!")
 
+  // Preview without a coach: the dialog offers to recover in place.
   await dialog.getByRole("button", { name: "بررسی و پیش‌نمایش" }).click()
+  await expect(dialog.getByText("مربی پیش‌فرض انتخاب نشده است")).toBeVisible()
+  const coach = dialog.getByRole("combobox", { name: /مربی پیش‌فرض/ })
+  await coach.click()
+  await coach.fill("رضا")
+  await page.getByRole("option", { name: "رضا مربی", exact: true }).click()
   await expect(dialog.getByText(/آماده ورود: ۱/)).toBeVisible()
   await expect(dialog.getByText(/خطا: ۱/)).toBeVisible()
   await expect(dialog.getByText("ایمیل معتبر نیست.")).toBeVisible()

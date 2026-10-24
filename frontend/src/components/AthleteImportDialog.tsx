@@ -180,7 +180,7 @@ export function AthleteImportDialog({
     }
   }
 
-  async function runPreview() {
+  async function runPreview(coachOverride?: string) {
     if (!file) return
     setBusy(true)
     setError(null)
@@ -188,7 +188,7 @@ export function AthleteImportDialog({
       const response = await AthletesService.previewAthleteImport({
         body: {
           file,
-          default_coach_user_id: coachId || null,
+          default_coach_user_id: (coachOverride ?? coachId) || null,
         },
       })
       setPreview(response.data)
@@ -198,6 +198,12 @@ export function AthleteImportDialog({
     } finally {
       setBusy(false)
     }
+  }
+
+  async function recoverWithCoach(value: string) {
+    setCoachId(value)
+    if (!value || !file) return
+    await runPreview(value)
   }
 
   function downloadFailureReport() {
@@ -256,6 +262,11 @@ export function AthleteImportDialog({
     }
   }
 
+  const needsCoach =
+    preview?.rows.some((row) =>
+      (row.messages ?? []).includes("coach_required"),
+    ) ?? false
+
   const footer =
     step === "result" ? (
       <>
@@ -277,6 +288,7 @@ export function AthleteImportDialog({
           onClick={runImport}
           loading={busy}
           disabled={
+            busy ||
             !preview ||
             preview.valid === 0 ||
             (activationMethod === "password" && initialPassword.length < 8)
@@ -294,7 +306,7 @@ export function AthleteImportDialog({
         </Button>
         <Button
           icon={<Upload size={16} />}
-          onClick={runPreview}
+          onClick={() => void runPreview()}
           loading={busy}
           disabled={!file}
         >
@@ -468,6 +480,22 @@ export function AthleteImportDialog({
 
         {step === "preview" && preview ? (
           <section className="m3-import-section">
+            {needsCoach ? (
+              <div className="m3-import-fix" role="alert">
+                <div>
+                  <strong>{t("athletes.importCoachRequiredTitle")}</strong>
+                  <p>{t("athletes.importCoachRequiredHint")}</p>
+                </div>
+                <SearchableSelectField
+                  label={t("athletes.importDefaultCoach")}
+                  value={coachId}
+                  onChange={(value) => void recoverWithCoach(value)}
+                  options={coachOptions}
+                  placeholder={t("athletes.chooseCoach")}
+                  disabled={busy}
+                />
+              </div>
+            ) : null}
             <p className="m3-import-context">
               <span>
                 {t("athletes.importFile")}: <strong>{file?.name}</strong>
@@ -549,7 +577,7 @@ export function AthleteImportDialog({
                 </tbody>
               </table>
             </div>
-            {preview.valid === 0 ? (
+            {preview.valid === 0 && !needsCoach ? (
               <div className="m3-inline-alert" role="alert">
                 {t("athletes.importNoValidRows")}
               </div>

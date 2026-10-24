@@ -304,6 +304,9 @@ const fa = {
   "athletes.confirmImport": "ورود {count} ورزشکار",
   "athletes.importNoValidRows":
     "هیچ ردیف قابل ورودی وجود ندارد. فایل را اصلاح کنید و دوباره بررسی کنید.",
+  "athletes.importCoachRequiredTitle": "مربی پیش‌فرض انتخاب نشده است",
+  "athletes.importCoachRequiredHint":
+    "برخی ردیف‌ها ستون ایمیل مربی خالی دارند. یک مربی پیش‌فرض انتخاب کنید تا همان‌جا دوباره بررسی شوند.",
   "athletes.importResultTitle": "ورود انجام شد",
   "athletes.importResultSummary":
     "{created} ساخته شد · {skipped} رد شد · {failed} ناموفق",
@@ -971,6 +974,9 @@ const en: Record<TranslationKey, string> = {
   "athletes.confirmImport": "Import {count} athletes",
   "athletes.importNoValidRows":
     "No importable rows. Fix the file and validate again.",
+  "athletes.importCoachRequiredTitle": "No default coach selected",
+  "athletes.importCoachRequiredHint":
+    "Some rows have no coach email. Pick a default coach to revalidate them here.",
   "athletes.importResultTitle": "Import complete",
   "athletes.importResultSummary":
     "{created} created · {skipped} skipped · {failed} failed",
