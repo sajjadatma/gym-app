@@ -4,10 +4,10 @@
 **Plan:** `docs/technical-hardening-plan.md` (binding contract)  
 **Audit reference:** `main` at `465a6afe37bcfe3139ad107f395dca371a3e13fe`  
 **Baseline commit audited:** `91e447b5e95f837e353462670e30bb310bfb71b5` (`docs: add evidence-gated technical hardening plan`)  
-**Date:** 2026-10-24  
-**Stage:** A only — audit pass, no application behavior changed, no production code edited.
+**Date:** 2026-10-24; decisions and CI status updated 2026-10-25 (Stage D2)  
+**Stage:** A audit pass plus Stages B–D fixes and Stage D2 decisions; application behavior changed only in the fix commits listed in §9.1.
 
-This document records the independent verification required by the plan. The findings below are the auditor's verdicts against the **current** code at `91e447b`, not the older audit reference. All reproduction probes were temporary, were run against the disposable `gym_app_test` database, and were deleted before the audit commit.
+This document records the independent verification required by the plan. The findings below were the auditor's verdicts against the code at `91e447b`, not the older audit reference; §§9–10 record the fix commits, the later Stage D2 decisions, and CI status. All reproduction probes were temporary, were run against the disposable `gym_app_test` database, and were deleted before the audit commit.
 
 ---
 
@@ -32,10 +32,10 @@ The audit reference's historical test counts (`20 passed`, `31 passed`, `25 pass
 
 `README.md` and `docs/implementation-progress.md` confirm:
 
-- Local-first multi-gym MVP1; **local development/manual acceptance only**, no deployment, public hosting, real email provider, cloud storage, or public CI (`README.md:7,145-151`).
+- Local-first multi-gym MVP1; **local development/manual acceptance only**, no deployment, public hosting, real email provider, or cloud storage (`README.md:7,145-151`). A minimal GitHub Actions CI workflow was added in Stage D2 (§10); no deploy steps are included.
 - PostgreSQL/SQLModel/FastAPI/React/Vite/Alembic/Pytest/Playwright stack remains approved.
 - **ACTIVE workout program versions are deliberately editable** (`docs/implementation-progress.md:118-122`; `docs/local-testing.md:97-99`). This audit does **not** treat editable ACTIVE versions as a defect.
-- Archived program versions are documented as read-only, but the deletion policy for ACTIVE/ARCHIVED versions is not explicitly specified. That ambiguity is handled in DATA-03 below.
+- Archived program versions are documented as read-only. The deletion policy for ACTIVE/ARCHIVED versions was ambiguous; it was resolved on 2026-10-25 as deliberate any-status deletion (DATA-03 below).
 - Athlete archive/restore/permanent-delete, body-file privacy, coach reassignment, and one-active-program invariants are deliberate product behavior.
 
 ### 1.3 Existing controls already present at HEAD
@@ -64,7 +64,7 @@ The audit reference's historical test counts (`20 passed`, `31 passed`, `25 pass
 | Database | local PostgreSQL 17 |
 | `TEST_DATABASE_URL` | `postgresql://sajad@localhost:5432/gym_app_test` (verified database name `gym_app_test`) |
 | Dev servers | FastAPI at `http://localhost:8000` and Vite at `http://localhost:5173` were already running |
-| CI | No `.github/workflows` directory exists |
+| CI | No `.github/workflows` directory existed at the audit baseline (historical; a minimal workflow was added in Stage D2 — see §10) |
 
 **Database safety:** only `gym_app_test` was used for pytest. The conftest fixture runs `SQLModel.metadata.drop_all/create_all` and per-test `TRUNCATE ... CASCADE` on that disposable test database (`backend/tests/conftest.py:67-89`). No reset script was run. `alembic check` connects to the configured development `DATABASE_URL` for a read-only schema comparison; it did not migrate or modify data.
 
@@ -137,22 +137,24 @@ The probes demonstrated: reset-token replay, stale access token after password c
 | SEC-04 | Low / informational | **REJECTED** (for MVP1) | `frontend/src/api.ts:8-11`; `frontend/src/auth.tsx:53-62,160-168`; `frontend/index.html:1-23`; `backend/app/main.py:26-40`; `frontend/public/sw.js:30-45` | Static review: no `dangerouslySetInnerHTML`, `innerHTML`, `eval`, or raw HTML sink found; React escapes rendered data; service worker excludes `/api/` and `/docs` | — (rejected) | No code change. Bearer token in `localStorage` is a documented tradeoff, not evidence of XSS. CSP/storage review remains a production-readiness item only. |
 | DATA-01 | High | **CONFIRMED** | `backend/app/api/routes/athletes.py:604-613` (unlink) vs `:645-654` (commit); `backend/app/services/storage.py:56-60` | Temporary probe: injected `Session.commit` failure on athlete DELETE returned 500; stored file disappeared; DB body-file row remained and download returned 404 | `e0772b5` | Files are now unlinked only after the DB commit is durable. Test: `test_privacy_files.py::test_delete_commit_failure_preserves_body_file_row_and_file` proves a failed commit preserves row and file; idempotent cleanup remains. |
 | DATA-02 | Medium | **CONFIRMED** | `backend/app/api/routes/athletes.py:681-704` (save then commit); `backend/app/services/storage.py:18-53` | Temporary probe: injected commit failure on upload returned 500; an extra file appeared under `BODY_ANALYSIS_DIR`; DB listing was empty | `e0772b5` | Upload now rolls back and deletes the written file when the row cannot commit. Test: `test_privacy_files.py::test_failed_upload_commit_does_not_leave_orphan_file`. |
-| DATA-03 | Medium | **BLOCKED: PRODUCT DECISION** | `backend/app/api/routes/programs.py:222-242` (no status guard); UI delete affordance `frontend/src/pages/AthleteDetailPage.tsx:969-980`; explicit test `backend/tests/api/routes/test_programs.py:462-519` | Existing test proves ACTIVE, DRAFT, and ARCHIVED deletion all return 200 for staff; athlete is forbidden | — (blocked) | No change pending the product decision: keep any-status deletion, or restrict destructive deletion to DRAFT and require archive/copy for published history. |
+| DATA-03 | Medium | **RESOLVED — approved as intentional product behavior** (decision 2026-10-25) | `backend/app/api/routes/programs.py:222-242` (no status guard); UI delete affordance `frontend/src/pages/AthleteDetailPage.tsx:969-980`; explicit test `backend/tests/api/routes/test_programs.py:462-519` | Existing test proves ACTIVE, DRAFT, and ARCHIVED deletion all return 200 for staff; athlete is forbidden | — (decision 2026-10-25; no code change) | Any-status version deletion is kept as deliberate product behavior. Remaining risk: gym admins can permanently delete archived history; accepted tradeoff. |
 | DATA-04 | Medium | **CONFIRMED** | `backend/app/api/deps.py:178-180,235-246`; `backend/app/api/routes/athletes.py:399-443`; `allow_archived=True` at `:408-410` | Temporary probe: owner archived an athlete, then `PATCH /athletes/{id}` returned 200 and changed `phone` while `is_archived` stayed true | `e0772b5` | Archived profile/program mutations now return 409 `athlete_archived`. Test: `test_athlete_lifecycle.py::test_archived_athlete_profile_and_program_authoring_are_read_only` (admin, coach, cross-gym, restore re-enables editing). |
 | DATA-05 | Medium | **CONFIRMED** | `backend/app/models.py:713-748` (no revision field); `backend/app/api/routes/programs.py:179-219`; `frontend/src/pages/ProgramEditorPage.tsx:167-179` | Temporary probe: two snapshots of the same version; editor A saved 200, then editor B saved a stale snapshot 200 and overwrote A; no `revision`, ETag, or 409 | `384faf5` | Added `revision` + `expected_revision` optimistic concurrency with HTTP 409 and a frontend conflict path; ACTIVE editing preserved. Tests: `test_program_concurrency.py::test_stale_program_version_update_is_rejected_and_retry_works`, `::test_active_program_version_stays_editable_and_publishable_with_revision`. Migration `d5e6f7a8b9c0`. |
 | DATA-06 | Medium | **CONFIRMED** | `backend/app/services/programs.py:382-388`; `backend/app/models.py:713-729`; `backend/app/api/routes/programs.py:126-154,263-283` | Temporary probe: injected a colliding `next_version_number` result; `POST /program-versions/{id}/new-draft` returned 500 | `384faf5` | Version allocation now retries unique collisions and maps exhaustion to 409; unique constraint retained. Tests: `test_program_concurrency.py::test_new_draft_retries_version_number_collision`, `::test_exhausted_version_number_collision_returns_409`, `::test_concurrent_new_drafts_get_unique_version_numbers`. |
 | DATA-07 | Medium | **CONFIRMED** (narrow residual) | `backend/app/api/routes/athletes.py:632-653`; `backend/app/api/routes/gyms.py:148-158,372-381`; `backend/app/models.py:110` | Existing cross-gym test passes (`test_athlete_lifecycle.py:183-283`). Temporary probe: owner-as-athlete DELETE returned 500; owner could still log in | `1ad1714` | Owner/role overlap now preserves the owner membership and account and removes only the ATHLETE role; deterministic 200 instead of FK 500. Tests: `test_athlete_lifecycle.py::test_deleting_owner_as_athlete_keeps_account_and_gym_ownership`, `::test_deleting_athlete_of_other_gym_owner_keeps_account_and_other_gym`. |
 | HARD-01 | Medium | **ALREADY FIXED** | `backend/app/api/routes/athletes.py:307-311`; `backend/app/services/athlete_import.py:37-39,210-214`; tests `tests/api/routes/test_athlete_import.py:238-271` | Existing passing tests assert `read(MAX_IMPORT_BYTES + 1)`, oversized reject, and both endpoints reject oversize | `0b46706` (pre-audit) | Bounded read and 400 `import_file_too_large` retained. Tests: `test_import_upload_read_is_bounded`, `test_preview_and_import_reject_oversized_uploads`; empty-file cases added under HARD-04. |
 | HARD-02 | Medium | **CONFIRMED** | `backend/tests/conftest.py:67-89` (`drop_all`/`create_all`); no test references `alembic`; `alembic check` only compares current metadata to the current DB | Baseline: `uv run alembic check` passed; code search found no migration smoke test | `45998ac` | Added `backend/tests/test_migrations.py` (marked `migrations`). It recreates the disposable `gym_app_migration_test` database derived from `TEST_DATABASE_URL`, runs `alembic upgrade head`, runs `alembic check`, verifies the applied revision equals head, and spot-checks `user.token_version` / `workout_program_version.revision` as NOT NULL DEFAULT 0. Guard rejects non-`_test` and the dev DB; database is dropped after the test. |
-| HARD-03 | Medium | **CONFIRMED** | `frontend/package.json:9` (`biome check --write --unsafe`); `.pre-commit-config.yaml:27-32` invokes the same mutating `npm run lint`; no `.github/workflows` | `bunx biome check` failed with 4 errors / 11 warnings (see 2.3); `ruff check` failed with 1 error | `4cf4b44` | Added non-mutating `lint:check`; `lint:fix` (and legacy `lint`) remain mutating; pre-commit now runs `lint:check`. Excluded Git-ignored generated artifacts (`openapi.json`, Playwright auth/report/test-results) from Biome, formatted the tracked `public/sw.js` template, disabled the false-positive `noDescendingSpecificity` rule, and removed the unused test parameter. The pre-audit ruff import order was already green at Stage D start. `bun run lint:check` is green. |
+| HARD-03 | Medium | **CONFIRMED** | `frontend/package.json:9` (`biome check --write --unsafe`); `.pre-commit-config.yaml:27-32` invokes the same mutating `npm run lint`; no `.github/workflows` at audit time | `bunx biome check` failed with 4 errors / 11 warnings (see 2.3); `ruff check` failed with 1 error | `4cf4b44`, `efc49cf` | Added non-mutating `lint:check`; `lint:fix` (and legacy `lint`) remain mutating; pre-commit now runs `lint:check`. Excluded Git-ignored generated artifacts (`openapi.json`, Playwright auth/report/test-results) from Biome, formatted the tracked `public/sw.js` template, disabled the false-positive `noDescendingSpecificity` rule, and removed the unused test parameter. The pre-audit ruff import order was already green at Stage D start. `bun run lint:check` is green. Stage D2 added the minimal GitHub Actions workflow (`.github/workflows/ci.yml`); it has not run yet (§10). |
 | HARD-04 | Medium | **CONFIRMED** (partial work already done) | Existing suites: `test_gym_isolation.py:16`, `test_programs.py:71`, `test_athlete_lifecycle.py:65-311`, `test_privacy_files.py:17,123`, `test_athlete_import.py:238-350` | Baseline 42 backend tests / 50 Playwright tests; temporary probes exposed the missing cases | `7d3aa70`, `e0772b5`, `1ad1714`, `384faf5`, `89de887` | Earlier stages closed reset replay, stale JWT, archived edit, rollback/orphan, concurrency, and owner overlap. Stage D added the remaining gaps: `test_preview_and_import_reject_empty_files` (empty and header-only CSV), `test_body_analysis_files_are_scoped_to_the_requesting_gym` (cross-gym coach/owner list/download/upload all 404), and `test_restore_preserves_cross_gym_staff_membership_and_roles` (restore in one gym leaves another gym's COACH membership/access intact; wrong-gym restore 404). 71 backend tests pass. |
 | HARD-05 | Low | **DEFERRED** | No backup/restore procedure in `README.md` or `docs/`; reset script is destructive and explicitly guarded (`backend/scripts/reset_dev_db.sh:6-20`); release plan says no automated backup/reset execution (`docs/superpowers/plans/2026-10-24-release-readiness.md:265`) | Documentation review only; no destructive operation performed | — (deferred) | No change. Recorded as a production-readiness/operational blocker before real user data is relied on; a minimal `pg_dump`/upload-directory procedure would be a documentation task, not a code fix. |
 
 ### 4.2 Detailed notes on the non-obvious verdicts
 
-#### DATA-03 — why this is a product decision, not a unilateral fix
+#### DATA-03 — decision and accepted tradeoff
 
-The API has no status guard, the UI renders a delete button for every version the user can edit, and `test_staff_can_delete_program_versions_in_any_status` explicitly asserts 200 for ARCHIVED, DRAFT, and ACTIVE. That is strong evidence the behavior is intentional. However, `docs/implementation-progress.md:18,45,101,120` says archived history is retained and archived versions are read-only, and the hardening plan says not to invent retention rules. The two positions conflict only on **permanent deletion**; editing is already correctly blocked (`programs.py:198-199`). The smallest product choice is therefore: preserve current any-status deletion, or restrict DELETE to DRAFT and require archive/copy for published versions. No code change should be made until that is answered.
+The API has no status guard, the UI renders a delete button for every version the user can edit, and `test_staff_can_delete_program_versions_in_any_status` explicitly asserts 200 for ARCHIVED, DRAFT, and ACTIVE. That is strong evidence the behavior is intentional. `docs/implementation-progress.md:18,45,101,120` says archived history is retained and archived versions are read-only, but that concerns **editing**, which is already correctly blocked (`programs.py:198-199`).
+
+**Decision 2026-10-25:** any-status version deletion is kept as deliberate product behavior; no code change. The remaining risk is that gym admins can permanently delete archived program history. This is an accepted tradeoff for MVP1, not a defect. The existing test remains the regression that documents the behavior.
 
 #### DATA-07 — what is fixed and what remains
 
@@ -170,9 +172,9 @@ These were present before the audit and are recorded so later stages do not clai
 
 1. `uv run ruff check app tests` fails with one `I001` in `backend/tests/api/routes/test_athlete_import.py` (import block ordering).
 2. `bunx biome check` fails on formatting of tracked `frontend/public/sw.js` and local Git-ignored artifacts (`playwright/.auth/*.json`, `test-results/.last-run.json`), and reports 11 warnings. The `lint` script would rewrite these because it uses `--write --unsafe`.
-3. No CI workflow exists, so the above are not enforced anywhere.
+3. No CI workflow existed at the audit baseline, so the above were not enforced anywhere.
 
-These were in scope for HARD-03/HARD-04, not for Stage A. **Resolved/verified in Stage D:** ruff was already green at Stage D start; Biome is green through the non-mutating `lint:check`; generated/local artifacts are excluded; hosted CI remains a documented scope choice (README says no public CI).
+These were in scope for HARD-03/HARD-04, not for Stage A. **Resolved/verified in Stage D and D2:** ruff was already green at Stage D start; Biome is green through the non-mutating `lint:check`; generated/local artifacts are excluded; a minimal GitHub Actions workflow was added in Stage D2 (§10), though it has not run yet.
 
 ---
 
@@ -191,16 +193,16 @@ These were in scope for HARD-03/HARD-04, not for Stage A. **Resolved/verified in
 4. **DATA-05**: add a lightweight revision to program versions and require the expected revision (or `If-Match`) on update; return 409 with a clear conflict path. Preserve editable ACTIVE behavior and the frontend refresh/retry flow. Migration only if essential.
 5. **DATA-06**: make version allocation transaction-safe (retry on unique violation or map collision to 409). Keep `uq_program_version_number`; add a concurrency/collision regression.
 
-**Before Stage C:** obtain the DATA-03 product decision. Do not add or remove deletion capabilities until then.
+**DATA-03 (resolved 2026-10-25):** any-status version deletion is retained as deliberate product behavior; no code change was made.
 
 ### Stage D — verification, quality gates, recovery
 
 1. **HARD-02**: add a separate migration smoke test on a disposable DB: baseline revision -> upgrade head, schema checks, and a representative data-preservation path. Never run it against the development DB.
-2. **HARD-03**: add a non-mutating `lint:check` (`biome check` without `--write/--unsafe`), keep `lint:fix`, exclude local artifacts from Biome, fix the existing `sw.js` formatting and the `ruff` `I001`, and add the smallest local/CI gate the project actually intends to run. Hosted CI remains a scope choice because README documents no public CI.
+2. **HARD-03**: add a non-mutating `lint:check` (`biome check` without `--write/--unsafe`), keep `lint:fix`, exclude local artifacts from Biome, fix the existing `sw.js` formatting and the `ruff` `I001`, and add the smallest local/CI gate the project actually intends to run. A minimal GitHub Actions workflow was added in Stage D2 (§10).
 3. **HARD-04**: add the missing regressions not already landed with Stage B/C; map each test to a finding. Do not duplicate existing cross-gym/file/import coverage.
 4. **HARD-05**: deferred. If real user data will be used, add a documented, disposable-DB-tested `pg_dump`/restore and upload-directory recovery procedure; do not build a backup platform.
 
-**No code action:** HARD-01 (already fixed), DATA-03 (blocked on product decision), SEC-03 (deferred to production readiness), SEC-04 (rejected for MVP1, production note only).
+**No code action:** HARD-01 (already fixed), DATA-03 (resolved by decision: any-status deletion retained), SEC-03 (deferred to production readiness), SEC-04 (rejected for MVP1, production note only).
 
 ---
 
@@ -208,7 +210,7 @@ These were in scope for HARD-03/HARD-04, not for Stage A. **Resolved/verified in
 
 - **Stage A verdict:** every plan hypothesis has an independent verdict with code/test evidence. No application behavior was changed.
 - **Stage A interim GO/NO-GO (historical):** **NO-GO for public/networked use or real user data.** **CONDITIONAL GO for local manual acceptance with disposable/demo data**, with known high-risk behavior: reset-token replay (SEC-01), stale tokens after password change (SEC-02), and non-atomic file/DB delete/upload paths (DATA-01/02).
-- **Final Stage D posture:** **GO for local manual acceptance with disposable/demo data.** **NO-GO for public/networked use or real user data** until the deferred production-readiness items are addressed: login/recovery abuse controls (SEC-03), a documented and tested backup/restore procedure (HARD-05), and a public-hosting CSP/session-storage review (SEC-04 note). DATA-03 remains blocked on the deletion-policy product decision. See section 9 for the final verification evidence.
+- **Final Stage D2 posture:** **GO for local manual acceptance with disposable/demo data.** **NO-GO for public/networked use or real user data** until the deferred production-readiness items are addressed: login/recovery abuse controls (SEC-03), a documented and tested backup/restore procedure (HARD-05), and a public-hosting CSP/session-storage review (SEC-04 note). SEC-04 remains rejected for MVP1. DATA-03 was resolved by decision on 2026-10-25: any-status version deletion is deliberate, and permanent deletion of archived history by gym admins is an accepted tradeoff. A minimal CI workflow now exists but has not run yet; it is a quality gate, not proof of production readiness. See sections 9–10 for verification evidence and CI status.
 
 ---
 
@@ -232,6 +234,7 @@ Only this document was committed at `7356a12`. The temporary reproduction test w
 | D | HARD-03 | `4cf4b44` | `chore: non-mutating frontend lint check and clean baseline` |
 | D | HARD-04 | `89de887` | `test: cover remaining hardening regressions` |
 | D | HARD-01 | `0b46706` (pre-audit) | `fix: bound athlete import reads and cover permission boundaries` |
+| D2 | HARD-03 (CI gate) | `efc49cf` | `ci: minimal hardening gates for backend and frontend` |
 
 ### 9.2 HARD-04 coverage map
 
@@ -268,11 +271,37 @@ Run from `backend/` unless noted. The migration test used only `gym_app_migratio
 
 Warnings are the pre-existing Starlette `TestClient`/`httpx` deprecation and an Alembic `path_separator` configuration deprecation; neither fails a gate.
 
+These commands were re-run during Stage D2 after adding CI and produced the same results (backend: ruff/mypy green, **71 passed**; frontend: Biome, `tsc`, and build green). The install commands used by CI (`cd backend && uv sync --frozen`, `cd frontend && bun install --frozen-lockfile`) were also verified locally without changing either lockfile.
+
 ### 9.4 Remaining risks / non-goals
 
-- **DATA-03:** deletion policy for ACTIVE/ARCHIVED program versions is still a product decision; behavior unchanged.
+- **DATA-03 (resolved 2026-10-25):** any-status deletion of ACTIVE/ARCHIVED program versions is deliberate product behavior; no code change. Remaining risk: gym admins can permanently delete archived history — accepted tradeoff.
 - **SEC-03:** no login/recovery throttling; production blocker before network exposure.
 - **HARD-05:** no automated/tested backup-restore procedure; production blocker before real user data.
 - **SEC-04:** `localStorage` bearer-token tradeoff accepted for local MVP1; CSP/storage review required before public hosting.
-- **Hosted CI:** not added; the non-mutating local/pre-commit gates are the project's documented scope.
+- **CI status:** `.github/workflows/ci.yml` exists and defines backend + frontend gates, but it **has not run yet** — pending the first push/PR trigger. Do not treat it as a green signal until a real run is observed. Playwright is intentionally excluded.
+
+---
+
+## 10. Stage D2 — product decisions and CI (2026-10-25)
+
+### 10.1 DATA-03 decision
+
+**Decision:** keep any-status program-version deletion as deliberate product behavior. No production code, route guard, UI affordance, or test was changed.
+
+- Rationale: the route has no status guard, the UI exposes deletion for every editable version, and `test_staff_can_delete_program_versions_in_any_status` explicitly asserts ACTIVE/DRAFT/ARCHIVED deletion. Editing archived versions remains blocked, so the original conflict concerned permanent deletion only.
+- Accepted tradeoff / remaining risk: a gym admin can permanently delete archived program history. This is an accepted MVP1 behavior, not a defect.
+- Regression documenting the behavior: `backend/tests/api/routes/test_programs.py::test_staff_can_delete_program_versions_in_any_status`.
+
+### 10.2 Minimal CI workflow
+
+**File:** `.github/workflows/ci.yml` (added in `efc49cf`, `ci: minimal hardening gates for backend and frontend`).
+
+- Triggers: push to `main` and all pull requests. Permissions are read-only.
+- **`backend` job:** Postgres 17 service (`gym_app_test` database + health check); `uv sync --frozen`; `uv run ruff check app tests`; `uv run mypy app`; `uv run pytest -q -m "not migrations"`; then a separate `uv run pytest -q -m migrations` step. `TEST_DATABASE_URL` points at the service database, from which the migration test derives and drops its disposable `gym_app_migration_test` database. `DATABASE_URL` is a distinct name so the migration guard's disposable-database checks remain meaningful.
+- **`frontend` job:** Bun 1.3.14 + Node 22; `bun install --frozen-lockfile`; `bun run lint:check`; `bunx tsc -p tsconfig.build.json --noEmit`; `bun run build`.
+- **Playwright is intentionally excluded.** It requires a running backend, the frontend server, seeded demo data, and a browser; that is a heavier integration environment outside this minimal gate. The exclusion is documented in the workflow header comment.
+- Actions are pinned to commit SHAs and `persist-credentials: false` is set, consistent with the repository's `zizmor` pre-commit hook. `uv run zizmor .github/workflows/ci.yml` reports no findings.
+- **CI status:** **added, not yet run.** No push was made, so no GitHub Actions run exists. The workflow is unverified in GitHub-hosted CI; the first push/PR trigger is pending. Local command equivalents pass, but that is not evidence that the hosted workflow passes (runner image, Python/Bun installation, service startup, and action versions remain unexercised).
+- **Validation performed locally:** YAML parses; `zizmor` clean; the exact lint/type/test/build commands and both frozen install commands pass locally. `actionlint` was not available in this environment.
 
