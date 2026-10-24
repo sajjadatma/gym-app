@@ -60,6 +60,7 @@ This checklist is keyed to section 14 acceptance criteria. Stale claims must be 
 - Template content is stored as a validated JSON snapshot; applying a template deep-copies it into normalized program-version rows.
 - PDF output uses the browser's A4 print-to-PDF flow. No server PDF renderer or font pipeline was added.
 - Invitation tokens are purpose-bound JWTs; raw tokens are never logged or returned by the API.
+- Access tokens and password-reset tokens carry a per-user `token_version`. A successful password change or reset increments it atomically, so previously issued access tokens and reset links stop working. Reset tokens are single-use (including concurrent redemption); after changing your own password, the client returns to the login page to obtain a fresh token.
 - The local Super Admin password is generated/stored only in the Git-ignored `.env`. The tracked example file contains a placeholder; all tests use fake test credentials.
 
 ## Verification commands and latest results
@@ -101,7 +102,8 @@ The real Super Admin password and invitation tokens are deliberately absent from
 - [x] Active versions can be edited through the API; archived versions are read-only and can be copied into new drafts.
 - [x] Athlete responses never include `internal_coach_note`; print data does not include it either.
 - [x] Body-analysis files are outside static serving and permission-checked on every download; magic bytes, MIME/extension and 10 MB cap validated.
-- [x] Invitation/reset tokens are expiring, purpose-bound JWTs; used invitation tokens cannot be replayed.
+- [x] Invitation/reset tokens are expiring, purpose-bound JWTs; used invitation and reset tokens cannot be replayed.
+- [x] Password change/reset invalidates all older access tokens and reset links; stale bearer tokens receive `401 invalid_credentials`.
 - [x] Initial passwords force a password change before other protected API use.
 - [x] No public signup or free coach registration route.
 - [x] Test database guard prevents tests from wiping the development database.

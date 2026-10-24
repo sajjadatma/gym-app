@@ -10,7 +10,6 @@ from openpyxl import Workbook, load_workbook
 
 from app.api.routes.athletes import _read_import_upload
 from app.services.athlete_import import MAX_IMPORT_BYTES
-
 from tests.utils.helpers import (
     add_member,
     auth_headers,

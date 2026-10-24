@@ -87,15 +87,24 @@ def update_password_me(
     body: UpdatePassword,
     current_user: CurrentUser,
 ) -> Any:
-    if not current_user.hashed_password:
+    # Lock the row so the credential update and version bump are atomic.
+    # populate_existing refreshes attributes loaded before the lock was taken.
+    user = session.exec(
+        select(User)
+        .where(User.id == current_user.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).one()
+    if not user.hashed_password:
         raise HTTPException(status_code=400, detail="password_not_set")
-    verified, _ = verify_password(body.current_password, current_user.hashed_password)
+    verified, _ = verify_password(body.current_password, user.hashed_password)
     if not verified:
         raise HTTPException(status_code=400, detail="incorrect_password")
     if body.current_password == body.new_password:
         raise HTTPException(status_code=400, detail="password_unchanged")
-    current_user.hashed_password = get_password_hash(body.new_password)
-    current_user.must_change_password = False
-    session.add(current_user)
+    user.hashed_password = get_password_hash(body.new_password)
+    user.must_change_password = False
+    user.token_version += 1
+    session.add(user)
     session.commit()
     return Message(message="password_updated")

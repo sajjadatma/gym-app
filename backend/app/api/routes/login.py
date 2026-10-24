@@ -47,7 +47,9 @@ def login_access_token(
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return Token(
         access_token=security.create_access_token(
-            user.id, expires_delta=access_token_expires
+            user.id,
+            expires_delta=access_token_expires,
+            token_version=user.token_version,
         )
     )
 
@@ -56,7 +58,9 @@ def login_access_token(
 def recover_password(email: str, session: SessionDep) -> Message:
     user = crud.get_user_by_email(session=session, email=email)
     if user and user.hashed_password and user.is_active:
-        reset_token = generate_password_reset_token(email=user.email)
+        reset_token = generate_password_reset_token(
+            email=user.email, token_version=user.token_version
+        )
         email_data = generate_reset_password_email(
             email_to=user.email, token=reset_token
         )
@@ -73,16 +77,23 @@ def recover_password(email: str, session: SessionDep) -> Message:
 
 @router.post("/reset-password/")
 def reset_password(session: SessionDep, body: NewPassword) -> Message:
-    email = verify_password_reset_token(token=body.token)
-    if not email:
+    payload = verify_password_reset_token(token=body.token)
+    if not payload:
         raise HTTPException(status_code=400, detail="invalid_token")
-    user = session.exec(select(User).where(User.email == email)).first()
+    # Lock the row so concurrent redemptions of the same reset token cannot both
+    # pass the version check before one of them commits the increment.
+    user = session.exec(
+        select(User).where(User.email == payload.subject).with_for_update()
+    ).first()
     if not user:
         raise HTTPException(status_code=404, detail="user_not_found")
     if not user.is_active:
         raise HTTPException(status_code=400, detail="inactive_user")
+    if user.token_version != payload.token_version:
+        raise HTTPException(status_code=400, detail="invalid_token")
     user.hashed_password = get_password_hash(body.new_password)
     user.must_change_password = False
+    user.token_version += 1
     session.add(user)
     session.commit()
     return Message(message="password_updated")

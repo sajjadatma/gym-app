@@ -24,6 +24,12 @@ class EmailData:
     subject: str
 
 
+@dataclass(frozen=True)
+class PurposeToken:
+    subject: str
+    token_version: int
+
+
 def render_email_template(*, template_name: str, context: dict[str, Any]) -> str:
     template_str = (
         Path(__file__).parent / "email-templates" / template_name
@@ -99,7 +105,9 @@ def generate_invitation_email(
     )
 
 
-def _generate_token(email: str, purpose: str, hours: int) -> str:
+def _generate_token(
+    email: str, purpose: str, hours: int, token_version: int = 0
+) -> str:
     now = datetime.now(UTC)
     expires = now + timedelta(hours=hours)
     return jwt.encode(
@@ -108,13 +116,14 @@ def _generate_token(email: str, purpose: str, hours: int) -> str:
             "nbf": now,
             "sub": email,
             "purpose": purpose,
+            "token_version": token_version,
         },
         settings.SECRET_KEY,
         algorithm=security.ALGORITHM,
     )
 
 
-def decode_purpose_token(token: str, purpose: str) -> str | None:
+def _decode_purpose_token(token: str, purpose: str) -> PurposeToken | None:
     try:
         decoded = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
@@ -124,17 +133,33 @@ def decode_purpose_token(token: str, purpose: str) -> str | None:
     if decoded.get("purpose") != purpose:
         return None
     subject = decoded.get("sub")
-    return str(subject) if subject else None
+    token_version = decoded.get("token_version", 0)
+    if (
+        not subject
+        or not isinstance(token_version, int)
+        or isinstance(token_version, bool)
+        or token_version < 0
+    ):
+        return None
+    return PurposeToken(subject=str(subject), token_version=token_version)
 
 
-def generate_password_reset_token(email: str) -> str:
+def decode_purpose_token(token: str, purpose: str) -> str | None:
+    payload = _decode_purpose_token(token, purpose)
+    return payload.subject if payload else None
+
+
+def generate_password_reset_token(email: str, token_version: int = 0) -> str:
     return _generate_token(
-        email, "reset_password", settings.EMAIL_RESET_TOKEN_EXPIRE_HOURS
+        email,
+        "reset_password",
+        settings.EMAIL_RESET_TOKEN_EXPIRE_HOURS,
+        token_version,
     )
 
 
-def verify_password_reset_token(token: str) -> str | None:
-    return decode_purpose_token(token, "reset_password")
+def verify_password_reset_token(token: str) -> PurposeToken | None:
+    return _decode_purpose_token(token, "reset_password")
 
 
 def generate_invitation_token(email: str) -> str:

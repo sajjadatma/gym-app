@@ -58,6 +58,13 @@ def get_current_user(request: Request, session: SessionDep, token: TokenDep) -> 
         raise HTTPException(status_code=404, detail="user_not_found")
     if not user.is_active:
         raise HTTPException(status_code=400, detail="inactive_user")
+    if token_data.token_version != user.token_version:
+        # Revoked by a password change/reset. Legacy tokens without the claim
+        # default to version 0, matching users that never rotated credentials.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid_credentials",
+        )
     if user.must_change_password and request.url.path not in {
         f"{settings.API_V1_STR}/users/me",
         f"{settings.API_V1_STR}/users/me/password",

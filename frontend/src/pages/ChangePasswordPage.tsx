@@ -1,4 +1,3 @@
-import { useNavigate } from "@tanstack/react-router"
 import { KeyRound } from "lucide-react"
 import { type FormEvent, useState } from "react"
 import { translateApiError } from "@/api"
@@ -7,13 +6,10 @@ import { UsersService } from "@/client"
 import { AuthLayout } from "@/components/AuthLayout"
 import { Button, Spinner, TextField } from "@/components/M3"
 import { useI18n } from "@/i18n"
-import { useSnackbar } from "@/snackbar"
 
 export function ChangePasswordPage() {
   const { t } = useI18n()
-  const { me, refresh, isLoading } = useAuth()
-  const navigate = useNavigate()
-  const { show } = useSnackbar()
+  const { me, logout, isLoading } = useAuth()
   const [current, setCurrent] = useState("")
   const [password, setPassword] = useState("")
   const [confirm, setConfirm] = useState("")
@@ -39,9 +35,9 @@ export function ChangePasswordPage() {
       await UsersService.updatePasswordMe({
         body: { current_password: current, new_password: password },
       })
-      await refresh()
-      show(t("auth.passwordChanged"), "success")
-      navigate({ to: "/" })
+      // The password change revokes every token issued before it, including
+      // this session's, so return to the login page for a fresh token.
+      logout()
     } catch (err) {
       setError(translateApiError(err, t))
     } finally {

@@ -36,6 +36,7 @@ class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str | None = Field(default=None, max_length=255)
     must_change_password: bool = Field(default=False)
+    token_version: int = Field(default=0)
     created_at: datetime = Field(default_factory=get_datetime_utc)
 
 
@@ -88,6 +89,7 @@ class Token(SQLModel):
 class TokenPayload(SQLModel):
     sub: str | None = None
     purpose: str | None = None
+    token_version: int = 0
 
 
 class Message(SQLModel):
