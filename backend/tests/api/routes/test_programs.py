@@ -517,3 +517,46 @@ def test_staff_can_delete_program_versions_in_any_status(
         f"/api/v1/program-versions/{active['id']}", headers=coach
     )
     assert missing.status_code == 404
+
+
+def test_apply_template_rejects_archived_athlete(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = _owner_headers(
+        client, superuser_headers, "Archived Template Gym", unique_email("owner")
+    )
+    coach_member, coach = _add_coach(
+        client, owner, gym["id"], unique_email("coach")
+    )
+    athlete = create_athlete(
+        client,
+        coach,
+        email=unique_email("archived-template-athlete"),
+        coach_user_id=coach_member["user_id"],
+        password="athlete-pass-123",
+    )["athlete"]["profile"]
+    exercise_id = first_exercise_id(client, coach)
+    template = client.post(
+        "/api/v1/templates",
+        headers=coach,
+        json={
+            "name": "Archived target template",
+            "goal": "قدرت",
+            "notes": "",
+            "days": program_payload(exercise_id)["days"],
+        },
+    )
+    assert template.status_code == 200, template.text
+
+    archived = client.post(
+        f"/api/v1/athletes/{athlete['user_id']}/archive", headers=owner
+    )
+    assert archived.status_code == 200, archived.text
+
+    applied = client.post(
+        f"/api/v1/templates/{template.json()['id']}/apply",
+        headers=owner,
+        json={"athlete_user_id": athlete["user_id"]},
+    )
+    assert applied.status_code == 409, applied.text
+    assert applied.json()["detail"] == "athlete_archived"

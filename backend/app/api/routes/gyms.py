@@ -15,6 +15,7 @@ from app.api.deps import (
 )
 from app.core.security import get_password_hash
 from app.models import (
+    AthleteProfile,
     CoachesPublic,
     Gym,
     GymCreate,
@@ -375,6 +376,18 @@ def update_member(
         )
     if membership.user_id == current_user.id and body.is_active is False:
         raise HTTPException(status_code=400, detail="cannot_deactivate_self")
+    if body.is_active is False:
+        athlete_profile = session.exec(
+            select(AthleteProfile).where(
+                AthleteProfile.gym_id == gym_id,
+                AthleteProfile.user_id == membership.user_id,
+            )
+        ).first()
+        if athlete_profile:
+            raise HTTPException(
+                status_code=400,
+                detail="athlete_membership_cannot_be_deactivated",
+            )
     if body.roles is not None:
         if not body.roles and membership.user_id != ctx.gym.owner_id:
             raise HTTPException(status_code=400, detail="at_least_one_role_required")

@@ -655,6 +655,8 @@ const fa = {
   "errors.not_a_gym_member": "شما عضو فعال این باشگاه نیستید.",
   "errors.gym_admin_required": "این عملیات به دسترسی مدیر باشگاه نیاز دارد.",
   "errors.gym_staff_required": "این عملیات برای کادر باشگاه مجاز است.",
+  "errors.athlete_membership_cannot_be_deactivated":
+    "عضویت ورزشکار را نمی‌توان غیرفعال کرد؛ ورزشکار را آرشیو کنید.",
   "errors.insufficient_privileges": "دسترسی کافی برای این عملیات ندارید.",
   "errors.athlete_not_found":
     "ورزشکار پیدا نشد یا دسترسی شما به او قطع شده است.",
@@ -1378,6 +1380,8 @@ const en: Record<TranslationKey, string> = {
   "errors.not_a_gym_member": "You are not an active member of this gym.",
   "errors.gym_admin_required": "This action requires gym admin access.",
   "errors.gym_staff_required": "This action is limited to gym staff.",
+  "errors.athlete_membership_cannot_be_deactivated":
+    "An athlete membership cannot be deactivated; archive the athlete instead.",
   "errors.insufficient_privileges": "You do not have enough privileges.",
   "errors.athlete_not_found": "Athlete not found or your access was revoked.",
   "errors.athlete_staff_access_required": "Gym staff access is required.",

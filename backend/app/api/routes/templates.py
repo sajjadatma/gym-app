@@ -26,6 +26,7 @@ from app.models import (
     WorkoutProgramVersion,
 )
 from app.services.programs import (
+    ensure_staff_write,
     get_or_create_program,
     insert_structure,
     next_version_number,
@@ -144,8 +145,7 @@ def apply_template(
     access = get_athlete_access(
         session, ctx, current_user, body.athlete_user_id, allow_archived=True
     )
-    if not access.can_edit_staff_fields:
-        raise HTTPException(status_code=403, detail="program_edit_forbidden")
+    ensure_staff_write(access)
     program = get_or_create_program(
         session,
         gym_id=ctx.gym.id,
