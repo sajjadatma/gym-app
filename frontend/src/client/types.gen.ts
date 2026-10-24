@@ -94,6 +94,10 @@ export type AthleteCreate = {
      * Training Goal
      */
     training_goal?: string | null;
+    /**
+     * Training Days Count
+     */
+    training_days_count?: number | null;
 };
 
 /**
@@ -140,6 +144,106 @@ export type AthleteDetail = {
      * Internal Coach Note
      */
     internal_coach_note?: string | null;
+};
+
+/**
+ * AthleteImportFailure
+ */
+export type AthleteImportFailure = {
+    /**
+     * Row Number
+     */
+    row_number: number;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Messages
+     */
+    messages?: Array<string>;
+};
+
+/**
+ * AthleteImportPreview
+ */
+export type AthleteImportPreview = {
+    /**
+     * Rows
+     */
+    rows: Array<AthleteImportPreviewRow>;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Valid
+     */
+    valid: number;
+    /**
+     * Skipped
+     */
+    skipped: number;
+    /**
+     * Errors
+     */
+    errors: number;
+};
+
+/**
+ * AthleteImportPreviewRow
+ */
+export type AthleteImportPreviewRow = {
+    /**
+     * Row Number
+     */
+    row_number: number;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Full Name
+     */
+    full_name?: string | null;
+    /**
+     * Coach Email
+     */
+    coach_email?: string | null;
+    /**
+     * Coach Name
+     */
+    coach_name?: string | null;
+    /**
+     * Status
+     */
+    status: 'valid' | 'skip' | 'error';
+    /**
+     * Messages
+     */
+    messages?: Array<string>;
+};
+
+/**
+ * AthleteImportResult
+ */
+export type AthleteImportResult = {
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Created
+     */
+    created: number;
+    /**
+     * Skipped
+     */
+    skipped: number;
+    /**
+     * Failed
+     */
+    failed?: Array<AthleteImportFailure>;
 };
 
 /**
@@ -507,6 +611,42 @@ export type BodyAnalysisFilePublic = {
      * Created At
      */
     created_at: string;
+};
+
+/**
+ * Body_athletes-bulk_import_athletes
+ */
+export type Body_athletes_bulk_import_athletes = {
+    /**
+     * File
+     */
+    file: Blob | File;
+    /**
+     * Default Coach User Id
+     */
+    default_coach_user_id?: string | null;
+    /**
+     * Activation Method
+     */
+    activation_method?: 'invite' | 'password';
+    /**
+     * Initial Password
+     */
+    initial_password?: string | null;
+};
+
+/**
+ * Body_athletes-preview_athlete_import
+ */
+export type Body_athletes_preview_athlete_import = {
+    /**
+     * File
+     */
+    file: Blob | File;
+    /**
+     * Default Coach User Id
+     */
+    default_coach_user_id?: string | null;
 };
 
 /**
@@ -2407,6 +2547,102 @@ export type athletesUpdateMyAthleteProfileResponses = {
 };
 
 export type athletesUpdateMyAthleteProfileResponse = athletesUpdateMyAthleteProfileResponses[keyof athletesUpdateMyAthleteProfileResponses];
+
+export type athletesDownloadAthleteImportTemplateData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * File Format
+         */
+        file_format?: 'csv' | 'xlsx';
+    };
+    url: '/api/v1/athletes/import/template';
+};
+
+export type athletesDownloadAthleteImportTemplateErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type athletesDownloadAthleteImportTemplateError = athletesDownloadAthleteImportTemplateErrors[keyof athletesDownloadAthleteImportTemplateErrors];
+
+export type athletesDownloadAthleteImportTemplateResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type athletesPreviewAthleteImportData = {
+    body: Body_athletes_preview_athlete_import;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/athletes/import/preview';
+};
+
+export type athletesPreviewAthleteImportErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type athletesPreviewAthleteImportError = athletesPreviewAthleteImportErrors[keyof athletesPreviewAthleteImportErrors];
+
+export type athletesPreviewAthleteImportResponses = {
+    /**
+     * Successful Response
+     */
+    200: AthleteImportPreview;
+};
+
+export type athletesPreviewAthleteImportResponse = athletesPreviewAthleteImportResponses[keyof athletesPreviewAthleteImportResponses];
+
+export type athletesBulkImportAthletesData = {
+    body: Body_athletes_bulk_import_athletes;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/athletes/import';
+};
+
+export type athletesBulkImportAthletesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type athletesBulkImportAthletesError = athletesBulkImportAthletesErrors[keyof athletesBulkImportAthletesErrors];
+
+export type athletesBulkImportAthletesResponses = {
+    /**
+     * Successful Response
+     */
+    200: AthleteImportResult;
+};
+
+export type athletesBulkImportAthletesResponse = athletesBulkImportAthletesResponses[keyof athletesBulkImportAthletesResponses];
 
 export type athletesReadAthleteData = {
     body?: never;

@@ -425,6 +425,38 @@ class AthleteCreate(SQLModel):
     height_cm: float | None = None
     weight_kg: float | None = None
     training_goal: str | None = Field(default=None, max_length=1000)
+    training_days_count: int | None = Field(default=None, ge=1, le=7)
+
+
+class AthleteImportPreviewRow(SQLModel):
+    row_number: int
+    email: str
+    full_name: str | None = None
+    coach_email: str | None = None
+    coach_name: str | None = None
+    status: Literal["valid", "skip", "error"]
+    messages: list[str] = Field(default_factory=list)
+
+
+class AthleteImportPreview(SQLModel):
+    rows: list[AthleteImportPreviewRow]
+    total: int
+    valid: int
+    skipped: int
+    errors: int
+
+
+class AthleteImportFailure(SQLModel):
+    row_number: int
+    email: str
+    messages: list[str] = Field(default_factory=list)
+
+
+class AthleteImportResult(SQLModel):
+    total: int
+    created: int
+    skipped: int
+    failed: list[AthleteImportFailure] = Field(default_factory=list)
 
 
 class ReassignCoach(SQLModel):

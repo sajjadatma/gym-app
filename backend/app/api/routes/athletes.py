@@ -3,14 +3,15 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse, Response
 from sqlmodel import Session, col, select
 
 from app.api.deps import (
     CurrentUser,
+    GymAdminDep,
     GymContextDep,
     GymStaffDep,
     SessionDep,
@@ -18,9 +19,12 @@ from app.api.deps import (
     get_current_assignment,
 )
 from app.models import (
+    ActivationMethod,
     AthleteCreate,
     AthleteCreated,
     AthleteDetail,
+    AthleteImportPreview,
+    AthleteImportResult,
     AthleteProfile,
     AthleteProfileUpdate,
     AthleteSelfDetail,
@@ -37,6 +41,16 @@ from app.models import (
     User,
 )
 from app.services.access import get_membership_roles
+from app.services.athlete_import import (
+    build_template_csv,
+    build_template_xlsx,
+)
+from app.services.athlete_import import (
+    import_athletes as import_athletes_service,
+)
+from app.services.athlete_import import (
+    preview_athlete_import as preview_athlete_import_service,
+)
 from app.services.membership import activate_user, ensure_membership
 from app.services.profiles import (
     athlete_summary,
@@ -253,6 +267,7 @@ def create_athlete(
         height_cm=body.height_cm,
         weight_kg=body.weight_kg,
         training_goal=body.training_goal,
+        training_days_count=body.training_days_count,
         training_days=[],
     )
     session.add(profile)
@@ -277,6 +292,71 @@ def create_athlete(
         athlete=detail,
         initial_password=activation.initial_password,
         invitation_sent=activation.invitation_sent,
+    )
+
+
+
+@router.get("/import/template")
+def download_athlete_import_template(
+    *,
+    session: SessionDep,
+    ctx: GymAdminDep,
+    file_format: Literal["csv", "xlsx"] = Query("csv"),
+) -> Response:
+    if file_format == "xlsx":
+        content = build_template_xlsx(session, ctx.gym.id)
+        filename = "athlete-import-template.xlsx"
+        media_type = (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    else:
+        content = build_template_csv()
+        filename = "athlete-import-template.csv"
+        media_type = "text/csv; charset=utf-8"
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/import/preview", response_model=AthleteImportPreview)
+async def preview_athlete_import(
+    *,
+    session: SessionDep,
+    ctx: GymAdminDep,
+    file: UploadFile = File(...),
+    default_coach_user_id: uuid.UUID | None = Form(None),
+) -> Any:
+    return preview_athlete_import_service(
+        session,
+        gym_id=ctx.gym.id,
+        filename=file.filename or "",
+        content=await file.read(),
+        default_coach_user_id=default_coach_user_id,
+    )
+
+
+@router.post("/import", response_model=AthleteImportResult)
+async def bulk_import_athletes(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    ctx: GymAdminDep,
+    file: UploadFile = File(...),
+    default_coach_user_id: uuid.UUID | None = Form(None),
+    activation_method: ActivationMethod = Form("invite"),
+    initial_password: str | None = Form(None),
+) -> Any:
+    return import_athletes_service(
+        session,
+        gym=ctx.gym,
+        current_user=current_user,
+        filename=file.filename or "",
+        content=await file.read(),
+        default_coach_user_id=default_coach_user_id,
+        activation_method=activation_method,
+        initial_password=initial_password,
     )
 
 

@@ -11,6 +11,7 @@ import {
   Plus,
   Search,
   Table2,
+  Upload,
   UserRound,
   Users,
   X,
@@ -25,6 +26,7 @@ import {
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import { type AthleteCreated, AthletesService, GymsService } from "@/client"
+import { AthleteImportDialog } from "@/components/AthleteImportDialog"
 import {
   Avatar,
   Button,
@@ -65,6 +67,7 @@ export function AthletesPage() {
   const selectAllRef = useRef<HTMLInputElement>(null)
   const tableWrapRef = useRef<HTMLDivElement>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [created, setCreated] = useState<AthleteCreated | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -262,11 +265,25 @@ export function AthletesPage() {
         title={t("athletes.title")}
         subtitle={`${activeGym.name} · ${t("athletes.subtitle")}`}
         actions={
-          canCreate ? (
-            <Button icon={<Plus size={17} />} onClick={() => setAddOpen(true)}>
-              {t("athletes.add")}
-            </Button>
-          ) : undefined
+          <>
+            {isAdmin ? (
+              <Button
+                variant="outlined"
+                icon={<Upload size={16} />}
+                onClick={() => setImportOpen(true)}
+              >
+                {t("athletes.bulkImport")}
+              </Button>
+            ) : null}
+            {canCreate ? (
+              <Button
+                icon={<Plus size={17} />}
+                onClick={() => setAddOpen(true)}
+              >
+                {t("athletes.add")}
+              </Button>
+            ) : null}
+          </>
         }
       />
 
@@ -584,6 +601,18 @@ export function AthletesPage() {
           </Card>
         </>
       )}
+
+      <AthleteImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => {
+          void queryClient.invalidateQueries({
+            queryKey: ["athletes", activeGymId],
+          })
+          void queryClient.invalidateQueries({ queryKey: ["gyms"] })
+        }}
+        coaches={coachesQuery.data ?? []}
+      />
 
       <Dialog
         open={addOpen}
