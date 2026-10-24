@@ -322,6 +322,7 @@ export function AthleteImportDialog({
       title={t("athletes.bulkImportTitle")}
       description={t("athletes.bulkImportDescription")}
       size="lg"
+      dismissible={!busy}
       footer={footer}
     >
       <div className="m3-import">
@@ -404,6 +405,7 @@ export function AthleteImportDialog({
                   id={fileId}
                   type="file"
                   accept=".csv,.xlsx"
+                  aria-label={t("athletes.importFile")}
                   className="sr-only"
                   onChange={(event) =>
                     pickFile(event.target.files?.[0] ?? null)

@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query"
 import { AlertTriangle, Trash2 } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { AthletesService } from "@/client"
 import { Button, Dialog, TextField } from "@/components/M3"
 import { useI18n } from "@/i18n"
@@ -29,10 +29,18 @@ export function DeleteAthletesDialog({
   const [confirmation, setConfirmation] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [remainingTargets, setRemainingTargets] = useState<
+    DeleteAthleteTarget[]
+  >([])
+  const [originalCount, setOriginalCount] = useState(athletes.length)
+  const [deletedTotal, setDeletedTotal] = useState(0)
+  const athletesRef = useRef(athletes)
+  const errorRef = useRef<HTMLDivElement>(null)
+  athletesRef.current = athletes
 
-  const single = athletes.length === 1
+  const single = originalCount === 1
   const expected = single
-    ? (athletes[0]?.email ?? "")
+    ? (remainingTargets[0]?.email ?? athletes[0]?.email ?? "")
     : t("athletes.deleteConfirmWord")
   const matches = single
     ? confirmation.trim().toLowerCase() === expected.toLowerCase()
@@ -40,37 +48,48 @@ export function DeleteAthletesDialog({
 
   useEffect(() => {
     if (!open) return
+    const targets = athletesRef.current
+    setRemainingTargets(targets)
+    setOriginalCount(targets.length)
+    setDeletedTotal(0)
     setConfirmation("")
     setError(null)
     setBusy(false)
   }, [open])
 
+  useEffect(() => {
+    if (error) errorRef.current?.focus()
+  }, [error])
+
   async function confirmDelete() {
-    if (!matches || busy) return
+    if (!matches || busy || remainingTargets.length === 0) return
     setBusy(true)
     setError(null)
-    let deleted = 0
-    let failed = 0
-    for (const athlete of athletes) {
+    const failedTargets: DeleteAthleteTarget[] = []
+    let deletedNow = 0
+    for (const athlete of remainingTargets) {
       try {
         await AthletesService.deleteAthlete({
           path: { athlete_user_id: athlete.user_id },
         })
-        deleted += 1
+        deletedNow += 1
       } catch {
-        failed += 1
+        failedTargets.push(athlete)
       }
     }
+    const deleted = deletedTotal + deletedNow
+    setDeletedTotal(deleted)
     await queryClient.invalidateQueries({ queryKey: ["athletes"] })
     await queryClient.invalidateQueries({ queryKey: ["athlete"] })
     await queryClient.invalidateQueries({ queryKey: ["programs"] })
     await queryClient.invalidateQueries({ queryKey: ["program-version"] })
     setBusy(false)
-    if (failed) {
+    setRemainingTargets(failedTargets)
+    if (failedTargets.length) {
       setError(
         t("athletes.deleteSummary", {
           deleted: formatNumber(deleted),
-          failed: formatNumber(failed),
+          failed: formatNumber(failedTargets.length),
         }),
       )
       return
@@ -85,11 +104,12 @@ export function DeleteAthletesDialog({
       open={open}
       onClose={onClose}
       size="sm"
+      dismissible={!busy}
       title={
         single
           ? t("athletes.deleteTitle")
           : t("athletes.deleteTitleMultiple", {
-              count: formatNumber(athletes.length),
+              count: formatNumber(originalCount),
             })
       }
       footer={
@@ -115,18 +135,20 @@ export function DeleteAthletesDialog({
           <p>{t("athletes.deleteWarning")}</p>
         </div>
         <div className="m3-delete-targets">
-          {athletes.slice(0, 5).map((athlete) => (
-            <div key={athlete.user_id}>
-              <strong>{athlete.full_name ?? athlete.email}</strong>
-              {athlete.full_name ? (
-                <span className="muted" dir="ltr">
-                  {athlete.email}
-                </span>
-              ) : null}
-            </div>
-          ))}
-          {athletes.length > 5 ? (
-            <span className="muted">+{formatNumber(athletes.length - 5)}</span>
+          {(remainingTargets.length ? remainingTargets : athletes)
+            .slice(0, 5)
+            .map((athlete) => (
+              <div key={athlete.user_id}>
+                <strong>{athlete.full_name ?? athlete.email}</strong>
+                {athlete.full_name ? (
+                  <span className="muted" dir="ltr">
+                    {athlete.email}
+                  </span>
+                ) : null}
+              </div>
+            ))}
+          {originalCount > 5 ? (
+            <span className="muted">+{formatNumber(originalCount - 5)}</span>
           ) : null}
         </div>
         <TextField
@@ -142,7 +164,12 @@ export function DeleteAthletesDialog({
           required
         />
         {error ? (
-          <div className="m3-inline-alert" role="alert">
+          <div
+            ref={errorRef}
+            className="m3-inline-alert"
+            role="alert"
+            tabIndex={-1}
+          >
             {error}
           </div>
         ) : null}

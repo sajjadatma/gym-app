@@ -20,6 +20,11 @@ test("manager imports athletes from CSV after previewing rows", async ({
   ])
   expect(download.suggestedFilename()).toBe("athlete-import-template.csv")
 
+  await expect(dialog.locator('input[type="file"]')).toHaveAttribute(
+    "aria-label",
+    "فایل ورودی",
+  )
+
   const email = `import-e2e-${Date.now()}@example.com`
   const csv = [
     "email,full_name,phone,coach_email,training_goal,height_cm,weight_kg,training_days_count",

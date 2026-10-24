@@ -604,6 +604,7 @@ export function Dialog({
   footer,
   onClose,
   size = "md",
+  dismissible = true,
 }: {
   open: boolean
   title: string
@@ -612,11 +613,14 @@ export function Dialog({
   footer?: ReactNode
   onClose: () => void
   size?: "sm" | "md" | "lg"
+  dismissible?: boolean
 }) {
   const { t } = useI18n()
   const dialogRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
+  const dismissibleRef = useRef(dismissible)
   onCloseRef.current = onClose
+  dismissibleRef.current = dismissible
   useEffect(() => {
     if (!open) return
     const previousFocus = document.activeElement as HTMLElement | null
@@ -638,7 +642,7 @@ export function Dialog({
           ".m3-select-popover, .m3-date-popover, .m3-calendar__picker-popover",
         )
         if (openPopover?.getClientRects().length) return
-        onCloseRef.current()
+        if (dismissibleRef.current) onCloseRef.current()
       }
       if (event.key !== "Tab") return
       const items = focusable()
@@ -679,7 +683,11 @@ export function Dialog({
             <h2 id="m3-dialog-title">{title}</h2>
             {description ? <p>{description}</p> : null}
           </div>
-          <IconButton label={t("common.close")} onClick={onClose}>
+          <IconButton
+            label={t("common.close")}
+            onClick={onClose}
+            disabled={!dismissible}
+          >
             <X size={20} />
           </IconButton>
         </header>
@@ -827,6 +835,7 @@ export function ConfirmDialog({
       title={title}
       description={description}
       onClose={onClose}
+      dismissible={!loading}
       footer={
         <>
           <Button variant="text" onClick={onClose} disabled={loading}>

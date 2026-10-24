@@ -145,3 +145,167 @@ def test_restore_and_delete_require_owner_or_admin(
         f"/api/v1/athletes/{athlete['user_id']}/restore", headers=owner
     )
     assert restored.status_code == 200
+
+
+def test_archive_requires_admin_and_wrong_gym_mutations_do_not_change_target(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    _gym_a, owner_a, coach_a, _coach_member_a, athlete = _setup(
+        client, superuser_headers
+    )
+    _gym_b, owner_b, _coach_b, _coach_member_b, _email_b = _setup(
+        client, superuser_headers
+    )
+    version = create_and_publish_program(client, coach_a, athlete["user_id"])
+    detail_url = f"/api/v1/athletes/{athlete['user_id']}"
+    version_url = f"/api/v1/program-versions/{version['id']}"
+    before = client.get(detail_url, headers=owner_a).json()
+    before_version = client.get(version_url, headers=owner_a).json()
+
+    coach_archive = client.post(f"{detail_url}/archive", headers=coach_a)
+    assert coach_archive.status_code == 403
+    assert coach_archive.json()["detail"] == "gym_admin_required"
+    for method, path in (
+        ("post", f"{detail_url}/archive"),
+        ("post", f"{detail_url}/restore"),
+        ("delete", detail_url),
+    ):
+        response = getattr(client, method)(path, headers=owner_b)
+        assert response.status_code == 404, response.text
+        assert response.json()["detail"] == "athlete_not_found"
+
+    after = client.get(detail_url, headers=owner_a).json()
+    assert after["profile"]["is_archived"] is False
+    assert after["profile"] == before["profile"]
+    assert client.get(version_url, headers=owner_a).json() == before_version
+
+
+def test_delete_in_one_gym_preserves_other_gym_profile_program_and_file(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    _gym_a, owner_a, coach_a, coach_member_a, _email_a = _setup(
+        client, superuser_headers
+    )
+    _gym_b, owner_b, coach_b, coach_member_b, _email_b = _setup(
+        client, superuser_headers
+    )
+    email = unique_email("shared-cross-gym")
+    athlete_a = create_athlete(
+        client,
+        coach_a,
+        email=email,
+        coach_user_id=coach_member_a["user_id"],
+        password="athlete-pass-123",
+    )["athlete"]["profile"]
+    athlete_b = create_athlete(
+        client,
+        coach_b,
+        email=email,
+        coach_user_id=coach_member_b["user_id"],
+        password="athlete-pass-123",
+    )["athlete"]["profile"]
+    assert athlete_a["user_id"] == athlete_b["user_id"]
+    assert athlete_a["gym_id"] != athlete_b["gym_id"]
+    version_a = create_and_publish_program(client, coach_a, athlete_a["user_id"])
+    version_b = create_and_publish_program(client, coach_b, athlete_b["user_id"])
+    pdf = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n"
+    file_a = client.post(
+        f"/api/v1/athletes/{athlete_a['user_id']}/body-files",
+        headers=owner_a,
+        files={"file": ("a.pdf", pdf, "application/pdf")},
+    )
+    file_b = client.post(
+        f"/api/v1/athletes/{athlete_b['user_id']}/body-files",
+        headers=owner_b,
+        files={"file": ("b.pdf", pdf, "application/pdf")},
+    )
+    assert file_a.status_code == 200, file_a.text
+    assert file_b.status_code == 200, file_b.text
+    b_detail_before = client.get(
+        f"/api/v1/athletes/{athlete_b['user_id']}", headers=owner_b
+    ).json()
+    b_version_before = client.get(
+        f"/api/v1/program-versions/{version_b['id']}", headers=owner_b
+    ).json()
+    b_file_before = client.get(
+        f"/api/v1/athletes/{athlete_b['user_id']}/body-files/{file_b.json()['id']}/download",
+        headers=owner_b,
+    )
+
+    assert (
+        client.post(
+            f"/api/v1/athletes/{athlete_a['user_id']}/archive", headers=owner_a
+        ).status_code
+        == 200
+    )
+    deleted = client.delete(
+        f"/api/v1/athletes/{athlete_a['user_id']}", headers=owner_a
+    )
+    assert deleted.status_code == 200, deleted.text
+    assert (
+        client.get(
+            f"/api/v1/athletes/{athlete_a['user_id']}", headers=owner_a
+        ).status_code
+        == 404
+    )
+    assert (
+        client.get(
+            f"/api/v1/athletes/{athlete_a['user_id']}/body-files/{file_a.json()['id']}/download",
+            headers=owner_a,
+        ).status_code
+        == 404
+    )
+
+    b_detail_after = client.get(
+        f"/api/v1/athletes/{athlete_b['user_id']}", headers=owner_b
+    ).json()
+    assert b_detail_after == b_detail_before
+    assert b_detail_after["profile"]["user_id"] == athlete_b["user_id"]
+    assert b_detail_after["profile"]["gym_id"] == athlete_b["gym_id"]
+    assert (
+        client.get(
+            f"/api/v1/program-versions/{version_b['id']}", headers=owner_b
+        ).json()
+        == b_version_before
+    )
+    b_file_after = client.get(
+        f"/api/v1/athletes/{athlete_b['user_id']}/body-files/{file_b.json()['id']}/download",
+        headers=owner_b,
+    )
+    assert b_file_after.status_code == 200
+    assert b_file_after.content == b_file_before.content == pdf
+    assert (
+        client.get(
+            f"/api/v1/program-versions/{version_a['id']}", headers=owner_a
+        ).status_code
+        == 404
+    )
+    assert version_a["program_id"] != version_b["program_id"]
+
+
+def test_archive_restore_cuts_off_and_restores_coach_access_without_duplicate_assignment(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    _gym, owner, coach, _coach_member, athlete = _setup(client, superuser_headers)
+    detail_url = f"/api/v1/athletes/{athlete['user_id']}"
+    version = create_and_publish_program(client, coach, athlete["user_id"])
+    version_url = f"/api/v1/program-versions/{version['id']}"
+    before = client.get(detail_url, headers=owner).json()
+    before_version = client.get(version_url, headers=owner).json()
+    assert client.get(detail_url, headers=coach).status_code == 200
+    assert client.post(f"{detail_url}/archive", headers=owner).status_code == 200
+    assert client.get(detail_url, headers=coach).status_code == 404
+
+    first_restore = client.post(f"{detail_url}/restore", headers=owner)
+    assert first_restore.status_code == 200
+    assert client.get(detail_url, headers=coach).status_code == 200
+    second_restore = client.post(f"{detail_url}/restore", headers=owner)
+    assert second_restore.status_code == 200
+
+    detail = second_restore.json()
+    assignments = detail["assignments"]
+    assert sum(1 for row in assignments if row["ended_at"] is None) == 1
+    assert sum(1 for row in assignments if row["ended_at"] is not None) == 1
+    assert detail["profile"]["user_id"] == before["profile"]["user_id"]
+    assert detail["profile"]["gym_id"] == before["profile"]["gym_id"]
+    assert client.get(version_url, headers=owner).json() == before_version
