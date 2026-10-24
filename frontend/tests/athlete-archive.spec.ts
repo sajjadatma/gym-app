@@ -137,3 +137,85 @@ test("archived athletes can be restored in bulk", async ({ page, request }) => {
     })
   }
 })
+
+async function createActiveAthlete(
+  page: import("@playwright/test").Page,
+  request: import("@playwright/test").APIRequestContext,
+  name: string,
+) {
+  const token = await page.evaluate(() => localStorage.getItem("access_token"))
+  const gymId = await page.evaluate(() =>
+    localStorage.getItem("gym.activeGymId"),
+  )
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "X-Gym-ID": gymId!,
+  }
+  const coaches = await request.get(`${API_URL}/api/v1/gyms/${gymId}/coaches`, {
+    headers,
+  })
+  const coach = (await coaches.json()).data.find(
+    (item: { email: string }) => item.email === "reza@example.com",
+  )
+  const email = `archive-list-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`
+  const created = await request.post(`${API_URL}/api/v1/athletes`, {
+    headers,
+    data: {
+      email,
+      full_name: name,
+      coach_user_id: coach.user_id,
+      activation_method: "password",
+      initial_password: DEMO_PASSWORD,
+    },
+  })
+  expect(created.ok()).toBeTruthy()
+  return {
+    athleteId: (await created.json()).athlete.profile.user_id as string,
+    email,
+    headers,
+  }
+}
+
+test("archive is available on cards and as a table bulk action", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/athletes")
+  const cardTarget = await createActiveAthlete(
+    page,
+    request,
+    "آرشیو کارت آزمون",
+  )
+  await page.goto("/athletes")
+  await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(cardTarget.email)
+  const card = page.locator(".m3-entity-card").first()
+  await expect(card).toBeVisible()
+  await card.getByRole("button", { name: "آرشیو ورزشکار", exact: true }).click()
+  const cardDialog = page.getByRole("dialog")
+  await expect(cardDialog).toContainText("آرشیو ورزشکار")
+  await cardDialog.getByRole("button", { name: "آرشیو", exact: true }).click()
+  await expect(page.getByText("ورزشکار آرشیو شد.")).toBeVisible()
+  await expect(page.locator(".m3-entity-card")).toHaveCount(0)
+
+  const marker = `آرشیو گروهی جدول ${Date.now()}`
+  const first = await createActiveAthlete(page, request, `${marker} ۱`)
+  const second = await createActiveAthlete(page, request, `${marker} ۲`)
+  await page.goto("/athletes")
+  await page.getByRole("button", { name: "جدول", exact: true }).click()
+  await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(marker)
+  const rows = page.locator(".m3-data-table tbody tr")
+  await expect(rows).toHaveCount(2)
+  await page.getByRole("checkbox", { name: "انتخاب همه" }).check()
+  await page.getByRole("button", { name: "آرشیو انتخاب‌شده‌ها" }).click()
+  const bulkDialog = page.getByRole("dialog")
+  await expect(bulkDialog).toContainText("آرشیو ۲ ورزشکار")
+  await bulkDialog.getByRole("button", { name: "آرشیو", exact: true }).click()
+  await expect(page.getByText(/۲ ورزشکار آرشیو شد/)).toBeVisible()
+  await expect(rows).toHaveCount(0)
+
+  for (const target of [cardTarget, first, second]) {
+    await request.delete(`${API_URL}/api/v1/athletes/${target.athleteId}`, {
+      headers: target.headers,
+    })
+  }
+})

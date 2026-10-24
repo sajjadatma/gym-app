@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import {
+  Archive,
   ArrowLeft,
   ArrowRight,
   Copy,
@@ -25,13 +26,19 @@ import {
 } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
-import { type AthleteCreated, AthletesService, GymsService } from "@/client"
+import {
+  type AthleteCreated,
+  type AthleteSummary,
+  AthletesService,
+  GymsService,
+} from "@/client"
 import { AthleteImportDialog } from "@/components/AthleteImportDialog"
 import { AthleteListTabs } from "@/components/AthleteListTabs"
 import {
   Avatar,
   Button,
   Card,
+  ConfirmDialog,
   Dialog,
   EmptyState,
   ErrorState,
@@ -67,6 +74,8 @@ export function AthletesPage() {
   const tableWrapRef = useRef<HTMLDivElement>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [archiveTargets, setArchiveTargets] = useState<AthleteSummary[]>([])
+  const [archiveBusy, setArchiveBusy] = useState(false)
   const [created, setCreated] = useState<AthleteCreated | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -170,6 +179,38 @@ export function AthletesPage() {
 
   function clearSelection() {
     setSelected(new Set())
+  }
+
+  async function archiveAthletes() {
+    if (!archiveTargets.length || archiveBusy) return
+    setArchiveBusy(true)
+    const results = await Promise.allSettled(
+      archiveTargets.map((athlete) =>
+        AthletesService.archiveAthlete({
+          path: { athlete_user_id: athlete.user_id },
+        }),
+      ),
+    )
+    const archived = results.filter(
+      (result) => result.status === "fulfilled",
+    ).length
+    const failed = results.length - archived
+    await queryClient.invalidateQueries({ queryKey: ["athletes"] })
+    await queryClient.invalidateQueries({ queryKey: ["athlete"] })
+    if (failed === 0 && archived === 1) {
+      show(t("athletes.archived"), "success")
+    } else {
+      show(
+        t("athletes.archiveSummary", {
+          count: formatNumber(archived),
+          failed: formatNumber(failed),
+        }),
+        failed ? "error" : "success",
+      )
+    }
+    setArchiveTargets([])
+    setSelected(new Set())
+    setArchiveBusy(false)
   }
 
   function openAthlete(userId: string) {
@@ -377,51 +418,59 @@ export function AthletesPage() {
       ) : view === "grid" ? (
         <div className="m3-card-grid">
           {athletes.map((athlete) => (
-            <button
+            <div
               key={athlete.user_id}
-              type="button"
               className={`m3-entity-card ${
                 athlete.is_archived ? "is-archived" : ""
               }`}
-              onClick={() => openAthlete(athlete.user_id)}
             >
-              <div className="m3-entity-card__head">
-                <div className="m3-entity-card__identity">
-                  <Avatar name={athlete.full_name ?? athlete.email} />
-                  <div className="m3-entity-card__person">
-                    <div
-                      className="m3-entity-card__title"
-                      title={athlete.full_name ?? athlete.email}
-                    >
-                      {athlete.full_name ?? athlete.email}
-                    </div>
-                    <div
-                      className="m3-entity-card__email truncate"
-                      dir="ltr"
-                      title={athlete.email}
-                    >
-                      {athlete.email}
+              <button
+                type="button"
+                className="m3-entity-card__stretch"
+                aria-label={`${t("common.open")} ${
+                  athlete.full_name ?? athlete.email
+                }`}
+                onClick={() => openAthlete(athlete.user_id)}
+              />
+              <div className="m3-entity-card__body">
+                <div className="m3-entity-card__head">
+                  <div className="m3-entity-card__identity">
+                    <Avatar name={athlete.full_name ?? athlete.email} />
+                    <div className="m3-entity-card__person">
+                      <div
+                        className="m3-entity-card__title"
+                        title={athlete.full_name ?? athlete.email}
+                      >
+                        {athlete.full_name ?? athlete.email}
+                      </div>
+                      <div
+                        className="m3-entity-card__email truncate"
+                        dir="ltr"
+                        title={athlete.email}
+                      >
+                        {athlete.email}
+                      </div>
                     </div>
                   </div>
+                  {athlete.is_archived ? (
+                    <StatusBadge status="archived" />
+                  ) : (
+                    <StatusBadge
+                      status={athlete.is_active ? "active" : "inactive"}
+                    />
+                  )}
                 </div>
-                {athlete.is_archived ? (
-                  <StatusBadge status="archived" />
-                ) : (
-                  <StatusBadge
-                    status={athlete.is_active ? "active" : "inactive"}
-                  />
-                )}
-              </div>
-              <div className="m3-entity-card__meta">
-                <span>
-                  <UserRound size={13} aria-hidden />{" "}
-                  {athlete.coach_name ?? t("athletes.noCoach")}
-                </span>
-                {athlete.phone ? (
-                  <span dir="ltr">
-                    <Phone size={13} aria-hidden /> {athlete.phone}
+                <div className="m3-entity-card__meta">
+                  <span>
+                    <UserRound size={13} aria-hidden />{" "}
+                    {athlete.coach_name ?? t("athletes.noCoach")}
                   </span>
-                ) : null}
+                  {athlete.phone ? (
+                    <span dir="ltr">
+                      <Phone size={13} aria-hidden /> {athlete.phone}
+                    </span>
+                  ) : null}
+                </div>
               </div>
               <div className="m3-entity-card__footer">
                 {athlete.active_program_title ? (
@@ -438,12 +487,28 @@ export function AthletesPage() {
                     {t("athletes.noActiveProgram")}
                   </span>
                 )}
-                <span className="m3-entity-card__open">
-                  {t("common.open")}
-                  <ForwardIcon size={14} aria-hidden />
-                </span>
+                <div className="m3-entity-card__actions">
+                  {isAdmin ? (
+                    <Button
+                      variant="text"
+                      size="sm"
+                      icon={<Archive size={14} />}
+                      onClick={() => setArchiveTargets([athlete])}
+                    >
+                      {t("athletes.archive")}
+                    </Button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="m3-entity-card__open"
+                    onClick={() => openAthlete(athlete.user_id)}
+                  >
+                    {t("common.open")}
+                    <ForwardIcon size={14} aria-hidden />
+                  </button>
+                </div>
               </div>
-            </button>
+            </div>
           ))}
         </div>
       ) : (
@@ -456,9 +521,21 @@ export function AthletesPage() {
                   count: formatNumber(selectedAthletes.length),
                 })}
               </span>
-              <Button variant="text" size="sm" onClick={clearSelection}>
-                {t("athletes.clearSelection")}
-              </Button>
+              <div className="row" style={{ gap: 4 }}>
+                {isAdmin ? (
+                  <Button
+                    variant="text"
+                    size="sm"
+                    icon={<Archive size={15} />}
+                    onClick={() => setArchiveTargets(selectedAthletes)}
+                  >
+                    {t("athletes.archiveSelected")}
+                  </Button>
+                ) : null}
+                <Button variant="text" size="sm" onClick={clearSelection}>
+                  {t("athletes.clearSelection")}
+                </Button>
+              </div>
             </div>
           ) : null}
           <Card className="m3-data-card">
@@ -569,14 +646,26 @@ export function AthletesPage() {
                         )}
                       </td>
                       <td className="m3-data-table__actions">
-                        <Button
-                          variant="text"
-                          size="sm"
-                          icon={<ForwardIcon size={15} />}
-                          onClick={() => openAthlete(athlete.user_id)}
-                        >
-                          {t("common.open")}
-                        </Button>
+                        <div className="row" style={{ gap: 2 }}>
+                          {isAdmin ? (
+                            <Button
+                              variant="text"
+                              size="sm"
+                              icon={<Archive size={15} />}
+                              onClick={() => setArchiveTargets([athlete])}
+                            >
+                              {t("athletes.archive")}
+                            </Button>
+                          ) : null}
+                          <Button
+                            variant="text"
+                            size="sm"
+                            icon={<ForwardIcon size={15} />}
+                            onClick={() => openAthlete(athlete.user_id)}
+                          >
+                            {t("common.open")}
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -586,6 +675,24 @@ export function AthletesPage() {
           </Card>
         </>
       )}
+
+      <ConfirmDialog
+        open={archiveTargets.length > 0}
+        title={
+          archiveTargets.length === 1
+            ? t("athletes.archiveTitle")
+            : t("athletes.archiveTitleMultiple", {
+                count: formatNumber(archiveTargets.length),
+              })
+        }
+        description={t("athletes.archiveWarning")}
+        confirmLabel={t("athletes.confirmArchive")}
+        cancelLabel={t("common.cancel")}
+        onConfirm={archiveAthletes}
+        onClose={() => setArchiveTargets([])}
+        destructive
+        loading={archiveBusy}
+      />
 
       <AthleteImportDialog
         open={importOpen}

@@ -366,6 +366,10 @@ const fa = {
     "این ورزشکار آرشیو شده و پرونده‌اش فقط‌خواندنی است. برای ویرایش، ابتدا او را بازیابی کنید.",
   "athletes.archivedProgramHint":
     "برای ساخت برنامه تمرینی، ابتدا ورزشکار را بازیابی کنید.",
+  "athletes.confirmArchive": "آرشیو",
+  "athletes.archiveSelected": "آرشیو انتخاب‌شده‌ها",
+  "athletes.archiveSummary": "{count} ورزشکار آرشیو شد · {failed} ناموفق",
+  "athletes.archiveTitleMultiple": "آرشیو {count} ورزشکار",
   "athletes.archivedEmpty": "هیچ ورزشکار آرشیوشده‌ای وجود ندارد",
   "athletes.archivedEmptyHint":
     "ورزشکارانی که آرشیو می‌کنید اینجا نمایش داده می‌شوند و می‌توانید آن‌ها را بازیابی کنید.",
@@ -1073,6 +1077,10 @@ const en: Record<TranslationKey, string> = {
     "This athlete is archived and the profile is read-only. Restore them to make changes.",
   "athletes.archivedProgramHint":
     "Restore the athlete before creating a training program.",
+  "athletes.confirmArchive": "Archive",
+  "athletes.archiveSelected": "Archive selected",
+  "athletes.archiveSummary": "{count} archived · {failed} failed",
+  "athletes.archiveTitleMultiple": "Archive {count} athletes",
   "athletes.archivedEmpty": "No archived athletes",
   "athletes.archivedEmptyHint":
     "Athletes you archive appear here and can be restored.",
