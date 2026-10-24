@@ -63,7 +63,7 @@ from app.services.profiles import (
     staff_detail,
 )
 from app.services.storage import (
-    delete_stored_file,
+    delete_stored_files,
     save_body_analysis_upload,
     stored_file_path,
 )
@@ -410,6 +410,8 @@ def update_athlete(
     )
     if not access.can_edit_staff_fields:
         raise HTTPException(status_code=403, detail="athlete_staff_access_required")
+    if access.profile.is_archived:
+        raise HTTPException(status_code=409, detail="athlete_archived")
     data = body.model_dump(exclude_unset=True)
     full_name = data.pop("full_name", None)
     if full_name is not None:
@@ -607,8 +609,8 @@ def delete_athlete(
             BodyAnalysisFile.athlete_user_id == athlete_user_id,
         )
     ).all()
+    stored_names = [file_row.stored_name for file_row in body_files]
     for file_row in body_files:
-        delete_stored_file(file_row.stored_name)
         session.delete(file_row)
 
     programs = session.exec(
@@ -651,6 +653,10 @@ def delete_athlete(
     if not memberships:
         session.delete(access.user)
     session.commit()
+    # Remove files only after the database transaction is durable. A failure
+    # before this point leaves both rows and files intact; a crash after it
+    # leaves an orphan file that is harmless and can be cleaned up again.
+    delete_stored_files(stored_names)
     return Message(message="athlete_deleted")
 
 
@@ -699,7 +705,14 @@ async def upload_body_file(
         size_bytes=size,
     )
     session.add(record)
-    session.commit()
+    try:
+        session.commit()
+    except Exception:
+        # The file was written before the row. If the row cannot be committed,
+        # remove the file so repeated failures do not accumulate orphans.
+        session.rollback()
+        delete_stored_files([stored_name])
+        raise
     session.refresh(record)
     return body_file_public(record)
 

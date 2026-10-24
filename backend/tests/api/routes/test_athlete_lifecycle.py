@@ -9,7 +9,9 @@ from tests.utils.helpers import (
     create_and_publish_program,
     create_athlete,
     create_gym,
+    first_exercise_id,
     gym_headers,
+    program_payload,
     unique_email,
 )
 
@@ -309,3 +311,81 @@ def test_archive_restore_cuts_off_and_restores_coach_access_without_duplicate_as
     assert detail["profile"]["user_id"] == before["profile"]["user_id"]
     assert detail["profile"]["gym_id"] == before["profile"]["gym_id"]
     assert client.get(version_url, headers=owner).json() == before_version
+
+
+def test_archived_athlete_profile_and_program_authoring_are_read_only(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    _gym, owner, coach, _coach_member, athlete = _setup(client, superuser_headers)
+    version = create_and_publish_program(client, coach, athlete["user_id"])
+    detail_url = f"/api/v1/athletes/{athlete['user_id']}"
+    version_url = f"/api/v1/program-versions/{version['id']}"
+    before = client.get(detail_url, headers=owner).json()
+    before_version = client.get(version_url, headers=owner).json()
+    assert (
+        client.post(f"{detail_url}/archive", headers=owner).status_code == 200
+    )
+
+    patch = client.patch(detail_url, headers=owner, json={"phone": "09120000000"})
+    assert patch.status_code == 409, patch.text
+    assert patch.json()["detail"] == "athlete_archived"
+    create = client.post(
+        f"{detail_url}/programs", headers=owner, json={"title": "Blocked"}
+    )
+    assert create.status_code == 409, create.text
+    assert create.json()["detail"] == "athlete_archived"
+    exercise_id = first_exercise_id(client, owner)
+    update = client.put(
+        version_url, headers=owner, json=program_payload(exercise_id)
+    )
+    assert update.status_code == 409, update.text
+    assert update.json()["detail"] == "athlete_archived"
+    new_draft = client.post(f"{version_url}/new-draft", headers=owner)
+    assert new_draft.status_code == 409, new_draft.text
+    assert new_draft.json()["detail"] == "athlete_archived"
+    archive_version = client.post(f"{version_url}/archive", headers=owner)
+    assert archive_version.status_code == 409, archive_version.text
+    assert archive_version.json()["detail"] == "athlete_archived"
+    save_template = client.post(
+        f"{version_url}/save-as-template",
+        headers=owner,
+        json={"name": "Blocked"},
+    )
+    assert save_template.status_code == 409, save_template.text
+    assert save_template.json()["detail"] == "athlete_archived"
+
+    after = client.get(detail_url, headers=owner)
+    assert after.status_code == 200
+    assert after.json()["profile"]["is_archived"] is True
+    assert after.json()["profile"]["phone"] == before["profile"]["phone"]
+    assert after.json()["profile"]["full_name"] == before["profile"]["full_name"]
+    assert client.get(version_url, headers=owner).json() == before_version
+
+    _other_gym, other_owner, _other_coach, _other_member, _other_athlete = _setup(
+        client, superuser_headers
+    )
+    cross_patch = client.patch(
+        detail_url, headers=other_owner, json={"phone": "09121111111"}
+    )
+    assert cross_patch.status_code == 404
+    assert cross_patch.json()["detail"] == "athlete_not_found"
+    coach_patch = client.patch(
+        detail_url, headers=coach, json={"phone": "09122222222"}
+    )
+    assert coach_patch.status_code == 404
+    cross_program = client.post(
+        f"{detail_url}/programs", headers=other_owner, json={"title": "Cross"}
+    )
+    assert cross_program.status_code == 404
+
+    assert client.post(f"{detail_url}/restore", headers=owner).status_code == 200
+    restored_patch = client.patch(
+        detail_url, headers=owner, json={"phone": "09123333333"}
+    )
+    assert restored_patch.status_code == 200, restored_patch.text
+    assert restored_patch.json()["profile"]["phone"] == "09123333333"
+    restored_program = client.post(
+        f"{detail_url}/programs", headers=owner, json={"title": "Allowed"}
+    )
+    assert restored_program.status_code == 200, restored_program.text
+

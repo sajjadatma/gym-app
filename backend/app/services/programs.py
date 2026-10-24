@@ -339,6 +339,8 @@ def load_version_context(
 def ensure_staff_write(access: AthleteAccess) -> None:
     if not access.can_edit_staff_fields:
         raise HTTPException(status_code=403, detail="program_edit_forbidden")
+    if access.profile.is_archived:
+        raise HTTPException(status_code=409, detail="athlete_archived")
 
 
 def ensure_publishable(structure: list[dict[str, Any]]) -> None:

@@ -92,6 +92,7 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
   })
   const trainedDaysCount = athleteQuery.data?.profile.training_days_count
   const canEdit =
+    !athleteQuery.data?.profile.is_archived &&
     (version?.status === "DRAFT" || version?.status === "ACTIVE") &&
     (isAdmin || activeRole === "COACH")
   const shouldBlock = useMemo(() => dirty && canEdit, [dirty, canEdit])
@@ -308,7 +309,9 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
                 {t("common.print")}
               </Button>
             ) : null}
-            {version.status === "ACTIVE" && activeRole !== "ATHLETE" ? (
+            {canEdit &&
+            version.status === "ACTIVE" &&
+            activeRole !== "ATHLETE" ? (
               <Button
                 variant="outlined"
                 icon={<Archive size={16} />}

@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
+from sqlmodel import Session
 
+from app.core.config import settings
+from app.main import app
 from tests.utils.helpers import (
     add_member,
     auth_headers,
@@ -256,3 +260,122 @@ def test_body_analysis_file_is_private_and_validated(
     assert coach_after.status_code == 404
     self_after = client.get("/api/v1/athletes/me", headers=athlete_headers)
     assert self_after.status_code in {403, 404}
+
+
+def _fail_commit(_session: Session) -> None:
+    raise RuntimeError("simulated commit failure")
+
+
+def _file_lifecycle_setup(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> tuple[dict[str, str], dict[str, object]]:
+    owner_email = unique_email("lifecycle-file-owner")
+    gym = create_gym(
+        client,
+        superuser_headers,
+        name="Lifecycle File Gym",
+        owner_email=owner_email,
+        password="owner-pass-123",
+    )["gym"]
+    raw_owner = auth_headers(client, owner_email, "owner-pass-123")
+    change_password(
+        client,
+        raw_owner,
+        current_password="owner-pass-123",
+        new_password="owner-pass-456",
+    )
+    owner = gym_headers(
+        client, email=owner_email, password="owner-pass-456", gym_id=gym["id"]
+    )
+    coach_member = add_member(
+        client,
+        owner,
+        gym["id"],
+        email=unique_email("lifecycle-file-coach"),
+        roles=["COACH"],
+        password="coach-pass-123",
+    )["member"]
+    athlete = create_athlete(
+        client,
+        owner,
+        email=unique_email("lifecycle-file-athlete"),
+        coach_user_id=coach_member["user_id"],
+        password="athlete-pass-123",
+    )["athlete"]["profile"]
+    return owner, athlete
+
+
+def test_delete_commit_failure_preserves_body_file_row_and_file(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner, athlete = _file_lifecycle_setup(client, superuser_headers)
+    pdf = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n"
+    upload = client.post(
+        f"/api/v1/athletes/{athlete['user_id']}/body-files",
+        headers=owner,
+        files={"file": ("kept.pdf", pdf, "application/pdf")},
+    )
+    assert upload.status_code == 200, upload.text
+    file_id = upload.json()["id"]
+    stored_files_before = set(settings.BODY_ANALYSIS_DIR.iterdir())
+    download_url = (
+        f"/api/v1/athletes/{athlete['user_id']}/body-files/{file_id}/download"
+    )
+    before = client.get(download_url, headers=owner)
+    assert before.status_code == 200
+    assert before.content == pdf
+    assert (
+        client.post(
+            f"/api/v1/athletes/{athlete['user_id']}/archive", headers=owner
+        ).status_code
+        == 200
+    )
+
+    with monkeypatch.context() as patch:  # type: ignore[attr-defined]
+        patch.setattr(Session, "commit", _fail_commit)
+        with TestClient(app, raise_server_exceptions=False) as failing_client:
+            response = failing_client.delete(
+                f"/api/v1/athletes/{athlete['user_id']}", headers=owner
+            )
+    assert response.status_code == 500
+
+    assert set(settings.BODY_ANALYSIS_DIR.iterdir()) == stored_files_before
+    detail = client.get(f"/api/v1/athletes/{athlete['user_id']}", headers=owner)
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["profile"]["is_archived"] is True
+    listed = client.get(
+        f"/api/v1/athletes/{athlete['user_id']}/body-files", headers=owner
+    )
+    assert [row["id"] for row in listed.json()] == [file_id]
+    after = client.get(download_url, headers=owner)
+    assert after.status_code == 200
+    assert after.content == pdf
+
+
+def test_failed_upload_commit_does_not_leave_orphan_file(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    owner, athlete = _file_lifecycle_setup(client, superuser_headers)
+    stored_files_before = set(settings.BODY_ANALYSIS_DIR.iterdir())
+    pdf = b"%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n"
+
+    with monkeypatch.context() as patch:  # type: ignore[attr-defined]
+        patch.setattr(Session, "commit", _fail_commit)
+        with TestClient(app, raise_server_exceptions=False) as failing_client:
+            response = failing_client.post(
+                f"/api/v1/athletes/{athlete['user_id']}/body-files",
+                headers=owner,
+                files={"file": ("orphan.pdf", pdf, "application/pdf")},
+            )
+    assert response.status_code == 500
+
+    assert set(settings.BODY_ANALYSIS_DIR.iterdir()) == stored_files_before
+    listed = client.get(
+        f"/api/v1/athletes/{athlete['user_id']}/body-files", headers=owner
+    )
+    assert listed.status_code == 200
+    assert listed.json() == []

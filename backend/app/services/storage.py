@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import logging
 import uuid
+from collections.abc import Iterable
 from pathlib import Path
 
 from fastapi import HTTPException, UploadFile
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_TYPES = {
     "application/pdf": (".pdf", b"%PDF"),
@@ -58,6 +62,21 @@ def delete_stored_file(stored_name: str) -> None:
     if path.parent != settings.BODY_ANALYSIS_DIR:
         return
     path.unlink(missing_ok=True)
+
+
+def delete_stored_files(stored_names: Iterable[str]) -> None:
+    """Best-effort, idempotent removal of stored files after a DB rollback/commit.
+
+    Callers only run this once the database state is final: after a successful
+    commit when deleting records, or after a rollback when an upload was not
+    persisted. A failed unlink therefore leaves a harmless orphan file instead
+    of a row that points at a missing file.
+    """
+    for stored_name in stored_names:
+        try:
+            delete_stored_file(stored_name)
+        except OSError:
+            logger.warning("could not delete body analysis file %s", stored_name)
 
 
 def stored_file_path(stored_name: str) -> Path:

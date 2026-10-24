@@ -59,6 +59,8 @@ def _staff_access(
     )
     if not access.can_edit_staff_fields:
         raise HTTPException(status_code=403, detail="program_edit_forbidden")
+    if access.profile.is_archived:
+        raise HTTPException(status_code=409, detail="athlete_archived")
     return access
 
 
