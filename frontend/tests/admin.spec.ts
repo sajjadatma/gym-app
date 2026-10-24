@@ -21,7 +21,9 @@ test("admin dashboard, gym switching and coach mode", async ({ page }) => {
   await expect(page.getByRole("button", { name: "تیم باشگاه" })).toBeVisible()
 })
 
-test("athlete list, detail and read-only program builder", async ({ page }) => {
+test("athlete list, detail and editable active program builder", async ({
+  page,
+}) => {
   await page.goto("/")
   await page
     .locator(".m3-nav-rail")
@@ -37,18 +39,24 @@ test("athlete list, detail and read-only program builder", async ({ page }) => {
   ).toBeVisible()
 
   await page.getByRole("tab", { name: /برنامه‌ها/ }).click()
-  await page.getByRole("button", { name: "باز کردن" }).first().click()
+  await page
+    .locator(".m3-version-row")
+    .filter({ hasText: "برنامه قدرتی ۸ هفته‌ای" })
+    .getByRole("button", { name: "ویرایش", exact: true })
+    .click()
   await expect(page).toHaveURL(/\/programs\/[^/]+\/edit$/)
   await expect(
-    page.getByText("این برنامه منتشرشده و فعال است و قابل ویرایش نیست."),
+    page.getByText(
+      "برنامه فعال است. تغییرات پس از ذخیره برای ورزشکار نمایش داده می‌شوند.",
+    ),
   ).toBeVisible()
   await expect(
     page.getByRole("heading", { name: "برنامه قدرتی ۸ هفته‌ای" }),
   ).toBeVisible()
-  await expect(page.getByRole("combobox").first()).toBeDisabled()
+  await expect(page.getByRole("combobox").first()).toBeEnabled()
   await expect(
     page.getByRole("button", { name: "انتخاب تاریخ" }).first(),
-  ).toBeDisabled()
+  ).toBeEnabled()
 })
 
 test("add-athlete validation keeps the form and shows a Persian error", async ({

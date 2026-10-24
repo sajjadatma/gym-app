@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useNavigate } from "@tanstack/react-router"
 import { Download, FileUp, Mail, Save, UserRound } from "lucide-react"
 import { useEffect, useId, useRef, useState } from "react"
 import { translateApiError } from "@/api"
@@ -10,7 +11,6 @@ import {
   Avatar,
   Button,
   Card,
-  Chip,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -18,21 +18,21 @@ import {
   Spinner,
   TextField,
 } from "@/components/M3"
-import { type TranslationKey, useI18n } from "@/i18n"
+import { useI18n } from "@/i18n"
 import { formatBytes } from "@/lib/format"
 import { useSnackbar } from "@/snackbar"
-
-const DAYS = ["sat", "sun", "mon", "tue", "wed", "thu", "fri"] as const
 
 export function MyProfilePage() {
   const { t, formatDate, formatDateTime } = useI18n()
   const { activeGym, activeGymId, activeRole } = useAuth()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const { show } = useSnackbar()
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const hydratedProfileRef = useRef<string | null>(null)
   const uploadId = useId()
   const [form, setForm] = useState({
     phone: "",
@@ -48,8 +48,7 @@ export function MyProfilePage() {
     sports_history: "",
     fitness_level: "",
     limitations: "",
-    training_days: [] as string[],
-    equipment: "",
+    training_days_count: "",
   })
 
   const profileQuery = useQuery({
@@ -61,6 +60,9 @@ export function MyProfilePage() {
   const data = profileQuery.data
   useEffect(() => {
     if (!data) return
+    const profileKey = `${activeGymId}:${data.profile.user_id}`
+    if (hydratedProfileRef.current === profileKey) return
+    hydratedProfileRef.current = profileKey
     setForm({
       phone: data.profile.phone ?? "",
       birth_date: data.profile.birth_date ?? null,
@@ -75,10 +77,9 @@ export function MyProfilePage() {
       sports_history: data.profile.sports_history ?? "",
       fitness_level: data.profile.fitness_level ?? "",
       limitations: data.profile.limitations ?? "",
-      training_days: data.profile.training_days ?? [],
-      equipment: data.profile.equipment ?? "",
+      training_days_count: data.profile.training_days_count?.toString() ?? "",
     })
-  }, [data])
+  }, [activeGymId, data])
 
   if (!activeGym) {
     return (
@@ -108,15 +109,6 @@ export function MyProfilePage() {
     return value.trim() ? Number(value) : null
   }
 
-  function toggleDay(day: string) {
-    setForm((current) => ({
-      ...current,
-      training_days: current.training_days.includes(day)
-        ? current.training_days.filter((value) => value !== day)
-        : [...current.training_days, day],
-    }))
-  }
-
   async function save() {
     setSaving(true)
     setError(null)
@@ -136,12 +128,14 @@ export function MyProfilePage() {
           sports_history: form.sports_history || null,
           fitness_level: form.fitness_level || null,
           limitations: form.limitations || null,
-          training_days: form.training_days,
-          equipment: form.equipment || null,
+          training_days_count: form.training_days_count
+            ? Number(form.training_days_count)
+            : null,
         },
       })
       queryClient.setQueryData(["athlete-me", activeGymId], response.data)
       show(t("my.saved"), "success")
+      await navigate({ to: "/" })
     } catch (err) {
       setError(translateApiError(err, t))
     } finally {
@@ -257,6 +251,7 @@ export function MyProfilePage() {
             <DateField
               label={t("athletes.birthDate")}
               maxToday
+              dayMonthYear
               value={form.birth_date}
               onChange={(value) => setForm({ ...form, birth_date: value })}
             />
@@ -329,21 +324,22 @@ export function MyProfilePage() {
             ]}
           />
         </div>
-        <div style={{ marginTop: 14 }}>
-          <div className="m3-field__label" style={{ marginBottom: 8 }}>
-            {t("my.trainingDays")}
-          </div>
-          <div className="row">
-            {DAYS.map((day) => (
-              <Chip
-                key={day}
-                selected={form.training_days.includes(day)}
-                onClick={() => toggleDay(day)}
-              >
-                {t(`weekday.${day}` as TranslationKey)}
-              </Chip>
-            ))}
-          </div>
+        <div className="grid-2 m3-mt-xs">
+          <TextField
+            label={t("my.trainingDays")}
+            type="number"
+            min={1}
+            max={7}
+            step={1}
+            inputMode="numeric"
+            value={form.training_days_count}
+            onChange={(event) => {
+              const value = event.target.value
+              if (value === "" || /^[1-7]$/.test(value)) {
+                setForm({ ...form, training_days_count: value })
+              }
+            }}
+          />
         </div>
         <div className="grid-2" style={{ marginTop: 14 }}>
           <TextField
@@ -365,14 +361,6 @@ export function MyProfilePage() {
             rows={3}
           />
         </div>
-        <TextField
-          label={t("athletes.equipment")}
-          value={form.equipment}
-          onChange={(event) =>
-            setForm({ ...form, equipment: event.target.value })
-          }
-          containerClassName="m3-mt-xs"
-        />
       </Card>
 
       <div style={{ height: 16 }} />

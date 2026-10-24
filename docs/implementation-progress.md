@@ -15,11 +15,12 @@ This checklist is keyed to section 14 acceptance criteria. Stale claims must be 
 - [x] Coach assignment history and reassignment access cutover.
 - [x] Exercise library and gym custom exercises.
 - [x] Program builder with per-set reps/weight/intensity/rest/duration/note.
-- [x] Draft/active/archived lifecycle, immutable versions, one active program per athlete/gym.
+- [x] Draft/active/archived lifecycle, editable active versions, archived history, one active program per athlete/gym.
 - [x] Reusable templates with independent copies.
 - [x] Persian RTL Material Design 3 UI, Jalali presentation, locale switch (fa/en), A4 print/PDF.
 - [x] Responsive PWA manifest, icons and service worker; local production serving with SPA fallback.
 - [x] Production-quality Material 3 Select, searchable ComboBox and Persian/Gregorian React Aria DatePicker controls.
+- [x] Owner/admin-only category and exercise management; categorized program/template days with athlete/print labels and preserved historical snapshots.
 - [x] Automated backend tests and Playwright tests (desktop + emulated mobile + production PWA).
 - [x] Local reset/bootstrap/verification scripts and documentation.
 
@@ -38,7 +39,7 @@ This checklist is keyed to section 14 acceptance criteria. Stale claims must be 
 - [x] **6. Athlete profile completion and body-analysis upload authorization; private coach note never exposed to athlete/API/print.**
   Evidence: `test_private_coach_note_is_never_exposed_to_athlete`; `test_body_analysis_file_is_private_and_validated`; Playwright athlete print test.
 - [x] **7. Global/custom exercises and athlete-independent templates with independent editable copies.**
-  Evidence: `test_custom_exercise_is_gym_scoped`; `test_versioning_immutable_active_and_templates`; Playwright template/exercise pages.
+  Evidence: `test_custom_exercise_is_gym_scoped`; `test_versioning_editable_active_and_templates`; Playwright template/exercise pages.
 - [x] **8. Each set has independent reps/weight/rest/duration/note.**
   Evidence: program payload and version tests; program builder; print PDF fixture.
 - [x] **9. Athlete belongs to multiple gyms with independent profiles/programs; max one active program per athlete/gym; version history retained.**
@@ -54,8 +55,9 @@ This checklist is keyed to section 14 acceptance criteria. Stale claims must be 
 
 - Local PostgreSQL 17 and Homebrew Mailpit are used instead of starting Docker Desktop. The approved Docker Compose files remain in the repository for environments where Docker is used.
 - Athlete body measurements are stored on the gym-scoped `AthleteProfile` (latest values) rather than a separate measurement-history table; the profile still records the update timestamp. This is the simplest adequate model for MVP1.
+- Categories and custom exercises are created by gym owners/admins; coaches have read-only catalog access. New movements require a category ID. Days store multiple category IDs and saved category names. Legacy mixed days remain supported.
 - Custom exercises are shared with authorized staff of their own gym (not visible to other gyms); this keeps new coaches able to work with prior programs that use them.
-- Template content is stored as a validated JSON snapshot; applying a template deep-copies it into normalized immutable program-version rows.
+- Template content is stored as a validated JSON snapshot; applying a template deep-copies it into normalized program-version rows.
 - PDF output uses the browser's A4 print-to-PDF flow. No server PDF renderer or font pipeline was added.
 - Invitation tokens are purpose-bound JWTs; raw tokens are never logged or returned by the API.
 - The local Super Admin password is generated/stored only in the Git-ignored `.env`. The tracked example file contains a placeholder; all tests use fake test credentials.
@@ -67,11 +69,11 @@ Run from the repository root unless noted.
 ```sh
 cd backend
 uv run pytest -q
-# 16 passed
+# 20 passed
 
 cd ../frontend
 bunx playwright test
-# 29 passed (desktop + Pixel 5 + auth/PWA/manifest + controls + field labels)
+# 31 passed (desktop + Pixel 5 + auth/PWA/manifest + controls + field labels + category workflow)
 
 bun run build
 PLAYWRIGHT_BASE_URL=http://localhost:8000 PWA_PROD=1 bunx playwright test
@@ -96,7 +98,7 @@ The real Super Admin password and invitation tokens are deliberately absent from
 - [x] Coach access depends on the current `CoachAssignment`; ended assignments lose access.
 - [x] Ownership transfer requires current owner or global Super Admin.
 - [x] Only one current coach assignment and one active program version are enforced by partial unique indexes.
-- [x] Published/archived versions are read-only through the API; new versions copy content.
+- [x] Active versions can be edited through the API; archived versions are read-only and can be copied into new drafts.
 - [x] Athlete responses never include `internal_coach_note`; print data does not include it either.
 - [x] Body-analysis files are outside static serving and permission-checked on every download; magic bytes, MIME/extension and 10 MB cap validated.
 - [x] Invitation/reset tokens are expiring, purpose-bound JWTs; used invitation tokens cannot be replayed.
@@ -112,3 +114,10 @@ The real Super Admin password and invitation tokens are deliberately absent from
 - No attendance, actual workout performance logging, progress analytics, chat, nutrition, payments, AI generation or native app (approved scope exclusions).
 - PWA is minimal: app-shell/offline navigation cache only; no offline data synchronization.
 - Physical iPhone testing is not required or performed; desktop and emulated mobile viewports are used as approved.
+
+### Program authoring updates — 2026-10-22
+
+- Active programs support in-place edits by authorized staff while preserving active status and publication time. Empty active structures are rejected atomically. Archived programs remain read-only.
+- New-program dialogs reset title, goal and dates each time they open. Editor state is scoped to the selected version and background refetches preserve unsaved edits.
+- Workout days support several categories with visible checkbox chips, combined movement filtering, day navigation and exercise/set counts. Removing a used category requires first moving/removing its movements. Athlete and print views show all selected categories.
+- Category snapshots survive templates and copies; singular category payloads remain compatible. Migration c9324e715a60 preserves existing day selections.

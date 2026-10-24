@@ -7,6 +7,7 @@ import { useAuth } from "@/auth"
 import { ProgramsService } from "@/client"
 import { Button, ErrorState, Spinner } from "@/components/M3"
 import { useI18n } from "@/i18n"
+import { workoutDayLabel } from "@/lib/workoutDayLabel"
 
 export function PrintPage({ versionId }: { versionId: string }) {
   const { t, direction, formatDate, formatNumber } = useI18n()
@@ -139,7 +140,11 @@ export function PrintPage({ versionId }: { versionId: string }) {
         {version.days.map((day, dayIndex) => (
           <section className="m3-print-day" key={day.id ?? dayIndex}>
             <h2 className="m3-print-day__title">
-              {formatNumber(dayIndex + 1)}. {day.title}
+              {workoutDayLabel(
+                day,
+                t("program.day"),
+                formatNumber(dayIndex + 1),
+              )}
             </h2>
             {day.notes ? (
               <p

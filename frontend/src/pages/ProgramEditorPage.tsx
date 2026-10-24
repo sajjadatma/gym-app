@@ -10,10 +10,16 @@ import {
   Save,
   Send,
 } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
-import { type DayInput, ExercisesService, ProgramsService } from "@/client"
+import {
+  type AthleteDetail,
+  AthletesService,
+  type DayInput,
+  ExercisesService,
+  ProgramsService,
+} from "@/client"
 import { DateField } from "@/components/DateField"
 import {
   Button,
@@ -75,8 +81,20 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
   })
 
   const version = versionQuery.data
+  const athleteQuery = useQuery({
+    queryKey: ["athlete", activeGymId, version?.athlete_user_id],
+    queryFn: async (): Promise<AthleteDetail> =>
+      (
+        await AthletesService.readAthlete({
+          path: { athlete_user_id: version!.athlete_user_id },
+        })
+      ).data,
+    enabled: Boolean(activeGymId && version?.athlete_user_id),
+  })
+  const trainedDaysCount = athleteQuery.data?.profile.training_days_count
   const canEdit =
-    version?.status === "DRAFT" && (isAdmin || activeRole === "COACH")
+    (version?.status === "DRAFT" || version?.status === "ACTIVE") &&
+    (isAdmin || activeRole === "COACH")
   const shouldBlock = useMemo(() => dirty && canEdit, [dirty, canEdit])
   const blocker = useBlocker({
     shouldBlockFn: () => shouldBlock,
@@ -84,8 +102,14 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
     disabled: !shouldBlock,
   })
 
+  const loadedVersion = useRef<string | null>(null)
   useEffect(() => {
-    if (!version) return
+    if (!version || loadedVersion.current === version.id) return
+    loadedVersion.current = version.id
+    setError(null)
+    setPublishOpen(false)
+    setArchiveOpen(false)
+    setTemplateOpen(false)
     setMeta({
       title: version.title,
       goal: version.goal ?? "",
@@ -158,6 +182,9 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
       )
       await queryClient.invalidateQueries({
         queryKey: ["programs", activeGymId, athleteUserId],
+      })
+      await queryClient.invalidateQueries({
+        queryKey: ["print-version", activeGymId, versionId],
       })
       setDirty(false)
       if (showMessage) show(t("program.saved"), "success")
@@ -239,6 +266,7 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
   }
 
   async function saveTemplate() {
+    if (dirty && !(await saveDraft(false))) return
     if (!templateForm.name.trim()) {
       setError(t("validation.title"))
       return
@@ -421,6 +449,7 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
             days={days}
             onChange={updateDays}
             exerciseOptions={exercisesQuery.data ?? []}
+            trainedDaysCount={trainedDaysCount}
             readOnly={!canEdit}
           />
         </div>
@@ -455,15 +484,20 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
             icon={<Save size={16} />}
             onClick={() => void saveDraft()}
             loading={saving}
+            disabled={!dirty}
           >
-            {t("program.saveDraft")}
+            {version.status === "ACTIVE"
+              ? t("common.save")
+              : t("program.saveDraft")}
           </Button>
-          <Button
-            icon={<Send size={16} />}
-            onClick={() => setPublishOpen(true)}
-          >
-            {t("program.publish")}
-          </Button>
+          {version.status === "DRAFT" ? (
+            <Button
+              icon={<Send size={16} />}
+              onClick={() => setPublishOpen(true)}
+            >
+              {t("program.publish")}
+            </Button>
+          ) : null}
         </div>
       ) : null}
 

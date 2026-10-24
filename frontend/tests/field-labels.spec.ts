@@ -41,7 +41,7 @@ test("searches and staff forms have persistent, associated labels", async ({
     ["/members", "", "افزودن عضو"],
   ]) {
     await page.goto(route)
-    const add = page.getByRole("button", { name: button, exact: true })
+    const add = page.getByRole("button", { name: button, exact: true }).first()
     await expect(add).toBeVisible()
     if (searchLabel) {
       const search = page.getByRole("searchbox")
@@ -82,6 +82,7 @@ test("program day and set fields retain their labels and focus while editing", a
   ).toBeVisible()
 
   const exercise = page.getByRole("combobox", { name: "افزودن حرکت" })
+  await exercise.click()
   await exercise.fill("پرس سینه هالتر")
   await page.getByRole("option", { name: /پرس سینه هالتر/ }).click()
   await page

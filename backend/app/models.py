@@ -319,6 +319,7 @@ class AthleteProfile(SQLModel, table=True):
     training_days: list[str] = Field(
         default_factory=list, sa_column=Column(JSON, nullable=False)
     )
+    training_days_count: int | None = Field(default=None, ge=1, le=7)
     equipment: str | None = Field(default=None, max_length=1000)
     measurements_updated_at: datetime | None = Field(default=None)
     internal_coach_note: str | None = Field(
@@ -360,6 +361,7 @@ class AthleteProfileUpdate(SQLModel):
     fitness_level: str | None = Field(default=None, max_length=100)
     limitations: str | None = Field(default=None, max_length=2000)
     training_days: list[str] | None = None
+    training_days_count: int | None = Field(default=None, ge=1, le=7)
     equipment: str | None = Field(default=None, max_length=1000)
     internal_coach_note: str | None = Field(default=None, max_length=5000)
 
@@ -394,6 +396,7 @@ class AthleteSelfUpdate(SQLModel):
     fitness_level: str | None = Field(default=None, max_length=100)
     limitations: str | None = Field(default=None, max_length=2000)
     training_days: list[str] | None = None
+    training_days_count: int | None = Field(default=None, ge=1, le=7)
     equipment: str | None = Field(default=None, max_length=1000)
 
     @field_validator(
@@ -537,6 +540,7 @@ class AthleteProfileSelf(SQLModel):
     fitness_level: str | None = None
     limitations: str | None = None
     training_days: list[str]
+    training_days_count: int | None = None
     equipment: str | None = None
     is_archived: bool = False
     created_at: datetime
@@ -548,12 +552,62 @@ class AthleteProfileSelf(SQLModel):
 # ---------------------------------------------------------------------------
 
 
+class ExerciseCategory(SQLModel, table=True):
+    __tablename__ = "exercise_category"
+    __table_args__ = (
+        Index(
+            "uq_exercise_category_global",
+            "name_key",
+            unique=True,
+            postgresql_where=text("gym_id IS NULL"),
+        ),
+        UniqueConstraint("gym_id", "name_key", name="uq_exercise_category_gym_name"),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    name: str = Field(min_length=1, max_length=100)
+    name_key: str = Field(max_length=100)
+    gym_id: uuid.UUID | None = Field(
+        default=None, foreign_key="gym.id", ondelete="CASCADE", index=True
+    )
+    created_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="SET NULL"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+class ExerciseCategoryCreate(SQLModel):
+    name: str = Field(min_length=1, max_length=100)
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        value = " ".join(value.split())
+        if not value:
+            raise ValueError("category name cannot be blank")
+        return value
+
+
+class ExerciseCategoryPublic(SQLModel):
+    id: uuid.UUID
+    name: str
+    gym_id: uuid.UUID | None = None
+
+
+class ExerciseCategoriesPublic(SQLModel):
+    data: list[ExerciseCategoryPublic]
+    count: int
+
+
 class Exercise(SQLModel, table=True):
     __tablename__ = "exercise"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name_fa: str = Field(min_length=1, max_length=255, index=True)
     muscle_group: str = Field(min_length=1, max_length=100, index=True)
+    category_id: uuid.UUID = Field(
+        foreign_key="exercise_category.id", ondelete="RESTRICT", index=True
+    )
     description: str | None = Field(default=None, max_length=2000)
     instructions: str | None = Field(default=None, max_length=4000)
     is_custom: bool = Field(default=False, index=True)
@@ -568,14 +622,14 @@ class Exercise(SQLModel, table=True):
 
 class ExerciseCreate(SQLModel):
     name_fa: str = Field(min_length=1, max_length=255)
-    muscle_group: str = Field(min_length=1, max_length=100)
+    category_id: uuid.UUID
     description: str | None = Field(default=None, max_length=2000)
     instructions: str | None = Field(default=None, max_length=4000)
 
 
 class ExerciseUpdate(SQLModel):
     name_fa: str | None = Field(default=None, min_length=1, max_length=255)
-    muscle_group: str | None = Field(default=None, min_length=1, max_length=100)
+    category_id: uuid.UUID | None = None
     description: str | None = Field(default=None, max_length=2000)
     instructions: str | None = Field(default=None, max_length=4000)
 
@@ -584,6 +638,7 @@ class ExercisePublic(SQLModel):
     id: uuid.UUID
     name_fa: str
     muscle_group: str
+    category_id: uuid.UUID
     description: str | None = None
     instructions: str | None = None
     is_custom: bool
@@ -665,8 +720,22 @@ class WorkoutDay(SQLModel, table=True):
         foreign_key="workout_program_version.id", ondelete="CASCADE", index=True
     )
     day_number: int
+    weekday: str | None = Field(default=None, max_length=16)
     title: str = Field(min_length=1, max_length=255)
     notes: str | None = Field(default=None, max_length=2000)
+    category_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="exercise_category.id",
+        ondelete="RESTRICT",
+        index=True,
+    )
+    category_name: str | None = Field(default=None, max_length=100)
+    category_ids: list[str] = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False)
+    )
+    category_names: list[str] = Field(
+        default_factory=list, sa_column=Column(JSON, nullable=False)
+    )
 
 
 class WorkoutExercise(SQLModel, table=True):
@@ -768,13 +837,18 @@ class ExercisePublicProgram(ExerciseInput):
 
 class DayInput(SQLModel):
     day_number: int = Field(ge=1)
+    weekday: str | None = Field(default=None, max_length=16)
     title: str = Field(min_length=1, max_length=255)
     notes: str | None = Field(default=None, max_length=2000)
+    category_id: uuid.UUID | None = None
+    category_ids: list[uuid.UUID] = Field(default_factory=list)
     exercises: list[ExerciseInput]
 
 
 class DayPublic(DayInput):
+    category_names: list[str] = Field(default_factory=list)
     id: uuid.UUID | None = None
+    category_name: str | None = None
     exercises: list[ExercisePublicProgram]  # type: ignore[assignment]
 
 

@@ -3,34 +3,44 @@ import { Dumbbell, Pencil, Plus, Search } from "lucide-react"
 import { useDeferredValue, useState } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
-import { type ExercisePublic, ExercisesService } from "@/client"
+import {
+  ExerciseCategoriesService,
+  type ExercisePublic,
+  ExercisesService,
+} from "@/client"
 import {
   Button,
   Card,
-  Chip,
   Dialog,
   EmptyState,
   ErrorState,
   PageHeader,
+  SelectField,
   Spinner,
   TextField,
 } from "@/components/M3"
 import { useI18n } from "@/i18n"
+import { useExerciseCategories } from "@/lib/useExerciseCategories"
 import { useSnackbar } from "@/snackbar"
 
 export function ExercisesPage() {
   const { t } = useI18n()
-  const { activeGym, activeGymId, activeRole, isSuperuser } = useAuth()
+  const { activeGym, activeGymId, isAdmin } = useAuth()
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
   const [search, setSearch] = useState("")
   const deferredSearch = useDeferredValue(search)
   const [group, setGroup] = useState("")
+  const categoriesQuery = useExerciseCategories()
+  const [categoryOpen, setCategoryOpen] = useState(false)
+  const [categoryName, setCategoryName] = useState("")
+  const [categoryError, setCategoryError] = useState<string | null>(null)
+  const [creatingCategory, setCreatingCategory] = useState(false)
   const [open, setOpen] = useState(false)
   const [editExercise, setEditExercise] = useState<ExercisePublic | null>(null)
   const [form, setForm] = useState({
     name_fa: "",
-    muscle_group: "",
+    category_id: "",
     description: "",
     instructions: "",
   })
@@ -57,22 +67,42 @@ export function ExercisesPage() {
     )
   }
 
-  const canEdit = activeRole === "GYM_ADMIN" || activeRole === "COACH"
+  const canEdit = isAdmin
   const exercises = (exercisesQuery.data ?? []).filter(
-    (exercise) => !group || exercise.muscle_group === group,
+    (exercise) => !group || exercise.category_id === group,
   )
-  const groups = Array.from(
-    new Set(
-      (exercisesQuery.data ?? []).map((exercise) => exercise.muscle_group),
-    ),
-  )
+  const categories = categoriesQuery.data ?? []
+
+  async function saveCategory() {
+    if (!categoryName.trim()) {
+      setCategoryError(t("validation.required"))
+      return
+    }
+    setCategoryError(null)
+    setCreatingCategory(true)
+    try {
+      const { data } = await ExerciseCategoriesService.createExerciseCategory({
+        body: { name: categoryName.trim() },
+      })
+      await queryClient.invalidateQueries({
+        queryKey: ["exercise-categories", activeGymId],
+      })
+      setGroup(data.id)
+      setCategoryOpen(false)
+      show(t("categories.created"), "success")
+    } catch (error) {
+      setCategoryError(translateApiError(error, t))
+    } finally {
+      setCreatingCategory(false)
+    }
+  }
 
   function openCreate() {
     setError(null)
     setEditExercise(null)
     setForm({
       name_fa: "",
-      muscle_group: "",
+      category_id: group,
       description: "",
       instructions: "",
     })
@@ -84,7 +114,7 @@ export function ExercisesPage() {
     setEditExercise(exercise)
     setForm({
       name_fa: exercise.name_fa,
-      muscle_group: exercise.muscle_group,
+      category_id: exercise.category_id,
       description: exercise.description ?? "",
       instructions: exercise.instructions ?? "",
     })
@@ -93,7 +123,7 @@ export function ExercisesPage() {
 
   async function save() {
     setError(null)
-    if (!form.name_fa.trim() || !form.muscle_group.trim()) {
+    if (!form.name_fa.trim() || !form.category_id) {
       setError(t("validation.required"))
       return
     }
@@ -104,7 +134,7 @@ export function ExercisesPage() {
           path: { exercise_id: editExercise.id },
           body: {
             name_fa: form.name_fa,
-            muscle_group: form.muscle_group,
+            category_id: form.category_id,
             description: form.description || null,
             instructions: form.instructions || null,
           },
@@ -114,7 +144,7 @@ export function ExercisesPage() {
         await ExercisesService.createExercise({
           body: {
             name_fa: form.name_fa,
-            muscle_group: form.muscle_group,
+            category_id: form.category_id,
             description: form.description || null,
             instructions: form.instructions || null,
           },
@@ -139,9 +169,26 @@ export function ExercisesPage() {
         subtitle={`${activeGym.name} · ${t("exercises.subtitle")}`}
         actions={
           canEdit ? (
-            <Button icon={<Plus size={17} />} onClick={openCreate}>
-              {t("exercises.add")}
-            </Button>
+            <>
+              <Button
+                variant="outlined"
+                icon={<Plus size={17} />}
+                onClick={() => {
+                  setCategoryName("")
+                  setCategoryError(null)
+                  setCategoryOpen(true)
+                }}
+              >
+                {t("categories.add")}
+              </Button>
+              <Button
+                icon={<Plus size={17} />}
+                onClick={openCreate}
+                disabled={categoriesQuery.isPending || categoriesQuery.isError}
+              >
+                {t("exercises.add")}
+              </Button>
+            </>
           ) : undefined
         }
       />
@@ -155,20 +202,31 @@ export function ExercisesPage() {
           onChange={(event) => setSearch(event.target.value)}
           leading={<Search size={18} aria-hidden />}
         />
-        <Chip selected={!group} onClick={() => setGroup("")}>
-          {t("exercises.allGroups")}
-        </Chip>
-        {groups.map((item) => (
-          <Chip
-            key={item}
-            selected={group === item}
-            onClick={() => setGroup(group === item ? "" : item)}
-          >
-            {item}
-          </Chip>
-        ))}
+        <SelectField
+          label={t("categories.category")}
+          value={group}
+          onChange={setGroup}
+          disabled={categoriesQuery.isPending || categoriesQuery.isError}
+          options={[
+            { value: "", label: t("exercises.allGroups") },
+            ...categories.map((category) => ({
+              value: category.id,
+              label: category.name,
+            })),
+          ]}
+        />
       </div>
 
+      {categoriesQuery.isError ? (
+        <ErrorState
+          message={translateApiError(categoriesQuery.error, t)}
+          onRetry={() => categoriesQuery.refetch()}
+          retryLabel={t("common.retry")}
+        />
+      ) : null}
+      {!canEdit ? (
+        <p className="muted m3-catalog-hint">{t("categories.coachReadOnly")}</p>
+      ) : null}
       {exercisesQuery.isLoading ? (
         <Spinner label={t("common.loading")} />
       ) : exercisesQuery.isError ? (
@@ -193,10 +251,7 @@ export function ExercisesPage() {
         <div className="m3-card-grid">
           {exercises.map((exercise) => {
             const canEditExercise =
-              exercise.is_custom &&
-              (isSuperuser ||
-                activeRole === "GYM_ADMIN" ||
-                exercise.gym_id === activeGymId)
+              canEdit && exercise.is_custom && exercise.gym_id === activeGymId
             return (
               <Card key={exercise.id} className="m3-card--outlined">
                 <div className="m3-entity-card__head">
@@ -276,12 +331,14 @@ export function ExercisesPage() {
             }
             required
           />
-          <TextField
-            label={t("exercises.muscleGroup")}
-            value={form.muscle_group}
-            onChange={(event) =>
-              setForm({ ...form, muscle_group: event.target.value })
-            }
+          <SelectField
+            label={t("categories.category")}
+            value={form.category_id}
+            onChange={(category_id) => setForm({ ...form, category_id })}
+            options={categories.map((category) => ({
+              value: category.id,
+              label: category.name,
+            }))}
             required
           />
           <TextField
@@ -303,6 +360,39 @@ export function ExercisesPage() {
             rows={3}
           />
         </div>
+      </Dialog>
+      <Dialog
+        open={categoryOpen}
+        title={t("categories.add")}
+        onClose={() => setCategoryOpen(false)}
+        footer={
+          <>
+            <Button variant="text" onClick={() => setCategoryOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={saveCategory} loading={creatingCategory}>
+              {t("common.create")}
+            </Button>
+          </>
+        }
+      >
+        <form
+          className="stack"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void saveCategory()
+          }}
+        >
+          <TextField
+            label={t("categories.name")}
+            value={categoryName}
+            maxLength={100}
+            required
+            onChange={(event) => setCategoryName(event.target.value)}
+            error={categoryError ?? undefined}
+            helper={t("categories.gymScope")}
+          />
+        </form>
       </Dialog>
     </>
   )

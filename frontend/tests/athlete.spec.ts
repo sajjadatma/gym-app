@@ -36,14 +36,28 @@ test("athlete sees active program, sets and can generate a Persian PDF", async (
   expect(pdf.length).toBeGreaterThan(1000)
 })
 
-test("athlete profile is editable and hides the coach private note", async ({
+test("athlete profile saves without equipment, uses numbered days and redirects to the dashboard", async ({
   page,
 }) => {
   await page.goto("/my/profile")
   await expect(page.getByRole("heading", { name: "پرونده من" })).toBeVisible()
   await expect(page.getByText("PRIVATE-DEMO-NOTE")).toHaveCount(0)
-  const phone = page.getByLabel("تلفن")
-  await phone.fill("09121112233")
+  await expect(page.getByLabel("تجهیزات در دسترس")).toHaveCount(0)
+  const trainingDays = page.getByLabel("تعداد روز تمرین در هفته")
+  await expect(trainingDays).toHaveAttribute("type", "number")
+  await expect(trainingDays).toHaveAttribute("min", "1")
+  await expect(trainingDays).toHaveAttribute("max", "7")
+
+  const dateSegments = page.locator(".m3-date-field .m3-date-segment")
+  await expect(dateSegments).toHaveCount(3)
+  const segmentOrder = await dateSegments.evaluateAll((segments) =>
+    segments
+      .map((segment) => segment.getAttribute("data-type"))
+      .filter((type) => type && type !== "literal"),
+  )
+  expect(segmentOrder).toEqual(["day", "month", "year"])
+
   await page.getByRole("button", { name: "ذخیره پرونده" }).click()
   await expect(page.getByText("پرونده شما ذخیره شد.")).toBeVisible()
+  await expect(page).toHaveURL("/")
 })

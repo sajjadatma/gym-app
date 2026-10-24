@@ -12,6 +12,7 @@ The product is **local development/manual acceptance only**. There is no deploym
 - **Frontend:** React 19, TypeScript, Vite, TanStack Router/Query, Axios, React Aria accessibility primitives, `@internationalized/date`, Material Design 3 tokens/components, Vazirmatn.
 - **Local services:** PostgreSQL 17 (Homebrew) and Mailpit for invitations/password recovery.
 - **PWA:** web manifest, icons and a minimal service worker. Service worker is registered in production builds; the FastAPI app serves the built SPA with deep-link fallback.
+- **Exercise catalog:** owners and gym admins create gym-scoped categories and custom exercises; coaches select existing catalog entries to author programs. Days carry category snapshots through templates, athlete views and print/PDF.
 - **UI system:** Material Design 3 only. The template's shadcn/Tailwind presentation layer was replaced; Tailwind is not used.
 
 ## Prerequisites
@@ -58,7 +59,15 @@ The product is **local development/manual acceptance only**. There is no deploym
    uv run python scripts/seed_demo.py
    ```
 
-5. Start Mailpit and both dev servers:
+5. Start Mailpit and the dev servers
+
+   — in one command from the repo root (Postgres included when missing):
+
+   ```sh
+   npm run dev
+   ```
+
+   or, manually:
 
    ```sh
    brew services start mailpit

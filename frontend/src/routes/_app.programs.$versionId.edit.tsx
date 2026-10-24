@@ -4,7 +4,7 @@ import { ProgramEditorPage } from "@/pages/ProgramEditorPage"
 
 function Page() {
   const { versionId } = Route.useParams()
-  return <ProgramEditorPage versionId={versionId} />
+  return <ProgramEditorPage key={versionId} versionId={versionId} />
 }
 
 export const Route = createFileRoute("/_app/programs/$versionId/edit")({

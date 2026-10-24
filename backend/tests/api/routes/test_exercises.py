@@ -71,12 +71,15 @@ def test_custom_exercise_is_gym_scoped(
         client, superuser_headers, "exercise-b"
     )
 
+    category_id = client.get("/api/v1/exercise-categories", headers=owner_a).json()[
+        "data"
+    ][0]["id"]
     created = client.post(
         "/api/v1/exercises",
-        headers=coach_a,
+        headers=owner_a,
         json={
             "name_fa": "حرکت اختصاصی تست",
-            "muscle_group": "تمام بدن",
+            "category_id": category_id,
             "description": "فقط برای باشگاه اول",
         },
     )

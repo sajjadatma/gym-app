@@ -29,3 +29,7 @@ Verify keyboard interaction, Jalali leap dates, ISO conversion, mobile overlays 
 ```sh
 bunx playwright test tests/controls.spec.ts tests/field-labels.spec.ts --project=chromium
 ```
+
+## Exercise categories
+
+Owners and admins manage categories and custom movements in the exercise library. Coaches have a read-only catalog. Program and template editors filter movement choices by the selected day categories; existing mixed days remain supported. Day category labels appear in the athlete view and print/PDF, using the saved category snapshot. API types are generated from the backend schema; regenerate them after backend schema changes.

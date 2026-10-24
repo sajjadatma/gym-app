@@ -219,6 +219,10 @@ export type AthleteProfileSelf = {
      */
     training_days: Array<string>;
     /**
+     * Training Days Count
+     */
+    training_days_count?: number | null;
+    /**
      * Equipment
      */
     equipment?: string | null;
@@ -300,6 +304,10 @@ export type AthleteProfileUpdate = {
      * Training Days
      */
     training_days?: Array<string> | null;
+    /**
+     * Training Days Count
+     */
+    training_days_count?: number | null;
     /**
      * Equipment
      */
@@ -393,6 +401,10 @@ export type AthleteSelfUpdate = {
      * Training Days
      */
     training_days?: Array<string> | null;
+    /**
+     * Training Days Count
+     */
+    training_days_count?: number | null;
     /**
      * Equipment
      */
@@ -578,6 +590,10 @@ export type DayInput = {
      */
     day_number: number;
     /**
+     * Weekday
+     */
+    weekday?: string | null;
+    /**
      * Title
      */
     title: string;
@@ -585,6 +601,14 @@ export type DayInput = {
      * Notes
      */
     notes?: string | null;
+    /**
+     * Category Id
+     */
+    category_id?: string | null;
+    /**
+     * Category Ids
+     */
+    category_ids?: Array<string>;
     /**
      * Exercises
      */
@@ -600,6 +624,10 @@ export type DayPublic = {
      */
     day_number: number;
     /**
+     * Weekday
+     */
+    weekday?: string | null;
+    /**
      * Title
      */
     title: string;
@@ -608,13 +636,71 @@ export type DayPublic = {
      */
     notes?: string | null;
     /**
+     * Category Id
+     */
+    category_id?: string | null;
+    /**
+     * Category Ids
+     */
+    category_ids?: Array<string>;
+    /**
      * Exercises
      */
     exercises: Array<ExercisePublicProgram>;
     /**
+     * Category Names
+     */
+    category_names?: Array<string>;
+    /**
      * Id
      */
     id?: string | null;
+    /**
+     * Category Name
+     */
+    category_name?: string | null;
+};
+
+/**
+ * ExerciseCategoriesPublic
+ */
+export type ExerciseCategoriesPublic = {
+    /**
+     * Data
+     */
+    data: Array<ExerciseCategoryPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * ExerciseCategoryCreate
+ */
+export type ExerciseCategoryCreate = {
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * ExerciseCategoryPublic
+ */
+export type ExerciseCategoryPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Gym Id
+     */
+    gym_id?: string | null;
 };
 
 /**
@@ -626,9 +712,9 @@ export type ExerciseCreate = {
      */
     name_fa: string;
     /**
-     * Muscle Group
+     * Category Id
      */
-    muscle_group: string;
+    category_id: string;
     /**
      * Description
      */
@@ -677,6 +763,10 @@ export type ExercisePublic = {
      * Muscle Group
      */
     muscle_group: string;
+    /**
+     * Category Id
+     */
+    category_id: string;
     /**
      * Description
      */
@@ -738,9 +828,9 @@ export type ExerciseUpdate = {
      */
     name_fa?: string | null;
     /**
-     * Muscle Group
+     * Category Id
      */
-    muscle_group?: string | null;
+    category_id?: string | null;
     /**
      * Description
      */
@@ -2594,6 +2684,10 @@ export type exercisesListExercisesData = {
          * Muscle Group
          */
         muscle_group?: string | null;
+        /**
+         * Category Id
+         */
+        category_id?: string | null;
     };
     url: '/api/v1/exercises';
 };
@@ -2682,6 +2776,68 @@ export type exercisesUpdateExerciseResponses = {
 };
 
 export type exercisesUpdateExerciseResponse = exercisesUpdateExerciseResponses[keyof exercisesUpdateExerciseResponses];
+
+export type exerciseCategoriesListExerciseCategoriesData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/exercise-categories';
+};
+
+export type exerciseCategoriesListExerciseCategoriesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type exerciseCategoriesListExerciseCategoriesError = exerciseCategoriesListExerciseCategoriesErrors[keyof exerciseCategoriesListExerciseCategoriesErrors];
+
+export type exerciseCategoriesListExerciseCategoriesResponses = {
+    /**
+     * Successful Response
+     */
+    200: ExerciseCategoriesPublic;
+};
+
+export type exerciseCategoriesListExerciseCategoriesResponse = exerciseCategoriesListExerciseCategoriesResponses[keyof exerciseCategoriesListExerciseCategoriesResponses];
+
+export type exerciseCategoriesCreateExerciseCategoryData = {
+    body: ExerciseCategoryCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/exercise-categories';
+};
+
+export type exerciseCategoriesCreateExerciseCategoryErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type exerciseCategoriesCreateExerciseCategoryError = exerciseCategoriesCreateExerciseCategoryErrors[keyof exerciseCategoriesCreateExerciseCategoryErrors];
+
+export type exerciseCategoriesCreateExerciseCategoryResponses = {
+    /**
+     * Successful Response
+     */
+    200: ExerciseCategoryPublic;
+};
+
+export type exerciseCategoriesCreateExerciseCategoryResponse = exerciseCategoriesCreateExerciseCategoryResponses[keyof exerciseCategoriesCreateExerciseCategoryResponses];
 
 export type programsListProgramsData = {
     body?: never;

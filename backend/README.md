@@ -23,3 +23,7 @@ uv run pytest -q
 - Super Admin bootstrap login check without printing the secret: `uv run python scripts/verify_superadmin_login.py`.
 
 See the root [`README.md`](../README.md) and [`docs/local-testing.md`](../docs/local-testing.md).
+
+Exercise catalog updates require a gym owner or admin. Coaches can read `/api/v1/exercise-categories` and `/api/v1/exercises` and use catalog IDs in programs/templates; category and exercise writes return HTTP 403 for coaches. Categories are global read-only entries or gym-scoped custom entries. New exercise payloads require `category_id`; `muscle_group` remains in responses as the category label for compatibility. Workout days store multiple category IDs and saved category names; singular category inputs and legacy mixed days remain compatible. Active programs can be edited by authorized staff, and edits must remain publishable. Archived versions are read-only.
+
+Run `uv run alembic upgrade head` to add categories and backfill existing catalog entries without resetting data.

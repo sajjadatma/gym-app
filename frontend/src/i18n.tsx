@@ -11,6 +11,29 @@ import {
 export type Locale = "fa" | "en"
 
 const fa = {
+  "categories.category": "دسته‌بندی",
+  "categories.add": "افزودن دسته‌بندی",
+  "categories.name": "نام دسته‌بندی",
+  "categories.created": "دسته‌بندی جدید ساخته شد.",
+  "categories.gymScope":
+    "این دسته‌بندی در همین باشگاه برای مالک، مدیر و مربیان قابل استفاده است.",
+  "categories.coachReadOnly":
+    "دسته‌بندی‌ها و حرکات را مالک یا مدیر باشگاه مدیریت می‌کند. مربی می‌تواند از آن‌ها در برنامه استفاده کند.",
+  "program.dayCategories": "دسته‌بندی‌های روز",
+  "program.categoryHelp":
+    "یک یا چند گروه انتخاب کنید؛ حرکات گروه‌های انتخاب‌شده در دسترس خواهند بود. بدون انتخاب، همهٔ حرکات نمایش داده می‌شوند.",
+  "program.daySummary": "{exercises} حرکت · {sets} ست",
+  "program.dayCategory": "دسته‌بندی روز",
+  "program.mixedDay": "روز ترکیبی — همه دسته‌بندی‌ها",
+  "program.categoryConflict":
+    "برای حذف این دسته، ابتدا حرکات مربوط به آن را حذف یا جابه‌جا کنید.",
+  "program.emptyCategory":
+    "این دسته هنوز حرکتی ندارد. از مالک یا مدیر بخواهید به آن حرکت اضافه کند.",
+  "errors.invalid_exercise_category":
+    "دسته‌بندی انتخاب‌شده در این باشگاه معتبر نیست.",
+  "errors.exercise_category_already_exists": "این دسته‌بندی از قبل وجود دارد.",
+  "errors.exercise_category_mismatch":
+    "حرکت انتخاب‌شده با دسته‌بندی روز هماهنگ نیست.",
   "app.name": "فرم‌یار",
   "app.tagline": "مدیریت باشگاه و برنامه تمرینی",
   "common.loading": "در حال بارگذاری…",
@@ -285,7 +308,7 @@ const fa = {
   "athletes.sportsHistory": "سابقه ورزشی",
   "athletes.fitnessLevel": "سطح آمادگی",
   "athletes.limitations": "محدودیت یا آسیب‌دیدگی",
-  "athletes.trainingDays": "روزهای تمرین",
+  "athletes.trainingDays": "تعداد روز تمرین در هفته",
   "athletes.equipment": "تجهیزات در دسترس",
   "athletes.levelBeginner": "مبتدی",
   "athletes.levelIntermediate": "متوسط",
@@ -343,7 +366,7 @@ const fa = {
   "program.duration": "مدت",
   "program.setNote": "توضیح ست",
   "program.saveDraft": "ذخیره پیش‌نویس",
-  "program.saved": "پیش‌نویس برنامه ذخیره شد.",
+  "program.saved": "برنامه ذخیره شد.",
   "program.published": "برنامه منتشر شد.",
   "program.archivedMessage": "برنامه آرشیو شد.",
   "program.publish": "انتشار برنامه",
@@ -368,7 +391,8 @@ const fa = {
   "program.noDays": "هنوز روزی اضافه نشده است",
   "program.noExercises": "هنوز حرکتی اضافه نشده است",
   "program.noSets": "هنوز ستی اضافه نشده است",
-  "program.activeBanner": "این برنامه منتشرشده و فعال است و قابل ویرایش نیست.",
+  "program.activeBanner":
+    "برنامه فعال است. تغییرات پس از ذخیره برای ورزشکار نمایش داده می‌شوند.",
   "program.archiveBanner": "این نسخه آرشیوشده و فقط برای مشاهده و چاپ است.",
   "program.draftBanner":
     "این نسخه پیش‌نویس است و فقط برای شما و مدیران باشگاه قابل مشاهده است.",
@@ -414,7 +438,7 @@ const fa = {
   "exercises.empty": "حرکتی پیدا نشد",
   "exercises.created": "حرکت اختصاصی ساخته شد.",
   "exercises.updated": "حرکت به‌روزرسانی شد.",
-  "exercises.allGroups": "همه گروه‌ها",
+  "exercises.allGroups": "همه دسته‌بندی‌ها",
   "exercises.editTitle": "ویرایش حرکت اختصاصی",
   "my.title": "برنامه من",
   "my.subtitle": "برنامه فعال و نسخه‌های قبلی در این باشگاه",
@@ -430,7 +454,7 @@ const fa = {
   "my.saved": "پرونده شما ذخیره شد.",
   "my.bodyAnalysis": "فایل‌های آنالیز بدن",
   "my.updateProfile": "ذخیره پرونده",
-  "my.trainingDays": "روزهای تمرین",
+  "my.trainingDays": "تعداد روز تمرین در هفته",
   "my.coach": "مربی من",
   "my.measurements": "اندازه‌های بدن",
   "my.goal": "هدف من",
@@ -510,8 +534,8 @@ const fa = {
     "فقط مالک فعلی یا مدیر سراسری می‌تواند مالکیت را منتقل کند.",
   "errors.already_owner": "این کاربر از قبل مالک باشگاه است.",
   "errors.program_version_not_found": "نسخه برنامه پیدا نشد.",
-  "errors.only_drafts_are_editable":
-    "فقط پیش‌نویس قابل ویرایش است. نسخه جدید بسازید.",
+  "errors.archived_program_is_read_only":
+    "برنامه آرشیوشده قابل ویرایش نیست. نسخه جدید بسازید.",
   "errors.only_drafts_can_be_published": "فقط پیش‌نویس قابل انتشار است.",
   "errors.active_program_conflict":
     "برنامه فعال دیگری وجود دارد. دوباره تلاش کنید.",
@@ -563,6 +587,29 @@ const fa = {
 type TranslationKey = keyof typeof fa
 
 const en: Record<TranslationKey, string> = {
+  "categories.category": "Category",
+  "categories.add": "Add category",
+  "categories.name": "Category name",
+  "categories.created": "Category created.",
+  "categories.gymScope":
+    "Available to the owner, admins and coaches in this gym.",
+  "categories.coachReadOnly":
+    "The gym owner and admins manage categories and exercises. Coaches can use them to build programs.",
+  "program.dayCategories": "Day categories",
+  "program.categoryHelp":
+    "Select one or more groups to filter exercises. Leave empty to browse all exercises.",
+  "program.daySummary": "{exercises} exercises · {sets} sets",
+  "program.dayCategory": "Day category",
+  "program.mixedDay": "Mixed day — all categories",
+  "program.categoryConflict":
+    "Remove or move exercises in this category first. Move or remove them first, or keep this as a mixed day.",
+  "program.emptyCategory":
+    "This category has no exercises yet. Ask the owner or an admin to add some.",
+  "errors.invalid_exercise_category":
+    "This category is not available in this gym.",
+  "errors.exercise_category_already_exists": "This category already exists.",
+  "errors.exercise_category_mismatch":
+    "The exercise does not belong to this day’s category.",
   "app.name": "FormYar",
   "app.tagline": "Gym management and workout programs",
   "common.loading": "Loading…",
@@ -839,7 +886,7 @@ const en: Record<TranslationKey, string> = {
   "athletes.sportsHistory": "Sports history",
   "athletes.fitnessLevel": "Fitness level",
   "athletes.limitations": "Limitations or injuries",
-  "athletes.trainingDays": "Training days",
+  "athletes.trainingDays": "Training days per week",
   "athletes.equipment": "Available equipment",
   "athletes.levelBeginner": "Beginner",
   "athletes.levelIntermediate": "Intermediate",
@@ -898,7 +945,7 @@ const en: Record<TranslationKey, string> = {
   "program.duration": "Duration",
   "program.setNote": "Set note",
   "program.saveDraft": "Save draft",
-  "program.saved": "Program draft saved.",
+  "program.saved": "Program saved.",
   "program.published": "Program published.",
   "program.archivedMessage": "Program archived.",
   "program.publish": "Publish program",
@@ -924,7 +971,7 @@ const en: Record<TranslationKey, string> = {
   "program.noExercises": "No exercises added yet",
   "program.noSets": "No sets added yet",
   "program.activeBanner":
-    "This program is published and active; it cannot be edited.",
+    "This program is active. Saved changes are visible to the athlete.",
   "program.archiveBanner": "This version is archived and read-only.",
   "program.draftBanner": "This draft is visible only to staff of this gym.",
   "program.deleteDraft": "Delete draft",
@@ -970,7 +1017,7 @@ const en: Record<TranslationKey, string> = {
   "exercises.empty": "No exercises found",
   "exercises.created": "Custom exercise created.",
   "exercises.updated": "Exercise updated.",
-  "exercises.allGroups": "All groups",
+  "exercises.allGroups": "All categories",
   "exercises.editTitle": "Edit custom exercise",
   "my.title": "My program",
   "my.subtitle": "The active program and previous versions in this gym",
@@ -986,7 +1033,7 @@ const en: Record<TranslationKey, string> = {
   "my.saved": "Your profile was saved.",
   "my.bodyAnalysis": "Body analysis files",
   "my.updateProfile": "Save profile",
-  "my.trainingDays": "Training days",
+  "my.trainingDays": "Training days per week",
   "my.coach": "My coach",
   "my.measurements": "Body measurements",
   "my.goal": "My goal",
@@ -1067,8 +1114,8 @@ const en: Record<TranslationKey, string> = {
     "Only the current owner or a super admin can transfer ownership.",
   "errors.already_owner": "This user already owns the gym.",
   "errors.program_version_not_found": "Program version not found.",
-  "errors.only_drafts_are_editable":
-    "Only drafts can be edited. Create a new version.",
+  "errors.archived_program_is_read_only":
+    "Archived programs are read-only. Create a new version.",
   "errors.only_drafts_can_be_published": "Only drafts can be published.",
   "errors.active_program_conflict": "Another active program exists. Try again.",
   "errors.program_edit_forbidden": "You cannot edit this program.",

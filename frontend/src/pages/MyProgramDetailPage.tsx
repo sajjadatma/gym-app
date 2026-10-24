@@ -14,6 +14,7 @@ import {
   StatusBadge,
 } from "@/components/M3"
 import { useI18n } from "@/i18n"
+import { workoutDayLabel } from "@/lib/workoutDayLabel"
 
 export function MyProgramDetailPage({ versionId }: { versionId: string }) {
   const { t, formatDate, formatNumber } = useI18n()
@@ -125,7 +126,11 @@ export function MyProgramDetailPage({ versionId }: { versionId: string }) {
                 className={`m3-day-pill ${selectedDay === index ? "is-active" : ""}`}
                 onClick={() => setSelectedDay(index)}
               >
-                {formatNumber(index + 1)}. {item.title}
+                {workoutDayLabel(
+                  item,
+                  t("program.day"),
+                  formatNumber(index + 1),
+                )}
               </button>
             ))}
           </div>

@@ -6,6 +6,7 @@ from app.core.config import settings
 from app.core.security import get_password_hash
 from app.models import Exercise, User
 from app.seed_data import GLOBAL_EXERCISES
+from app.services.exercises import ensure_global_categories
 
 engine = create_engine(str(settings.DATABASE_URL), pool_pre_ping=True)
 
@@ -41,6 +42,9 @@ def init_db(session: Session) -> None:
         if changed:
             session.add(superuser)
 
+    categories = ensure_global_categories(
+        session, {row["muscle_group"] for row in GLOBAL_EXERCISES}
+    )
     existing_names = {
         row.name_fa
         for row in session.exec(
@@ -53,6 +57,7 @@ def init_db(session: Session) -> None:
                 Exercise(
                     name_fa=data["name_fa"],
                     muscle_group=data["muscle_group"],
+                    category_id=categories[data["muscle_group"]].id,
                     description=data.get("description"),
                     is_custom=False,
                 )

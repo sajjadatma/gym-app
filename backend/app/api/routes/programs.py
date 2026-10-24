@@ -194,8 +194,8 @@ def update_program_version(
         version_id=version_id,
     )
     ensure_staff_write(access)
-    if version.status != "DRAFT":
-        raise HTTPException(status_code=400, detail="only_drafts_are_editable")
+    if version.status == "ARCHIVED":
+        raise HTTPException(status_code=400, detail="archived_program_is_read_only")
     version.sqlmodel_update(
         {
             "title": body.title,
@@ -211,6 +211,7 @@ def update_program_version(
         version=version,
         days=body.days,
         gym_id=ctx.gym.id,
+        athlete_user_id=program.athlete_user_id,
     )
     session.commit()
     session.refresh(version)

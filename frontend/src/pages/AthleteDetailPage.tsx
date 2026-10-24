@@ -44,10 +44,8 @@ import {
   Tabs,
   TextField,
 } from "@/components/M3"
-import { type TranslationKey, useI18n } from "@/i18n"
+import { useI18n } from "@/i18n"
 import { useSnackbar } from "@/snackbar"
-
-const DAYS = ["sat", "sun", "mon", "tue", "wed", "thu", "fri"] as const
 
 type Tab = "profile" | "programs" | "bodyFiles"
 
@@ -76,6 +74,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
   const [programEnd, setProgramEnd] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  const hydratedProfileRef = useRef<string | null>(null)
   const uploadId = useId()
   const [form, setForm] = useState({
     full_name: "",
@@ -92,7 +91,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
     sports_history: "",
     fitness_level: "",
     limitations: "",
-    training_days: [] as string[],
+    training_days_count: "",
     equipment: "",
     internal_coach_note: "",
   })
@@ -133,6 +132,9 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
   const athlete = athleteQuery.data
   useEffect(() => {
     if (!athlete) return
+    const profileKey = `${activeGymId}:${athlete.profile.user_id}`
+    if (hydratedProfileRef.current === profileKey) return
+    hydratedProfileRef.current = profileKey
     setForm({
       full_name: athlete.profile.full_name ?? "",
       phone: athlete.profile.phone ?? "",
@@ -148,11 +150,12 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
       sports_history: athlete.profile.sports_history ?? "",
       fitness_level: athlete.profile.fitness_level ?? "",
       limitations: athlete.profile.limitations ?? "",
-      training_days: athlete.profile.training_days ?? [],
+      training_days_count:
+        athlete.profile.training_days_count?.toString() ?? "",
       equipment: athlete.profile.equipment ?? "",
       internal_coach_note: athlete.internal_coach_note ?? "",
     })
-  }, [athlete])
+  }, [activeGymId, athlete])
 
   if (!activeGym) {
     return (
@@ -211,7 +214,9 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
           sports_history: form.sports_history || null,
           fitness_level: form.fitness_level || null,
           limitations: form.limitations || null,
-          training_days: form.training_days,
+          training_days_count: form.training_days_count
+            ? Number(form.training_days_count)
+            : null,
           equipment: form.equipment || null,
           internal_coach_note: form.internal_coach_note || null,
         },
@@ -226,6 +231,15 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
     } finally {
       setSaving(false)
     }
+  }
+
+  function openNewProgram() {
+    setProgramTitle("")
+    setProgramGoal("")
+    setProgramStart(null)
+    setProgramEnd(null)
+    setError(null)
+    setProgramOpen(true)
   }
 
   async function createProgram() {
@@ -382,15 +396,6 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
     }
   }
 
-  function toggleDay(day: string) {
-    setForm((current) => ({
-      ...current,
-      training_days: current.training_days.includes(day)
-        ? current.training_days.filter((value) => value !== day)
-        : [...current.training_days, day],
-    }))
-  }
-
   const tabItems = [
     { value: "profile", label: t("athletes.profile") },
     {
@@ -436,10 +441,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
               </>
             ) : null}
             {canEdit ? (
-              <Button
-                icon={<Plus size={17} />}
-                onClick={() => setProgramOpen(true)}
-              >
+              <Button icon={<Plus size={17} />} onClick={openNewProgram}>
                 {t("athletes.createProgram")}
               </Button>
             ) : null}
@@ -554,6 +556,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
               <DateField
                 label={t("athletes.birthDate")}
                 maxToday
+                dayMonthYear
                 value={form.birth_date}
                 onChange={(value) => setForm({ ...form, birth_date: value })}
               />
@@ -633,24 +636,21 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 }
               />
             </div>
-            <div style={{ marginTop: 14 }}>
-              <div className="m3-field__label" style={{ marginBottom: 8 }}>
-                {t("athletes.trainingDays")}
-              </div>
-              <div className="row">
-                {DAYS.map((day) => (
-                  <button
-                    key={day}
-                    type="button"
-                    className={`m3-chip ${form.training_days.includes(day) ? "m3-chip--selected" : ""}`}
-                    onClick={() => toggleDay(day)}
-                    aria-pressed={form.training_days.includes(day)}
-                  >
-                    {t(`weekday.${day}` as TranslationKey)}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <TextField
+              label={t("athletes.trainingDays")}
+              type="number"
+              min={1}
+              max={7}
+              step={1}
+              inputMode="numeric"
+              value={form.training_days_count}
+              onChange={(event) => {
+                const value = event.target.value
+                if (value === "" || /^[1-7]$/.test(value)) {
+                  setForm({ ...form, training_days_count: value })
+                }
+              }}
+            />
             <div className="grid-2" style={{ marginTop: 14 }}>
               <TextField
                 label={t("athletes.sportsHistory")}
@@ -747,10 +747,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
               </p>
             </div>
             {canEdit ? (
-              <Button
-                icon={<Plus size={17} />}
-                onClick={() => setProgramOpen(true)}
-              >
+              <Button icon={<Plus size={17} />} onClick={openNewProgram}>
                 {t("athletes.createProgram")}
               </Button>
             ) : null}
@@ -782,7 +779,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                   </div>
                   <div className="row" style={{ gap: 4 }}>
                     <StatusBadge status={version.status.toLowerCase()} />
-                    {version.status === "DRAFT" && canEdit ? (
+                    {version.status !== "ARCHIVED" && canEdit ? (
                       <Button
                         variant="text"
                         size="sm"
@@ -843,10 +840,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
               description={t("athletes.noProgramsHint")}
               action={
                 canEdit ? (
-                  <Button
-                    icon={<Plus size={17} />}
-                    onClick={() => setProgramOpen(true)}
-                  >
+                  <Button icon={<Plus size={17} />} onClick={openNewProgram}>
                     {t("athletes.createProgram")}
                   </Button>
                 ) : undefined

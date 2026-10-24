@@ -8,6 +8,7 @@ from sqlmodel import Session, col, func, select
 
 from app.api.deps import AthleteAccess, GymContext, get_athlete_access
 from app.models import (
+    AthleteProfile,
     DayInput,
     DayPublic,
     Exercise,
@@ -24,6 +25,7 @@ from app.models import (
     WorkoutProgramVersion,
     WorkoutSet,
 )
+from app.services.exercises import get_category
 
 
 def get_exercise_or_400(
@@ -41,12 +43,36 @@ def normalize_days(
     session: Session, *, gym_id: uuid.UUID, days: list[DayInput]
 ) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
+    weekday_set = {"sat", "sun", "mon", "tue", "wed", "thu", "fri"}
+    seen_weekdays: set[str] = set()
     for day_index, day in enumerate(days):
+        if day.weekday and (
+            day.weekday not in weekday_set or day.weekday in seen_weekdays
+        ):
+            raise HTTPException(status_code=400, detail="invalid_weekday")
+        if day.weekday:
+            seen_weekdays.add(day.weekday)
+        selected_ids = (
+            list(dict.fromkeys(day.category_ids))
+            if day.category_ids
+            else ([day.category_id] if day.category_id else [])
+        )
+        categories = [
+            get_category(session, gym_id=gym_id, category_id=value)
+            for value in selected_ids
+        ]
+        category = categories[0] if len(categories) == 1 else None
+        category_ids: set[uuid.UUID] = set()
         exercises: list[dict[str, Any]] = []
         for exercise_index, item in enumerate(day.exercises):
             exercise = get_exercise_or_400(
                 session, gym_id=gym_id, exercise_id=item.exercise_id
             )
+            category_ids.add(exercise.category_id)
+            if selected_ids and exercise.category_id not in selected_ids:
+                raise HTTPException(
+                    status_code=400, detail="exercise_category_mismatch"
+                )
             sets: list[dict[str, Any]] = []
             for set_index, workout_set in enumerate(
                 sorted(item.sets, key=lambda value: value.set_number)
@@ -64,9 +90,25 @@ def normalize_days(
                     "sets": sets,
                 }
             )
+        if (
+            category is None
+            and len(category_ids) == 1
+            and "category_id" not in day.model_fields_set
+            and "category_ids" not in day.model_fields_set
+        ):
+            category = get_category(
+                session, gym_id=gym_id, category_id=next(iter(category_ids))
+            )
+        if not categories and category:
+            categories = [category]
         result.append(
             {
+                "category_ids": [str(item.id) for item in categories],
+                "category_names": [item.name for item in categories],
+                "category_id": str(category.id) if category else None,
+                "category_name": category.name if category else None,
                 "day_number": day_index + 1,
+                "weekday": day.weekday,
                 "title": day.title,
                 "notes": day.notes,
                 "exercises": exercises,
@@ -85,8 +127,21 @@ def insert_structure(
         day = WorkoutDay(
             version_id=version_id,
             day_number=day_data["day_number"],
+            weekday=day_data.get("weekday"),
             title=day_data["title"],
             notes=day_data.get("notes"),
+            category_id=uuid.UUID(str(day_data["category_id"]))
+            if day_data.get("category_id")
+            else None,
+            category_name=day_data.get("category_name"),
+            category_ids=day_data.get(
+                "category_ids",
+                [day_data["category_id"]] if day_data.get("category_id") else [],
+            ),
+            category_names=day_data.get(
+                "category_names",
+                [day_data["category_name"]] if day_data.get("category_name") else [],
+            ),
         )
         session.add(day)
         session.flush()
@@ -125,11 +180,25 @@ def replace_version_days(
     version: WorkoutProgramVersion,
     days: list[DayInput],
     gym_id: uuid.UUID,
+    athlete_user_id: uuid.UUID,
 ) -> None:
-    structure = normalize_days(session, gym_id=gym_id, days=days)
+    profile = session.exec(
+        select(AthleteProfile).where(
+            AthleteProfile.gym_id == gym_id,
+            AthleteProfile.user_id == athlete_user_id,
+        )
+    ).first()
     existing_days = session.exec(
         select(WorkoutDay).where(WorkoutDay.version_id == version.id)
     ).all()
+    day_limit = None
+    if profile:
+        day_limit = profile.training_days_count
+    if day_limit and len(days) > day_limit and len(days) > len(existing_days):
+        raise HTTPException(status_code=400, detail="program_too_many_days")
+    structure = normalize_days(session, gym_id=gym_id, days=days)
+    if version.status == "ACTIVE":
+        ensure_publishable(structure)
     for day in existing_days:
         session.delete(day)
     session.flush()
@@ -183,6 +252,11 @@ def structure_from_version(
         result.append(
             {
                 "day_number": day.day_number,
+                "weekday": day.weekday,
+                "category_id": str(day.category_id) if day.category_id else None,
+                "category_name": day.category_name,
+                "category_ids": day.category_ids,
+                "category_names": day.category_names,
                 "title": day.title,
                 "notes": day.notes,
                 "exercises": exercise_list,

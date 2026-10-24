@@ -130,7 +130,6 @@ export function DashboardPage() {
         profile.sports_history,
         profile.fitness_level,
         profile.limitations,
-        profile.equipment,
       ]
     : []
   const completedFields = profileFields.filter(Boolean).length

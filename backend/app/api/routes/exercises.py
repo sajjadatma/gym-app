@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from sqlmodel import col, or_, select
 
-from app.api.deps import CurrentUser, GymContextDep, GymStaffDep, SessionDep
+from app.api.deps import CurrentUser, GymStaffDep, SessionDep
 from app.models import (
     Exercise,
     ExerciseCreate,
@@ -14,6 +14,7 @@ from app.models import (
     ExercisesPublic,
     ExerciseUpdate,
 )
+from app.services.exercises import exercise_public, get_category
 
 router = APIRouter(prefix="/exercises", tags=["exercises"])
 
@@ -25,6 +26,7 @@ def list_exercises(
     ctx: GymStaffDep,
     q: str = Query(default="", max_length=255),
     muscle_group: str | None = Query(default=None, max_length=100),
+    category_id: uuid.UUID | None = None,
 ) -> Any:
     statement = select(Exercise).where(
         or_(
@@ -32,6 +34,9 @@ def list_exercises(
             Exercise.gym_id == ctx.gym.id,
         )
     )
+    if category_id:
+        get_category(session, gym_id=ctx.gym.id, category_id=category_id)
+        statement = statement.where(Exercise.category_id == category_id)
     if muscle_group:
         statement = statement.where(Exercise.muscle_group == muscle_group)
     if q.strip():
@@ -41,18 +46,7 @@ def list_exercises(
             col(Exercise.is_custom), col(Exercise.muscle_group), col(Exercise.name_fa)
         )
     ).all()
-    data = [
-        ExercisePublic(
-            id=exercise.id,
-            name_fa=exercise.name_fa,
-            muscle_group=exercise.muscle_group,
-            description=exercise.description,
-            instructions=exercise.instructions,
-            is_custom=exercise.is_custom,
-            gym_id=exercise.gym_id,
-        )
-        for exercise in exercises
-    ]
+    data = [exercise_public(exercise) for exercise in exercises]
     return ExercisesPublic(data=data, count=len(data))
 
 
@@ -64,9 +58,13 @@ def create_exercise(
     ctx: GymStaffDep,
     body: ExerciseCreate,
 ) -> Any:
+    if not ctx.is_admin:
+        raise HTTPException(status_code=403, detail="gym_admin_required")
+    category = get_category(session, gym_id=ctx.gym.id, category_id=body.category_id)
     exercise = Exercise(
         name_fa=body.name_fa,
-        muscle_group=body.muscle_group,
+        muscle_group=category.name,
+        category_id=category.id,
         description=body.description,
         instructions=body.instructions,
         is_custom=True,
@@ -76,15 +74,7 @@ def create_exercise(
     session.add(exercise)
     session.commit()
     session.refresh(exercise)
-    return ExercisePublic(
-        id=exercise.id,
-        name_fa=exercise.name_fa,
-        muscle_group=exercise.muscle_group,
-        description=exercise.description,
-        instructions=exercise.instructions,
-        is_custom=True,
-        gym_id=exercise.gym_id,
-    )
+    return exercise_public(exercise)
 
 
 @router.patch("/{exercise_id}", response_model=ExercisePublic)
@@ -92,25 +82,24 @@ def update_exercise(
     *,
     exercise_id: uuid.UUID,
     session: SessionDep,
-    current_user: CurrentUser,
-    ctx: GymContextDep,
+    ctx: GymStaffDep,
     body: ExerciseUpdate,
 ) -> Any:
+    if not ctx.is_admin:
+        raise HTTPException(status_code=403, detail="gym_admin_required")
     exercise = session.get(Exercise, exercise_id)
     if not exercise or not exercise.is_custom or exercise.gym_id != ctx.gym.id:
         raise HTTPException(status_code=404, detail="exercise_not_found")
-    if not (ctx.is_admin or exercise.created_by_id == current_user.id):
-        raise HTTPException(status_code=403, detail="exercise_edit_forbidden")
-    exercise.sqlmodel_update(body.model_dump(exclude_unset=True))
+    data = body.model_dump(exclude_unset=True)
+    if "category_id" in data:
+        if body.category_id is None:
+            raise HTTPException(status_code=400, detail="invalid_exercise_category")
+        category = get_category(
+            session, gym_id=ctx.gym.id, category_id=body.category_id
+        )
+        data["muscle_group"] = category.name
+    exercise.sqlmodel_update(data)
     session.add(exercise)
     session.commit()
     session.refresh(exercise)
-    return ExercisePublic(
-        id=exercise.id,
-        name_fa=exercise.name_fa,
-        muscle_group=exercise.muscle_group,
-        description=exercise.description,
-        instructions=exercise.instructions,
-        is_custom=exercise.is_custom,
-        gym_id=exercise.gym_id,
-    )
+    return exercise_public(exercise)

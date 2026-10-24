@@ -66,7 +66,7 @@ def test_private_coach_note_is_never_exposed_to_athlete(
     updated = client.patch(
         f"/api/v1/athletes/{athlete['user_id']}",
         headers=coach,
-        json={"internal_coach_note": note, "limitations": "knee"},
+        json={"internal_coach_note": note, "limitations": "knee", "equipment": "Dumbbells"},
     )
     assert updated.status_code == 200, updated.text
     assert updated.json()["internal_coach_note"] == note
@@ -96,14 +96,18 @@ def test_private_coach_note_is_never_exposed_to_athlete(
         headers=athlete_headers,
         json={
             "training_goal": "استقامت",
+            "training_days_count": 3,
             "internal_coach_note": "OVERWRITTEN",
             "limitations": "changed",
         },
     )
     assert injection.status_code == 200
     assert injection.json()["profile"]["training_goal"] == "استقامت"
+    assert injection.json()["profile"]["training_days_count"] == 3
+    assert injection.json()["profile"]["training_days"] == []
     staff_again = client.get(f"/api/v1/athletes/{athlete['user_id']}", headers=coach)
     assert staff_again.json()["internal_coach_note"] == note
+    assert staff_again.json()["profile"]["equipment"] == "Dumbbells"
 
     program = create_and_publish_program(client, coach, athlete["user_id"])
     athlete_program = client.get(

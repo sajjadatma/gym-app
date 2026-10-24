@@ -43,6 +43,7 @@ def profile_self(profile: AthleteProfile, user: User) -> AthleteProfileSelf:
         fitness_level=profile.fitness_level,
         limitations=profile.limitations,
         training_days=profile.training_days or [],
+        training_days_count=profile.training_days_count,
         equipment=profile.equipment,
         is_archived=profile.is_archived,
         created_at=profile.created_at,

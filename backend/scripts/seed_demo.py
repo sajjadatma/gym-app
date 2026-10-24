@@ -23,6 +23,7 @@ from app.models import (  # noqa: E402
     AthleteProfile,
     CoachAssignment,
     Exercise,
+    ExerciseCategory,
     Gym,
     GymMembership,
     GymMembershipRole,
@@ -352,6 +353,14 @@ def main() -> None:
                 Exercise(
                     name_fa="پرس سینه با کش",
                     muscle_group="سینه",
+                    category_id=session.exec(
+                        select(ExerciseCategory).where(
+                            ExerciseCategory.name == "سینه",
+                            ExerciseCategory.gym_id.is_(None),
+                        )
+                    )
+                    .one()
+                    .id,
                     description="حرکت اختصاصی باشگاه آرام با کش مقاومتی.",
                     instructions="کش را از پشت بدن عبور دهید و کنترل‌شده جلو ببرید.",
                     is_custom=True,

@@ -183,7 +183,7 @@ def test_coach_reassignment_preserves_history_and_moves_access(
     assert athlete_versions.json()["count"] == 2
 
 
-def test_versioning_immutable_active_and_templates(
+def test_versioning_editable_active_and_templates(
     client: TestClient, superuser_headers: dict[str, str]
 ) -> None:
     gym, owner = _owner_headers(
@@ -221,8 +221,20 @@ def test_versioning_immutable_active_and_templates(
         headers=coach,
         json=program_payload(exercise_id),
     )
-    assert active_edit.status_code == 400
-    assert active_edit.json()["detail"] == "only_drafts_are_editable"
+    assert active_edit.status_code == 200
+    assert active_edit.json()["status"] == "ACTIVE"
+    assert active_edit.json()["published_at"] == published.json()["published_at"]
+    invalid_edit = client.put(
+        f"/api/v1/program-versions/{version_id}",
+        headers=coach,
+        json={**program_payload(exercise_id), "title": "Rejected", "days": []},
+    )
+    assert invalid_edit.status_code == 400
+    preserved = client.get(
+        f"/api/v1/program-versions/{version_id}", headers=coach
+    ).json()
+    assert preserved["title"] == active_edit.json()["title"]
+    assert len(preserved["days"]) == 1
 
     template_days = program_payload(exercise_id)["days"]
     template = client.post(
@@ -343,3 +355,105 @@ def test_publish_requires_days_exercises_and_sets(
         f"/api/v1/program-versions/{version_id}", headers=coach, json=payload
     )
     assert invalid.status_code == 422
+
+
+def test_program_days_cannot_exceed_athlete_training_days(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = _owner_headers(
+        client, superuser_headers, "Weekday Cap Gym", unique_email("owner")
+    )
+    coach_member, coach = _add_coach(client, owner, gym["id"], unique_email("coach"))
+    athlete = create_athlete(
+        client,
+        coach,
+        email=unique_email("athlete"),
+        coach_user_id=coach_member["user_id"],
+        password="athlete-pass-123",
+    )["athlete"]["profile"]
+
+    patched = client.patch(
+        f"/api/v1/athletes/{athlete['user_id']}",
+        headers=coach,
+        json={"training_days_count": 1},
+    )
+    assert patched.status_code == 200, patched.text
+
+    exercise_id = first_exercise_id(client, coach)
+    created = client.post(
+        f"/api/v1/athletes/{athlete['user_id']}/programs",
+        headers=coach,
+        json={"title": "Capped"},
+    )
+    assert created.status_code == 200, created.text
+    version_id = created.json()["id"]
+    payload = program_payload(exercise_id)
+    rejected = client.put(
+        f"/api/v1/program-versions/{version_id}",
+        headers=coach,
+        json={
+            **payload,
+            "days": [
+                payload["days"][0],
+                {**payload["days"][0], "day_number": 2, "title": "Day 2"},
+            ],
+        },
+    )
+    assert rejected.status_code == 400, rejected.text
+    assert rejected.json()["detail"] == "program_too_many_days"
+
+    allowed = client.put(
+        f"/api/v1/program-versions/{version_id}",
+        headers=coach,
+        json={**payload, "days": [{**payload["days"][0], "weekday": "sat"}]},
+    )
+    assert allowed.status_code == 200, allowed.text
+    assert allowed.json()["days"][0]["weekday"] == "sat"
+
+
+def test_program_weekday_must_be_unique_and_valid(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = _owner_headers(
+        client, superuser_headers, "Weekday Gym", unique_email("owner")
+    )
+    coach_member, coach = _add_coach(client, owner, gym["id"], unique_email("coach"))
+    athlete = create_athlete(
+        client,
+        coach,
+        email=unique_email("athlete"),
+        coach_user_id=coach_member["user_id"],
+        password="athlete-pass-123",
+    )["athlete"]["profile"]
+    exercise_id = first_exercise_id(client, coach)
+    created = client.post(
+        f"/api/v1/athletes/{athlete['user_id']}/programs",
+        headers=coach,
+        json={"title": "Weekdays"},
+    )
+    assert created.status_code == 200, created.text
+    version_id = created.json()["id"]
+    payload = program_payload(exercise_id)
+    day_one = payload["days"][0]
+
+    duplicate = client.put(
+        f"/api/v1/program-versions/{version_id}",
+        headers=coach,
+        json={
+            **payload,
+            "days": [
+                {**day_one, "weekday": "sat"},
+                {**day_one, "day_number": 2, "title": "Day 2", "weekday": "sat"},
+            ],
+        },
+    )
+    assert duplicate.status_code == 400, duplicate.text
+    assert duplicate.json()["detail"] == "invalid_weekday"
+
+    unknown = client.put(
+        f"/api/v1/program-versions/{version_id}",
+        headers=coach,
+        json={**payload, "days": [{**day_one, "weekday": "sunday"}]},
+    )
+    assert unknown.status_code == 400, unknown.text
+    assert unknown.json()["detail"] == "invalid_weekday"

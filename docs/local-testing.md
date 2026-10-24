@@ -81,11 +81,20 @@ uv run python scripts/verify_superadmin_login.py
 3. Edit the template and re-apply it: previously created copies remain unchanged.
 4. Open **کتابخانه حرکات**. The 54 seeded global exercises plus the custom `پرس سینه با کش` exercise are listed. The custom exercise is scoped to باشگاه آرام.
 
+### Exercise categories and catalog permissions
+
+1. As Ali in admin mode in **باشگاه آرام**, open **کتابخانه حرکات → افزودن دسته‌بندی** and create a category. The category belongs to this gym; the global categories remain available.
+2. Choose **افزودن حرکت اختصاصی**, select the category, and save a movement. Existing custom movements can be edited by the gym owner/admin.
+3. Sign in as Reza: the library is readable and filterable, but category/movement creation and editing controls are absent. Direct write requests are also rejected with HTTP 403.
+4. In a program or template, add a day and choose **دسته‌بندی روز**. Its movement selectors only offer that category. A day using the default title adopts the category name, e.g. **روز ۱ — بازو** in the athlete view and print output.
+5. Changing a day to a conflicting category shows an error without deleting its movements. Mixed days remain available, including existing multi-group days.
+6. Save/reload, publish, create a new draft, or apply a template: day categories persist. Published category/movement names are snapshots and do not change when the catalog changes.
+
 ### 5. Program lifecycle
 
 1. As an admin/coach, create a draft for an athlete and add days/exercises/sets.
 2. Saving preserves drafts. Publishing archives the previously active version and activates the new one.
-3. Active/archived versions are read-only; **ساخت نسخه جدید** creates an editable draft based on them.
+3. Active programs can be edited in place; archived versions are read-only; **ساخت نسخه جدید** creates an editable draft based on them.
 4. Each athlete/gym has at most one active program; old published content and coach identity remain in history.
 5. A new coach after reassignment can open old programs and derive new versions without modifying history.
 
