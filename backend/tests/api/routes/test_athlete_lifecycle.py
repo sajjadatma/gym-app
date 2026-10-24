@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+from sqlmodel import Session, select
 
+from app.models import GymMembership
 from tests.utils.helpers import (
     add_member,
     auth_headers,
@@ -658,3 +660,118 @@ def test_restore_preserves_cross_gym_staff_membership_and_roles(
         ).status_code
         == 200
     )
+
+
+def _owner_as_athlete(
+    client: TestClient, superuser_headers: dict[str, str], prefix: str
+) -> tuple[dict[str, object], dict[str, str], dict[str, object]]:
+    owner_email = unique_email(prefix)
+    gym = create_gym(
+        client,
+        superuser_headers,
+        name="Owner Archive Gym",
+        owner_email=owner_email,
+        password="owner-pass-123",
+    )["gym"]
+    raw_owner = auth_headers(client, owner_email, "owner-pass-123")
+    change_password(
+        client,
+        raw_owner,
+        current_password="owner-pass-123",
+        new_password="owner-pass-456",
+    )
+    owner = gym_headers(
+        client, email=owner_email, password="owner-pass-456", gym_id=gym["id"]
+    )
+    coach_member = add_member(
+        client,
+        owner,
+        gym["id"],
+        email=unique_email(f"{prefix}-coach"),
+        roles=["COACH"],
+        password="coach-pass-123",
+    )["member"]
+    athlete = create_athlete(
+        client,
+        owner,
+        email=owner_email,
+        coach_user_id=coach_member["user_id"],
+    )["athlete"]["profile"]
+    return gym, owner, athlete
+
+
+def test_archiving_owner_as_athlete_keeps_gym_access_and_allows_self_restore(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner, athlete = _owner_as_athlete(
+        client, superuser_headers, "owner-archive-self"
+    )
+    detail_url = f"/api/v1/athletes/{athlete['user_id']}"
+
+    archived = client.post(f"{detail_url}/archive", headers=owner)
+    assert archived.status_code == 200, archived.text
+
+    # The owner has no explicit GYM_ADMIN role, so deactivating the only
+    # membership would make every gym-scoped endpoint return 403.
+    members = client.get(f"/api/v1/gyms/{gym['id']}/members", headers=owner)
+    assert members.status_code == 200, members.text
+    owner_row = next(
+        row for row in members.json()["data"] if row["user_id"] == athlete["user_id"]
+    )
+    assert owner_row["is_owner"] is True
+    assert owner_row["is_active"] is True
+
+    listed = client.get(
+        "/api/v1/athletes", headers=owner, params={"include_archived": True}
+    )
+    assert listed.status_code == 200, listed.text
+    assert any(row["user_id"] == athlete["user_id"] for row in listed.json()["data"])
+
+    detail = client.get(detail_url, headers=owner)
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["profile"]["is_archived"] is True
+
+    restored = client.post(f"{detail_url}/restore", headers=owner)
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["profile"]["is_archived"] is False
+
+    after = client.get(f"/api/v1/gyms/{gym['id']}/members", headers=owner)
+    assert after.status_code == 200, after.text
+    owner_row_after = next(
+        row for row in after.json()["data"] if row["user_id"] == athlete["user_id"]
+    )
+    assert owner_row_after["is_active"] is True
+
+
+def test_owner_archive_lockout_when_membership_deactivation_is_not_preserved(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    """Document the pre-fix failure mode: without owner preservation, the
+    deactivated membership locks the owner out permanently (403 on every
+    gym-scoped call, including restore)."""
+    gym, owner, athlete = _owner_as_athlete(
+        client, superuser_headers, "owner-archive-lockout"
+    )
+    detail_url = f"/api/v1/athletes/{athlete['user_id']}"
+    assert client.post(f"{detail_url}/archive", headers=owner).status_code == 200
+
+    # Simulate the pre-fix side effect of archive_athlete.
+    membership = db_session.exec(
+        select(GymMembership).where(
+            GymMembership.gym_id == gym["id"],
+            GymMembership.user_id == athlete["user_id"],
+        )
+    ).one()
+    membership.is_active = False
+    db_session.add(membership)
+    db_session.commit()
+
+    gym_scoped = client.get("/api/v1/athletes", headers=owner)
+    assert gym_scoped.status_code == 403
+    assert gym_scoped.json()["detail"] == "not_a_gym_member"
+
+    restore = client.post(f"{detail_url}/restore", headers=owner)
+    assert restore.status_code == 403
+    assert restore.json()["detail"] == "not_a_gym_member"

@@ -104,6 +104,12 @@ def client() -> Generator[TestClient]:
 
 
 @pytest.fixture()
+def db_session() -> Generator[Session]:
+    with Session(test_engine) as session:
+        yield session
+
+
+@pytest.fixture()
 def superuser_headers(client: TestClient) -> dict[str, str]:
     response = client.post(
         f"{settings.API_V1_STR}/login/access-token",

@@ -506,7 +506,12 @@ def archive_athlete(
         assignment.ended_at = now
         session.add(assignment)
     roles = get_membership_roles(session, access.membership.id)
-    if roles <= {"ATHLETE"}:
+    is_gym_owner = ctx.gym.owner_id == access.user.id
+    if roles <= {"ATHLETE"} and not is_gym_owner:
+        # An owner has no explicit GYM_ADMIN role, so deactivating their only
+        # membership would lock them out of the gym permanently (the gym context
+        # rejects inactive memberships and restore itself needs one). Preserve
+        # the owner's membership, mirroring delete_athlete.
         access.membership.is_active = False
         session.add(access.membership)
     session.add(access.profile)

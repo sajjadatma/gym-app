@@ -227,7 +227,11 @@ def get_athlete_access(
     assignment = get_current_assignment(session, ctx.gym.id, athlete_user_id)
 
     if is_self:
-        if not membership.is_active or profile.is_archived:
+        # Archived self-profiles stay hidden from ordinary athlete self-service,
+        # but a gym owner/admin must still be able to restore their own profile.
+        if not membership.is_active or (
+            profile.is_archived and not (allow_archived and ctx.is_admin)
+        ):
             raise HTTPException(status_code=404, detail="athlete_not_found")
         return AthleteAccess(
             user=user,
