@@ -152,8 +152,14 @@ export function GymDetailPage({ gymId }: { gymId: string }) {
       <PageHeader
         title={gym.name}
         subtitle={gym.description ?? t("gyms.details")}
-        onBack={() => navigate({ to: "/gyms/$gymId", params: { gymId } })}
-        backLabel={t("gyms.backToWorkspace")}
+        onBack={() =>
+          navigate(
+            isSuperuser
+              ? { to: "/gyms/$gymId", params: { gymId } }
+              : { to: "/gyms" },
+          )
+        }
+        backLabel={isSuperuser ? t("gyms.backToWorkspace") : t("common.back")}
         actions={
           canManage ? (
             <>

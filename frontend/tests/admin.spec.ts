@@ -164,3 +164,17 @@ test("mobile admin keeps gym and role context available", async ({ page }) => {
     page.locator(".m3-mobile-nav").getByRole("button", { name: "تیم باشگاه" }),
   ).toBeVisible()
 })
+
+test("club users keep the details page and its back navigation", async ({
+  page,
+}) => {
+  await page.goto("/gyms")
+  await page
+    .locator(".m3-entity-card")
+    .filter({ hasText: "باشگاه آرام" })
+    .click()
+  await expect(page).toHaveURL(/\/gyms\/[^/]+$/)
+  await expect(page.getByRole("heading", { name: "باشگاه آرام" })).toBeVisible()
+  await page.locator(".m3-back-button").first().click()
+  await expect(page).toHaveURL((url) => url.pathname.endsWith("/gyms"))
+})
