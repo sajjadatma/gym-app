@@ -85,9 +85,10 @@ uv run python scripts/verify_superadmin_login.py
 
 cd ../frontend
 bunx playwright test
-# 50 total: 49 passed, 1 skipped
-# Skipped: production-service-worker-only test (tests/pwa.spec.ts:46-49),
-# gated by PWA_PROD=1; not a failure.
+# 56 total: 50 passed, 6 skipped
+# Skipped: 5 superuser-journey tests without PLAYWRIGHT_SUPERUSER_* credentials
+# and the production-service-worker-only test (tests/pwa.spec.ts:46-49),
+# gated by PWA_PROD=1; not failures.
 
 bun run build
 PLAYWRIGHT_BASE_URL=http://localhost:8000 PWA_PROD=1 bunx playwright test tests/pwa.spec.ts
@@ -99,7 +100,7 @@ CONFIRM_RESET_GYM_APP=YES SEED_DEMO_DATA=YES bash scripts/reset_dev_db.sh
 # reset -> migrations -> idempotent seed -> demo seed OK
 ```
 
-Playwright status: full desktop + emulated Pixel 5 suite is green (49 passed, 1 production-only skip); the production PWA subset is also green when run against the built app at `:8000` with `PWA_PROD=1`. No Playwright failures are known.
+Playwright status: full desktop + emulated Pixel 5 suite is green (50 passed; 6 skipped — 5 superuser tests without `PLAYWRIGHT_SUPERUSER_*` credentials and 1 production-only PWA skip); the superuser project is green (5 passed) against a disposable database on `:8001`/`:5174`; the production PWA subset is also green when run against the built app at `:8000` with `PWA_PROD=1`. No Playwright failures are known.
 
 The real Super Admin password and invitation tokens are deliberately absent from this document and all tracked files.
 
@@ -133,3 +134,11 @@ The real Super Admin password and invitation tokens are deliberately absent from
 - New-program dialogs reset title, goal and dates each time they open. Editor state is scoped to the selected version and background refetches preserve unsaved edits.
 - Workout days support several categories with visible checkbox chips, combined movement filtering, day navigation and exercise/set counts. Removing a used category requires first moving/removing its movements. Athlete and print views show all selected categories.
 - Category snapshots survive templates and copies; singular category payloads remain compatible. Migration c9324e715a60 preserves existing day selections.
+
+### Superuser global context — 2026-10-25
+
+- A superuser no longer auto-binds to the first club at login: `/` shows a global dashboard (club cards with an "enter gym" action) and the top bar shows no club name or mode chip. Every fresh login returns there.
+- Entering a club uses the real workspace route `/gyms/:gymId`; reloading keeps that club context. Club settings live at `/gyms/:gymId/settings`.
+- "All clubs" in the club switcher clears the active club and returns to the global dashboard.
+- Owners, coaches and athletes keep today's behavior, routes and headers; inner club pages still rely on active-club state.
+- Superuser Playwright coverage is gated on `PLAYWRIGHT_SUPERUSER_EMAIL`/`PLAYWRIGHT_SUPERUSER_PASSWORD` and documented in the README; it uses a disposable database, never `gym_app`.

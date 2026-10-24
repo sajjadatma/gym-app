@@ -133,6 +133,35 @@ bun run build
 PLAYWRIGHT_BASE_URL=http://localhost:8000 PWA_PROD=1 bunx playwright test
 ```
 
+The superuser journey (`tests/superuser-context.spec.ts`, project `superuser`) is skipped unless `PLAYWRIGHT_SUPERUSER_EMAIL` and `PLAYWRIGHT_SUPERUSER_PASSWORD` are set, because the demo seed has no superuser. It expects a disposable environment, never the `gym_app` development data:
+
+```sh
+# Build a disposable database from TEST_DATABASE_URL; its name must end in _test.
+createdb gym_app_superuser_test
+cd backend
+DATABASE_URL=postgresql://…/gym_app_superuser_test uv run alembic upgrade head
+DATABASE_URL=postgresql://…/gym_app_superuser_test uv run python -m app.initial_data
+DATABASE_URL=postgresql://…/gym_app_superuser_test uv run python scripts/seed_demo.py
+psql postgresql://…/gym_app_superuser_test \
+  -c "UPDATE \"user\" SET is_superuser = true WHERE email = 'ali@example.com';"
+
+# Serve it on :8001 and Vite on :5174.
+DATABASE_URL=postgresql://…/gym_app_superuser_test FRONTEND_HOST=http://localhost:5174 \
+  uv run uvicorn app.main:app --port 8001
+cd ../frontend && VITE_API_URL=http://localhost:8001 bun run dev --host localhost --port 5174
+```
+
+Then run the superuser project with the demo credentials:
+
+```sh
+cd frontend
+PLAYWRIGHT_BASE_URL=http://localhost:5174 PLAYWRIGHT_API_URL=http://localhost:8001 \
+PLAYWRIGHT_SUPERUSER_EMAIL=ali@example.com PLAYWRIGHT_SUPERUSER_PASSWORD='DemoPass123!' \
+bunx playwright test tests/superuser-context.spec.ts --project=superuser
+```
+
+Drop `gym_app_superuser_test` when finished. Never reset, seed or migrate `gym_app` for this suite.
+
 The backend test suite refuses to run unless `TEST_DATABASE_URL` ends in `_test`. It uses a fake test Super Admin password, never the real local secret.
 
 ## Local reset (destructive, dedicated dev DB only)
