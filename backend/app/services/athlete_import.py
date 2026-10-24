@@ -179,10 +179,13 @@ def _read_csv(content: bytes) -> list[list[Any]]:
     except csv.Error:
         dialect = csv.excel
     rows: list[list[Any]] = []
-    for row in csv.reader(io.StringIO(text), dialect):
-        rows.append(list(row))
-        if len(rows) > MAX_READ_ROWS:
-            raise HTTPException(status_code=400, detail="too_many_rows")
+    try:
+        for row in csv.reader(io.StringIO(text), dialect, strict=True):
+            rows.append(list(row))
+            if len(rows) > MAX_READ_ROWS:
+                raise HTTPException(status_code=400, detail="too_many_rows")
+    except csv.Error as exc:
+        raise HTTPException(status_code=400, detail="invalid_file") from exc
     return rows
 
 

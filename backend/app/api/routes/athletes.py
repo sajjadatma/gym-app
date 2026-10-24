@@ -44,6 +44,7 @@ from app.models import (
 )
 from app.services.access import get_membership_roles
 from app.services.athlete_import import (
+    MAX_IMPORT_BYTES,
     build_template_csv,
     build_template_xlsx,
 )
@@ -303,6 +304,13 @@ def create_athlete(
 
 
 
+async def _read_import_upload(file: UploadFile) -> bytes:
+    content = await file.read(MAX_IMPORT_BYTES + 1)
+    if len(content) > MAX_IMPORT_BYTES:
+        raise HTTPException(status_code=400, detail="import_file_too_large")
+    return content
+
+
 @router.get("/import/template")
 def download_athlete_import_template(
     *,
@@ -339,7 +347,7 @@ async def preview_athlete_import(
         session,
         gym_id=ctx.gym.id,
         filename=file.filename or "",
-        content=await file.read(),
+        content=await _read_import_upload(file),
         default_coach_user_id=default_coach_user_id,
     )
 
@@ -360,7 +368,7 @@ async def bulk_import_athletes(
         gym=ctx.gym,
         current_user=current_user,
         filename=file.filename or "",
-        content=await file.read(),
+        content=await _read_import_upload(file),
         default_coach_user_id=default_coach_user_id,
         activation_method=activation_method,
         initial_password=initial_password,
