@@ -155,6 +155,7 @@ type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "size"> & {
   rows?: number
   suffix?: string
   leading?: ReactNode
+  trailing?: ReactNode
   containerClassName?: string
 }
 
@@ -166,6 +167,7 @@ export function TextField({
   rows = 4,
   suffix,
   leading,
+  trailing,
   containerClassName = "",
   className = "",
   id,
@@ -216,6 +218,9 @@ export function TextField({
           />
         )}
         {suffix ? <span className="m3-field__suffix">{suffix}</span> : null}
+        {trailing ? (
+          <span className="m3-field__trailing">{trailing}</span>
+        ) : null}
       </div>
       {error ? (
         <p

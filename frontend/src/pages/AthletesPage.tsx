@@ -1,7 +1,27 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { Copy, Mail, Plus, Search, UserRound, Users } from "lucide-react"
-import { useDeferredValue, useState } from "react"
+import {
+  ArrowLeft,
+  ArrowRight,
+  Copy,
+  LayoutGrid,
+  ListChecks,
+  Mail,
+  Phone,
+  Plus,
+  Search,
+  Table2,
+  UserRound,
+  Users,
+  X,
+} from "lucide-react"
+import {
+  useDeferredValue,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import { type AthleteCreated, AthletesService, GymsService } from "@/client"
@@ -24,7 +44,7 @@ import { useI18n } from "@/i18n"
 import { useSnackbar } from "@/snackbar"
 
 export function AthletesPage() {
-  const { t, formatNumber } = useI18n()
+  const { t, formatNumber, direction } = useI18n()
   const { activeGym, activeGymId, activeRole, isAdmin, me } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -32,6 +52,18 @@ export function AthletesPage() {
   const [search, setSearch] = useState("")
   const deferredSearch = useDeferredValue(search)
   const [includeArchived, setIncludeArchived] = useState(false)
+  const [view, setView] = useState<"grid" | "table">(() => {
+    try {
+      return localStorage.getItem("gym.athletes.view") === "table"
+        ? "table"
+        : "grid"
+    } catch {
+      return "grid"
+    }
+  })
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const selectAllRef = useRef<HTMLInputElement>(null)
+  const tableWrapRef = useRef<HTMLDivElement>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [created, setCreated] = useState<AthleteCreated | null>(null)
   const [saving, setSaving] = useState(false)
@@ -81,15 +113,6 @@ export function AthletesPage() {
     enabled: Boolean(activeGymId && isAdmin),
   })
 
-  if (!activeGym) {
-    return (
-      <PageHeader
-        title={t("athletes.title")}
-        subtitle={t("context.noGymHint")}
-      />
-    )
-  }
-
   const athletes = (athletesQuery.data?.data ?? []).filter((athlete) => {
     if (activeRole === "COACH" && !isAdmin) {
       return athlete.coach_user_id === me?.id
@@ -101,6 +124,76 @@ export function AthletesPage() {
     value: coach.user_id,
     label: coach.full_name ?? coach.email,
   }))
+
+  const selectedAthletes = athletes.filter((athlete) =>
+    selected.has(athlete.user_id),
+  )
+  const allSelected =
+    athletes.length > 0 && selectedAthletes.length === athletes.length
+  const someSelected = selectedAthletes.length > 0 && !allSelected
+  const ForwardIcon = direction === "rtl" ? ArrowLeft : ArrowRight
+  const hasSearch = search.trim().length > 0
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("gym.athletes.view", view)
+    } catch {
+      // Storage may be unavailable in private mode; the in-memory view still works.
+    }
+  }, [view])
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected
+    }
+  }, [someSelected])
+
+  useEffect(() => {
+    setSelected(new Set())
+  }, [])
+
+  useLayoutEffect(() => {
+    if (view !== "table") return
+    const wrapper = tableWrapRef.current
+    if (wrapper) wrapper.scrollLeft = wrapper.scrollWidth
+  }, [view])
+
+  function toggleSelected(userId: string) {
+    setSelected((previous) => {
+      const next = new Set(previous)
+      if (next.has(userId)) next.delete(userId)
+      else next.add(userId)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelected(new Set())
+      return
+    }
+    setSelected(new Set(athletes.map((athlete) => athlete.user_id)))
+  }
+
+  function clearSelection() {
+    setSelected(new Set())
+  }
+
+  function openAthlete(userId: string) {
+    navigate({
+      to: "/athletes/$athleteId",
+      params: { athleteId: userId },
+    })
+  }
+
+  if (!activeGym) {
+    return (
+      <PageHeader
+        title={t("athletes.title")}
+        subtitle={t("context.noGymHint")}
+      />
+    )
+  }
 
   async function addAthlete() {
     setError(null)
@@ -177,26 +270,73 @@ export function AthletesPage() {
         }
       />
 
-      <div className="m3-filter-bar">
-        <TextField
-          label={t("athletes.search")}
-          type="search"
-          name="search"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          leading={<Search size={18} aria-hidden />}
-        />
-        {isAdmin ? (
-          <Switch
-            checked={includeArchived}
-            onChange={setIncludeArchived}
-            label={t("status.archived")}
+      <section className="m3-list-toolbar">
+        <div className="m3-list-toolbar__search">
+          <TextField
+            label={t("athletes.search")}
+            type="search"
+            name="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            leading={<Search size={18} aria-hidden />}
+            trailing={
+              search ? (
+                <button
+                  type="button"
+                  className="m3-search-clear"
+                  aria-label={t("athletes.clearSearch")}
+                  onClick={() => setSearch("")}
+                >
+                  <X size={15} aria-hidden />
+                </button>
+              ) : undefined
+            }
           />
-        ) : null}
-        <span className="muted" style={{ fontSize: 12 }}>
-          {t("common.people")}: {formatNumber(athletes.length)}
-        </span>
-      </div>
+        </div>
+        <div className="m3-list-toolbar__actions">
+          {isAdmin ? (
+            <Switch
+              checked={includeArchived}
+              onChange={setIncludeArchived}
+              label={t("status.archived")}
+            />
+          ) : null}
+          <span className="m3-count-chip" aria-live="polite">
+            {t("athletes.countLabel", {
+              count: formatNumber(athletes.length),
+            })}
+          </span>
+          <fieldset className="m3-view-toggle">
+            <legend className="sr-only">{t("athletes.view")}</legend>
+            <button
+              type="button"
+              className={`m3-view-toggle__option ${
+                view === "grid" ? "is-active" : ""
+              }`}
+              aria-pressed={view === "grid"}
+              aria-label={t("athletes.gridView")}
+              title={t("athletes.gridView")}
+              onClick={() => setView("grid")}
+            >
+              <LayoutGrid size={16} aria-hidden />
+              <span>{t("athletes.gridView")}</span>
+            </button>
+            <button
+              type="button"
+              className={`m3-view-toggle__option ${
+                view === "table" ? "is-active" : ""
+              }`}
+              aria-pressed={view === "table"}
+              aria-label={t("athletes.tableView")}
+              title={t("athletes.tableView")}
+              onClick={() => setView("table")}
+            >
+              <Table2 size={16} aria-hidden />
+              <span>{t("athletes.tableView")}</span>
+            </button>
+          </fieldset>
+        </div>
+      </section>
 
       {athletesQuery.isLoading ? (
         <Spinner label={t("common.loading")} />
@@ -208,11 +348,21 @@ export function AthletesPage() {
         />
       ) : athletes.length === 0 ? (
         <EmptyState
-          icon={<Users size={26} />}
-          title={t("athletes.empty")}
-          description={t("athletes.emptyHint")}
+          icon={hasSearch ? <Search size={26} /> : <Users size={26} />}
+          title={hasSearch ? t("common.noResults") : t("athletes.empty")}
+          description={
+            hasSearch ? t("athletes.noResultsHint") : t("athletes.emptyHint")
+          }
           action={
-            canCreate ? (
+            hasSearch ? (
+              <Button
+                variant="outlined"
+                icon={<X size={16} />}
+                onClick={() => setSearch("")}
+              >
+                {t("athletes.clearSearch")}
+              </Button>
+            ) : canCreate ? (
               <Button
                 icon={<Plus size={17} />}
                 onClick={() => setAddOpen(true)}
@@ -222,35 +372,33 @@ export function AthletesPage() {
             ) : undefined
           }
         />
-      ) : (
+      ) : view === "grid" ? (
         <div className="m3-card-grid">
           {athletes.map((athlete) => (
             <button
               key={athlete.user_id}
               type="button"
-              className="m3-entity-card"
-              style={{ textAlign: "start", fontFamily: "inherit" }}
-              onClick={() =>
-                navigate({
-                  to: "/athletes/$athleteId",
-                  params: { athleteId: athlete.user_id },
-                })
-              }
+              className={`m3-entity-card ${
+                athlete.is_archived ? "is-archived" : ""
+              }`}
+              onClick={() => openAthlete(athlete.user_id)}
             >
               <div className="m3-entity-card__head">
-                <div
-                  className="row"
-                  style={{ gap: 10, flexWrap: "nowrap", minWidth: 0 }}
-                >
+                <div className="m3-entity-card__identity">
                   <Avatar name={athlete.full_name ?? athlete.email} />
-                  <div style={{ minWidth: 0 }}>
-                    <div className="m3-entity-card__title truncate">
+                  <div className="m3-entity-card__person">
+                    <div
+                      className="m3-entity-card__title"
+                      title={athlete.full_name ?? athlete.email}
+                    >
                       {athlete.full_name ?? athlete.email}
                     </div>
-                    <div className="m3-entity-card__meta">
-                      <span className="truncate" dir="ltr">
-                        {athlete.email}
-                      </span>
+                    <div
+                      className="m3-entity-card__email truncate"
+                      dir="ltr"
+                      title={athlete.email}
+                    >
+                      {athlete.email}
                     </div>
                   </div>
                 </div>
@@ -264,25 +412,177 @@ export function AthletesPage() {
               </div>
               <div className="m3-entity-card__meta">
                 <span>
-                  <UserRound size={13} style={{ verticalAlign: "middle" }} />{" "}
+                  <UserRound size={13} aria-hidden />{" "}
                   {athlete.coach_name ?? t("athletes.noCoach")}
                 </span>
-                {athlete.phone ? <span dir="ltr">{athlete.phone}</span> : null}
+                {athlete.phone ? (
+                  <span dir="ltr">
+                    <Phone size={13} aria-hidden /> {athlete.phone}
+                  </span>
+                ) : null}
               </div>
               <div className="m3-entity-card__footer">
                 {athlete.active_program_title ? (
                   <span className="m3-status m3-status--active">
                     {athlete.active_program_title}
+                    {athlete.active_program_version
+                      ? ` · ${t("program.versionLabel", {
+                          version: formatNumber(athlete.active_program_version),
+                        })}`
+                      : ""}
                   </span>
                 ) : (
                   <span className="m3-status m3-status--archived">
                     {t("athletes.noActiveProgram")}
                   </span>
                 )}
+                <span className="m3-entity-card__open">
+                  {t("common.open")}
+                  <ForwardIcon size={14} aria-hidden />
+                </span>
               </div>
             </button>
           ))}
         </div>
+      ) : (
+        <>
+          {selectedAthletes.length > 0 ? (
+            <div className="m3-selection-bar" role="status" aria-live="polite">
+              <span className="m3-selection-bar__count">
+                <ListChecks size={16} aria-hidden />
+                {t("athletes.selectedCount", {
+                  count: formatNumber(selectedAthletes.length),
+                })}
+              </span>
+              <Button variant="text" size="sm" onClick={clearSelection}>
+                {t("athletes.clearSelection")}
+              </Button>
+            </div>
+          ) : null}
+          <Card className="m3-data-card">
+            <div
+              ref={tableWrapRef}
+              className="m3-table-wrap m3-data-table-wrap"
+            >
+              <table className="m3-table m3-data-table">
+                <thead>
+                  <tr>
+                    <th scope="col" className="m3-data-table__check">
+                      <label className="m3-checkbox">
+                        <input
+                          ref={selectAllRef}
+                          type="checkbox"
+                          checked={allSelected}
+                          onChange={toggleSelectAll}
+                          aria-label={t("athletes.selectAll")}
+                        />
+                      </label>
+                    </th>
+                    <th scope="col">{t("athletes.athlete")}</th>
+                    <th scope="col" className="m3-data-table__coach">
+                      {t("athletes.coach")}
+                    </th>
+                    <th scope="col" className="m3-data-table__phone">
+                      {t("athletes.phone")}
+                    </th>
+                    <th scope="col">{t("athletes.status")}</th>
+                    <th scope="col" className="m3-data-table__program">
+                      {t("athletes.activeProgram")}
+                    </th>
+                    <th scope="col" className="m3-data-table__actions">
+                      <span className="sr-only">{t("common.actions")}</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {athletes.map((athlete) => (
+                    <tr
+                      key={athlete.user_id}
+                      className={
+                        selected.has(athlete.user_id) ? "is-selected" : ""
+                      }
+                    >
+                      <td className="m3-data-table__check">
+                        <label className="m3-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(athlete.user_id)}
+                            onChange={() => toggleSelected(athlete.user_id)}
+                            aria-label={`${t("athletes.select")} ${
+                              athlete.full_name ?? athlete.email
+                            }`}
+                          />
+                        </label>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="m3-data-table__identity"
+                          onClick={() => openAthlete(athlete.user_id)}
+                        >
+                          <Avatar name={athlete.full_name ?? athlete.email} />
+                          <span className="m3-data-table__person">
+                            <strong title={athlete.full_name ?? athlete.email}>
+                              {athlete.full_name ?? athlete.email}
+                            </strong>
+                            <span
+                              className="m3-data-table__email truncate"
+                              dir="ltr"
+                              title={athlete.email}
+                            >
+                              {athlete.email}
+                            </span>
+                          </span>
+                        </button>
+                      </td>
+                      <td className="m3-data-table__coach">
+                        {athlete.coach_name ?? t("athletes.noCoach")}
+                      </td>
+                      <td dir="ltr" className="m3-data-table__phone">
+                        {athlete.phone ?? "—"}
+                      </td>
+                      <td>
+                        {athlete.is_archived ? (
+                          <StatusBadge status="archived" />
+                        ) : (
+                          <StatusBadge
+                            status={athlete.is_active ? "active" : "inactive"}
+                          />
+                        )}
+                      </td>
+                      <td className="m3-data-table__program">
+                        {athlete.active_program_title ? (
+                          <span className="m3-status m3-status--active">
+                            {athlete.active_program_title}
+                            {athlete.active_program_version
+                              ? ` · ${formatNumber(
+                                  athlete.active_program_version,
+                                )}`
+                              : ""}
+                          </span>
+                        ) : (
+                          <span className="muted">
+                            {t("athletes.noActiveProgram")}
+                          </span>
+                        )}
+                      </td>
+                      <td className="m3-data-table__actions">
+                        <Button
+                          variant="text"
+                          size="sm"
+                          icon={<ForwardIcon size={15} />}
+                          onClick={() => openAthlete(athlete.user_id)}
+                        >
+                          {t("common.open")}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
       )}
 
       <Dialog
