@@ -103,6 +103,13 @@ cd backend
 uv run pytest -q
 ```
 
+The suite includes a migration smoke test (`-m migrations`) that creates, upgrades and drops a disposable `gym_app_migration_test` database derived from `TEST_DATABASE_URL`; it never touches `DATABASE_URL`. Run only that test with:
+
+```sh
+cd backend
+uv run pytest -q -m migrations
+```
+
 Frontend Playwright against the dev server (demo data required):
 
 ```sh

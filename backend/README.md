@@ -18,6 +18,8 @@ uv run fastapi dev --host 127.0.0.1 --port 8000
 uv run pytest -q
 ```
 
+- The suite includes a migration smoke test that creates, upgrades and drops the disposable `gym_app_migration_test` database derived from `TEST_DATABASE_URL`; it never touches `DATABASE_URL`. Run only that test with `uv run pytest -q -m migrations`.
+
 - Local demo data: `uv run python scripts/seed_demo.py`.
 - Destructive dedicated-dev reset: `CONFIRM_RESET_GYM_APP=YES bash scripts/reset_dev_db.sh` (optionally `SEED_DEMO_DATA=YES`).
 - Super Admin bootstrap login check without printing the secret: `uv run python scripts/verify_superadmin_login.py`.

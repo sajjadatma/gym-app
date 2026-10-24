@@ -35,6 +35,11 @@ dev = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.pytest.ini_options]
+markers = [
+    "migrations: Alembic migration smoke test against a disposable database",
+]
+
 [tool.mypy]
 strict = true
 exclude = ["venv", ".venv", "alembic"]
