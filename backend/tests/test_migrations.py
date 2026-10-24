@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import uuid
 from collections.abc import Generator
 from pathlib import Path
 
@@ -68,7 +69,7 @@ def _drop_database(url: URL) -> None:
         admin_engine.dispose()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def migrated_database() -> Generator[URL]:
     migration_url = _migration_database_url()
     _recreate_database(migration_url)
@@ -151,5 +152,119 @@ def test_fresh_database_upgrades_to_head_and_matches_models(
         revision = version_columns["revision"]
         assert revision["nullable"] is False
         assert revision["default"] == "0"
+    finally:
+        engine.dispose()
+
+
+def test_upgrade_with_existing_data_backfills_new_columns(
+    migrated_database: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Upgrade a database that already contains rows through the two migrations
+    that add non-null columns: token_version on user and revision on
+    workout_program_version."""
+    _set_alembic_database(monkeypatch, migrated_database)
+    config = _alembic_config()
+    command.upgrade(config, "2a61e7c0b94a")
+
+    user_id = uuid.uuid4()
+    gym_id = uuid.uuid4()
+    program_id = uuid.uuid4()
+    version_id = uuid.uuid4()
+    hashed_password = "legacy-hash-preserved-by-migration"
+    legacy_title = "Legacy program version"
+
+    insert_engine = create_engine(migrated_database)
+    try:
+        with insert_engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO "user"
+                       (id, email, full_name, hashed_password, is_active,
+                        is_superuser, must_change_password, created_at)
+                       VALUES (:id, :email, :full_name, :hashed_password, true,
+                               false, false, now())"""
+                ),
+                {
+                    "id": user_id,
+                    "email": "legacy-migration@example.com",
+                    "full_name": "Legacy User",
+                    "hashed_password": hashed_password,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO gym
+                       (id, name, owner_id, is_active, created_at)
+                       VALUES (:id, :name, :owner_id, true, now())"""
+                ),
+                {"id": gym_id, "name": "Legacy Gym", "owner_id": user_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO workout_program
+                       (id, gym_id, athlete_user_id, created_by_id, created_at)
+                       VALUES (:id, :gym_id, :athlete_user_id, :created_by_id,
+                               now())"""
+                ),
+                {
+                    "id": program_id,
+                    "gym_id": gym_id,
+                    "athlete_user_id": user_id,
+                    "created_by_id": user_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO workout_program_version
+                       (id, program_id, version_number, status, title, created_at)
+                       VALUES (:id, :program_id, 1, 'DRAFT', :title, now())"""
+                ),
+                {
+                    "id": version_id,
+                    "program_id": program_id,
+                    "title": legacy_title,
+                },
+            )
+    finally:
+        insert_engine.dispose()
+
+    command.upgrade(config, "head")
+    command.check(config)
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as connection:
+            user_row = connection.execute(
+                text(
+                    'SELECT token_version, hashed_password FROM "user" WHERE id = :id'
+                ),
+                {"id": user_id},
+            ).one()
+            assert user_row.token_version == 0
+            assert user_row.hashed_password == hashed_password
+
+            version_row = connection.execute(
+                text(
+                    """SELECT revision, title FROM workout_program_version
+                       WHERE id = :id"""
+                ),
+                {"id": version_id},
+            ).one()
+            assert version_row.revision == 0
+            assert version_row.title == legacy_title
+
+        inspector = inspect(engine)
+        user_columns = {
+            column["name"]: column for column in inspector.get_columns("user")
+        }
+        assert user_columns["token_version"]["nullable"] is False
+        assert user_columns["token_version"]["default"] == "0"
+
+        version_columns = {
+            column["name"]: column
+            for column in inspector.get_columns("workout_program_version")
+        }
+        assert version_columns["revision"]["nullable"] is False
+        assert version_columns["revision"]["default"] == "0"
     finally:
         engine.dispose()
