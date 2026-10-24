@@ -1,9 +1,17 @@
-import { expect, test } from "@playwright/test"
-
+import { randomUUID } from "node:crypto"
 import { API_URL } from "./credentials"
+import { expect, test } from "./fixtures/athlete-data"
+
+async function expectPageFits(page: import("@playwright/test").Page) {
+  const fits = await page.evaluate(
+    () => document.documentElement.scrollWidth <= window.innerWidth + 1,
+  )
+  expect(fits).toBe(true)
+}
 
 test("manager imports athletes from CSV after previewing rows", async ({
   page,
+  athleteData,
   request,
 }) => {
   await page.goto("/athletes")
@@ -13,6 +21,7 @@ test("manager imports athletes from CSV after previewing rows", async ({
   await expect(
     dialog.getByRole("heading", { name: "ورود گروهی ورزشکاران" }),
   ).toBeVisible()
+  await expectPageFits(page)
 
   const [download] = await Promise.all([
     page.waitForEvent("download"),
@@ -20,18 +29,17 @@ test("manager imports athletes from CSV after previewing rows", async ({
   ])
   expect(download.suggestedFilename()).toBe("athlete-import-template.csv")
 
-  await expect(dialog.locator('input[type="file"]')).toHaveAttribute(
-    "aria-label",
-    "فایل ورودی",
-  )
+  const fileInput = dialog.getByLabel("فایل ورودی")
+  await expect(fileInput).toHaveAttribute("aria-label", "فایل ورودی")
 
-  const email = `import-e2e-${Date.now()}@example.com`
+  const email = `${athleteData.marker}-import-${randomUUID()}@example.com`
+  athleteData.trackEmail(email)
   const csv = [
     "email,full_name,phone,coach_email,training_goal,height_cm,weight_kg,training_days_count",
     `${email},ورزشکار ورود آزمایشی,09120000009,,قدرت,180,80,3`,
     "bad-email,ردیف نامعتبر,,,,,,",
   ].join("\n")
-  await dialog.locator('input[type="file"]').setInputFiles({
+  await fileInput.setInputFiles({
     name: "athletes.csv",
     mimeType: "text/csv",
     buffer: Buffer.from(csv, "utf8"),
@@ -51,39 +59,56 @@ test("manager imports athletes from CSV after previewing rows", async ({
   const coach = dialog.getByRole("combobox", { name: /مربی پیش‌فرض/ })
   await coach.click()
   await coach.fill("رضا")
-  await page.getByRole("option", { name: "رضا مربی", exact: true }).click()
+  const coachOption = page.getByRole("option", {
+    name: "رضا مربی",
+    exact: true,
+  })
+  await expect(coachOption).toBeVisible()
+  await expect
+    .poll(() =>
+      coachOption.evaluate((element) => {
+        const popover = element.closest(".m3-select-popover")
+        return popover ? Number(getComputedStyle(popover).opacity) : 0
+      }),
+    )
+    .toBe(1)
+  await coachOption.click()
   await expect(dialog.getByText(/آماده ورود: ۱/)).toBeVisible()
   await expect(dialog.getByText(/خطا: ۱/)).toBeVisible()
   await expect(dialog.getByText("ایمیل معتبر نیست.")).toBeVisible()
+  await expectPageFits(page)
   await dialog.getByRole("button", { name: /ورود .* ورزشکار/ }).click()
 
   await expect(
     dialog.getByRole("heading", { name: "ورود انجام شد" }),
   ).toBeVisible()
   await expect(dialog.getByText(/ایجادشده: ۱/)).toBeVisible()
+  await expect(dialog.getByText(/ناموفق: ۱/)).toBeVisible()
   await dialog.getByRole("button", { name: "پایان" }).click()
 
   await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(email)
   await expect(page.locator(".m3-entity-card")).toHaveCount(1)
 
-  const token = await page.evaluate(() => localStorage.getItem("access_token"))
-  const gymId = await page.evaluate(() =>
-    localStorage.getItem("gym.activeGymId"),
-  )
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "X-Gym-ID": gymId!,
-  }
   const created = await request.get(
     `${API_URL}/api/v1/athletes?q=${encodeURIComponent(email)}`,
-    { headers },
+    { headers: athleteData.headers },
   )
   expect(created.ok()).toBeTruthy()
   const athlete = (await created.json()).data[0]
   expect(athlete.email).toBe(email)
-  const archived = await request.post(
-    `${API_URL}/api/v1/athletes/${athlete.user_id}/archive`,
-    { headers },
-  )
-  expect(archived.ok()).toBeTruthy()
+
+  await page.getByRole("button", { name: "ورود گروهی" }).click()
+  const reopened = page.getByRole("dialog")
+  await expect(reopened).toBeVisible()
+  await expect(reopened.locator(".m3-import-file__name")).toHaveCount(0)
+  await expect(reopened.getByText(/آماده ورود:/)).toHaveCount(0)
+  await expect(
+    reopened.getByRole("button", { name: "بررسی و پیش‌نمایش" }),
+  ).toBeDisabled()
+  await expect(
+    reopened.getByRole("textbox", { name: "رمز عبور اولیه" }),
+  ).toHaveCount(0)
+  await expectPageFits(page)
+  await reopened.getByRole("button", { name: "انصراف", exact: true }).click()
+  await expect(reopened).toHaveCount(0)
 })

@@ -1,64 +1,26 @@
-import { expect, test } from "@playwright/test"
+import { API_URL } from "./credentials"
+import { expect, test } from "./fixtures/athlete-data"
 
-import { API_URL, DEMO_PASSWORD } from "./credentials"
-
-async function createArchivedAthlete(
-  page: import("@playwright/test").Page,
-  request: import("@playwright/test").APIRequestContext,
-  name: string,
-) {
-  const token = await page.evaluate(() => localStorage.getItem("access_token"))
-  const gymId = await page.evaluate(() =>
-    localStorage.getItem("gym.activeGymId"),
+async function expectPageFits(page: import("@playwright/test").Page) {
+  const fits = await page.evaluate(
+    () => document.documentElement.scrollWidth <= window.innerWidth + 1,
   )
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "X-Gym-ID": gymId!,
-  }
-  const coaches = await request.get(`${API_URL}/api/v1/gyms/${gymId}/coaches`, {
-    headers,
-  })
-  expect(coaches.ok()).toBeTruthy()
-  const coach = (await coaches.json()).data.find(
-    (item: { email: string }) => item.email === "reza@example.com",
-  )
-  expect(coach).toBeTruthy()
-  const email = `archive-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`
-  const created = await request.post(`${API_URL}/api/v1/athletes`, {
-    headers,
-    data: {
-      email,
-      full_name: name,
-      coach_user_id: coach.user_id,
-      activation_method: "password",
-      initial_password: DEMO_PASSWORD,
-    },
-  })
-  expect(created.ok()).toBeTruthy()
-  const athleteId = (await created.json()).athlete.profile.user_id
-  const archived = await request.post(
-    `${API_URL}/api/v1/athletes/${athleteId}/archive`,
-    { headers },
-  )
-  expect(archived.ok()).toBeTruthy()
-  return { athleteId, email, headers }
+  expect(fits).toBe(true)
 }
 
 test("archived athletes can be restored or permanently deleted", async ({
   page,
+  athleteData,
   request,
 }) => {
-  await page.goto("/athletes")
-  const restoreTarget = await createArchivedAthlete(
-    page,
-    request,
-    "ورزشکار بازیابی آزمون",
-  )
-  const deleteTarget = await createArchivedAthlete(
-    page,
-    request,
-    "ورزشکار حذف آزمون",
-  )
+  const restoreTarget = await athleteData.create({
+    name: "ورزشکار بازیابی آزمون",
+    archived: true,
+  })
+  const deleteTarget = await athleteData.create({
+    name: "ورزشکار حذف آزمون",
+    archived: true,
+  })
 
   await page.goto("/athletes/archived")
   await expect(
@@ -67,6 +29,7 @@ test("archived athletes can be restored or permanently deleted", async ({
   await expect(page.getByRole("link", { name: "آرشیو" })).toHaveClass(
     /is-active/,
   )
+  await expectPageFits(page)
 
   const restoreRow = page
     .locator(".m3-archive-table tbody tr")
@@ -84,36 +47,70 @@ test("archived athletes can be restored or permanently deleted", async ({
   const deleteRow = page
     .locator(".m3-archive-table tbody tr")
     .filter({ hasText: deleteTarget.email })
-  await deleteRow.getByRole("button", { name: "حذف", exact: true }).click()
+  const deleteButton = deleteRow.getByRole("button", {
+    name: "حذف",
+    exact: true,
+  })
+  await deleteRow.locator(".m3-archive-table__actions").scrollIntoViewIfNeeded()
+  await expect(deleteButton).toBeVisible()
+
+  let deleteCalls = 0
+  await page.route("**/api/v1/athletes/*", async (route) => {
+    if (
+      route.request().method() === "DELETE" &&
+      new URL(route.request().url()).pathname.endsWith(
+        `/athletes/${deleteTarget.athleteId}`,
+      )
+    ) {
+      deleteCalls += 1
+    }
+    await route.continue()
+  })
+
+  await deleteButton.click()
   const dialog = page.getByRole("dialog")
   await expect(dialog).toContainText("حذف دائمی ورزشکار")
-  await dialog.getByLabel(/برای تأیید، ایمیل/).fill(deleteTarget.email)
-  await dialog.getByRole("button", { name: "حذف دائمی" }).click()
+  await expectPageFits(page)
+  const submit = dialog.getByRole("button", { name: "حذف دائمی" })
+  await expect(submit).toBeDisabled()
+
+  await page.keyboard.press("Escape")
+  await expect(dialog).toHaveCount(0)
+  expect(deleteCalls).toBe(0)
+
+  await deleteButton.click()
+  await expect(dialog).toBeVisible()
+  await expect(submit).toBeDisabled()
+  const confirmation = dialog.getByLabel(/برای تأیید، ایمیل/)
+  await confirmation.fill("wrong@example.com")
+  await expect(submit).toBeDisabled()
+  await confirmation.fill(deleteTarget.email)
+  await expect(submit).toBeEnabled()
+  await submit.click()
   await expect(page.getByText("ورزشکار حذف شد.")).toBeVisible()
   await expect(deleteRow).toHaveCount(0)
+  expect(deleteCalls).toBe(1)
 
   const missing = await request.get(
     `${API_URL}/api/v1/athletes/${deleteTarget.athleteId}`,
     { headers: deleteTarget.headers },
   )
   expect(missing.status()).toBe(404)
-
-  // Clean up the restored athlete from later runs.
-  await request.post(
-    `${API_URL}/api/v1/athletes/${restoreTarget.athleteId}/archive`,
-    { headers: restoreTarget.headers },
-  )
-  await request.delete(
-    `${API_URL}/api/v1/athletes/${restoreTarget.athleteId}`,
-    { headers: restoreTarget.headers },
-  )
 })
 
-test("archived athletes can be restored in bulk", async ({ page, request }) => {
-  await page.goto("/athletes")
+test("archived athletes can be restored in bulk", async ({
+  page,
+  athleteData,
+}) => {
   const marker = `بازیابی گروهی ${Date.now()}`
-  const first = await createArchivedAthlete(page, request, `${marker} ۱`)
-  const second = await createArchivedAthlete(page, request, `${marker} ۲`)
+  const first = await athleteData.create({
+    name: `${marker} ۱`,
+    archived: true,
+  })
+  const second = await athleteData.create({
+    name: `${marker} ۲`,
+    archived: true,
+  })
 
   await page.goto("/athletes/archived")
   await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(marker)
@@ -128,64 +125,21 @@ test("archived athletes can be restored in bulk", async ({ page, request }) => {
   await expect(rows).toHaveCount(0)
 
   for (const target of [first, second]) {
-    await request.post(
-      `${API_URL}/api/v1/athletes/${target.athleteId}/archive`,
+    const response = await page.request.get(
+      `${API_URL}/api/v1/athletes/${target.athleteId}`,
       { headers: target.headers },
     )
-    await request.delete(`${API_URL}/api/v1/athletes/${target.athleteId}`, {
-      headers: target.headers,
-    })
+    expect(response.status()).toBe(200)
   }
 })
 
-async function createActiveAthlete(
-  page: import("@playwright/test").Page,
-  request: import("@playwright/test").APIRequestContext,
-  name: string,
-) {
-  const token = await page.evaluate(() => localStorage.getItem("access_token"))
-  const gymId = await page.evaluate(() =>
-    localStorage.getItem("gym.activeGymId"),
-  )
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "X-Gym-ID": gymId!,
-  }
-  const coaches = await request.get(`${API_URL}/api/v1/gyms/${gymId}/coaches`, {
-    headers,
-  })
-  const coach = (await coaches.json()).data.find(
-    (item: { email: string }) => item.email === "reza@example.com",
-  )
-  const email = `archive-list-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@example.com`
-  const created = await request.post(`${API_URL}/api/v1/athletes`, {
-    headers,
-    data: {
-      email,
-      full_name: name,
-      coach_user_id: coach.user_id,
-      activation_method: "password",
-      initial_password: DEMO_PASSWORD,
-    },
-  })
-  expect(created.ok()).toBeTruthy()
-  return {
-    athleteId: (await created.json()).athlete.profile.user_id as string,
-    email,
-    headers,
-  }
-}
-
 test("archive is available on cards and as a table bulk action", async ({
   page,
-  request,
+  athleteData,
 }) => {
-  await page.goto("/athletes")
-  const cardTarget = await createActiveAthlete(
-    page,
-    request,
-    "آرشیو کارت آزمون",
-  )
+  const cardTarget = await athleteData.create({
+    name: "آرشیو کارت آزمون",
+  })
   await page.goto("/athletes")
   await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(cardTarget.email)
   const card = page.locator(".m3-entity-card").first()
@@ -198,8 +152,8 @@ test("archive is available on cards and as a table bulk action", async ({
   await expect(page.locator(".m3-entity-card")).toHaveCount(0)
 
   const marker = `آرشیو گروهی جدول ${Date.now()}`
-  const first = await createActiveAthlete(page, request, `${marker} ۱`)
-  const second = await createActiveAthlete(page, request, `${marker} ۲`)
+  await athleteData.create({ name: `${marker} ۱` })
+  await athleteData.create({ name: `${marker} ۲` })
   await page.goto("/athletes")
   await page.getByRole("button", { name: "جدول", exact: true }).click()
   await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(marker)
@@ -212,10 +166,4 @@ test("archive is available on cards and as a table bulk action", async ({
   await bulkDialog.getByRole("button", { name: "آرشیو", exact: true }).click()
   await expect(page.getByText(/۲ ورزشکار آرشیو شد/)).toBeVisible()
   await expect(rows).toHaveCount(0)
-
-  for (const target of [cardTarget, first, second]) {
-    await request.delete(`${API_URL}/api/v1/athletes/${target.athleteId}`, {
-      headers: target.headers,
-    })
-  }
 })

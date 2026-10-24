@@ -1699,6 +1699,7 @@ button:disabled {
 
 .m3-dialog {
   width: 100%;
+  min-width: 0;
   max-width: 620px;
   max-height: calc(100vh - 32px);
   display: flex;
@@ -1744,6 +1745,7 @@ button:disabled {
 }
 
 .m3-dialog__content {
+  min-width: 0;
   padding: 12px 24px;
   overflow-y: auto;
 }

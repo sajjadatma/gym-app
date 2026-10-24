@@ -28,6 +28,15 @@ export default defineConfig({
       testIgnore: /athlete\.spec\.ts/,
     },
     {
+      name: "mobile-admin",
+      use: {
+        ...devices["Pixel 5"],
+        storageState: "playwright/.auth/admin.json",
+      },
+      dependencies: ["admin-setup"],
+      testMatch: /athlete-(archive|import)\.spec\.ts/,
+    },
+    {
       name: "mobile",
       use: {
         ...devices["Pixel 5"],
