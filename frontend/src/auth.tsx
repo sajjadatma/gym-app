@@ -29,7 +29,7 @@ type AuthContextValue = {
   isAthlete: boolean
   isOwner: boolean
   mustChangePassword: boolean
-  setActiveGym: (gymId: string) => void
+  setActiveGym: (gymId: string | null) => void
   setActiveRole: (role: RoleMode) => void
   login: (email: string, password: string) => Promise<void>
   logout: () => void
@@ -104,7 +104,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [me?.must_change_password])
 
   useEffect(() => {
-    if (!gymsQuery.isSuccess) return
+    if (!gymsQuery.isSuccess || !me) return
+    if (me.is_superuser) return
     if (gyms.length === 0) {
       if (activeGymId !== null) {
         localStorage.removeItem("gym.activeGymId")
@@ -117,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("gym.activeGymId", first)
       setActiveGymIdState(first)
     }
-  }, [gyms, gymsQuery.isSuccess, activeGymId])
+  }, [gyms, gymsQuery.isSuccess, activeGymId, me])
 
   const defaultRole = pickDefaultRole(activeGym)
   useEffect(() => {
@@ -136,9 +137,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [activeGym, activeRole])
 
   const setActiveGym = useCallback(
-    (gymId: string) => {
-      localStorage.setItem("gym.activeGymId", gymId)
-      setActiveGymIdState(gymId)
+    (gymId: string | null) => {
+      if (gymId === null) {
+        localStorage.removeItem("gym.activeGymId")
+        localStorage.removeItem("gym.activeRole")
+        setActiveGymIdState(null)
+        setActiveRoleState(null)
+      } else {
+        localStorage.setItem("gym.activeGymId", gymId)
+        setActiveGymIdState(gymId)
+      }
       queryClient.removeQueries({
         predicate: (query) =>
           !["me", "gyms"].includes(String(query.queryKey[0])),
@@ -157,6 +165,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await LoginService.loginAccessToken({
         body: { username: email, password },
       })
+      localStorage.removeItem("gym.activeGymId")
+      localStorage.removeItem("gym.activeRole")
+      setActiveGymIdState(null)
+      setActiveRoleState(null)
       localStorage.setItem("access_token", response.data.access_token)
       setToken(response.data.access_token)
       await queryClient.invalidateQueries()

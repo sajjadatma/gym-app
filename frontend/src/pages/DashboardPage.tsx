@@ -6,7 +6,6 @@ import {
   Building2,
   ClipboardList,
   Dumbbell,
-  Plus,
   UserRound,
   Users,
 } from "lucide-react"
@@ -84,24 +83,72 @@ export function DashboardPage() {
   })
 
   if (!activeGym) {
+    if (!isSuperuser) {
+      return (
+        <>
+          <PageHeader title={t("dashboard.title")} />
+          <EmptyState
+            icon={<Building2 size={24} />}
+            title={t("dashboard.noGym")}
+            description={t("dashboard.noGymHint")}
+          />
+        </>
+      )
+    }
     return (
       <>
-        <PageHeader title={t("dashboard.title")} />
-        <EmptyState
-          icon={<Building2 size={24} />}
-          title={t("dashboard.noGym")}
-          description={t("dashboard.noGymHint")}
-          action={
-            isSuperuser ? (
-              <Button
-                icon={<Plus size={17} />}
-                onClick={() => navigate({ to: "/gyms" })}
-              >
-                {t("gyms.create")}
-              </Button>
-            ) : undefined
-          }
+        <PageHeader
+          title={t("dashboard.title")}
+          subtitle={t("dashboard.superAdminSubtitle")}
         />
+        <div className="m3-hero">
+          <h2>
+            {t("dashboard.welcome", { name: me?.full_name ?? me?.email ?? "" })}
+          </h2>
+          <div className="m3-hero__actions">
+            <Button
+              variant="tonal"
+              icon={<Building2 size={17} />}
+              onClick={() => navigate({ to: "/gyms" })}
+            >
+              {t("dashboard.manageGyms")}
+            </Button>
+          </div>
+        </div>
+        <div style={{ height: 20 }} />
+        <div className="m3-card-grid">
+          {gyms.map((gym) => (
+            <Card key={gym.id}>
+              <div className="row row--between">
+                <strong>{gym.name}</strong>
+                <Building2 size={18} className="muted" />
+              </div>
+              <div className="m3-entity-card__meta" style={{ marginTop: 10 }}>
+                <span>
+                  {t("gyms.totalCoaches")}:{" "}
+                  {formatNumber(gym.stats?.coaches ?? 0)}
+                </span>
+                <span>
+                  {t("gyms.totalAthletes")}:{" "}
+                  {formatNumber(gym.stats?.athletes ?? 0)}
+                </span>
+                <span>
+                  {t("gyms.activePrograms")}:{" "}
+                  {formatNumber(gym.stats?.active_programs ?? 0)}
+                </span>
+              </div>
+              <Button
+                variant="text"
+                style={{ paddingInline: 0, marginTop: 12 }}
+                onClick={() =>
+                  navigate({ to: "/gyms/$gymId", params: { gymId: gym.id } })
+                }
+              >
+                {t("gyms.enter")}
+              </Button>
+            </Card>
+          ))}
+        </div>
       </>
     )
   }
@@ -492,42 +539,6 @@ export function DashboardPage() {
               />
             )}
           </Card>
-        </div>
-      ) : null}
-
-      {isSuperuser ? (
-        <div className="m3-card-grid" style={{ marginTop: 20 }}>
-          {gyms.map((gym) => (
-            <Card key={gym.id}>
-              <div className="row row--between">
-                <strong>{gym.name}</strong>
-                <Building2 size={18} className="muted" />
-              </div>
-              <div className="m3-entity-card__meta" style={{ marginTop: 10 }}>
-                <span>
-                  {t("gyms.totalCoaches")}:{" "}
-                  {formatNumber(gym.stats?.coaches ?? 0)}
-                </span>
-                <span>
-                  {t("gyms.totalAthletes")}:{" "}
-                  {formatNumber(gym.stats?.athletes ?? 0)}
-                </span>
-                <span>
-                  {t("gyms.activePrograms")}:{" "}
-                  {formatNumber(gym.stats?.active_programs ?? 0)}
-                </span>
-              </div>
-              <Button
-                variant="text"
-                style={{ paddingInline: 0, marginTop: 12 }}
-                onClick={() =>
-                  navigate({ to: "/gyms/$gymId", params: { gymId: gym.id } })
-                }
-              >
-                {t("gyms.details")}
-              </Button>
-            </Card>
-          ))}
         </div>
       ) : null}
     </>

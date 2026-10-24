@@ -25,7 +25,12 @@ export default defineConfig({
         storageState: "playwright/.auth/admin.json",
       },
       dependencies: ["admin-setup"],
-      testIgnore: /athlete\.spec\.ts/,
+      testIgnore: [/athlete\.spec\.ts/, /superuser-context\.spec\.ts/],
+    },
+    {
+      name: "superuser",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /superuser-context\.spec\.ts/,
     },
     {
       name: "mobile-admin",
