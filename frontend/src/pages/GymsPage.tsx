@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import { type GymCreate, type GymCreated, GymsService } from "@/client"
@@ -31,6 +31,10 @@ export function GymsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
+  useEffect(() => {
+    if (isSuperuser) setActiveGym(null)
+  }, [isSuperuser, setActiveGym])
+
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

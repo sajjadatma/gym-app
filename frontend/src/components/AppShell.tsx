@@ -248,7 +248,7 @@ export function AppShell() {
 
           <div className="m3-topbar__context">
             {activeGym ? (
-              gyms.length > 1 ? (
+              gyms.length > 1 || isSuperuser ? (
                 <Dropdown
                   label={t("context.switchGym")}
                   trigger={
@@ -280,6 +280,23 @@ export function AppShell() {
                       ) : null}
                     </button>
                   ))}
+                  {isSuperuser ? (
+                    <>
+                      <div className="m3-menu__separator" />
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="m3-menu__item"
+                        onClick={() => {
+                          setActiveGym(null)
+                          navigate({ to: "/" as never })
+                        }}
+                      >
+                        <Building2 size={16} />
+                        <span>{t("context.allClubs")}</span>
+                      </button>
+                    </>
+                  ) : null}
                 </Dropdown>
               ) : (
                 <span className="m3-topbar__gym">

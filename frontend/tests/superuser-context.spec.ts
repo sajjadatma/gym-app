@@ -43,3 +43,55 @@ test("superuser with no clubs is sent to the clubs page with a create action", a
     page.getByRole("button", { name: "ایجاد باشگاه" }).first(),
   ).toBeVisible()
 })
+
+test("entering a club opens its workspace and keeps the club on reload", async ({
+  page,
+}) => {
+  await loginAsSuperuser(page)
+  await page.getByRole("button", { name: "ورود به باشگاه" }).first().click()
+  await expect(page).toHaveURL(/\/gyms\/[^/]+$/)
+  await expect(page.locator(".m3-topbar__gym")).toContainText("باشگاه آرام")
+  await expect(page.locator(".m3-topbar__role").first()).toBeVisible()
+  await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible()
+  await expect(
+    page.locator(".m3-nav-rail").getByRole("button", { name: "ورزشکاران" }),
+  ).toBeVisible()
+
+  await page.reload()
+  await expect(page.locator(".m3-topbar__gym")).toContainText("باشگاه آرام")
+  await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible()
+})
+
+test("club settings live on their own route", async ({ page }) => {
+  await loginAsSuperuser(page)
+  await page.getByRole("button", { name: "ورود به باشگاه" }).first().click()
+  await page.getByRole("button", { name: "تنظیمات باشگاه" }).click()
+  await expect(page).toHaveURL(/\/gyms\/[^/]+\/settings$/)
+  await expect(page.getByRole("heading", { name: "باشگاه آرام" })).toBeVisible()
+  await expect(
+    page.getByRole("button", { name: "ویرایش", exact: true }),
+  ).toBeVisible()
+
+  await page.reload()
+  await expect(page.getByRole("heading", { name: "باشگاه آرام" })).toBeVisible()
+  await expect(page.locator(".m3-topbar__gym")).toContainText("باشگاه آرام")
+})
+
+test("all clubs leaves the club from a workspace page and returns to the global view", async ({
+  page,
+}) => {
+  await loginAsSuperuser(page)
+  await page.getByRole("button", { name: "ورود به باشگاه" }).first().click()
+  await page
+    .locator(".m3-nav-rail")
+    .getByRole("button", { name: "ورزشکاران" })
+    .click()
+  await expect(page).toHaveURL(/\/athletes\/?$/)
+  await page.getByRole("button", { name: "تغییر باشگاه" }).click()
+  await page.getByRole("menuitem", { name: "همه باشگاه‌ها" }).click()
+  await expect(page).toHaveURL((url) => url.pathname === "/")
+  await expect(page.locator(".m3-topbar__gym")).toHaveCount(0)
+  await expect(
+    page.getByRole("button", { name: "ورود به باشگاه" }).first(),
+  ).toBeVisible()
+})

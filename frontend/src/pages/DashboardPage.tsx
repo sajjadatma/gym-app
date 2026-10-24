@@ -6,6 +6,7 @@ import {
   Building2,
   ClipboardList,
   Dumbbell,
+  Settings,
   UserRound,
   Users,
 } from "lucide-react"
@@ -236,6 +237,20 @@ export function DashboardPage() {
           {t("dashboard.welcome", { name: me?.full_name ?? me?.email ?? "" })}
         </h2>
         <div className="m3-hero__actions">
+          {activeGymId && isSuperuser ? (
+            <Button
+              variant="tonal"
+              icon={<Settings size={17} />}
+              onClick={() =>
+                navigate({
+                  to: "/gyms/$gymId/settings",
+                  params: { gymId: activeGymId },
+                })
+              }
+            >
+              {t("gyms.settings")}
+            </Button>
+          ) : null}
           {isSuperuser ? (
             <Button
               variant="tonal"

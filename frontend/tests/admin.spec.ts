@@ -135,6 +135,14 @@ test("owner can open gym details and sees ownership transfer", async ({
   await expect(page.getByText("reza@example.com")).toBeVisible()
 })
 
+test("club users keep their club context on the clubs page", async ({
+  page,
+}) => {
+  await page.goto("/gyms")
+  await expect(page.locator(".m3-topbar__gym")).toContainText("باشگاه آرام")
+  await expect(page.getByRole("button", { name: "تغییر باشگاه" })).toBeVisible()
+})
+
 test("mobile admin keeps gym and role context available", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/")
