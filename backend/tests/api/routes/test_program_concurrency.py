@@ -142,6 +142,36 @@ def test_active_program_version_stays_editable_and_publishable_with_revision(
     assert republished.json()["detail"] == "only_drafts_can_be_published"
 
 
+def test_update_without_expected_revision_still_succeeds_and_bumps_revision(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    """Deliberate back-compat: clients that do not send expected_revision can
+    still save. They skip the stale-write guard and always bump revision. The
+    current UI always sends expected_revision; this pin only protects older
+    clients. Remove only with an approved breaking-change decision."""
+    coach, version, _athlete = _setup_program(client, superuser_headers)
+    exercise_id = first_exercise_id(client, coach)
+    version_url = f"/api/v1/program-versions/{version['id']}"
+
+    first = client.put(
+        version_url,
+        headers=coach,
+        json={**program_payload(exercise_id), "title": "Legacy client A"},
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["title"] == "Legacy client A"
+    assert first.json()["revision"] == version["revision"] + 1
+
+    second = client.put(
+        version_url,
+        headers=coach,
+        json={**program_payload(exercise_id), "title": "Legacy client B"},
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["title"] == "Legacy client B"
+    assert second.json()["revision"] == first.json()["revision"] + 1
+
+
 def test_new_draft_retries_version_number_collision(
     client: TestClient,
     superuser_headers: dict[str, str],
