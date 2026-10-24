@@ -389,3 +389,143 @@ def test_archived_athlete_profile_and_program_authoring_are_read_only(
     )
     assert restored_program.status_code == 200, restored_program.text
 
+
+def test_deleting_owner_as_athlete_keeps_account_and_gym_ownership(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    owner_email = unique_email("owner-athlete")
+    gym = create_gym(
+        client,
+        superuser_headers,
+        name="Owner Athlete Gym",
+        owner_email=owner_email,
+        password="owner-pass-123",
+    )["gym"]
+    raw_owner = auth_headers(client, owner_email, "owner-pass-123")
+    change_password(
+        client,
+        raw_owner,
+        current_password="owner-pass-123",
+        new_password="owner-pass-456",
+    )
+    owner = gym_headers(
+        client, email=owner_email, password="owner-pass-456", gym_id=gym["id"]
+    )
+    coach_member = add_member(
+        client,
+        owner,
+        gym["id"],
+        email=unique_email("owner-athlete-coach"),
+        roles=["COACH"],
+        password="coach-pass-123",
+    )["member"]
+    athlete = create_athlete(
+        client,
+        owner,
+        email=owner_email,
+        coach_user_id=coach_member["user_id"],
+    )["athlete"]["profile"]
+
+    deleted = client.delete(
+        f"/api/v1/athletes/{athlete['user_id']}", headers=owner
+    )
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["message"] == "athlete_deleted"
+    assert (
+        client.get(
+            f"/api/v1/athletes/{athlete['user_id']}", headers=owner
+        ).status_code
+        == 404
+    )
+
+    owner_again = gym_headers(
+        client, email=owner_email, password="owner-pass-456", gym_id=gym["id"]
+    )
+    gyms = client.get("/api/v1/gyms/", headers=owner_again)
+    assert gyms.status_code == 200
+    assert any(
+        row["id"] == gym["id"] and row["is_owner"] for row in gyms.json()["data"]
+    )
+    members = client.get(
+        f"/api/v1/gyms/{gym['id']}/members", headers=owner_again
+    )
+    assert members.status_code == 200
+    row = next(
+        item
+        for item in members.json()["data"]
+        if item["user_id"] == athlete["user_id"]
+    )
+    assert row["is_owner"] is True
+    assert row["is_active"] is True
+    assert "ATHLETE" not in row["roles"]
+
+
+def test_deleting_athlete_of_other_gym_owner_keeps_account_and_other_gym(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    first_owner_email = unique_email("shared-owner")
+    first_gym = create_gym(
+        client,
+        superuser_headers,
+        name="First Owner Gym",
+        owner_email=first_owner_email,
+        password="first-owner-pass-123",
+    )["gym"]
+    raw_first = auth_headers(client, first_owner_email, "first-owner-pass-123")
+    change_password(
+        client,
+        raw_first,
+        current_password="first-owner-pass-123",
+        new_password="first-owner-pass-456",
+    )
+    first_owner = gym_headers(
+        client,
+        email=first_owner_email,
+        password="first-owner-pass-456",
+        gym_id=first_gym["id"],
+    )
+    _second_gym, second_owner, _coach, coach_member, _athlete = _setup(
+        client, superuser_headers
+    )
+    shared = create_athlete(
+        client,
+        second_owner,
+        email=first_owner_email,
+        coach_user_id=coach_member["user_id"],
+    )["athlete"]["profile"]
+    first_members_before = client.get(
+        f"/api/v1/gyms/{first_gym['id']}/members", headers=first_owner
+    )
+    assert first_members_before.status_code == 200
+
+    deleted = client.delete(
+        f"/api/v1/athletes/{shared['user_id']}", headers=second_owner
+    )
+    assert deleted.status_code == 200, deleted.text
+    assert (
+        client.get(
+            f"/api/v1/athletes/{shared['user_id']}", headers=second_owner
+        ).status_code
+        == 404
+    )
+
+    first_owner_again = gym_headers(
+        client,
+        email=first_owner_email,
+        password="first-owner-pass-456",
+        gym_id=first_gym["id"],
+    )
+    gyms = client.get("/api/v1/gyms/", headers=first_owner_again)
+    assert gyms.status_code == 200
+    assert any(
+        row["id"] == first_gym["id"] and row["is_owner"]
+        for row in gyms.json()["data"]
+    )
+    first_members_after = client.get(
+        f"/api/v1/gyms/{first_gym['id']}/members", headers=first_owner_again
+    )
+    assert first_members_after.status_code == 200
+    assert (
+        first_members_after.json()["count"]
+        == first_members_before.json()["count"]
+    )

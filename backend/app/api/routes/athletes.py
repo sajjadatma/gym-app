@@ -35,6 +35,7 @@ from app.models import (
     BodyAnalysisFile,
     BodyAnalysisFilePublic,
     CoachAssignment,
+    Gym,
     GymMembership,
     GymMembershipRole,
     Message,
@@ -637,20 +638,31 @@ def delete_athlete(
         )
     ).all()
     remaining_roles = [role for role in roles if role.role != "ATHLETE"]
-    if remaining_roles:
+    is_gym_owner = ctx.gym.owner_id == access.user.id
+    if is_gym_owner or remaining_roles:
+        # An owner is implicit staff and must keep a usable membership; only
+        # the athlete role is removed. Deleting the membership or account here
+        # would break gym ownership (gym.owner_id is RESTRICT) and lock the
+        # owner out of the gym.
         for role in roles:
             if role.role == "ATHLETE":
                 session.delete(role)
+        if is_gym_owner and not access.membership.is_active:
+            access.membership.is_active = True
+            session.add(access.membership)
     else:
         session.delete(access.membership)
 
     session.delete(access.profile)
     session.flush()
 
+    owns_a_gym = session.exec(
+        select(Gym.id).where(Gym.owner_id == access.user.id)
+    ).first()
     memberships = session.exec(
         select(GymMembership).where(GymMembership.user_id == access.user.id)
     ).all()
-    if not memberships:
+    if not memberships and not owns_a_gym:
         session.delete(access.user)
     session.commit()
     # Remove files only after the database transaction is durable. A failure
