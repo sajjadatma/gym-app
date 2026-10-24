@@ -27,6 +27,7 @@ import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import { type AthleteCreated, AthletesService, GymsService } from "@/client"
 import { AthleteImportDialog } from "@/components/AthleteImportDialog"
+import { AthleteListTabs } from "@/components/AthleteListTabs"
 import {
   Avatar,
   Button,
@@ -39,7 +40,6 @@ import {
   SelectField,
   Spinner,
   StatusBadge,
-  Switch,
   TextField,
 } from "@/components/M3"
 import { useI18n } from "@/i18n"
@@ -53,7 +53,6 @@ export function AthletesPage() {
   const { show } = useSnackbar()
   const [search, setSearch] = useState("")
   const deferredSearch = useDeferredValue(search)
-  const [includeArchived, setIncludeArchived] = useState(false)
   const [view, setView] = useState<"grid" | "table">(() => {
     try {
       return localStorage.getItem("gym.athletes.view") === "table"
@@ -86,20 +85,11 @@ export function AthletesPage() {
   const canCreate = activeRole === "GYM_ADMIN" || activeRole === "COACH"
 
   const athletesQuery = useQuery({
-    queryKey: [
-      "athletes",
-      activeGymId,
-      deferredSearch,
-      includeArchived,
-      activeRole,
-    ],
+    queryKey: ["athletes", activeGymId, deferredSearch, activeRole],
     queryFn: async () =>
       (
         await AthletesService.listAthletes({
-          query: {
-            q: deferredSearch,
-            include_archived: includeArchived && isAdmin,
-          },
+          query: { q: deferredSearch },
         })
       ).data,
     enabled: Boolean(activeGymId),
@@ -287,6 +277,8 @@ export function AthletesPage() {
         }
       />
 
+      {isAdmin ? <AthleteListTabs active="active" /> : null}
+
       <section className="m3-list-toolbar">
         <div className="m3-list-toolbar__search">
           <TextField
@@ -311,13 +303,6 @@ export function AthletesPage() {
           />
         </div>
         <div className="m3-list-toolbar__actions">
-          {isAdmin ? (
-            <Switch
-              checked={includeArchived}
-              onChange={setIncludeArchived}
-              label={t("status.archived")}
-            />
-          ) : null}
           <span className="m3-count-chip" aria-live="polite">
             {t("athletes.countLabel", {
               count: formatNumber(athletes.length),

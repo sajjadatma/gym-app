@@ -13,6 +13,7 @@ import {
   Plus,
   Printer,
   RefreshCw,
+  RotateCcw,
   Save,
   ShieldAlert,
   Trash2,
@@ -29,6 +30,7 @@ import {
 } from "@/client"
 import { client } from "@/client/client.gen"
 import { DateField } from "@/components/DateField"
+import { DeleteAthletesDialog } from "@/components/DeleteAthletesDialog"
 import {
   Avatar,
   Button,
@@ -67,6 +69,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
   const [saving, setSaving] = useState(false)
   const [reassignOpen, setReassignOpen] = useState(false)
   const [archiveOpen, setArchiveOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [programOpen, setProgramOpen] = useState(false)
   const [newCoachId, setNewCoachId] = useState("")
   const [programTitle, setProgramTitle] = useState("")
@@ -186,8 +189,10 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
     )
   }
 
+  const archived = athlete.profile.is_archived
   const canEdit =
-    isAdmin || (activeRole === "COACH" && athlete.coach_user_id === me?.id)
+    !archived &&
+    (isAdmin || (activeRole === "COACH" && athlete.coach_user_id === me?.id))
   const activeProgram = programsQuery.data?.find(
     (item) => item.status === "ACTIVE",
   )
@@ -303,6 +308,28 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
         queryKey: ["program-version", activeGymId, deleteTarget.id],
       })
       show(t("program.deleted"), "success")
+    } catch (err) {
+      setError(translateApiError(err, t))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function restoreAthlete() {
+    setSaving(true)
+    setError(null)
+    try {
+      const response = await AthletesService.restoreAthlete({
+        path: { athlete_user_id: athleteId },
+      })
+      queryClient.setQueryData(
+        ["athlete", activeGymId, athleteId],
+        response.data,
+      )
+      await queryClient.invalidateQueries({
+        queryKey: ["athletes", activeGymId],
+      })
+      show(t("athletes.restored"), "success")
     } catch (err) {
       setError(translateApiError(err, t))
     } finally {
@@ -426,11 +453,17 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
       <PageHeader
         title={athlete.profile.full_name ?? athlete.profile.email}
         subtitle={`${activeGym.name} · ${athlete.coach_name ?? t("athletes.noCoach")}`}
-        onBack={() => navigate({ to: "/athletes" })}
+        onBack={() =>
+          navigate({
+            to: athlete.profile.is_archived
+              ? "/athletes/archived"
+              : "/athletes",
+          })
+        }
         backLabel={t("common.back")}
         actions={
           <>
-            {isAdmin ? (
+            {isAdmin && !athlete.profile.is_archived ? (
               <>
                 <Button
                   variant="outlined"
@@ -451,6 +484,26 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 </Button>
               </>
             ) : null}
+            {isAdmin && athlete.profile.is_archived ? (
+              <Button
+                variant="outlined"
+                icon={<RotateCcw size={16} />}
+                onClick={() => void restoreAthlete()}
+                loading={saving}
+              >
+                {t("athletes.restore")}
+              </Button>
+            ) : null}
+            {isAdmin ? (
+              <Button
+                variant="text"
+                className="m3-text-danger"
+                icon={<Trash2 size={16} />}
+                onClick={() => setDeleteOpen(true)}
+              >
+                {t("athletes.delete")}
+              </Button>
+            ) : null}
             {canEdit && activeProgram ? (
               <Button icon={<Plus size={17} />} onClick={openNewProgram}>
                 {t("athletes.createProgram")}
@@ -459,6 +512,13 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
           </>
         }
       />
+
+      {archived ? (
+        <div className="m3-banner m3-banner--archived">
+          <Archive size={18} aria-hidden />
+          <span>{t("athletes.archivedBanner")}</span>
+        </div>
+      ) : null}
 
       <section className="m3-profile-hero">
         <div className="m3-profile-hero__identity">
@@ -556,7 +616,9 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
           ) : (
             <>
               <p className="m3-profile-hero__empty">
-                {t("athletes.noProgramsHint")}
+                {archived
+                  ? t("athletes.archivedProgramHint")
+                  : t("athletes.noProgramsHint")}
               </p>
               {canEdit ? (
                 <Button icon={<Plus size={16} />} onClick={openNewProgram}>
@@ -603,6 +665,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 onChange={(event) =>
                   setForm({ ...form, full_name: event.target.value })
                 }
+                disabled={archived}
               />
               <TextField
                 label={t("athletes.phone")}
@@ -611,6 +674,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 onChange={(event) =>
                   setForm({ ...form, phone: event.target.value })
                 }
+                disabled={archived}
               />
             </div>
             <div className="grid-2" style={{ marginTop: 14 }}>
@@ -620,11 +684,13 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 dayMonthYear
                 value={form.birth_date}
                 onChange={(value) => setForm({ ...form, birth_date: value })}
+                disabled={archived}
               />
               <SelectField
                 label={t("athletes.fitnessLevel")}
                 value={form.fitness_level}
                 onChange={(value) => setForm({ ...form, fitness_level: value })}
+                disabled={archived}
                 options={[
                   { value: "", label: t("common.none") },
                   { value: "beginner", label: t("athletes.levelBeginner") },
@@ -669,6 +735,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                   onChange={(event) =>
                     setForm({ ...form, [key]: event.target.value })
                   }
+                  disabled={archived}
                 />
               ))}
             </div>
@@ -688,6 +755,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 onChange={(event) =>
                   setForm({ ...form, training_goal: event.target.value })
                 }
+                disabled={archived}
               />
               <TextField
                 label={t("athletes.equipment")}
@@ -695,6 +763,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 onChange={(event) =>
                   setForm({ ...form, equipment: event.target.value })
                 }
+                disabled={archived}
               />
             </div>
             <TextField
@@ -705,6 +774,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
               step={1}
               inputMode="numeric"
               value={form.training_days_count}
+              disabled={archived}
               onChange={(event) => {
                 const value = event.target.value
                 if (value === "" || /^[1-7]$/.test(value)) {
@@ -721,6 +791,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 }
                 multiline
                 rows={3}
+                disabled={archived}
               />
               <TextField
                 label={t("athletes.limitations")}
@@ -730,6 +801,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 }
                 multiline
                 rows={3}
+                disabled={archived}
               />
             </div>
           </Card>
@@ -755,18 +827,21 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
               multiline
               rows={4}
               helper={t("athletes.internalNoteHint")}
+              disabled={archived}
             />
           </Card>
 
-          <div className="row" style={{ justifyContent: "flex-end" }}>
-            <Button
-              icon={<Save size={17} />}
-              onClick={saveProfile}
-              loading={saving}
-            >
-              {t("common.save")}
-            </Button>
-          </div>
+          {!athlete.profile.is_archived ? (
+            <div className="row" style={{ justifyContent: "flex-end" }}>
+              <Button
+                icon={<Save size={17} />}
+                onClick={saveProfile}
+                loading={saving}
+              >
+                {t("common.save")}
+              </Button>
+            </div>
+          ) : null}
 
           <Card>
             <div className="m3-section__header">
@@ -943,7 +1018,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 ref={fileInput}
                 id={uploadId}
                 aria-describedby={`${uploadId}-hint`}
-                disabled={uploading}
+                disabled={uploading || archived}
                 type="file"
                 accept="application/pdf,image/jpeg,image/png"
                 className="sr-only"
@@ -957,6 +1032,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 variant="outlined"
                 icon={<FileUp size={16} />}
                 loading={uploading}
+                disabled={archived}
                 onClick={() => fileInput.current?.click()}
               >
                 {uploading
@@ -1033,6 +1109,25 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
           />
         </div>
       </Dialog>
+
+      <DeleteAthletesDialog
+        open={deleteOpen}
+        athletes={[
+          {
+            user_id: athleteId,
+            email: athlete.profile.email,
+            full_name: athlete.profile.full_name,
+          },
+        ]}
+        onClose={() => setDeleteOpen(false)}
+        onDeleted={() =>
+          navigate({
+            to: athlete.profile.is_archived
+              ? "/athletes/archived"
+              : "/athletes",
+          })
+        }
+      />
 
       <ConfirmDialog
         open={archiveOpen}

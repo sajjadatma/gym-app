@@ -423,6 +423,16 @@ export type AthleteProfileUpdate = {
 };
 
 /**
+ * AthleteRestore
+ */
+export type AthleteRestore = {
+    /**
+     * Coach User Id
+     */
+    coach_user_id?: string | null;
+};
+
+/**
  * AthleteSelfDetail
  */
 export type AthleteSelfDetail = {
@@ -2644,6 +2654,42 @@ export type athletesBulkImportAthletesResponses = {
 
 export type athletesBulkImportAthletesResponse = athletesBulkImportAthletesResponses[keyof athletesBulkImportAthletesResponses];
 
+export type athletesDeleteAthleteData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Athlete User Id
+         */
+        athlete_user_id: string;
+    };
+    query?: never;
+    url: '/api/v1/athletes/{athlete_user_id}';
+};
+
+export type athletesDeleteAthleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type athletesDeleteAthleteError = athletesDeleteAthleteErrors[keyof athletesDeleteAthleteErrors];
+
+export type athletesDeleteAthleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type athletesDeleteAthleteResponse = athletesDeleteAthleteResponses[keyof athletesDeleteAthleteResponses];
+
 export type athletesReadAthleteData = {
     body?: never;
     headers?: {
@@ -2787,6 +2833,45 @@ export type athletesArchiveAthleteResponses = {
 };
 
 export type athletesArchiveAthleteResponse = athletesArchiveAthleteResponses[keyof athletesArchiveAthleteResponses];
+
+export type athletesRestoreAthleteData = {
+    /**
+     * Body
+     */
+    body?: AthleteRestore | null;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Athlete User Id
+         */
+        athlete_user_id: string;
+    };
+    query?: never;
+    url: '/api/v1/athletes/{athlete_user_id}/restore';
+};
+
+export type athletesRestoreAthleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type athletesRestoreAthleteError = athletesRestoreAthleteErrors[keyof athletesRestoreAthleteErrors];
+
+export type athletesRestoreAthleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: AthleteDetail;
+};
+
+export type athletesRestoreAthleteResponse = athletesRestoreAthleteResponses[keyof athletesRestoreAthleteResponses];
 
 export type athletesListBodyFilesData = {
     body?: never;

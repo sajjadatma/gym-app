@@ -27,6 +27,7 @@ from app.models import (
     AthleteImportResult,
     AthleteProfile,
     AthleteProfileUpdate,
+    AthleteRestore,
     AthleteSelfDetail,
     AthleteSelfUpdate,
     AthletesPublic,
@@ -39,6 +40,7 @@ from app.models import (
     Message,
     ReassignCoach,
     User,
+    WorkoutProgram,
 )
 from app.services.access import get_membership_roles
 from app.services.athlete_import import (
@@ -55,10 +57,15 @@ from app.services.membership import activate_user, ensure_membership
 from app.services.profiles import (
     athlete_summary,
     body_file_public,
+    coach_members,
     self_detail,
     staff_detail,
 )
-from app.services.storage import save_body_analysis_upload, stored_file_path
+from app.services.storage import (
+    delete_stored_file,
+    save_body_analysis_upload,
+    stored_file_path,
+)
 
 router = APIRouter(prefix="/athletes", tags=["athletes"])
 
@@ -147,7 +154,7 @@ def list_athletes(
         membership = _athlete_membership(
             session, gym_id=ctx.gym.id, user_id=profile.user_id
         )
-        if not membership.is_active:
+        if not membership.is_active and not (include_archived and profile.is_archived):
             continue
         assignment = get_current_assignment(session, ctx.gym.id, profile.user_id)
         summaries.append(
@@ -494,6 +501,149 @@ def archive_athlete(
     session.add(access.profile)
     session.commit()
     return Message(message="athlete_archived")
+
+
+
+@router.post("/{athlete_user_id}/restore", response_model=AthleteDetail)
+def restore_athlete(
+    *,
+    athlete_user_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUser,
+    ctx: GymContextDep,
+    body: AthleteRestore | None = None,
+) -> Any:
+    if not ctx.is_admin:
+        raise HTTPException(status_code=403, detail="gym_admin_required")
+    access = get_athlete_access(
+        session, ctx, current_user, athlete_user_id, allow_archived=True
+    )
+    if not access.profile.is_archived:
+        return staff_detail(
+            session,
+            profile=access.profile,
+            user=access.user,
+            assignment=get_current_assignment(
+                session, ctx.gym.id, athlete_user_id
+            ),
+        )
+
+    coach = None
+    if body and body.coach_user_id:
+        coach = _validate_coach(
+            session, gym_id=ctx.gym.id, coach_user_id=body.coach_user_id
+        )
+    else:
+        previous = session.exec(
+            select(CoachAssignment)
+            .where(
+                CoachAssignment.gym_id == ctx.gym.id,
+                CoachAssignment.athlete_user_id == athlete_user_id,
+            )
+            .order_by(col(CoachAssignment.started_at).desc())
+        ).first()
+        if previous:
+            candidate = session.get(User, previous.coach_user_id)
+            active_coach_ids = {
+                item.user_id for item in coach_members(session, ctx.gym.id)
+            }
+            if candidate and candidate.id in active_coach_ids:
+                coach = candidate
+
+    now = datetime.now(UTC)
+    access.profile.is_archived = False
+    access.profile.updated_at = now
+    access.membership.is_active = True
+    session.add(access.profile)
+    session.add(access.membership)
+    if coach and not get_current_assignment(
+        session, ctx.gym.id, athlete_user_id
+    ):
+        session.add(
+            CoachAssignment(
+                gym_id=ctx.gym.id,
+                athlete_user_id=athlete_user_id,
+                coach_user_id=coach.id,
+                assigned_by_id=current_user.id,
+            )
+        )
+    session.commit()
+    session.refresh(access.profile)
+    return staff_detail(
+        session,
+        profile=access.profile,
+        user=access.user,
+        assignment=get_current_assignment(session, ctx.gym.id, athlete_user_id),
+    )
+
+
+@router.delete("/{athlete_user_id}", response_model=Message)
+def delete_athlete(
+    *,
+    athlete_user_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUser,
+    ctx: GymContextDep,
+) -> Any:
+    if not ctx.is_admin:
+        raise HTTPException(status_code=403, detail="gym_admin_required")
+    access = get_athlete_access(
+        session, ctx, current_user, athlete_user_id, allow_archived=True
+    )
+    if access.user.is_superuser:
+        raise HTTPException(status_code=400, detail="athlete_delete_forbidden")
+
+    body_files = session.exec(
+        select(BodyAnalysisFile).where(
+            BodyAnalysisFile.gym_id == ctx.gym.id,
+            BodyAnalysisFile.athlete_user_id == athlete_user_id,
+        )
+    ).all()
+    for file_row in body_files:
+        delete_stored_file(file_row.stored_name)
+        session.delete(file_row)
+
+    programs = session.exec(
+        select(WorkoutProgram).where(
+            WorkoutProgram.gym_id == ctx.gym.id,
+            WorkoutProgram.athlete_user_id == athlete_user_id,
+        )
+    ).all()
+    for program in programs:
+        session.delete(program)
+
+    assignments = session.exec(
+        select(CoachAssignment).where(
+            CoachAssignment.gym_id == ctx.gym.id,
+            CoachAssignment.athlete_user_id == athlete_user_id,
+        )
+    ).all()
+    for assignment in assignments:
+        session.delete(assignment)
+
+    roles = session.exec(
+        select(GymMembershipRole).where(
+            GymMembershipRole.membership_id == access.membership.id
+        )
+    ).all()
+    remaining_roles = [role for role in roles if role.role != "ATHLETE"]
+    if remaining_roles:
+        for role in roles:
+            if role.role == "ATHLETE":
+                session.delete(role)
+    else:
+        session.delete(access.membership)
+
+    session.delete(access.profile)
+    session.flush()
+
+    memberships = session.exec(
+        select(GymMembership).where(GymMembership.user_id == access.user.id)
+    ).all()
+    if not memberships:
+        session.delete(access.user)
+    session.commit()
+    return Message(message="athlete_deleted")
 
 
 @router.get(

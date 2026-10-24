@@ -340,6 +340,37 @@ const fa = {
   "athletes.archiveWarning":
     "این ورزشکار از فهرست فعال حذف می‌شود و مربی دسترسی خود را از دست می‌دهد. سوابق تمرینی حفظ می‌شوند.",
   "athletes.archived": "ورزشکار آرشیو شد.",
+  "athletes.activeList": "فعال",
+  "athletes.archivedList": "آرشیو",
+  "athletes.archivedTitle": "ورزشکاران آرشیوشده",
+  "athletes.archivedSubtitle":
+    "ورزشکاران آرشیوشده را بازیابی کنید یا برای همیشه حذف کنید.",
+  "athletes.backToActive": "بازگشت به ورزشکاران فعال",
+  "athletes.restore": "بازیابی",
+  "athletes.restored": "ورزشکار بازیابی شد.",
+  "athletes.restoreSelected": "بازیابی انتخاب‌شده‌ها",
+  "athletes.restoreSummary": "{restored} ورزشکار بازیابی شد · {failed} ناموفق",
+  "athletes.delete": "حذف",
+  "athletes.deletePermanently": "حذف دائمی",
+  "athletes.deleteTitle": "حذف دائمی ورزشکار",
+  "athletes.deleteTitleMultiple": "حذف دائمی {count} ورزشکار",
+  "athletes.deleteWarning":
+    "این عملیات قابل بازگشت نیست. پرونده، اندازه‌های بدن، برنامه‌های تمرینی، فایل‌های آنالیز بدن و دسترسی این ورزشکار برای همیشه حذف می‌شود.",
+  "athletes.deleteTypeEmail": "برای تأیید، ایمیل {email} را وارد کنید",
+  "athletes.deleteTypeWord": "برای تأیید، عبارت «{word}» را وارد کنید",
+  "athletes.deleteConfirmWord": "حذف",
+  "athletes.deleteSelected": "حذف انتخاب‌شده‌ها",
+  "athletes.deleted": "ورزشکار حذف شد.",
+  "athletes.deleteSummary": "{deleted} حذف شد · {failed} ناموفق",
+  "athletes.archivedBanner":
+    "این ورزشکار آرشیو شده و پرونده‌اش فقط‌خواندنی است. برای ویرایش، ابتدا او را بازیابی کنید.",
+  "athletes.archivedProgramHint":
+    "برای ساخت برنامه تمرینی، ابتدا ورزشکار را بازیابی کنید.",
+  "athletes.archivedEmpty": "هیچ ورزشکار آرشیوشده‌ای وجود ندارد",
+  "athletes.archivedEmptyHint":
+    "ورزشکارانی که آرشیو می‌کنید اینجا نمایش داده می‌شوند و می‌توانید آن‌ها را بازیابی کنید.",
+  "athletes.archiveConsequences":
+    "آرشیو کردن دسترسی ورزشکار را غیرفعال می‌کند اما داده‌ها را نگه می‌دارد.",
   "athletes.profile": "پرونده",
   "athletes.programs": "برنامه‌ها",
   "athletes.bodyFiles": "آنالیز بدن",
@@ -619,6 +650,7 @@ const fa = {
   "errors.athlete_not_found":
     "ورزشکار پیدا نشد یا دسترسی شما به او قطع شده است.",
   "errors.athlete_staff_access_required": "دسترسی کادر باشگاه لازم است.",
+  "errors.athlete_delete_forbidden": "این حساب قابل حذف نیست.",
   "errors.athlete_already_exists":
     "برای این ایمیل در این باشگاه پرونده ورزشکار وجود دارد.",
   "errors.coach_required": "انتخاب مربی مسئول الزامی است.",
@@ -1015,6 +1047,37 @@ const en: Record<TranslationKey, string> = {
   "athletes.archiveWarning":
     "The athlete leaves active lists and the coach loses access. Training history stays intact.",
   "athletes.archived": "Athlete archived.",
+  "athletes.activeList": "Active",
+  "athletes.archivedList": "Archived",
+  "athletes.archivedTitle": "Archived athletes",
+  "athletes.archivedSubtitle":
+    "Restore archived athletes or delete them permanently.",
+  "athletes.backToActive": "Back to active athletes",
+  "athletes.restore": "Restore",
+  "athletes.restored": "Athlete restored.",
+  "athletes.restoreSelected": "Restore selected",
+  "athletes.restoreSummary": "{restored} restored · {failed} failed",
+  "athletes.delete": "Delete",
+  "athletes.deletePermanently": "Delete permanently",
+  "athletes.deleteTitle": "Delete athlete permanently",
+  "athletes.deleteTitleMultiple": "Delete {count} athletes permanently",
+  "athletes.deleteWarning":
+    "This cannot be undone. The profile, measurements, training programs, body-analysis files and gym access will be deleted permanently.",
+  "athletes.deleteTypeEmail": "Type {email} to confirm",
+  "athletes.deleteTypeWord": "Type «{word}» to confirm",
+  "athletes.deleteConfirmWord": "DELETE",
+  "athletes.deleteSelected": "Delete selected",
+  "athletes.deleted": "Athlete deleted.",
+  "athletes.deleteSummary": "{deleted} deleted · {failed} failed",
+  "athletes.archivedBanner":
+    "This athlete is archived and the profile is read-only. Restore them to make changes.",
+  "athletes.archivedProgramHint":
+    "Restore the athlete before creating a training program.",
+  "athletes.archivedEmpty": "No archived athletes",
+  "athletes.archivedEmptyHint":
+    "Athletes you archive appear here and can be restored.",
+  "athletes.archiveConsequences":
+    "Archiving disables the athlete's access but keeps the data.",
   "athletes.profile": "Profile",
   "athletes.programs": "Programs",
   "athletes.bodyFiles": "Body analysis",
@@ -1298,6 +1361,7 @@ const en: Record<TranslationKey, string> = {
   "errors.insufficient_privileges": "You do not have enough privileges.",
   "errors.athlete_not_found": "Athlete not found or your access was revoked.",
   "errors.athlete_staff_access_required": "Gym staff access is required.",
+  "errors.athlete_delete_forbidden": "This account cannot be deleted.",
   "errors.athlete_already_exists":
     "An athlete profile already exists for this email in this gym.",
   "errors.coach_required": "A responsible coach is required.",

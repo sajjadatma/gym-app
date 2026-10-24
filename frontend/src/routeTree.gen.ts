@@ -26,6 +26,7 @@ import { Route as AppTemplatesRouteImport } from './routes/_app.templates'
 import { Route as PrintVersionIdRouteImport } from './routes/print.$versionId'
 import { Route as AppAthletesIndexRouteImport } from './routes/_app.athletes.index'
 import { Route as AppAthletesAthleteIdRouteImport } from './routes/_app.athletes.$athleteId'
+import { Route as AppAthletesArchivedRouteImport } from './routes/_app.athletes.archived'
 import { Route as AppGymsIndexRouteImport } from './routes/_app.gyms.index'
 import { Route as AppGymsGymIdRouteImport } from './routes/_app.gyms.$gymId'
 import { Route as AppMyIndexRouteImport } from './routes/_app.my.index'
@@ -120,6 +121,11 @@ const AppAthletesAthleteIdRoute = AppAthletesAthleteIdRouteImport.update({
   path: '/$athleteId',
   getParentRoute: () => AppAthletesRoute,
 } as any)
+const AppAthletesArchivedRoute = AppAthletesArchivedRouteImport.update({
+  id: '/archived',
+  path: '/archived',
+  getParentRoute: () => AppAthletesRoute,
+} as any)
 const AppGymsIndexRoute = AppGymsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -184,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/templates': typeof AppTemplatesRouteWithChildren
   '/print/$versionId': typeof PrintVersionIdRoute
   '/athletes/$athleteId': typeof AppAthletesAthleteIdRoute
+  '/athletes/archived': typeof AppAthletesArchivedRoute
   '/gyms/$gymId': typeof AppGymsGymIdRoute
   '/my/profile': typeof AppMyProfileRoute
   '/templates/new': typeof AppTemplatesNewRoute
@@ -207,6 +214,7 @@ export interface FileRoutesByTo {
   '/print/$versionId': typeof PrintVersionIdRoute
   '/': typeof AppIndexRoute
   '/athletes/$athleteId': typeof AppAthletesAthleteIdRoute
+  '/athletes/archived': typeof AppAthletesArchivedRoute
   '/gyms/$gymId': typeof AppGymsGymIdRoute
   '/my/profile': typeof AppMyProfileRoute
   '/templates/new': typeof AppTemplatesNewRoute
@@ -236,6 +244,7 @@ export interface FileRoutesById {
   '/print/$versionId': typeof PrintVersionIdRoute
   '/_app/': typeof AppIndexRoute
   '/_app/athletes/$athleteId': typeof AppAthletesAthleteIdRoute
+  '/_app/athletes/archived': typeof AppAthletesArchivedRoute
   '/_app/gyms/$gymId': typeof AppGymsGymIdRoute
   '/_app/my/profile': typeof AppMyProfileRoute
   '/_app/templates/new': typeof AppTemplatesNewRoute
@@ -265,6 +274,7 @@ export interface FileRouteTypes {
     | '/templates'
     | '/print/$versionId'
     | '/athletes/$athleteId'
+    | '/athletes/archived'
     | '/gyms/$gymId'
     | '/my/profile'
     | '/templates/new'
@@ -288,6 +298,7 @@ export interface FileRouteTypes {
     | '/print/$versionId'
     | '/'
     | '/athletes/$athleteId'
+    | '/athletes/archived'
     | '/gyms/$gymId'
     | '/my/profile'
     | '/templates/new'
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/print/$versionId'
     | '/_app/'
     | '/_app/athletes/$athleteId'
+    | '/_app/athletes/archived'
     | '/_app/gyms/$gymId'
     | '/_app/my/profile'
     | '/_app/templates/new'
@@ -459,6 +471,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAthletesAthleteIdRouteImport
       parentRoute: typeof AppAthletesRoute
     }
+    '/_app/athletes/archived': {
+      id: '/_app/athletes/archived'
+      path: '/archived'
+      fullPath: '/athletes/archived'
+      preLoaderRoute: typeof AppAthletesArchivedRouteImport
+      parentRoute: typeof AppAthletesRoute
+    }
     '/_app/gyms/': {
       id: '/_app/gyms/'
       path: '/'
@@ -527,11 +546,13 @@ declare module '@tanstack/react-router' {
 
 interface AppAthletesRouteChildren {
   AppAthletesAthleteIdRoute: typeof AppAthletesAthleteIdRoute
+  AppAthletesArchivedRoute: typeof AppAthletesArchivedRoute
   AppAthletesIndexRoute: typeof AppAthletesIndexRoute
 }
 
 const AppAthletesRouteChildren: AppAthletesRouteChildren = {
   AppAthletesAthleteIdRoute: AppAthletesAthleteIdRoute,
+  AppAthletesArchivedRoute: AppAthletesArchivedRoute,
   AppAthletesIndexRoute: AppAthletesIndexRoute,
 }
 

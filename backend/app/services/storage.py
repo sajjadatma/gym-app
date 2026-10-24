@@ -53,6 +53,13 @@ async def save_body_analysis_upload(
     return original_name[:255], stored_name, len(data)
 
 
+def delete_stored_file(stored_name: str) -> None:
+    path = settings.BODY_ANALYSIS_DIR / stored_name
+    if path.parent != settings.BODY_ANALYSIS_DIR:
+        return
+    path.unlink(missing_ok=True)
+
+
 def stored_file_path(stored_name: str) -> Path:
     path = settings.BODY_ANALYSIS_DIR / stored_name
     if path.parent != settings.BODY_ANALYSIS_DIR or not path.exists():

@@ -428,6 +428,10 @@ class AthleteCreate(SQLModel):
     training_days_count: int | None = Field(default=None, ge=1, le=7)
 
 
+class AthleteRestore(SQLModel):
+    coach_user_id: uuid.UUID | None = None
+
+
 class AthleteImportPreviewRow(SQLModel):
     row_number: int
     email: str
