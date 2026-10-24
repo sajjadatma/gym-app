@@ -73,7 +73,7 @@ async function loadWorker({
       },
     },
   }
-  const fetch = async (request) => {
+  const fetch = async () => {
     const reply = fetches.shift()
     if (reply instanceof Error) throw reply
     return reply

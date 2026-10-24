@@ -9,7 +9,12 @@
       "!**/src/routeTree.gen.ts",
       "!**/src/client/**/*",
       "!**/src/components/ui/**/*",
-      "!**/playwright-report",
+      "!**/openapi.json",
+      "!**/test-results/**/*",
+      "!**/playwright-report/**/*",
+      "!**/blob-report/**/*",
+      "!**/playwright/.auth/**/*",
+      "!**/playwright/.cache/**/*",
       "!**/playwright.config.ts"
     ]
   },
@@ -23,6 +28,7 @@
       },
       "style": {
         "noNonNullAssertion": "off",
+        "noDescendingSpecificity": "off",
         "noParameterAssign": "error",
         "useSelfClosingElements": "error",
         "noUselessElse": "error"

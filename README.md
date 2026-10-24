@@ -110,6 +110,14 @@ cd backend
 uv run pytest -q -m migrations
 ```
 
+Frontend lint is non-mutating by default; `lint:fix` applies the fixes:
+
+```sh
+cd frontend
+bun run lint:check
+bun run lint:fix
+```
+
 Frontend Playwright against the dev server (demo data required):
 
 ```sh
