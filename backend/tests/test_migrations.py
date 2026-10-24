@@ -84,16 +84,50 @@ def _alembic_config() -> Config:
     return config
 
 
+def _database_url_string(url: URL) -> str:
+    """Render a URL for config/env use without SQLAlchemy hiding the password.
+
+    ``str(URL)`` masks the password as ``***``; a password-protected server
+    then rejects the connection. Local trust-auth PostgreSQL hides the bug.
+    """
+    return url.render_as_string(hide_password=False)
+
+
+def _set_alembic_database(monkeypatch: pytest.MonkeyPatch, url: URL) -> None:
+    # alembic/env.py reads settings.DATABASE_URL at migration time.
+    monkeypatch.setattr(settings, "DATABASE_URL", _database_url_string(url))
+
+
+def test_database_url_string_preserves_password() -> None:
+    url = make_url(
+        "postgresql+psycopg://migration_user:s3cret@localhost:5432/gym_app_test"
+    )
+    assert make_url(_database_url_string(url)).password == "s3cret"
+
+
+def test_alembic_database_setting_preserves_password(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        settings,
+        "TEST_DATABASE_URL",
+        "postgresql://migration_user:s3cret@localhost:5432/gym_app_test",
+    )
+    migration_url = _migration_database_url()
+    _set_alembic_database(monkeypatch, migration_url)
+    assert make_url(str(settings.DATABASE_URL)).password == "s3cret"
+
+
 def test_fresh_database_upgrades_to_head_and_matches_models(
     migrated_database: URL, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(settings, "DATABASE_URL", str(migrated_database))
+    _set_alembic_database(monkeypatch, migrated_database)
     config = _alembic_config()
 
     command.upgrade(config, "head")
     command.check(config)
 
-    engine = create_engine(str(migrated_database))
+    engine = create_engine(migrated_database)
     try:
         head = ScriptDirectory.from_config(config).get_current_head()
         with engine.connect() as connection:
