@@ -67,29 +67,39 @@ This checklist is keyed to section 14 acceptance criteria. Stale claims must be 
 
 Run from the repository root unless noted.
 
+Latest verified 2026-10-25 against the local dev servers (`:8000` backend, `:5173` Vite):
+
 ```sh
 cd backend
 uv run pytest -q
-# 20 passed
+# 77 passed
 
-cd ../frontend
-bunx playwright test
-# 31 passed (desktop + Pixel 5 + auth/PWA/manifest + controls + field labels + category workflow)
+uv run pytest -q -m migrations
+# 4 passed, 73 deselected
 
-bun run build
-PLAYWRIGHT_BASE_URL=http://localhost:8000 PWA_PROD=1 bunx playwright test
-# 25 passed, including service-worker registration
-
-cd ../backend
 uv run alembic check
 # No new upgrade operations detected
 
 uv run python scripts/verify_superadmin_login.py
 # Super Admin login: OK; Global superuser: OK
 
+cd ../frontend
+bunx playwright test
+# 50 total: 49 passed, 1 skipped
+# Skipped: production-service-worker-only test (tests/pwa.spec.ts:46-49),
+# gated by PWA_PROD=1; not a failure.
+
+bun run build
+PLAYWRIGHT_BASE_URL=http://localhost:8000 PWA_PROD=1 bunx playwright test tests/pwa.spec.ts
+# 3 passed (admin-setup dependency + manifest/install + production service-worker
+# registration and offline shell), including the test skipped above.
+
+cd ../backend
 CONFIRM_RESET_GYM_APP=YES SEED_DEMO_DATA=YES bash scripts/reset_dev_db.sh
 # reset -> migrations -> idempotent seed -> demo seed OK
 ```
+
+Playwright status: full desktop + emulated Pixel 5 suite is green (49 passed, 1 production-only skip); the production PWA subset is also green when run against the built app at `:8000` with `PWA_PROD=1`. No Playwright failures are known.
 
 The real Super Admin password and invitation tokens are deliberately absent from this document and all tracked files.
 
