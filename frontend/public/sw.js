@@ -1,4 +1,6 @@
-const CACHE_NAME = "formyar-shell-v1"
+const BUILD_ID = "__FORMYAR_BUILD_ID__"
+const CACHE_NAME = `formyar-shell-${BUILD_ID}`
+const CACHE_PREFIX = "formyar-shell-"
 const PRECACHE = [
   "/",
   "/manifest.webmanifest",
@@ -20,7 +22,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key !== CACHE_NAME)
+            .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
             .map((key) => caches.delete(key)),
         ),
       )
@@ -39,16 +41,29 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone()
-          caches.open(CACHE_NAME).then((cache) => cache.put("/", copy))
+      (async () => {
+        try {
+          const response = await fetch(request)
+          if (
+            response.ok &&
+            response.headers
+              .get("content-type")
+              ?.toLowerCase()
+              .includes("text/html")
+          ) {
+            const copy = response.clone()
+            event.waitUntil(
+              caches
+                .open(CACHE_NAME)
+                .then((cache) => cache.put("/", copy)),
+            )
+          }
           return response
-        })
-        .catch(async () => {
-          const cached = await caches.match("/")
-          return cached ?? Response.error()
-        }),
+        } catch {
+          const cache = await caches.open(CACHE_NAME)
+          return (await cache.match("/")) ?? Response.error()
+        }
+      })(),
     )
     return
   }
@@ -58,15 +73,21 @@ self.addEventListener("fetch", (event) => {
     url.pathname.startsWith("/icons/")
   ) {
     event.respondWith(
-      caches.match(request).then(
-        (cached) =>
-          cached ??
-          fetch(request).then((response) => {
+      (async () => {
+        const cache = await caches.open(CACHE_NAME)
+        const cached = await cache.match(request)
+        if (cached) return cached
+        try {
+          const response = await fetch(request)
+          if (response.ok) {
             const copy = response.clone()
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
-            return response
-          }),
-      ),
+            event.waitUntil(cache.put(request, copy))
+          }
+          return response
+        } catch {
+          return Response.error()
+        }
+      })(),
     )
   }
 })
