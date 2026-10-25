@@ -81,18 +81,29 @@ docker run -d --name ci-rate-limit --network "$NETWORK" -p 8001:8000 \
   -e LOGIN_RATE_LIMIT=2 \
   -e LOGIN_IP_RATE_LIMIT=100 \
   "$BACKEND_IMAGE" >/dev/null
+rate_ready=0
 for _ in $(seq 1 45); do
-  if curl -fsS http://localhost:8001/api/v1/utils/ready/ >/dev/null 2>&1; then break; fi
+  if curl -fsS http://localhost:8001/api/v1/utils/ready/ >/dev/null 2>&1; then
+    rate_ready=1
+    break
+  fi
   sleep 2
 done
+if [ "$rate_ready" != "1" ]; then
+  docker ps -a --filter name=ci-rate-limit || true
+  docker logs ci-rate-limit || true
+  docker rm -f ci-rate-limit >/dev/null 2>&1 || true
+  echo "verify: FAIL rate-limit container did not become ready" >&2
+  exit 1
+fi
 codes=()
 for _ in 1 2 3; do
   codes+=("$(curl -sS -o /dev/null -w '%{http_code}' -X POST \
     http://localhost:8001/api/v1/login/access-token \
-    -d 'username=rate-limit@example.com&password=wrong-password')")
+    -d 'username=rate-limit@example.com&password=wrong-password' || true)")
 done
-if [ "${codes[0]}" != "400" ] || [ "${codes[1]}" != "400" ] || [ "${codes[2]}" != "429" ]; then
-  echo "verify: FAIL runtime rate limit codes: ${codes[*]}" >&2
+if [ "${codes[0]:-}" != "400" ] || [ "${codes[1]:-}" != "400" ] || [ "${codes[2]:-}" != "429" ]; then
+  echo "verify: FAIL runtime rate limit codes: ${codes[*]:-none}" >&2
   docker logs ci-rate-limit || true
   docker rm -f ci-rate-limit >/dev/null 2>&1 || true
   exit 1
@@ -100,7 +111,12 @@ fi
 retry_after="$(curl -sS -D - -o /dev/null -X POST \
   http://localhost:8001/api/v1/login/access-token \
   -d 'username=rate-limit@example.com&password=wrong-password' | grep -i '^retry-after:' || true)"
-[ -n "$retry_after" ] || { echo "verify: FAIL missing Retry-After" >&2; exit 1; }
+if [ -z "$retry_after" ]; then
+  echo "verify: FAIL missing Retry-After" >&2
+  docker logs ci-rate-limit || true
+  docker rm -f ci-rate-limit >/dev/null 2>&1 || true
+  exit 1
+fi
 docker rm -f ci-rate-limit >/dev/null
 echo "verify: runtime rate limit OK (${codes[*]}, $retry_after)"
 
