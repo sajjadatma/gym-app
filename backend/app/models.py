@@ -469,6 +469,27 @@ class AthleteCreate(SQLModel):
 class AthleteRestore(SQLModel):
     coach_user_id: uuid.UUID | None = None
 
+class SuperuserAthleteRow(SQLModel):
+    user_id: uuid.UUID
+    gym_id: uuid.UUID
+    gym_name: str
+    email: EmailStr
+    full_name: str | None = None
+    phone: str | None = None
+    is_archived: bool
+    coach_user_id: uuid.UUID | None = None
+    coach_name: str | None = None
+    created_at: datetime
+
+
+class SuperuserAthletesPublic(SQLModel):
+    data: list[SuperuserAthleteRow]
+    count: int
+
+
+class SuperuserAthleteCreate(AthleteCreate):
+    gym_id: uuid.UUID
+
 
 class AthleteImportPreviewRow(SQLModel):
     row_number: int

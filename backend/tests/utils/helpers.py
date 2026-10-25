@@ -83,6 +83,7 @@ def create_athlete(
     password: str = "athlete-pass-123",
     method: str = "password",
     full_name: str | None = None,
+    phone: str | None = None,
 ) -> dict[str, Any]:
     response = client.post(
         "/api/v1/athletes",
@@ -90,6 +91,7 @@ def create_athlete(
         json={
             "email": email,
             "full_name": full_name or email,
+            "phone": phone,
             "coach_user_id": coach_user_id,
             "activation_method": method,
             "initial_password": password if method == "password" else None,
