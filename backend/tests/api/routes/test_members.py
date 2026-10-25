@@ -71,3 +71,94 @@ def test_athlete_membership_cannot_be_deactivated(
         f"/api/v1/athletes/{athlete['user_id']}", headers=owner
     )
     assert still_visible.status_code == 200, still_visible.text
+
+
+def _owner_headers(
+    client: TestClient, superuser_headers: dict[str, str], name: str
+) -> tuple[dict, dict[str, str]]:
+    owner_email = unique_email("owner")
+    gym = create_gym(
+        client,
+        superuser_headers,
+        name=name,
+        owner_email=owner_email,
+        password="owner-pass-123",
+    )["gym"]
+    raw = auth_headers(client, owner_email, "owner-pass-123")
+    change_password(
+        client,
+        raw,
+        current_password="owner-pass-123",
+        new_password="owner-pass-456",
+    )
+    headers = auth_headers(client, owner_email, "owner-pass-456")
+    headers["X-Gym-ID"] = gym["id"]
+    return gym, headers
+
+
+def _member_payload(email: str, roles: list[str], phone: str | None = None) -> dict:
+    body: dict = {
+        "email": email,
+        "full_name": email,
+        "roles": roles,
+        "activation_method": "password",
+        "initial_password": "member-pass-123",
+    }
+    if phone is not None:
+        body["phone"] = phone
+    return body
+
+
+def test_coach_creation_requires_phone(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = _owner_headers(client, superuser_headers, "Phone Gym")
+    missing = client.post(
+        f"/api/v1/gyms/{gym['id']}/members",
+        headers=owner,
+        json=_member_payload(unique_email("phone-coach"), ["COACH"]),
+    )
+    assert missing.status_code == 400, missing.text
+    assert missing.json()["detail"] == "coach_phone_required"
+
+    created = client.post(
+        f"/api/v1/gyms/{gym['id']}/members",
+        headers=owner,
+        json=_member_payload(
+            unique_email("phone-coach"), ["COACH"], "09121234567"
+        ),
+    )
+    assert created.status_code == 200, created.text
+    assert created.json()["member"]["phone"] == "09121234567"
+
+
+def test_coach_phone_fills_empty_account_without_overwriting(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    email = unique_email("shared-coach")
+    gym_a, owner_a = _owner_headers(client, superuser_headers, "Phone Gym A")
+    admin = client.post(
+        f"/api/v1/gyms/{gym_a['id']}/members",
+        headers=owner_a,
+        json=_member_payload(email, ["GYM_ADMIN"]),
+    )
+    assert admin.status_code == 200, admin.text
+    assert admin.json()["member"]["phone"] is None
+
+    gym_b, owner_b = _owner_headers(client, superuser_headers, "Phone Gym B")
+    filled = client.post(
+        f"/api/v1/gyms/{gym_b['id']}/members",
+        headers=owner_b,
+        json=_member_payload(email, ["COACH"], "09120000001"),
+    )
+    assert filled.status_code == 200, filled.text
+    assert filled.json()["member"]["phone"] == "09120000001"
+
+    gym_c, owner_c = _owner_headers(client, superuser_headers, "Phone Gym C")
+    kept = client.post(
+        f"/api/v1/gyms/{gym_c['id']}/members",
+        headers=owner_c,
+        json=_member_payload(email, ["COACH"], "09120000002"),
+    )
+    assert kept.status_code == 200, kept.text
+    assert kept.json()["member"]["phone"] == "09120000001"

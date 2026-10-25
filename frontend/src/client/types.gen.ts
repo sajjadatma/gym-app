@@ -1224,6 +1224,10 @@ export type MemberCreate = {
      */
     full_name?: string | null;
     /**
+     * Phone
+     */
+    phone?: string | null;
+    /**
      * Roles
      */
     roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE'>;
@@ -1272,6 +1276,10 @@ export type MemberPublic = {
      * Full Name
      */
     full_name?: string | null;
+    /**
+     * Phone
+     */
+    phone?: string | null;
     /**
      * Roles
      */
@@ -1928,6 +1936,10 @@ export type UserMePublic = {
      */
     created_at?: string | null;
     /**
+     * Phone
+     */
+    phone?: string | null;
+    /**
      * Gyms
      */
     gyms: Array<GymAccessPublic>;
@@ -1945,6 +1957,10 @@ export type UserUpdateMe = {
      * Email
      */
     email?: string | null;
+    /**
+     * Phone
+     */
+    phone?: string | null;
 };
 
 /**

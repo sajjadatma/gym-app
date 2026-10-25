@@ -37,6 +37,7 @@ export function ProfilePage() {
   const [form, setForm] = useState({
     full_name: me?.full_name ?? "",
     email: me?.email ?? "",
+    phone: me?.phone ?? "",
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -51,6 +52,7 @@ export function ProfilePage() {
         body: {
           full_name: form.full_name || null,
           email: form.email,
+          phone: form.phone.trim() || null,
         },
       })
       await refresh()
@@ -114,6 +116,15 @@ export function ProfilePage() {
               }
               helper={t("profile.emailHint")}
               required
+            />
+            <TextField
+              label={t("profile.phone")}
+              type="tel"
+              dir="ltr"
+              value={form.phone}
+              onChange={(event) =>
+                setForm({ ...form, phone: event.target.value })
+              }
             />
             <div>
               <Button icon={<Save size={16} />} onClick={save} loading={saving}>

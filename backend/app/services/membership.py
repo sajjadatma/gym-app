@@ -105,6 +105,7 @@ def activate_user(
     gym: Gym,
     method: ActivationMethod,
     initial_password: str | None,
+    phone: str | None = None,
 ) -> ActivationResult:
     user = session.exec(select(User).where(User.email == email)).first()
     created = False
@@ -118,6 +119,7 @@ def activate_user(
             user = User(
                 email=email,
                 full_name=full_name,
+                phone=phone or None,
                 hashed_password=get_password_hash(generated_password),
                 must_change_password=True,
             )
@@ -126,6 +128,7 @@ def activate_user(
             user = User(
                 email=email,
                 full_name=full_name,
+                phone=phone or None,
                 hashed_password=None,
                 must_change_password=False,
             )
@@ -142,6 +145,9 @@ def activate_user(
 
     if full_name and not user.full_name:
         user.full_name = full_name
+        session.add(user)
+    if phone and not user.phone:
+        user.phone = phone
         session.add(user)
 
     if not user.hashed_password:

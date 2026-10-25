@@ -56,6 +56,7 @@ def add_member(
     password: str = "member-pass-123",
     method: str = "password",
     full_name: str | None = None,
+    phone: str | None = "09120000000",
 ) -> dict[str, Any]:
     response = client.post(
         f"/api/v1/gyms/{gym_id}/members",
@@ -66,6 +67,7 @@ def add_member(
             "roles": roles,
             "activation_method": method,
             "initial_password": password if method == "password" else None,
+            "phone": phone,
         },
     )
     assert response.status_code == 200, response.text

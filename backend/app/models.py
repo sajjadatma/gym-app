@@ -34,6 +34,7 @@ class User(UserBase, table=True):
     __tablename__ = "user"
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    phone: str | None = Field(default=None, max_length=50)
     hashed_password: str | None = Field(default=None, max_length=255)
     must_change_password: bool = Field(default=False)
     token_version: int = Field(default=0)
@@ -58,12 +59,14 @@ class GymAccessPublic(SQLModel):
 
 
 class UserMePublic(UserPublic):
+    phone: str | None = None
     gyms: list[GymAccessPublic]
 
 
 class UserUpdateMe(SQLModel):
     full_name: str | None = Field(default=None, max_length=255)
     email: EmailStr | None = Field(default=None, max_length=255)
+    phone: str | None = Field(default=None, max_length=50)
 
 
 class UpdatePassword(SQLModel):
@@ -214,6 +217,7 @@ class GymMembershipRole(SQLModel, table=True):
 class MemberCreate(SQLModel):
     email: EmailStr
     full_name: str | None = Field(default=None, max_length=255)
+    phone: str | None = Field(default=None, max_length=50)
     roles: list[GymRole]
     activation_method: ActivationMethod = "invite"
     initial_password: str | None = Field(default=None, min_length=8, max_length=128)
@@ -247,6 +251,7 @@ class MemberPublic(SQLModel):
     user_id: uuid.UUID
     email: EmailStr
     full_name: str | None = None
+    phone: str | None = None
     roles: list[GymRole]
     is_active: bool
     is_owner: bool

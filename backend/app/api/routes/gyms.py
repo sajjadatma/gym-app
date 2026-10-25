@@ -66,6 +66,7 @@ def _member_public(
         email=user.email,
         full_name=user.full_name,
         roles=cast(list[GymRole], sorted(roles)),
+        phone=user.phone,
         is_active=membership.is_active,
         is_owner=gym.owner_id == user.id,
         created_at=membership.created_at,
@@ -332,6 +333,9 @@ def create_member(
     _require_path_gym(ctx.gym, gym_id)
     if not ctx.is_admin:
         raise HTTPException(status_code=403, detail="gym_admin_required")
+    phone = (body.phone or "").strip() or None
+    if "COACH" in body.roles and not phone:
+        raise HTTPException(status_code=400, detail="coach_phone_required")
     activation = activate_user(
         session,
         email=body.email,
@@ -339,6 +343,7 @@ def create_member(
         gym=ctx.gym,
         method=body.activation_method,
         initial_password=body.initial_password,
+        phone=phone,
     )
     membership = ensure_membership(
         session, gym_id=ctx.gym.id, user_id=activation.user.id

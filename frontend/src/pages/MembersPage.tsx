@@ -43,6 +43,7 @@ export function MembersPage() {
   const [form, setForm] = useState({
     email: "",
     full_name: "",
+    phone: "",
     activation_method: "invite" as "invite" | "password",
     initial_password: "",
   })
@@ -115,6 +116,10 @@ export function MembersPage() {
       setError(t("errors.at_least_one_role_required"))
       return
     }
+    if (roles.includes("COACH") && !form.phone.trim()) {
+      setError(t("validation.coachPhone"))
+      return
+    }
     if (
       form.activation_method === "password" &&
       form.initial_password &&
@@ -130,6 +135,7 @@ export function MembersPage() {
         body: {
           email: form.email,
           full_name: form.full_name || null,
+          phone: form.phone.trim() || null,
           roles,
           activation_method: form.activation_method,
           initial_password:
@@ -147,6 +153,7 @@ export function MembersPage() {
       setForm({
         email: "",
         full_name: "",
+        phone: "",
         activation_method: "invite",
         initial_password: "",
       })
@@ -372,6 +379,19 @@ export function MembersPage() {
             onChange={(event) =>
               setForm({ ...form, full_name: event.target.value })
             }
+          />
+          <TextField
+            label={t("profile.phone")}
+            type="tel"
+            dir="ltr"
+            value={form.phone}
+            onChange={(event) =>
+              setForm({ ...form, phone: event.target.value })
+            }
+            helper={
+              roles.includes("COACH") ? t("members.coachPhoneHint") : undefined
+            }
+            required={roles.includes("COACH")}
           />
           <div>
             <div className="m3-field__label" style={{ marginBottom: 8 }}>
