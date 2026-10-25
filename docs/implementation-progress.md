@@ -61,46 +61,61 @@ This checklist is keyed to section 14 acceptance criteria. Stale claims must be 
 - PDF output uses the browser's A4 print-to-PDF flow. No server PDF renderer or font pipeline was added.
 - Invitation tokens are purpose-bound JWTs; raw tokens are never logged or returned by the API.
 - Access tokens and password-reset tokens carry a per-user `token_version`. A successful password change or reset increments it atomically, so previously issued access tokens and reset links stop working. Reset tokens are single-use (including concurrent redemption); after changing your own password, the client returns to the login page to obtain a fresh token.
+- Browser sessions use HttpOnly/SameSite cookies plus double-submit CSRF; Bearer tokens remain for API clients and tests. Server logout increments `token_version`, revoking existing sessions.
+- Login/recovery/reset/invitation endpoints are rate-limited server-side (in-process, per worker) and return `429` with `Retry-After`.
 - The local Super Admin password is generated/stored only in the Git-ignored `.env`. The tracked example file contains a placeholder; all tests use fake test credentials.
 
 ## Verification commands and latest results
 
 Run from the repository root unless noted.
 
-Latest verified 2026-10-25 against the local dev servers (`:8000` backend, `:5173` Vite):
+Latest verified 2026-10-25 by the production-hardening pass, against a disposable database (`:8001` backend, `:5174` Vite):
 
 ```sh
 cd backend
+uv run ruff check app tests
+# All checks passed
+
+uv run mypy app
+# Success: no issues found in 39 source files
+
 uv run pytest -q
-# 93 passed
+# 112 passed
 
 uv run pytest -q -m migrations
-# 4 passed, 89 deselected
+# 4 passed, 108 deselected
 
 uv run alembic check
 # No new upgrade operations detected
 
-uv run python scripts/verify_superadmin_login.py
-# Super Admin login: OK; Global superuser: OK
-
 cd ../frontend
-bunx playwright test
-# 67 total: 54 passed, 13 skipped
-# Skipped: 12 superuser-journey tests without PLAYWRIGHT_SUPERUSER_* credentials
-# and the production-service-worker-only test (tests/pwa.spec.ts:46-49),
-# gated by PWA_PROD=1; not failures.
-
+bun run lint:check
+bunx tsc -p tsconfig.build.json --noEmit
 bun run build
-PLAYWRIGHT_BASE_URL=http://localhost:8000 PWA_PROD=1 bunx playwright test tests/pwa.spec.ts
-# 3 passed (admin-setup dependency + manifest/install + production service-worker
-# registration and offline shell), including the test skipped above.
+node --test tests-unit/*.test.mjs
+# lint/type/build pass; 6 unit tests pass
 
-cd ../backend
+VITE_API_URL=http://localhost:8001 \
+PLAYWRIGHT_BASE_URL=http://localhost:5174 \
+PLAYWRIGHT_API_URL=http://localhost:8001 \
+PLAYWRIGHT_SUPERUSER_EMAIL=... PLAYWRIGHT_SUPERUSER_PASSWORD=... \
+bunx playwright test
+# 69 passed, 1 skipped (70 total)
+# The skip is the PWA_PROD-gated service-worker test.
+
+PWA_PROD=1 PLAYWRIGHT_BASE_URL=http://localhost:8001 \
+PLAYWRIGHT_API_URL=http://localhost:8001 VITE_API_URL=http://localhost:8001 \
+bunx playwright test tests/pwa.spec.ts --project=chromium --no-deps
+# 2 passed
+
+cd backend
 CONFIRM_RESET_GYM_APP=YES SEED_DEMO_DATA=YES bash scripts/reset_dev_db.sh
 # reset -> migrations -> idempotent seed -> demo seed OK
 ```
 
-Playwright status: full desktop + emulated Pixel 5 suite is green (54 passed; 13 skipped — 12 superuser tests without `PLAYWRIGHT_SUPERUSER_*` credentials and 1 production-only PWA skip); the superuser project is green (12 passed) against a disposable database on `:8001`/`:5174`; the production PWA subset is also green when run against the built app at `:8000` with `PWA_PROD=1`. No Playwright failures are known.
+Release hardening evidence, including the isolated backup/restore drill, is in `docs/release/production-hardening-results.md`.
+
+Playwright status: full desktop + emulated Pixel 5 suite is green (69 passed; 1 skipped — the production-only PWA service-worker test, covered by the separate `PWA_PROD=1` run). No Playwright failures are known. Docker image build and public TLS/ACME remain **NOT VERIFIED** (no Docker daemon; no public domain).
 
 The real Super Admin password and invitation tokens are deliberately absent from this document and all tracked files.
 
