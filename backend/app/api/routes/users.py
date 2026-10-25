@@ -55,6 +55,7 @@ def read_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
         is_active=current_user.is_active,
         is_superuser=current_user.is_superuser,
         full_name=current_user.full_name,
+        phone=current_user.phone,
         must_change_password=current_user.must_change_password,
         created_at=current_user.created_at,
         gyms=gyms,

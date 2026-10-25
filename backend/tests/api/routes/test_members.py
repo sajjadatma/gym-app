@@ -162,3 +162,35 @@ def test_coach_phone_fills_empty_account_without_overwriting(
     )
     assert kept.status_code == 200, kept.text
     assert kept.json()["member"]["phone"] == "09120000001"
+
+
+def test_account_phone_is_returned_by_me(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = _owner_headers(client, superuser_headers, "Phone Profile Gym")
+    coach_email = unique_email("phone-profile-coach")
+    created = client.post(
+        f"/api/v1/gyms/{gym['id']}/members",
+        headers=owner,
+        json=_member_payload(coach_email, ["COACH"], "09127770000"),
+    )
+    assert created.status_code == 200, created.text
+
+    headers = auth_headers(client, coach_email, "member-pass-123")
+    me = client.get("/api/v1/users/me", headers=headers)
+    assert me.status_code == 200, me.text
+    # The profile editor seeds its form from this value; an empty response
+    # would clear the stored phone on the next profile save.
+    assert me.json()["phone"] == "09127770000"
+
+    saved = client.patch(
+        "/api/v1/users/me",
+        headers=headers,
+        json={
+            "full_name": coach_email,
+            "email": coach_email,
+            "phone": "09127770000",
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["phone"] == "09127770000"
