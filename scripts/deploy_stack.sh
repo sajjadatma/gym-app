@@ -25,7 +25,12 @@ python3 scripts/preflight_env.py --env-file "$ENV_FILE" --environment "$ENVIRONM
 "${COMPOSE[@]}" config >/dev/null
 
 echo "Deploying $ENVIRONMENT..."
-"${COMPOSE[@]}" up -d --build
+if [ "${NO_BUILD:-0}" = "1" ]; then
+  "${COMPOSE[@]}" pull backend
+  "${COMPOSE[@]}" up -d --no-build
+else
+  "${COMPOSE[@]}" up -d --build
+fi
 
 DOMAIN="$(grep -E '^DOMAIN=' "$ENV_FILE" | head -n1 | cut -d= -f2- | tr -d '"' | tr -d "'")"
 HSTS_ENABLED="$(grep -E '^HSTS_ENABLED=' "$ENV_FILE" | head -n1 | cut -d= -f2- | tr -d '"' | tr -d "'")"

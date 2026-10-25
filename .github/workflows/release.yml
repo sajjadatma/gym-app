@@ -50,7 +50,7 @@ jobs:
         working-directory: frontend
         run: bunx playwright install --with-deps chromium
       - name: Build release image
-        run: docker build --pull --tag "$IMAGE" .
+        run: docker build --pull --file backend/Dockerfile --tag "$IMAGE" .
       - name: Start stack with the tested image
         env:
           NO_BUILD: "1"
