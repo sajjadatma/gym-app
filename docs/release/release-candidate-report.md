@@ -1,11 +1,11 @@
 # Release Candidate Report
 
 **Date:** 2026-10-25
-**Candidate source commit:** `12ef88fc805263966f32557b528d6b8ecfbf7a8c`
-**Release workflow:** [run 40209148181](https://github.com/sajjadatma/gym-app/actions/runs/40209148181) — success
-**Final CI:** [run 40209730702](https://github.com/sajjadatma/gym-app/actions/runs/40209730702) — success
-**Note:** commits after `12ef88f` add tests/documentation only; the released image content is unchanged.
-**Image:** built and tested in CI as `ghcr.io/sajjadatma/gym-app:12ef88fc…`; **not pushed** (`push_image=false`). No production deployment was performed.
+**Candidate source commit:** `9b8418e6f7bca694889b4ce67f1c1fd54f3a6e07`
+**Release workflow:** [run 40210671749](https://github.com/sajjadatma/gym-app/actions/runs/40210671749) — success
+**Final CI:** [run 40210663931](https://github.com/sajjadatma/gym-app/actions/runs/40210663931) — success
+**Note:** the image content is unchanged from the earlier tested commit; this run rebuilds and retests it at the final candidate commit.
+**Image:** built and tested in CI as `ghcr.io/sajjadatma/gym-app:9b8418e6…`; **not pushed** (`push_image=false`). No production deployment was performed.
 **Documentation commit:** follows the candidate as a docs-only change; the tested code is unchanged.
 
 ## 1. Candidate contents

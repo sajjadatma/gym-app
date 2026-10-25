@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-10-25
 **Audited commit:** `fbb9a22`
-**Release-engineering commit:** `12ef88f`
+**Release-engineering commit:** `9b8418e`
 **Decision owner:** Independent audit (Principal Architect / Product / Security / QA perspective)
 
 ## 1. Executive summary
@@ -123,7 +123,7 @@ These are consistent with the approved local scope and are **not** release-block
 
 ## 7. Evidence appendix
 
-### Automated gates (release candidate `12ef88f`; final CI run `40209730702`)
+### Automated gates (release candidate `9b8418e`; final CI run `40210663931`)
 
 | Command | Result |
 |---|---|
