@@ -69,9 +69,14 @@ def check_environment(
         errors.append("DOMAIN must be a bare public hostname")
     if "." not in domain:
         errors.append("DOMAIN must contain a dot")
+    if domain == "example.com" or domain.endswith(".example.com"):
+        errors.append("DOMAIN must not use example.com")
 
-    if "@" not in values.get("ACME_EMAIL", ""):
+    acme_email = values.get("ACME_EMAIL", "")
+    if "@" not in acme_email:
         errors.append("ACME_EMAIL must be an email address")
+    if acme_email.endswith("@example.com"):
+        errors.append("ACME_EMAIL must not use example.com")
 
     if len(values.get("SECRET_KEY", "")) < 32:
         errors.append("SECRET_KEY must be at least 32 characters")
