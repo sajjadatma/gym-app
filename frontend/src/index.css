@@ -964,6 +964,17 @@ button:disabled {
   gap: 10px;
   flex-wrap: wrap;
 }
+.m3-list-toolbar__club {
+  flex: 0 1 220px;
+  min-width: 170px;
+}
+
+@media (max-width: 640px) {
+  .m3-list-toolbar__club {
+    flex: 1 1 140px;
+    min-width: 140px;
+  }
+}
 
 .m3-count-chip {
   display: inline-flex;

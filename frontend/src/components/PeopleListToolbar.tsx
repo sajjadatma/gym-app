@@ -92,15 +92,15 @@ export function PeopleListToolbar({
             }
           />
         </div>
+        <div className="m3-list-toolbar__club">
+          <SelectField
+            label={clubLabel}
+            value={clubValue}
+            onChange={onClubChange}
+            options={clubOptions}
+          />
+        </div>
         <div className="m3-list-toolbar__actions">
-          <div style={{ minWidth: 180 }}>
-            <SelectField
-              label={clubLabel}
-              value={clubValue}
-              onChange={onClubChange}
-              options={clubOptions}
-            />
-          </div>
           <span className="m3-count-chip" aria-live="polite">
             {countLabel}
           </span>
