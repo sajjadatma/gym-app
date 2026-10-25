@@ -964,6 +964,48 @@ button:disabled {
   gap: 10px;
   flex-wrap: wrap;
 }
+.m3-pagination {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--m3-outline-variant);
+}
+
+.m3-pagination__size {
+  flex: 0 1 180px;
+  min-width: 160px;
+}
+
+.m3-pagination__status {
+  color: var(--m3-on-surface-variant);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.m3-pagination__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.m3-pagination__page {
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .m3-pagination__size {
+    flex: 1 1 100%;
+  }
+}
+
 .m3-list-toolbar__club {
   flex: 0 1 220px;
   min-width: 170px;

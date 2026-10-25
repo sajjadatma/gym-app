@@ -173,3 +173,10 @@ The real Super Admin password and invitation tokens are deliberately absent from
 
 - Coach removal wording now distinguishes removing a role from deleting an account: the action and confirmation say **حذف از باشگاه / Remove from club**, the confirmation states that active athlete assignments in that club end, that the action is irreversible, and that the account, other roles, other clubs and history are preserved. The success toast is specific to the coach removal.
 - Measured global coach-list query behavior: 23 SELECT statements for 20 coach rows (list query + one role lookup per row, plus auth). Acceptable for the local MVP; a grouped role query or pagination should precede larger datasets. Global list responses are unbounded and the client filters active/archived locally.
+
+### List pagination — 2026-10-25
+
+- Gym athletes (cards/table), archived athletes, members, global athletes and global coaches now paginate with 10/25/50 rows per page, previous/next controls, current-page status, and automatic reset when search, club filter or active/archived tab changes.
+- Pagination is client-side over the already-fetched filtered lists, so backend endpoints and business rules are unchanged. The pagination footer is hidden when the whole list fits the default page size; the page-size control appears once paging is needed and keeps the footer visible after a size change.
+- Tables that are not list views (athlete-import preview, program structure editor, print sheet) are intentionally not paginated.
+- Playwright tests that select athletes by name now search first, so they remain independent of page size and list growth; a mocked 23-row test pins paging, page-size changes and page reset behavior.

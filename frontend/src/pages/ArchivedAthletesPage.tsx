@@ -20,6 +20,7 @@ import {
   Spinner,
   TextField,
 } from "@/components/M3"
+import { PaginationBar, usePagination } from "@/components/Pagination"
 import { useI18n } from "@/i18n"
 import { useSnackbar } from "@/snackbar"
 
@@ -63,6 +64,7 @@ export function ArchivedAthletesPage() {
   const selectedAthletes = archived.filter((athlete) =>
     selected.has(athlete.user_id),
   )
+  const pager = usePagination(archived, search)
   const allSelected =
     archived.length > 0 && selectedAthletes.length === archived.length
   const someSelected = selectedAthletes.length > 0 && !allSelected
@@ -288,7 +290,7 @@ export function ArchivedAthletesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {archived.map((athlete) => (
+                  {pager.pageItems.map((athlete) => (
                     <tr
                       key={athlete.user_id}
                       className={
@@ -367,6 +369,19 @@ export function ArchivedAthletesPage() {
           </Card>
         </>
       )}
+
+      {archived.length > 0 ? (
+        <PaginationBar
+          page={pager.page}
+          pageCount={pager.pageCount}
+          pageSize={pager.pageSize}
+          total={pager.total}
+          start={pager.start}
+          end={pager.end}
+          onPageChange={pager.setPage}
+          onPageSizeChange={pager.setPageSize}
+        />
+      ) : null}
 
       <DeleteAthletesDialog
         open={deleteTargets.length > 0}

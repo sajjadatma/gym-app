@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test"
 
+import { openAthlete } from "./utils/athletes"
+
 test("Select opens a listbox, supports keyboard selection and Escape", async ({
   page,
 }) => {
@@ -74,10 +76,7 @@ test("Persian date picker selects today and submits Gregorian ISO", async ({
   page,
 }) => {
   await page.goto("/athletes")
-  await page
-    .locator(".m3-entity-card")
-    .filter({ hasText: "نیما ورزشکار" })
-    .click()
+  await openAthlete(page, "نیما ورزشکار")
   await expect(
     page.getByRole("heading", { name: "نیما ورزشکار" }),
   ).toBeVisible()
@@ -110,10 +109,7 @@ test("Persian date picker selects today and submits Gregorian ISO", async ({
 
 test("date picker inside a dialog is not clipped", async ({ page }) => {
   await page.goto("/athletes")
-  await page
-    .locator(".m3-entity-card")
-    .filter({ hasText: "نیما ورزشکار" })
-    .click()
+  await openAthlete(page, "نیما ورزشکار")
   await page.getByRole("button", { name: "ساخت برنامه" }).click()
   const createDialog = page.locator(".m3-dialog").first()
   await expect(createDialog).toBeVisible()
@@ -160,10 +156,7 @@ test("English locale keeps Select and DatePicker usable in LTR", async ({
   ).toBeVisible()
   await dialog.getByRole("button", { name: "Cancel" }).click()
 
-  await page
-    .locator(".m3-entity-card")
-    .filter({ hasText: "نیما ورزشکار" })
-    .click()
+  await openAthlete(page, "نیما ورزشکار")
   await page.getByRole("button", { name: "Select date" }).first().click()
   const dateDialog = page.getByRole("dialog")
   await expect(dateDialog.getByRole("grid")).toBeVisible()
@@ -175,10 +168,7 @@ test("Persian leap-year date converts to the correct Gregorian ISO", async ({
   page,
 }) => {
   await page.goto("/athletes")
-  await page
-    .locator(".m3-entity-card")
-    .filter({ hasText: "نیما ورزشکار" })
-    .click()
+  await openAthlete(page, "نیما ورزشکار")
 
   await page.getByRole("button", { name: "انتخاب تاریخ" }).first().click()
   const dateDialog = page.getByRole("dialog")
@@ -203,10 +193,7 @@ test("Persian leap-year date converts to the correct Gregorian ISO", async ({
 
 test("date picker clear action submits a null value", async ({ page }) => {
   await page.goto("/athletes")
-  await page
-    .locator(".m3-entity-card")
-    .filter({ hasText: "نیما ورزشکار" })
-    .click()
+  await openAthlete(page, "نیما ورزشکار")
 
   await page.getByRole("button", { name: "انتخاب تاریخ" }).first().click()
   let dateDialog = page.getByRole("dialog")
@@ -268,10 +255,7 @@ test("Select, ComboBox and DatePicker remain usable in a mobile-sized modal", as
   await expect(dialog).toBeVisible()
   await dialog.getByRole("button", { name: "انصراف" }).click()
 
-  await page
-    .locator(".m3-entity-card")
-    .filter({ hasText: "نیما ورزشکار" })
-    .click()
+  await openAthlete(page, "نیما ورزشکار")
   await page.getByRole("button", { name: "ساخت برنامه" }).click()
   const createDialog = page.locator(".m3-dialog").first()
   await createDialog

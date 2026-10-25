@@ -26,6 +26,7 @@ import {
   StatusBadge,
   TextField,
 } from "@/components/M3"
+import { PaginationBar, usePagination } from "@/components/Pagination"
 import { useI18n } from "@/i18n"
 import { useSnackbar } from "@/snackbar"
 
@@ -61,6 +62,12 @@ export function MembersPage() {
     enabled: Boolean(activeGymId && isAdmin),
   })
 
+  const members = (membersQuery.data ?? []).filter(
+    (member) =>
+      member.is_owner || member.roles.some((role) => role !== "ATHLETE"),
+  )
+  const pager = usePagination(members, activeGymId ?? "")
+
   if (!activeGym) {
     return (
       <PageHeader
@@ -92,11 +99,6 @@ export function MembersPage() {
       />
     )
   }
-
-  const members = (membersQuery.data ?? []).filter(
-    (member) =>
-      member.is_owner || member.roles.some((role) => role !== "ATHLETE"),
-  )
 
   function toggleRole(role: StaffRole) {
     setRoles((current) =>
@@ -244,7 +246,7 @@ export function MembersPage() {
                 </tr>
               </thead>
               <tbody>
-                {members.map((member) => (
+                {pager.pageItems.map((member) => (
                   <tr key={member.membership_id}>
                     <td>
                       <div
@@ -345,6 +347,19 @@ export function MembersPage() {
           </div>
         </Card>
       )}
+
+      {members.length > 0 ? (
+        <PaginationBar
+          page={pager.page}
+          pageCount={pager.pageCount}
+          pageSize={pager.pageSize}
+          total={pager.total}
+          start={pager.start}
+          end={pager.end}
+          onPageChange={pager.setPage}
+          onPageSizeChange={pager.setPageSize}
+        />
+      ) : null}
 
       <Dialog
         open={addOpen}

@@ -49,6 +49,7 @@ import {
   StatusBadge,
   TextField,
 } from "@/components/M3"
+import { PaginationBar, usePagination } from "@/components/Pagination"
 import { useI18n } from "@/i18n"
 import { useSnackbar } from "@/snackbar"
 
@@ -121,6 +122,7 @@ export function AthletesPage() {
     }
     return true
   })
+  const pager = usePagination(athletes, `${deferredSearch}|${activeRole ?? ""}`)
 
   const coachOptions = (coachesQuery.data ?? []).map((coach) => ({
     value: coach.user_id,
@@ -417,7 +419,7 @@ export function AthletesPage() {
         />
       ) : view === "grid" ? (
         <div className="m3-card-grid">
-          {athletes.map((athlete) => (
+          {pager.pageItems.map((athlete) => (
             <div
               key={athlete.user_id}
               className={`m3-entity-card ${
@@ -574,7 +576,7 @@ export function AthletesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {athletes.map((athlete) => (
+                  {pager.pageItems.map((athlete) => (
                     <tr
                       key={athlete.user_id}
                       className={
@@ -675,6 +677,19 @@ export function AthletesPage() {
           </Card>
         </>
       )}
+
+      {athletes.length > 0 ? (
+        <PaginationBar
+          page={pager.page}
+          pageCount={pager.pageCount}
+          pageSize={pager.pageSize}
+          total={pager.total}
+          start={pager.start}
+          end={pager.end}
+          onPageChange={pager.setPage}
+          onPageSizeChange={pager.setPageSize}
+        />
+      ) : null}
 
       <ConfirmDialog
         open={archiveTargets.length > 0}

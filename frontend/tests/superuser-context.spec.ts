@@ -309,3 +309,45 @@ test("global people navigation disappears inside a club", async ({ page }) => {
   await page.goto("/coaches")
   await expect(page).toHaveURL(/\/gyms\/[^/]+\/members$/)
 })
+
+test("global athlete list paginates and changes page size", async ({
+  page,
+}) => {
+  const rows = Array.from({ length: 23 }, (_, index) => ({
+    user_id: `athlete-${index}`,
+    gym_id: "gym-1",
+    gym_name: "باشگاه آرام",
+    email: `athlete-${index}@example.com`,
+    full_name: `ورزشکار ${index}`,
+    phone: "09120000000",
+    is_archived: false,
+    coach_user_id: null,
+    coach_name: "رضا مربی",
+    created_at: new Date().toISOString(),
+  }))
+  await page.route(/\/api\/v1\/superuser\/athletes(\?.*)?$/, async (route) => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({ json: { data: rows, count: rows.length } })
+      return
+    }
+    await route.continue()
+  })
+
+  await loginAsSuperuser(page)
+  await page.goto("/athletes")
+  const pager = page.locator(".m3-pagination")
+  await expect(pager).toBeVisible()
+  await expect(pager.locator(".m3-pagination__page")).toHaveText("صفحه ۱ از ۳")
+  await expect(page.locator(".m3-entity-card")).toHaveCount(10)
+
+  await pager.getByRole("button", { name: "بعدی" }).click()
+  await expect(pager.locator(".m3-pagination__page")).toHaveText("صفحه ۲ از ۳")
+  await pager.getByRole("button", { name: "بعدی" }).click()
+  await expect(pager.locator(".m3-pagination__page")).toHaveText("صفحه ۳ از ۳")
+  await expect(page.locator(".m3-entity-card")).toHaveCount(3)
+
+  await pager.getByRole("button", { name: /تعداد در صفحه/ }).click()
+  await page.getByRole("option", { name: "۲۵" }).click()
+  await expect(pager.locator(".m3-pagination__page")).toHaveText("صفحه ۱ از ۱")
+  await expect(page.locator(".m3-entity-card")).toHaveCount(23)
+})

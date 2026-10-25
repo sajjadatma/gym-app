@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test"
 
 import { ATHLETE_EMAIL, DEMO_PASSWORD } from "./credentials"
+import { openAthlete } from "./utils/athletes"
 
 async function expectAssociatedLabels(page: Page) {
   const missing = await page.locator("body").evaluate((body) => {
@@ -103,10 +104,7 @@ test("birth dates reject future calendar days and dates keep visible labels when
   page,
 }) => {
   await page.goto("/athletes")
-  await page
-    .locator(".m3-entity-card")
-    .filter({ hasText: "نیما ورزشکار" })
-    .click()
+  await openAthlete(page, "نیما ورزشکار")
   await page.getByRole("button", { name: "انتخاب تاریخ" }).first().click()
   const calendar = page
     .getByRole("dialog")

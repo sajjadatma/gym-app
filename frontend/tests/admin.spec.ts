@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test"
 
+import { openAthlete } from "./utils/athletes"
+
 test("admin dashboard, gym switching and coach mode", async ({ page }) => {
   await page.goto("/")
   await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible()
@@ -32,7 +34,7 @@ test("athlete list, detail and editable active program builder", async ({
   await expect(page).toHaveURL(/\/gyms\/[^/]+\/athletes\/?$/)
   await expect(page.getByRole("heading", { name: "ورزشکاران" })).toBeVisible()
 
-  await page.getByRole("button", { name: /نیما ورزشکار/ }).click()
+  await openAthlete(page, "نیما ورزشکار")
   await expect(page).toHaveURL(/\/gyms\/[^/]+\/athletes\/[^/]+$/)
   await expect(
     page.getByRole("heading", { name: "نیما ورزشکار" }),

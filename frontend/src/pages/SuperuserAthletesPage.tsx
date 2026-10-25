@@ -34,6 +34,7 @@ import {
   StatusBadge,
   TextField,
 } from "@/components/M3"
+import { PaginationBar, usePagination } from "@/components/Pagination"
 import {
   PeopleListToolbar,
   type PeopleTab,
@@ -136,6 +137,7 @@ function AthletesContent() {
   const rows = allRows.filter((row) =>
     tab === "archived" ? row.is_archived : !row.is_archived,
   )
+  const pager = usePagination(rows, `${deferredSearch}|${gymFilter}|${tab}`)
   const hasFilter = search.trim().length > 0 || Boolean(gymFilter)
 
   async function invalidateAll() {
@@ -358,7 +360,7 @@ function AthletesContent() {
         />
       ) : view === "grid" ? (
         <div className="m3-card-grid">
-          {rows.map((row) => (
+          {pager.pageItems.map((row) => (
             <div
               key={`${row.gym_id}:${row.user_id}`}
               className={`m3-entity-card ${row.is_archived ? "is-archived" : ""}`}
@@ -424,7 +426,7 @@ function AthletesContent() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
+                {pager.pageItems.map((row) => (
                   <tr key={`${row.gym_id}:${row.user_id}`}>
                     <td>
                       <div className="row" style={{ gap: 10 }}>
@@ -460,6 +462,19 @@ function AthletesContent() {
           </div>
         </Card>
       )}
+
+      {rows.length > 0 ? (
+        <PaginationBar
+          page={pager.page}
+          pageCount={pager.pageCount}
+          pageSize={pager.pageSize}
+          total={pager.total}
+          start={pager.start}
+          end={pager.end}
+          onPageChange={pager.setPage}
+          onPageSizeChange={pager.setPageSize}
+        />
+      ) : null}
 
       <Dialog
         open={addOpen}
