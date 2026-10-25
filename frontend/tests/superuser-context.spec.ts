@@ -86,7 +86,7 @@ test("all clubs leaves the club from a workspace page and returns to the global 
     .locator(".m3-nav-rail")
     .getByRole("button", { name: "ورزشکاران" })
     .click()
-  await expect(page).toHaveURL(/\/athletes\/?$/)
+  await expect(page).toHaveURL(/\/gyms\/[^/]+\/athletes\/?$/)
   await page.getByRole("button", { name: "تغییر باشگاه" }).click()
   await page.getByRole("menuitem", { name: "همه باشگاه‌ها" }).click()
   await expect(page).toHaveURL((url) => url.pathname === "/")

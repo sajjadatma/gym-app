@@ -92,8 +92,8 @@ export function ArchivedAthletesPage() {
 
   function openAthlete(userId: string) {
     navigate({
-      to: "/athletes/$athleteId",
-      params: { athleteId: userId },
+      to: "/gyms/$gymId/athletes/$athleteId",
+      params: { gymId: activeGymId!, athleteId: userId },
     })
   }
 
@@ -214,7 +214,12 @@ export function ArchivedAthletesPage() {
             <Button
               variant="outlined"
               icon={<RotateCcw size={16} />}
-              onClick={() => navigate({ to: "/athletes" })}
+              onClick={() =>
+                navigate({
+                  to: "/gyms/$gymId/athletes",
+                  params: { gymId: activeGymId! },
+                })
+              }
             >
               {t("athletes.backToActive")}
             </Button>

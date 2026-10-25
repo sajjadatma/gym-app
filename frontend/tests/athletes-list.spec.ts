@@ -47,5 +47,5 @@ test("athlete list switches to a selectable table and remembers the view", async
     .locator(".m3-data-table tbody tr .m3-data-table__identity")
     .first()
     .click()
-  await expect(page).toHaveURL(/\/athletes\/[^/]+$/)
+  await expect(page).toHaveURL(/\/gyms\/[^/]+\/athletes\/[^/]+$/)
 })

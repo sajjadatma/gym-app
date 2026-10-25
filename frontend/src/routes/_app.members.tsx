@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router"
 
-import { MembersPage } from "@/pages/MembersPage"
+import { ClubRedirect } from "@/components/ClubRedirect"
 
 export const Route = createFileRoute("/_app/members")({
-  component: MembersPage,
+  component: () => <ClubRedirect to="/gyms/$gymId/members" />,
 })

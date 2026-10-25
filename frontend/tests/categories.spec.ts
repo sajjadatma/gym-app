@@ -89,7 +89,8 @@ test("admin creates catalog entries; coach selects them; day categories reach at
   await dialog.getByLabel(/عنوان برنامه/).fill(`برنامه دسته نمونه ${suffix}`)
   await dialog.getByRole("button", { name: "ایجاد", exact: true }).click()
   await expect(page).toHaveURL(/\/programs\/[^/]+\/edit$/)
-  const versionId = new URL(page.url()).pathname.split("/")[2]
+  const versionId =
+    new URL(page.url()).pathname.match(/\/programs\/([^/]+)\/edit/)?.[1] ?? ""
   await page.getByRole("button", { name: "افزودن روز", exact: true }).click()
   await page.getByRole("checkbox", { name: categoryName, exact: true }).check()
   const add = page.locator(".m3-builder-add-exercise")
@@ -111,7 +112,7 @@ test("admin creates catalog entries; coach selects them; day categories reach at
   await dialog
     .getByRole("button", { name: "انتشار برنامه", exact: true })
     .click()
-  await expect(page).toHaveURL(new RegExp(`/athletes/${athleteId}$`))
+  await expect(page).toHaveURL(new RegExp(`/gyms/[^/]+/athletes/${athleteId}$`))
   await page.goto(`/print/${versionId}`)
   await expect(page.locator(".m3-print-day__title")).toHaveText(
     `روز ۱ — ${categoryName}`,

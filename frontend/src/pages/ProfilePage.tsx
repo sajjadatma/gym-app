@@ -221,7 +221,10 @@ export function ProfilePage() {
                   }}
                   onClick={() => {
                     setActiveGym(gym.gym_id)
-                    navigate({ to: "/" })
+                    navigate({
+                      to: "/gyms/$gymId",
+                      params: { gymId: gym.gym_id },
+                    })
                   }}
                 >
                   <Building2 size={17} className="muted" />

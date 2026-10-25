@@ -85,7 +85,12 @@ export function MyProgramPage() {
           <Button
             variant="outlined"
             icon={<UserRound size={16} />}
-            onClick={() => navigate({ to: "/my/profile" })}
+            onClick={() =>
+              navigate({
+                to: "/gyms/$gymId/my/profile",
+                params: { gymId: activeGymId! },
+              })
+            }
           >
             {t("nav.myProfile")}
           </Button>
@@ -121,8 +126,8 @@ export function MyProgramPage() {
             <Button
               onClick={() =>
                 navigate({
-                  to: "/my/programs/$versionId",
-                  params: { versionId: active.id },
+                  to: "/gyms/$gymId/my/programs/$versionId",
+                  params: { gymId: activeGymId!, versionId: active.id },
                 })
               }
             >
@@ -165,8 +170,8 @@ export function MyProgramPage() {
                   style={{ border: 0, width: "100%", textAlign: "start" }}
                   onClick={() =>
                     navigate({
-                      to: "/my/programs/$versionId",
-                      params: { versionId: program.id },
+                      to: "/gyms/$gymId/my/programs/$versionId",
+                      params: { gymId: activeGymId!, versionId: program.id },
                     })
                   }
                 >
@@ -233,7 +238,12 @@ export function MyProgramPage() {
             <Button
               variant="text"
               style={{ paddingInline: 0 }}
-              onClick={() => navigate({ to: "/my/profile" })}
+              onClick={() =>
+                navigate({
+                  to: "/gyms/$gymId/my/profile",
+                  params: { gymId: activeGymId! },
+                })
+              }
             >
               {t("my.updateProfile")}
             </Button>

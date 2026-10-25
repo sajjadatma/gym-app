@@ -215,8 +215,8 @@ export function AthletesPage() {
 
   function openAthlete(userId: string) {
     navigate({
-      to: "/athletes/$athleteId",
-      params: { athleteId: userId },
+      to: "/gyms/$gymId/athletes/$athleteId",
+      params: { gymId: activeGymId!, athleteId: userId },
     })
   }
 

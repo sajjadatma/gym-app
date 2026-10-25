@@ -127,8 +127,8 @@ export function TemplateEditorPage({ templateId }: { templateId?: string }) {
         show(t("templates.created"), "success")
         setDirty(false)
         navigate({
-          to: "/templates/$templateId/edit",
-          params: { templateId: response.data.id },
+          to: "/gyms/$gymId/templates/$templateId/edit",
+          params: { gymId: activeGymId!, templateId: response.data.id },
         })
         return
       }
@@ -148,7 +148,12 @@ export function TemplateEditorPage({ templateId }: { templateId?: string }) {
       <PageHeader
         title={templateId ? t("templates.editTitle") : t("templates.newTitle")}
         subtitle={`${activeGym.name} · ${t("templates.subtitle")}`}
-        onBack={() => navigate({ to: "/templates" })}
+        onBack={() =>
+          navigate({
+            to: "/gyms/$gymId/templates",
+            params: { gymId: activeGymId! },
+          })
+        }
         backLabel={t("common.back")}
         actions={
           <Button icon={<Save size={16} />} onClick={save} loading={saving}>

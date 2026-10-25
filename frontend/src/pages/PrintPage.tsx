@@ -59,14 +59,14 @@ export function PrintPage({ versionId }: { versionId: string }) {
   const back = () => {
     if (activeRole === "ATHLETE") {
       navigate({
-        to: "/my/programs/$versionId",
-        params: { versionId },
+        to: "/gyms/$gymId/my/programs/$versionId",
+        params: { gymId: activeGymId!, versionId },
       })
       return
     }
     navigate({
-      to: "/programs/$versionId/edit",
-      params: { versionId },
+      to: "/gyms/$gymId/programs/$versionId/edit",
+      params: { gymId: activeGymId!, versionId },
     })
   }
 

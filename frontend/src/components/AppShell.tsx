@@ -128,18 +128,10 @@ export function AppShell() {
 
   useEffect(() => {
     if (isLoading || !isSuperuser) return
-    if (gyms.length === 0) {
-      if (pathname !== "/gyms") navigate({ to: "/gyms" as never })
-      return
-    }
-    const clubScoped =
-      /^\/(athletes|members|exercises|templates|programs|my)(\/|$)/.test(
-        pathname,
-      )
-    if (!activeGym && clubScoped) {
+    if (gyms.length === 0 && pathname !== "/gyms") {
       navigate({ to: "/gyms" as never })
     }
-  }, [activeGym, gyms.length, isLoading, isSuperuser, navigate, pathname])
+  }, [gyms.length, isLoading, isSuperuser, navigate, pathname])
 
   if (isLoading) {
     return (
@@ -155,9 +147,8 @@ export function AppShell() {
     return null
   }
 
-  const workspaceTo = isSuperuser && activeGymId ? "/gyms/$gymId" : "/"
-  const workspaceParams =
-    isSuperuser && activeGymId ? { gymId: activeGymId } : undefined
+  const clubParams = activeGymId ? { gymId: activeGymId } : undefined
+  const clubPath = (suffix: string) => `/gyms/$gymId${suffix}`
   let navItems: NavItem[] = []
   if (!activeGym) {
     navItems = isSuperuser
@@ -168,54 +159,107 @@ export function AppShell() {
       : [{ to: "/", label: "nav.dashboard", icon: LayoutDashboard }]
   } else if (activeRole === "ATHLETE") {
     navItems = [
-      { to: "/", label: "nav.dashboard", icon: LayoutDashboard },
-      { to: "/my", label: "nav.myProgram", icon: ClipboardList },
-      { to: "/my/profile", label: "nav.myProfile", icon: UserRound },
+      {
+        to: clubPath(""),
+        params: clubParams,
+        label: "nav.dashboard",
+        icon: LayoutDashboard,
+      },
+      {
+        to: clubPath("/my"),
+        params: clubParams,
+        label: "nav.myProgram",
+        icon: ClipboardList,
+      },
+      {
+        to: clubPath("/my/profile"),
+        params: clubParams,
+        label: "nav.myProfile",
+        icon: UserRound,
+      },
     ]
   } else if (activeRole === "COACH") {
     navItems = [
       {
-        to: workspaceTo,
-        params: workspaceParams,
+        to: clubPath(""),
+        params: clubParams,
         label: "nav.dashboard",
         icon: LayoutDashboard,
       },
-      { to: "/athletes", label: "nav.athletes", icon: Users },
-      { to: "/exercises", label: "nav.exercises", icon: Dumbbell },
-      { to: "/templates", label: "nav.templates", icon: Bookmark },
+      {
+        to: clubPath("/athletes"),
+        params: clubParams,
+        label: "nav.athletes",
+        icon: Users,
+      },
+      {
+        to: clubPath("/exercises"),
+        params: clubParams,
+        label: "nav.exercises",
+        icon: Dumbbell,
+      },
+      {
+        to: clubPath("/templates"),
+        params: clubParams,
+        label: "nav.templates",
+        icon: Bookmark,
+      },
     ]
   } else {
     navItems = [
       {
-        to: workspaceTo,
-        params: workspaceParams,
+        to: clubPath(""),
+        params: clubParams,
         label: "nav.dashboard",
         icon: LayoutDashboard,
       },
       { to: "/gyms", label: "nav.gyms", icon: Building2 },
-      { to: "/athletes", label: "nav.athletes", icon: Users },
-      { to: "/members", label: "nav.members", icon: UserRound },
-      { to: "/exercises", label: "nav.exercises", icon: Dumbbell },
-      { to: "/templates", label: "nav.templates", icon: Bookmark },
+      {
+        to: clubPath("/athletes"),
+        params: clubParams,
+        label: "nav.athletes",
+        icon: Users,
+      },
+      {
+        to: clubPath("/members"),
+        params: clubParams,
+        label: "nav.members",
+        icon: UserRound,
+      },
+      {
+        to: clubPath("/exercises"),
+        params: clubParams,
+        label: "nav.exercises",
+        icon: Dumbbell,
+      },
+      {
+        to: clubPath("/templates"),
+        params: clubParams,
+        label: "nav.templates",
+        icon: Bookmark,
+      },
     ]
   }
 
+  const resolve = (to: string) =>
+    activeGymId ? to.replace("$gymId", activeGymId) : to
   const isActive = (to: string) => {
     if (to === "/") return pathname === "/"
-    if (to === "/my")
-      return pathname === "/my" || pathname.startsWith("/my/programs")
-    if (to === "/gyms/$gymId") {
+    if (to.endsWith("/my")) {
+      const resolved = resolve(to)
       return (
-        Boolean(activeGymId) &&
-        (pathname === `/gyms/${activeGymId}` ||
-          pathname === `/gyms/${activeGymId}/settings`)
+        pathname === resolved ||
+        pathname === `${resolved}/` ||
+        pathname.startsWith(`${resolved}/programs`)
       )
     }
-    if (to === "/gyms") {
-      if (isSuperuser) return pathname === "/gyms" || pathname === "/gyms/"
-      return pathname === "/gyms" || pathname.startsWith("/gyms/")
+    if (to === "/gyms") return pathname === "/gyms" || pathname === "/gyms/"
+    if (to === "/gyms/$gymId") {
+      const resolved = resolve(to)
+      return pathname === resolved || pathname === `${resolved}/`
     }
-    return pathname.startsWith(to)
+    const resolved = resolve(to)
+    return pathname === resolved || pathname.startsWith(`${resolved}/`)
   }
 
   const go = (item: NavItem) =>
@@ -298,14 +342,10 @@ export function AppShell() {
                       className={`m3-menu__item ${gym.id === activeGymId ? "is-active" : ""}`}
                       onClick={() => {
                         setActiveGym(gym.id)
-                        navigate(
-                          isSuperuser
-                            ? {
-                                to: "/gyms/$gymId" as never,
-                                params: { gymId: gym.id } as never,
-                              }
-                            : { to: "/" as never },
-                        )
+                        navigate({
+                          to: "/gyms/$gymId" as never,
+                          params: { gymId: gym.id } as never,
+                        })
                       }}
                     >
                       <Building2 size={16} />
@@ -365,8 +405,9 @@ export function AppShell() {
                       navigate({
                         to:
                           role === "ATHLETE"
-                            ? ("/my" as never)
-                            : ("/" as never),
+                            ? ("/gyms/$gymId/my" as never)
+                            : ("/gyms/$gymId" as never),
+                        params: { gymId: activeGymId! } as never,
                       })
                     }}
                   >

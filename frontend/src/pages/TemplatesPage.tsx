@@ -89,8 +89,8 @@ export function TemplatesPage() {
       setAthleteId("")
       show(t("templates.applied"), "success")
       navigate({
-        to: "/programs/$versionId/edit",
-        params: { versionId: response.data.id },
+        to: "/gyms/$gymId/programs/$versionId/edit",
+        params: { gymId: activeGymId!, versionId: response.data.id },
       })
     } catch (err) {
       setError(translateApiError(err, t))
@@ -108,7 +108,12 @@ export function TemplatesPage() {
           canManage ? (
             <Button
               icon={<Plus size={17} />}
-              onClick={() => navigate({ to: "/templates/new" })}
+              onClick={() =>
+                navigate({
+                  to: "/gyms/$gymId/templates/new",
+                  params: { gymId: activeGymId! },
+                })
+              }
             >
               {t("templates.create")}
             </Button>
@@ -133,7 +138,12 @@ export function TemplatesPage() {
             canManage ? (
               <Button
                 icon={<Plus size={17} />}
-                onClick={() => navigate({ to: "/templates/new" })}
+                onClick={() =>
+                  navigate({
+                    to: "/gyms/$gymId/templates/new",
+                    params: { gymId: activeGymId! },
+                  })
+                }
               >
                 {t("templates.create")}
               </Button>
@@ -181,8 +191,8 @@ export function TemplatesPage() {
                   size="sm"
                   onClick={() =>
                     navigate({
-                      to: "/templates/$templateId/edit",
-                      params: { templateId: template.id },
+                      to: "/gyms/$gymId/templates/$templateId/edit",
+                      params: { gymId: activeGymId!, templateId: template.id },
                     })
                   }
                 >

@@ -1,10 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router"
 
-import { AthleteDetailPage } from "@/pages/AthleteDetailPage"
+import { ClubRedirect } from "@/components/ClubRedirect"
 
 function Page() {
   const { athleteId } = Route.useParams()
-  return <AthleteDetailPage athleteId={athleteId} />
+  return (
+    <ClubRedirect
+      to="/gyms/$gymId/athletes/$athleteId"
+      params={{ athleteId }}
+    />
+  )
 }
 
 export const Route = createFileRoute("/_app/athletes/$athleteId")({

@@ -142,3 +142,12 @@ The real Super Admin password and invitation tokens are deliberately absent from
 - "All clubs" in the club switcher clears the active club and returns to the global dashboard.
 - Owners, coaches and athletes keep today's behavior, routes and headers; inner club pages still rely on active-club state.
 - Superuser Playwright coverage is gated on `PLAYWRIGHT_SUPERUSER_EMAIL`/`PLAYWRIGHT_SUPERUSER_PASSWORD` and documented in the README; it uses a disposable database, never `gym_app`.
+
+### Club-scoped routes — 2026-10-25
+
+- All club pages now live under `/gyms/:gymId/...`: dashboard, athletes (list/archived/detail), members, exercise library, templates (list/new/edit), program editor, athlete self pages (`/my`, `/my/profile`, `/my/programs/:versionId`) and club settings. The URL, not localStorage alone, identifies the active club.
+- Club links in the dashboard, lists, editors, tabs and sidebar all carry `gymId`. Switching clubs navigates directly to the target club workspace.
+- Legacy root URLs (`/athletes`, `/members`, `/exercises`, `/templates`, `/my`, `/programs/:id/edit`, …) redirect into the active club's scoped route, or to `/gyms` when no club is active.
+- Route-level role guards: staff sections redirect athletes to the club dashboard; `/members` requires admin; athlete self pages redirect non-athletes. The guards use the union of the user's club roles, matching backend authorization.
+- Non-superusers landing on `/` are redirected to their active club workspace; the `/` route is the superuser global dashboard only when no club is active.
+- Print preview remains at `/print/:versionId` and uses the active club context from the same browser session.

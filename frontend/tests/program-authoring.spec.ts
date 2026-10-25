@@ -29,7 +29,8 @@ test("admin builds, saves and publishes a program through the UI", async ({
     page.getByRole("heading", { name: "برنامه آزمون رابط" }),
   ).toBeVisible()
   await page.getByRole("button", { name: "افزودن روز" }).click()
-  const versionId = new URL(page.url()).pathname.split("/")[2]
+  const versionId =
+    new URL(page.url()).pathname.match(/\/programs\/([^/]+)\/edit/)?.[1] ?? ""
   await page.getByRole("checkbox", { name: "سینه", exact: true }).check()
   await page.getByRole("checkbox", { name: "بازو", exact: true }).check()
   const addExercise = page.locator(".m3-builder-add-exercise")
@@ -55,7 +56,7 @@ test("admin builds, saves and publishes a program through the UI", async ({
   const publishDialog = page.getByRole("dialog")
   await expect(publishDialog).toBeVisible()
   await publishDialog.getByRole("button", { name: "انتشار برنامه" }).click()
-  await expect(page).toHaveURL(new RegExp(`/athletes/${athleteId}$`))
+  await expect(page).toHaveURL(new RegExp(`/gyms/[^/]+/athletes/${athleteId}$`))
   await expect(page.getByText("برنامه آزمون رابط").first()).toBeVisible()
 
   await page.goto(`/programs/${versionId}/edit`)

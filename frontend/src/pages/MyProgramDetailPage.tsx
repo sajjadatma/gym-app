@@ -67,7 +67,12 @@ export function MyProgramDetailPage({ versionId }: { versionId: string }) {
         subtitle={`${version.coach_name ?? ""} · ${t("program.versionLabel", {
           version: formatNumber(version.version_number),
         })}`}
-        onBack={() => navigate({ to: "/my" })}
+        onBack={() =>
+          navigate({
+            to: "/gyms/$gymId/my",
+            params: { gymId: activeGymId! },
+          })
+        }
         backLabel={t("common.back")}
         actions={
           <>

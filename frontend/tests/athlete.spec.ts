@@ -59,7 +59,7 @@ test("athlete profile saves without equipment, uses numbered days and redirects 
 
   await page.getByRole("button", { name: "ذخیره پرونده" }).click()
   await expect(page.getByText("پرونده شما ذخیره شد.")).toBeVisible()
-  await expect(page).toHaveURL("/")
+  await expect(page).toHaveURL(/\/gyms\/[^/]+$/)
 })
 
 test("athlete landing highlights the dashboard nav item", async ({ page }) => {
@@ -67,4 +67,17 @@ test("athlete landing highlights the dashboard nav item", async ({ page }) => {
   await expect(
     page.locator(".m3-mobile-nav__item[aria-current='page']"),
   ).toHaveText(/داشبورد/)
+})
+
+test("athlete deep links to staff pages fall back to the club dashboard", async ({
+  page,
+}) => {
+  await page.goto("/")
+  const gymId = await page.evaluate(() =>
+    localStorage.getItem("gym.activeGymId"),
+  )
+  expect(gymId).toBeTruthy()
+  await page.goto(`/gyms/${gymId}/athletes`)
+  await expect(page).toHaveURL(new RegExp(`/gyms/${gymId}$`))
+  await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible()
 })

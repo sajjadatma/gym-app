@@ -152,14 +152,8 @@ export function GymDetailPage({ gymId }: { gymId: string }) {
       <PageHeader
         title={gym.name}
         subtitle={gym.description ?? t("gyms.details")}
-        onBack={() =>
-          navigate(
-            isSuperuser
-              ? { to: "/gyms/$gymId", params: { gymId } }
-              : { to: "/gyms" },
-          )
-        }
-        backLabel={isSuperuser ? t("gyms.backToWorkspace") : t("common.back")}
+        onBack={() => navigate({ to: "/gyms/$gymId", params: { gymId } })}
+        backLabel={t("gyms.backToWorkspace")}
         actions={
           canManage ? (
             <>
@@ -269,14 +263,24 @@ export function GymDetailPage({ gymId }: { gymId: string }) {
               <Button
                 variant="tonal"
                 icon={<Users size={16} />}
-                onClick={() => navigate({ to: "/members" })}
+                onClick={() =>
+                  navigate({
+                    to: "/gyms/$gymId/members",
+                    params: { gymId },
+                  })
+                }
               >
                 {t("nav.members")}
               </Button>
               <Button
                 variant="outlined"
                 icon={<UserRound size={16} />}
-                onClick={() => navigate({ to: "/athletes" })}
+                onClick={() =>
+                  navigate({
+                    to: "/gyms/$gymId/athletes",
+                    params: { gymId },
+                  })
+                }
               >
                 {t("nav.athletes")}
               </Button>

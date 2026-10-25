@@ -1,10 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router"
 
-import { TemplateEditorPage } from "@/pages/TemplateEditorPage"
+import { ClubRedirect } from "@/components/ClubRedirect"
 
 function Page() {
   const { templateId } = Route.useParams()
-  return <TemplateEditorPage templateId={templateId} />
+  return (
+    <ClubRedirect
+      to="/gyms/$gymId/templates/$templateId/edit"
+      params={{ templateId }}
+    />
+  )
 }
 
 export const Route = createFileRoute("/_app/templates/$templateId/edit")({

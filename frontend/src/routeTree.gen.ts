@@ -34,10 +34,25 @@ import { Route as AppMyProfileRouteImport } from './routes/_app.my.profile'
 import { Route as AppTemplatesIndexRouteImport } from './routes/_app.templates.index'
 import { Route as AppTemplatesNewRouteImport } from './routes/_app.templates.new'
 import { Route as AppGymsGymIdIndexRouteImport } from './routes/_app.gyms.$gymId.index'
+import { Route as AppGymsGymIdAthletesRouteImport } from './routes/_app.gyms.$gymId.athletes'
+import { Route as AppGymsGymIdExercisesRouteImport } from './routes/_app.gyms.$gymId.exercises'
+import { Route as AppGymsGymIdMembersRouteImport } from './routes/_app.gyms.$gymId.members'
+import { Route as AppGymsGymIdMyRouteImport } from './routes/_app.gyms.$gymId.my'
 import { Route as AppGymsGymIdSettingsRouteImport } from './routes/_app.gyms.$gymId.settings'
+import { Route as AppGymsGymIdTemplatesRouteImport } from './routes/_app.gyms.$gymId.templates'
 import { Route as AppMyProgramsVersionIdRouteImport } from './routes/_app.my.programs.$versionId'
 import { Route as AppProgramsVersionIdEditRouteImport } from './routes/_app.programs.$versionId.edit'
 import { Route as AppTemplatesTemplateIdEditRouteImport } from './routes/_app.templates.$templateId.edit'
+import { Route as AppGymsGymIdAthletesIndexRouteImport } from './routes/_app.gyms.$gymId.athletes.index'
+import { Route as AppGymsGymIdAthletesAthleteIdRouteImport } from './routes/_app.gyms.$gymId.athletes.$athleteId'
+import { Route as AppGymsGymIdAthletesArchivedRouteImport } from './routes/_app.gyms.$gymId.athletes.archived'
+import { Route as AppGymsGymIdMyIndexRouteImport } from './routes/_app.gyms.$gymId.my.index'
+import { Route as AppGymsGymIdMyProfileRouteImport } from './routes/_app.gyms.$gymId.my.profile'
+import { Route as AppGymsGymIdTemplatesIndexRouteImport } from './routes/_app.gyms.$gymId.templates.index'
+import { Route as AppGymsGymIdTemplatesNewRouteImport } from './routes/_app.gyms.$gymId.templates.new'
+import { Route as AppGymsGymIdMyProgramsVersionIdRouteImport } from './routes/_app.gyms.$gymId.my.programs.$versionId'
+import { Route as AppGymsGymIdProgramsVersionIdEditRouteImport } from './routes/_app.gyms.$gymId.programs.$versionId.edit'
+import { Route as AppGymsGymIdTemplatesTemplateIdEditRouteImport } from './routes/_app.gyms.$gymId.templates.$templateId.edit'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -163,9 +178,34 @@ const AppGymsGymIdIndexRoute = AppGymsGymIdIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppGymsGymIdRoute,
 } as any)
+const AppGymsGymIdAthletesRoute = AppGymsGymIdAthletesRouteImport.update({
+  id: '/athletes',
+  path: '/athletes',
+  getParentRoute: () => AppGymsGymIdRoute,
+} as any)
+const AppGymsGymIdExercisesRoute = AppGymsGymIdExercisesRouteImport.update({
+  id: '/exercises',
+  path: '/exercises',
+  getParentRoute: () => AppGymsGymIdRoute,
+} as any)
+const AppGymsGymIdMembersRoute = AppGymsGymIdMembersRouteImport.update({
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => AppGymsGymIdRoute,
+} as any)
+const AppGymsGymIdMyRoute = AppGymsGymIdMyRouteImport.update({
+  id: '/my',
+  path: '/my',
+  getParentRoute: () => AppGymsGymIdRoute,
+} as any)
 const AppGymsGymIdSettingsRoute = AppGymsGymIdSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppGymsGymIdRoute,
+} as any)
+const AppGymsGymIdTemplatesRoute = AppGymsGymIdTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
   getParentRoute: () => AppGymsGymIdRoute,
 } as any)
 const AppMyProgramsVersionIdRoute = AppMyProgramsVersionIdRouteImport.update({
@@ -184,6 +224,64 @@ const AppTemplatesTemplateIdEditRoute =
     id: '/$templateId/edit',
     path: '/$templateId/edit',
     getParentRoute: () => AppTemplatesRoute,
+  } as any)
+const AppGymsGymIdAthletesIndexRoute =
+  AppGymsGymIdAthletesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppGymsGymIdAthletesRoute,
+  } as any)
+const AppGymsGymIdAthletesAthleteIdRoute =
+  AppGymsGymIdAthletesAthleteIdRouteImport.update({
+    id: '/$athleteId',
+    path: '/$athleteId',
+    getParentRoute: () => AppGymsGymIdAthletesRoute,
+  } as any)
+const AppGymsGymIdAthletesArchivedRoute =
+  AppGymsGymIdAthletesArchivedRouteImport.update({
+    id: '/archived',
+    path: '/archived',
+    getParentRoute: () => AppGymsGymIdAthletesRoute,
+  } as any)
+const AppGymsGymIdMyIndexRoute = AppGymsGymIdMyIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppGymsGymIdMyRoute,
+} as any)
+const AppGymsGymIdMyProfileRoute = AppGymsGymIdMyProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppGymsGymIdMyRoute,
+} as any)
+const AppGymsGymIdTemplatesIndexRoute =
+  AppGymsGymIdTemplatesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppGymsGymIdTemplatesRoute,
+  } as any)
+const AppGymsGymIdTemplatesNewRoute =
+  AppGymsGymIdTemplatesNewRouteImport.update({
+    id: '/new',
+    path: '/new',
+    getParentRoute: () => AppGymsGymIdTemplatesRoute,
+  } as any)
+const AppGymsGymIdMyProgramsVersionIdRoute =
+  AppGymsGymIdMyProgramsVersionIdRouteImport.update({
+    id: '/programs/$versionId',
+    path: '/programs/$versionId',
+    getParentRoute: () => AppGymsGymIdMyRoute,
+  } as any)
+const AppGymsGymIdProgramsVersionIdEditRoute =
+  AppGymsGymIdProgramsVersionIdEditRouteImport.update({
+    id: '/programs/$versionId/edit',
+    path: '/programs/$versionId/edit',
+    getParentRoute: () => AppGymsGymIdRoute,
+  } as any)
+const AppGymsGymIdTemplatesTemplateIdEditRoute =
+  AppGymsGymIdTemplatesTemplateIdEditRouteImport.update({
+    id: '/$templateId/edit',
+    path: '/$templateId/edit',
+    getParentRoute: () => AppGymsGymIdTemplatesRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -210,11 +308,26 @@ export interface FileRoutesByFullPath {
   '/gyms/': typeof AppGymsIndexRoute
   '/my/': typeof AppMyIndexRoute
   '/templates/': typeof AppTemplatesIndexRoute
+  '/gyms/$gymId/athletes': typeof AppGymsGymIdAthletesRouteWithChildren
+  '/gyms/$gymId/exercises': typeof AppGymsGymIdExercisesRoute
+  '/gyms/$gymId/members': typeof AppGymsGymIdMembersRoute
+  '/gyms/$gymId/my': typeof AppGymsGymIdMyRouteWithChildren
   '/gyms/$gymId/settings': typeof AppGymsGymIdSettingsRoute
+  '/gyms/$gymId/templates': typeof AppGymsGymIdTemplatesRouteWithChildren
   '/my/programs/$versionId': typeof AppMyProgramsVersionIdRoute
   '/programs/$versionId/edit': typeof AppProgramsVersionIdEditRoute
   '/templates/$templateId/edit': typeof AppTemplatesTemplateIdEditRoute
   '/gyms/$gymId/': typeof AppGymsGymIdIndexRoute
+  '/gyms/$gymId/athletes/$athleteId': typeof AppGymsGymIdAthletesAthleteIdRoute
+  '/gyms/$gymId/athletes/archived': typeof AppGymsGymIdAthletesArchivedRoute
+  '/gyms/$gymId/my/profile': typeof AppGymsGymIdMyProfileRoute
+  '/gyms/$gymId/templates/new': typeof AppGymsGymIdTemplatesNewRoute
+  '/gyms/$gymId/athletes/': typeof AppGymsGymIdAthletesIndexRoute
+  '/gyms/$gymId/my/': typeof AppGymsGymIdMyIndexRoute
+  '/gyms/$gymId/templates/': typeof AppGymsGymIdTemplatesIndexRoute
+  '/gyms/$gymId/my/programs/$versionId': typeof AppGymsGymIdMyProgramsVersionIdRoute
+  '/gyms/$gymId/programs/$versionId/edit': typeof AppGymsGymIdProgramsVersionIdEditRoute
+  '/gyms/$gymId/templates/$templateId/edit': typeof AppGymsGymIdTemplatesTemplateIdEditRoute
 }
 export interface FileRoutesByTo {
   '/accept-invitation': typeof AcceptInvitationRoute
@@ -235,11 +348,23 @@ export interface FileRoutesByTo {
   '/gyms': typeof AppGymsIndexRoute
   '/my': typeof AppMyIndexRoute
   '/templates': typeof AppTemplatesIndexRoute
+  '/gyms/$gymId/exercises': typeof AppGymsGymIdExercisesRoute
+  '/gyms/$gymId/members': typeof AppGymsGymIdMembersRoute
   '/gyms/$gymId/settings': typeof AppGymsGymIdSettingsRoute
   '/my/programs/$versionId': typeof AppMyProgramsVersionIdRoute
   '/programs/$versionId/edit': typeof AppProgramsVersionIdEditRoute
   '/templates/$templateId/edit': typeof AppTemplatesTemplateIdEditRoute
   '/gyms/$gymId': typeof AppGymsGymIdIndexRoute
+  '/gyms/$gymId/athletes/$athleteId': typeof AppGymsGymIdAthletesAthleteIdRoute
+  '/gyms/$gymId/athletes/archived': typeof AppGymsGymIdAthletesArchivedRoute
+  '/gyms/$gymId/my/profile': typeof AppGymsGymIdMyProfileRoute
+  '/gyms/$gymId/templates/new': typeof AppGymsGymIdTemplatesNewRoute
+  '/gyms/$gymId/athletes': typeof AppGymsGymIdAthletesIndexRoute
+  '/gyms/$gymId/my': typeof AppGymsGymIdMyIndexRoute
+  '/gyms/$gymId/templates': typeof AppGymsGymIdTemplatesIndexRoute
+  '/gyms/$gymId/my/programs/$versionId': typeof AppGymsGymIdMyProgramsVersionIdRoute
+  '/gyms/$gymId/programs/$versionId/edit': typeof AppGymsGymIdProgramsVersionIdEditRoute
+  '/gyms/$gymId/templates/$templateId/edit': typeof AppGymsGymIdTemplatesTemplateIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -267,11 +392,26 @@ export interface FileRoutesById {
   '/_app/gyms/': typeof AppGymsIndexRoute
   '/_app/my/': typeof AppMyIndexRoute
   '/_app/templates/': typeof AppTemplatesIndexRoute
+  '/_app/gyms/$gymId/athletes': typeof AppGymsGymIdAthletesRouteWithChildren
+  '/_app/gyms/$gymId/exercises': typeof AppGymsGymIdExercisesRoute
+  '/_app/gyms/$gymId/members': typeof AppGymsGymIdMembersRoute
+  '/_app/gyms/$gymId/my': typeof AppGymsGymIdMyRouteWithChildren
   '/_app/gyms/$gymId/settings': typeof AppGymsGymIdSettingsRoute
+  '/_app/gyms/$gymId/templates': typeof AppGymsGymIdTemplatesRouteWithChildren
   '/_app/my/programs/$versionId': typeof AppMyProgramsVersionIdRoute
   '/_app/programs/$versionId/edit': typeof AppProgramsVersionIdEditRoute
   '/_app/templates/$templateId/edit': typeof AppTemplatesTemplateIdEditRoute
   '/_app/gyms/$gymId/': typeof AppGymsGymIdIndexRoute
+  '/_app/gyms/$gymId/athletes/$athleteId': typeof AppGymsGymIdAthletesAthleteIdRoute
+  '/_app/gyms/$gymId/athletes/archived': typeof AppGymsGymIdAthletesArchivedRoute
+  '/_app/gyms/$gymId/my/profile': typeof AppGymsGymIdMyProfileRoute
+  '/_app/gyms/$gymId/templates/new': typeof AppGymsGymIdTemplatesNewRoute
+  '/_app/gyms/$gymId/athletes/': typeof AppGymsGymIdAthletesIndexRoute
+  '/_app/gyms/$gymId/my/': typeof AppGymsGymIdMyIndexRoute
+  '/_app/gyms/$gymId/templates/': typeof AppGymsGymIdTemplatesIndexRoute
+  '/_app/gyms/$gymId/my/programs/$versionId': typeof AppGymsGymIdMyProgramsVersionIdRoute
+  '/_app/gyms/$gymId/programs/$versionId/edit': typeof AppGymsGymIdProgramsVersionIdEditRoute
+  '/_app/gyms/$gymId/templates/$templateId/edit': typeof AppGymsGymIdTemplatesTemplateIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -299,11 +439,26 @@ export interface FileRouteTypes {
     | '/gyms/'
     | '/my/'
     | '/templates/'
+    | '/gyms/$gymId/athletes'
+    | '/gyms/$gymId/exercises'
+    | '/gyms/$gymId/members'
+    | '/gyms/$gymId/my'
     | '/gyms/$gymId/settings'
+    | '/gyms/$gymId/templates'
     | '/my/programs/$versionId'
     | '/programs/$versionId/edit'
     | '/templates/$templateId/edit'
     | '/gyms/$gymId/'
+    | '/gyms/$gymId/athletes/$athleteId'
+    | '/gyms/$gymId/athletes/archived'
+    | '/gyms/$gymId/my/profile'
+    | '/gyms/$gymId/templates/new'
+    | '/gyms/$gymId/athletes/'
+    | '/gyms/$gymId/my/'
+    | '/gyms/$gymId/templates/'
+    | '/gyms/$gymId/my/programs/$versionId'
+    | '/gyms/$gymId/programs/$versionId/edit'
+    | '/gyms/$gymId/templates/$templateId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/accept-invitation'
@@ -324,11 +479,23 @@ export interface FileRouteTypes {
     | '/gyms'
     | '/my'
     | '/templates'
+    | '/gyms/$gymId/exercises'
+    | '/gyms/$gymId/members'
     | '/gyms/$gymId/settings'
     | '/my/programs/$versionId'
     | '/programs/$versionId/edit'
     | '/templates/$templateId/edit'
     | '/gyms/$gymId'
+    | '/gyms/$gymId/athletes/$athleteId'
+    | '/gyms/$gymId/athletes/archived'
+    | '/gyms/$gymId/my/profile'
+    | '/gyms/$gymId/templates/new'
+    | '/gyms/$gymId/athletes'
+    | '/gyms/$gymId/my'
+    | '/gyms/$gymId/templates'
+    | '/gyms/$gymId/my/programs/$versionId'
+    | '/gyms/$gymId/programs/$versionId/edit'
+    | '/gyms/$gymId/templates/$templateId/edit'
   id:
     | '__root__'
     | '/_app'
@@ -355,11 +522,26 @@ export interface FileRouteTypes {
     | '/_app/gyms/'
     | '/_app/my/'
     | '/_app/templates/'
+    | '/_app/gyms/$gymId/athletes'
+    | '/_app/gyms/$gymId/exercises'
+    | '/_app/gyms/$gymId/members'
+    | '/_app/gyms/$gymId/my'
     | '/_app/gyms/$gymId/settings'
+    | '/_app/gyms/$gymId/templates'
     | '/_app/my/programs/$versionId'
     | '/_app/programs/$versionId/edit'
     | '/_app/templates/$templateId/edit'
     | '/_app/gyms/$gymId/'
+    | '/_app/gyms/$gymId/athletes/$athleteId'
+    | '/_app/gyms/$gymId/athletes/archived'
+    | '/_app/gyms/$gymId/my/profile'
+    | '/_app/gyms/$gymId/templates/new'
+    | '/_app/gyms/$gymId/athletes/'
+    | '/_app/gyms/$gymId/my/'
+    | '/_app/gyms/$gymId/templates/'
+    | '/_app/gyms/$gymId/my/programs/$versionId'
+    | '/_app/gyms/$gymId/programs/$versionId/edit'
+    | '/_app/gyms/$gymId/templates/$templateId/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -549,11 +731,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGymsGymIdIndexRouteImport
       parentRoute: typeof AppGymsGymIdRoute
     }
+    '/_app/gyms/$gymId/athletes': {
+      id: '/_app/gyms/$gymId/athletes'
+      path: '/athletes'
+      fullPath: '/gyms/$gymId/athletes'
+      preLoaderRoute: typeof AppGymsGymIdAthletesRouteImport
+      parentRoute: typeof AppGymsGymIdRoute
+    }
+    '/_app/gyms/$gymId/exercises': {
+      id: '/_app/gyms/$gymId/exercises'
+      path: '/exercises'
+      fullPath: '/gyms/$gymId/exercises'
+      preLoaderRoute: typeof AppGymsGymIdExercisesRouteImport
+      parentRoute: typeof AppGymsGymIdRoute
+    }
+    '/_app/gyms/$gymId/members': {
+      id: '/_app/gyms/$gymId/members'
+      path: '/members'
+      fullPath: '/gyms/$gymId/members'
+      preLoaderRoute: typeof AppGymsGymIdMembersRouteImport
+      parentRoute: typeof AppGymsGymIdRoute
+    }
+    '/_app/gyms/$gymId/my': {
+      id: '/_app/gyms/$gymId/my'
+      path: '/my'
+      fullPath: '/gyms/$gymId/my'
+      preLoaderRoute: typeof AppGymsGymIdMyRouteImport
+      parentRoute: typeof AppGymsGymIdRoute
+    }
     '/_app/gyms/$gymId/settings': {
       id: '/_app/gyms/$gymId/settings'
       path: '/settings'
       fullPath: '/gyms/$gymId/settings'
       preLoaderRoute: typeof AppGymsGymIdSettingsRouteImport
+      parentRoute: typeof AppGymsGymIdRoute
+    }
+    '/_app/gyms/$gymId/templates': {
+      id: '/_app/gyms/$gymId/templates'
+      path: '/templates'
+      fullPath: '/gyms/$gymId/templates'
+      preLoaderRoute: typeof AppGymsGymIdTemplatesRouteImport
       parentRoute: typeof AppGymsGymIdRoute
     }
     '/_app/my/programs/$versionId': {
@@ -577,6 +794,76 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTemplatesTemplateIdEditRouteImport
       parentRoute: typeof AppTemplatesRoute
     }
+    '/_app/gyms/$gymId/athletes/': {
+      id: '/_app/gyms/$gymId/athletes/'
+      path: '/'
+      fullPath: '/gyms/$gymId/athletes/'
+      preLoaderRoute: typeof AppGymsGymIdAthletesIndexRouteImport
+      parentRoute: typeof AppGymsGymIdAthletesRoute
+    }
+    '/_app/gyms/$gymId/athletes/$athleteId': {
+      id: '/_app/gyms/$gymId/athletes/$athleteId'
+      path: '/$athleteId'
+      fullPath: '/gyms/$gymId/athletes/$athleteId'
+      preLoaderRoute: typeof AppGymsGymIdAthletesAthleteIdRouteImport
+      parentRoute: typeof AppGymsGymIdAthletesRoute
+    }
+    '/_app/gyms/$gymId/athletes/archived': {
+      id: '/_app/gyms/$gymId/athletes/archived'
+      path: '/archived'
+      fullPath: '/gyms/$gymId/athletes/archived'
+      preLoaderRoute: typeof AppGymsGymIdAthletesArchivedRouteImport
+      parentRoute: typeof AppGymsGymIdAthletesRoute
+    }
+    '/_app/gyms/$gymId/my/': {
+      id: '/_app/gyms/$gymId/my/'
+      path: '/'
+      fullPath: '/gyms/$gymId/my/'
+      preLoaderRoute: typeof AppGymsGymIdMyIndexRouteImport
+      parentRoute: typeof AppGymsGymIdMyRoute
+    }
+    '/_app/gyms/$gymId/my/profile': {
+      id: '/_app/gyms/$gymId/my/profile'
+      path: '/profile'
+      fullPath: '/gyms/$gymId/my/profile'
+      preLoaderRoute: typeof AppGymsGymIdMyProfileRouteImport
+      parentRoute: typeof AppGymsGymIdMyRoute
+    }
+    '/_app/gyms/$gymId/templates/': {
+      id: '/_app/gyms/$gymId/templates/'
+      path: '/'
+      fullPath: '/gyms/$gymId/templates/'
+      preLoaderRoute: typeof AppGymsGymIdTemplatesIndexRouteImport
+      parentRoute: typeof AppGymsGymIdTemplatesRoute
+    }
+    '/_app/gyms/$gymId/templates/new': {
+      id: '/_app/gyms/$gymId/templates/new'
+      path: '/new'
+      fullPath: '/gyms/$gymId/templates/new'
+      preLoaderRoute: typeof AppGymsGymIdTemplatesNewRouteImport
+      parentRoute: typeof AppGymsGymIdTemplatesRoute
+    }
+    '/_app/gyms/$gymId/my/programs/$versionId': {
+      id: '/_app/gyms/$gymId/my/programs/$versionId'
+      path: '/programs/$versionId'
+      fullPath: '/gyms/$gymId/my/programs/$versionId'
+      preLoaderRoute: typeof AppGymsGymIdMyProgramsVersionIdRouteImport
+      parentRoute: typeof AppGymsGymIdMyRoute
+    }
+    '/_app/gyms/$gymId/programs/$versionId/edit': {
+      id: '/_app/gyms/$gymId/programs/$versionId/edit'
+      path: '/programs/$versionId/edit'
+      fullPath: '/gyms/$gymId/programs/$versionId/edit'
+      preLoaderRoute: typeof AppGymsGymIdProgramsVersionIdEditRouteImport
+      parentRoute: typeof AppGymsGymIdRoute
+    }
+    '/_app/gyms/$gymId/templates/$templateId/edit': {
+      id: '/_app/gyms/$gymId/templates/$templateId/edit'
+      path: '/$templateId/edit'
+      fullPath: '/gyms/$gymId/templates/$templateId/edit'
+      preLoaderRoute: typeof AppGymsGymIdTemplatesTemplateIdEditRouteImport
+      parentRoute: typeof AppGymsGymIdTemplatesRoute
+    }
   }
 }
 
@@ -596,14 +883,76 @@ const AppAthletesRouteWithChildren = AppAthletesRoute._addFileChildren(
   AppAthletesRouteChildren,
 )
 
+interface AppGymsGymIdAthletesRouteChildren {
+  AppGymsGymIdAthletesAthleteIdRoute: typeof AppGymsGymIdAthletesAthleteIdRoute
+  AppGymsGymIdAthletesArchivedRoute: typeof AppGymsGymIdAthletesArchivedRoute
+  AppGymsGymIdAthletesIndexRoute: typeof AppGymsGymIdAthletesIndexRoute
+}
+
+const AppGymsGymIdAthletesRouteChildren: AppGymsGymIdAthletesRouteChildren = {
+  AppGymsGymIdAthletesAthleteIdRoute: AppGymsGymIdAthletesAthleteIdRoute,
+  AppGymsGymIdAthletesArchivedRoute: AppGymsGymIdAthletesArchivedRoute,
+  AppGymsGymIdAthletesIndexRoute: AppGymsGymIdAthletesIndexRoute,
+}
+
+const AppGymsGymIdAthletesRouteWithChildren =
+  AppGymsGymIdAthletesRoute._addFileChildren(AppGymsGymIdAthletesRouteChildren)
+
+interface AppGymsGymIdMyRouteChildren {
+  AppGymsGymIdMyProfileRoute: typeof AppGymsGymIdMyProfileRoute
+  AppGymsGymIdMyIndexRoute: typeof AppGymsGymIdMyIndexRoute
+  AppGymsGymIdMyProgramsVersionIdRoute: typeof AppGymsGymIdMyProgramsVersionIdRoute
+}
+
+const AppGymsGymIdMyRouteChildren: AppGymsGymIdMyRouteChildren = {
+  AppGymsGymIdMyProfileRoute: AppGymsGymIdMyProfileRoute,
+  AppGymsGymIdMyIndexRoute: AppGymsGymIdMyIndexRoute,
+  AppGymsGymIdMyProgramsVersionIdRoute: AppGymsGymIdMyProgramsVersionIdRoute,
+}
+
+const AppGymsGymIdMyRouteWithChildren = AppGymsGymIdMyRoute._addFileChildren(
+  AppGymsGymIdMyRouteChildren,
+)
+
+interface AppGymsGymIdTemplatesRouteChildren {
+  AppGymsGymIdTemplatesNewRoute: typeof AppGymsGymIdTemplatesNewRoute
+  AppGymsGymIdTemplatesIndexRoute: typeof AppGymsGymIdTemplatesIndexRoute
+  AppGymsGymIdTemplatesTemplateIdEditRoute: typeof AppGymsGymIdTemplatesTemplateIdEditRoute
+}
+
+const AppGymsGymIdTemplatesRouteChildren: AppGymsGymIdTemplatesRouteChildren = {
+  AppGymsGymIdTemplatesNewRoute: AppGymsGymIdTemplatesNewRoute,
+  AppGymsGymIdTemplatesIndexRoute: AppGymsGymIdTemplatesIndexRoute,
+  AppGymsGymIdTemplatesTemplateIdEditRoute:
+    AppGymsGymIdTemplatesTemplateIdEditRoute,
+}
+
+const AppGymsGymIdTemplatesRouteWithChildren =
+  AppGymsGymIdTemplatesRoute._addFileChildren(
+    AppGymsGymIdTemplatesRouteChildren,
+  )
+
 interface AppGymsGymIdRouteChildren {
+  AppGymsGymIdAthletesRoute: typeof AppGymsGymIdAthletesRouteWithChildren
+  AppGymsGymIdExercisesRoute: typeof AppGymsGymIdExercisesRoute
+  AppGymsGymIdMembersRoute: typeof AppGymsGymIdMembersRoute
+  AppGymsGymIdMyRoute: typeof AppGymsGymIdMyRouteWithChildren
   AppGymsGymIdSettingsRoute: typeof AppGymsGymIdSettingsRoute
+  AppGymsGymIdTemplatesRoute: typeof AppGymsGymIdTemplatesRouteWithChildren
   AppGymsGymIdIndexRoute: typeof AppGymsGymIdIndexRoute
+  AppGymsGymIdProgramsVersionIdEditRoute: typeof AppGymsGymIdProgramsVersionIdEditRoute
 }
 
 const AppGymsGymIdRouteChildren: AppGymsGymIdRouteChildren = {
+  AppGymsGymIdAthletesRoute: AppGymsGymIdAthletesRouteWithChildren,
+  AppGymsGymIdExercisesRoute: AppGymsGymIdExercisesRoute,
+  AppGymsGymIdMembersRoute: AppGymsGymIdMembersRoute,
+  AppGymsGymIdMyRoute: AppGymsGymIdMyRouteWithChildren,
   AppGymsGymIdSettingsRoute: AppGymsGymIdSettingsRoute,
+  AppGymsGymIdTemplatesRoute: AppGymsGymIdTemplatesRouteWithChildren,
   AppGymsGymIdIndexRoute: AppGymsGymIdIndexRoute,
+  AppGymsGymIdProgramsVersionIdEditRoute:
+    AppGymsGymIdProgramsVersionIdEditRoute,
 }
 
 const AppGymsGymIdRouteWithChildren = AppGymsGymIdRoute._addFileChildren(

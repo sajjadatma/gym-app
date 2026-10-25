@@ -29,11 +29,11 @@ test("athlete list, detail and editable active program builder", async ({
     .locator(".m3-nav-rail")
     .getByRole("button", { name: "ورزشکاران" })
     .click()
-  await expect(page).toHaveURL(/\/athletes\/?$/)
+  await expect(page).toHaveURL(/\/gyms\/[^/]+\/athletes\/?$/)
   await expect(page.getByRole("heading", { name: "ورزشکاران" })).toBeVisible()
 
   await page.getByRole("button", { name: /نیما ورزشکار/ }).click()
-  await expect(page).toHaveURL(/\/athletes\/[^/]+$/)
+  await expect(page).toHaveURL(/\/gyms\/[^/]+\/athletes\/[^/]+$/)
   await expect(
     page.getByRole("heading", { name: "نیما ورزشکار" }),
   ).toBeVisible()
@@ -120,6 +120,8 @@ test("owner can open gym details and sees ownership transfer", async ({
     .filter({ hasText: "باشگاه آرام" })
     .click()
   await expect(page).toHaveURL(/\/gyms\/[^/]+$/)
+  await page.getByRole("button", { name: "تنظیمات باشگاه" }).click()
+  await expect(page).toHaveURL(/\/gyms\/[^/]+\/settings$/)
   await expect(page.getByRole("heading", { name: "باشگاه آرام" })).toBeVisible()
   await expect(
     page.getByRole("button", { name: "انتقال مالکیت" }),
@@ -165,16 +167,17 @@ test("mobile admin keeps gym and role context available", async ({ page }) => {
   ).toBeVisible()
 })
 
-test("club users keep the details page and its back navigation", async ({
-  page,
-}) => {
+test("club users reach club settings from the workspace", async ({ page }) => {
   await page.goto("/gyms")
   await page
     .locator(".m3-entity-card")
     .filter({ hasText: "باشگاه آرام" })
     .click()
   await expect(page).toHaveURL(/\/gyms\/[^/]+$/)
+  await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible()
+  await page.getByRole("button", { name: "تنظیمات باشگاه" }).click()
+  await expect(page).toHaveURL(/\/gyms\/[^/]+\/settings$/)
   await expect(page.getByRole("heading", { name: "باشگاه آرام" })).toBeVisible()
   await page.locator(".m3-back-button").first().click()
-  await expect(page).toHaveURL((url) => url.pathname.endsWith("/gyms"))
+  await expect(page).toHaveURL(/\/gyms\/[^/]+$/)
 })

@@ -135,7 +135,10 @@ export function MyProfilePage() {
       })
       queryClient.setQueryData(["athlete-me", activeGymId], response.data)
       show(t("my.saved"), "success")
-      await navigate({ to: "/" })
+      await navigate({
+        to: "/gyms/$gymId",
+        params: { gymId: activeGymId! },
+      })
     } catch (err) {
       setError(translateApiError(err, t))
     } finally {

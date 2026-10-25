@@ -237,7 +237,7 @@ export function DashboardPage() {
           {t("dashboard.welcome", { name: me?.full_name ?? me?.email ?? "" })}
         </h2>
         <div className="m3-hero__actions">
-          {activeGymId && isSuperuser ? (
+          {activeGymId && isAdmin ? (
             <Button
               variant="tonal"
               icon={<Settings size={17} />}
@@ -264,7 +264,12 @@ export function DashboardPage() {
             <Button
               variant="tonal"
               icon={<Users size={17} />}
-              onClick={() => navigate({ to: "/athletes" })}
+              onClick={() =>
+                navigate({
+                  to: "/gyms/$gymId/athletes",
+                  params: { gymId: activeGymId! },
+                })
+              }
             >
               {t("dashboard.manageAthletes")}
             </Button>
@@ -273,7 +278,12 @@ export function DashboardPage() {
             <Button
               variant="tonal"
               icon={<ClipboardList size={17} />}
-              onClick={() => navigate({ to: "/my" })}
+              onClick={() =>
+                navigate({
+                  to: "/gyms/$gymId/my",
+                  params: { gymId: activeGymId! },
+                })
+              }
             >
               {t("dashboard.viewProgram")}
             </Button>
@@ -349,7 +359,12 @@ export function DashboardPage() {
             <Button
               variant="text"
               style={{ paddingInline: 0, marginTop: 12 }}
-              onClick={() => navigate({ to: "/athletes" })}
+              onClick={() =>
+                navigate({
+                  to: "/gyms/$gymId/athletes",
+                  params: { gymId: activeGymId! },
+                })
+              }
             >
               {t("dashboard.manageAthletes")}
             </Button>
@@ -369,7 +384,12 @@ export function DashboardPage() {
             <Button
               variant="text"
               style={{ paddingInline: 0, marginTop: 12 }}
-              onClick={() => navigate({ to: "/templates" })}
+              onClick={() =>
+                navigate({
+                  to: "/gyms/$gymId/templates",
+                  params: { gymId: activeGymId! },
+                })
+              }
             >
               {t("dashboard.manageTemplates")}
             </Button>
@@ -419,8 +439,11 @@ export function DashboardPage() {
                 style={{ marginTop: 16 }}
                 onClick={() =>
                   navigate({
-                    to: "/my/programs/$versionId",
-                    params: { versionId: activeProgram.id },
+                    to: "/gyms/$gymId/my/programs/$versionId",
+                    params: {
+                      gymId: activeGymId!,
+                      versionId: activeProgram.id,
+                    },
                   })
                 }
               >
@@ -446,7 +469,12 @@ export function DashboardPage() {
             <Button
               variant="text"
               style={{ paddingInline: 0, marginTop: 12 }}
-              onClick={() => navigate({ to: "/my/profile" })}
+              onClick={() =>
+                navigate({
+                  to: "/gyms/$gymId/my/profile",
+                  params: { gymId: activeGymId! },
+                })
+              }
             >
               {t("dashboard.completeProfile")}
             </Button>
@@ -471,28 +499,48 @@ export function DashboardPage() {
               <Button
                 variant="tonal"
                 icon={<Users size={17} />}
-                onClick={() => navigate({ to: "/athletes" })}
+                onClick={() =>
+                  navigate({
+                    to: "/gyms/$gymId/athletes",
+                    params: { gymId: activeGymId! },
+                  })
+                }
               >
                 {t("nav.athletes")}
               </Button>
               <Button
                 variant="outlined"
                 icon={<UserRound size={17} />}
-                onClick={() => navigate({ to: "/members" })}
+                onClick={() =>
+                  navigate({
+                    to: "/gyms/$gymId/members",
+                    params: { gymId: activeGymId! },
+                  })
+                }
               >
                 {t("nav.members")}
               </Button>
               <Button
                 variant="outlined"
                 icon={<Bookmark size={17} />}
-                onClick={() => navigate({ to: "/templates" })}
+                onClick={() =>
+                  navigate({
+                    to: "/gyms/$gymId/templates",
+                    params: { gymId: activeGymId! },
+                  })
+                }
               >
                 {t("nav.templates")}
               </Button>
               <Button
                 variant="outlined"
                 icon={<Dumbbell size={17} />}
-                onClick={() => navigate({ to: "/exercises" })}
+                onClick={() =>
+                  navigate({
+                    to: "/gyms/$gymId/exercises",
+                    params: { gymId: activeGymId! },
+                  })
+                }
               >
                 {t("nav.exercises")}
               </Button>
@@ -506,7 +554,12 @@ export function DashboardPage() {
               </div>
               <Button
                 variant="text"
-                onClick={() => navigate({ to: "/athletes" })}
+                onClick={() =>
+                  navigate({
+                    to: "/gyms/$gymId/athletes",
+                    params: { gymId: activeGymId! },
+                  })
+                }
               >
                 {t("common.more")}
               </Button>
@@ -521,8 +574,11 @@ export function DashboardPage() {
                     style={{ width: "100%", border: 0, textAlign: "start" }}
                     onClick={() =>
                       navigate({
-                        to: "/athletes/$athleteId",
-                        params: { athleteId: athlete.user_id },
+                        to: "/gyms/$gymId/athletes/$athleteId",
+                        params: {
+                          gymId: activeGymId!,
+                          athleteId: athlete.user_id,
+                        },
                       })
                     }
                   >

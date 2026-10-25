@@ -282,8 +282,8 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
         queryKey: ["programs", activeGymId, athleteId],
       })
       navigate({
-        to: "/programs/$versionId/edit",
-        params: { versionId: response.data.id },
+        to: "/gyms/$gymId/programs/$versionId/edit",
+        params: { gymId: activeGymId!, versionId: response.data.id },
       })
     } catch (err) {
       setError(translateApiError(err, t))
@@ -362,7 +362,10 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
       setNewCoachId("")
       show(t("athletes.reassigned"), "success")
       if (!isAdmin && athlete?.coach_user_id === me?.id) {
-        navigate({ to: "/athletes" })
+        navigate({
+          to: "/gyms/$gymId/athletes",
+          params: { gymId: activeGymId! },
+        })
       }
     } catch (err) {
       setError(translateApiError(err, t))
@@ -382,7 +385,10 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
         queryKey: ["athletes", activeGymId],
       })
       show(t("athletes.archived"), "success")
-      navigate({ to: "/athletes" })
+      navigate({
+        to: "/gyms/$gymId/athletes",
+        params: { gymId: activeGymId! },
+      })
     } catch (err) {
       setError(translateApiError(err, t))
     } finally {
@@ -605,8 +611,11 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 icon={<ArrowLeft size={16} />}
                 onClick={() =>
                   navigate({
-                    to: "/programs/$versionId/edit",
-                    params: { versionId: activeProgram.id },
+                    to: "/gyms/$gymId/programs/$versionId/edit",
+                    params: {
+                      gymId: activeGymId!,
+                      versionId: activeProgram.id,
+                    },
                   })
                 }
               >
@@ -935,8 +944,11 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                         size="sm"
                         onClick={() =>
                           navigate({
-                            to: "/programs/$versionId/edit",
-                            params: { versionId: version.id },
+                            to: "/gyms/$gymId/programs/$versionId/edit",
+                            params: {
+                              gymId: activeGymId!,
+                              versionId: version.id,
+                            },
                           })
                         }
                       >
@@ -948,8 +960,11 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                         size="sm"
                         onClick={() =>
                           navigate({
-                            to: "/programs/$versionId/edit",
-                            params: { versionId: version.id },
+                            to: "/gyms/$gymId/programs/$versionId/edit",
+                            params: {
+                              gymId: activeGymId!,
+                              versionId: version.id,
+                            },
                           })
                         }
                       >

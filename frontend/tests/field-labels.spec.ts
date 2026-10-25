@@ -62,6 +62,7 @@ test("searches and staff forms have persistent, associated labels", async ({
   }
   await page.goto("/gyms")
   await page.getByRole("button", { name: /^باشگاه آرام/ }).click()
+  await page.getByRole("button", { name: "تنظیمات باشگاه" }).click()
   await page.getByRole("button", { name: "ویرایش", exact: true }).click()
   await expect(page.locator(".m3-dialog")).toBeVisible()
   await expectAssociatedLabels(page)

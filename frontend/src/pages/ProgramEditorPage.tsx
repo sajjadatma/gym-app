@@ -237,8 +237,8 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
       show(t("program.published"), "success")
       setPublishOpen(false)
       navigate({
-        to: "/athletes/$athleteId",
-        params: { athleteId: athleteUserId },
+        to: "/gyms/$gymId/athletes/$athleteId",
+        params: { gymId: activeGymId!, athleteId: athleteUserId },
       })
     } catch (err) {
       setError(translateApiError(err, t))
@@ -260,8 +260,8 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
       show(t("program.archivedMessage"), "success")
       setArchiveOpen(false)
       navigate({
-        to: "/athletes/$athleteId",
-        params: { athleteId: athleteUserId },
+        to: "/gyms/$gymId/athletes/$athleteId",
+        params: { gymId: activeGymId!, athleteId: athleteUserId },
       })
     } catch (err) {
       setError(translateApiError(err, t))
@@ -302,12 +302,15 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
 
   const backTo = () => {
     if (activeRole === "ATHLETE") {
-      navigate({ to: "/my" })
+      navigate({
+        to: "/gyms/$gymId/my",
+        params: { gymId: activeGymId! },
+      })
       return
     }
     navigate({
-      to: "/athletes/$athleteId",
-      params: { athleteId: athleteUserId },
+      to: "/gyms/$gymId/athletes/$athleteId",
+      params: { gymId: activeGymId!, athleteId: athleteUserId },
     })
   }
 

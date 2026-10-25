@@ -9,7 +9,7 @@ setup("authenticate gym admin", async ({ page }) => {
   await page.getByLabel(/ایمیل/).fill(ADMIN_EMAIL)
   await page.getByLabel(/رمز عبور/).fill(DEMO_PASSWORD)
   await page.getByRole("button", { name: "ورود" }).click()
-  await page.waitForURL("**/")
+  await page.waitForURL(/\/gyms\/[^/]+$/)
   await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible()
   await page.context().storageState({ path: authFile })
 })
