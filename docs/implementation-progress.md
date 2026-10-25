@@ -161,3 +161,10 @@ The real Super Admin password and invitation tokens are deliberately absent from
 - Coach **delete** removes only the COACH role from that club, deleting the membership only when nothing else remains; accounts, other roles, other clubs, athletes, and workout history are preserved.
 - Athlete actions are club-scoped and reuse the existing lifecycle rules (archive/restore/delete, extra roles preserved, account retained for other clubs). Global athlete creation still requires an active coach; the dialog disables creation when the club has none.
 - Backend exposes superuser-only `/api/v1/superuser/coaches` and `/api/v1/superuser/athletes` endpoints with explicit club ids; non-superusers receive 403 independently of the UI.
+
+### Global people pages aligned with the gym pattern — 2026-10-25
+
+- `/coaches` and `/athletes` now use the same list language as the gym-scoped athletes page: active/archived tabs, deferred search with a clear action, club filter, result-count chip, persisted card/table view toggle, structured loading/empty/error states, and card/table layouts built from the existing M3 classes.
+- Global tables use the shared `m3-data-table` identity cells, status badges, and row actions; cards show avatar, club, coach/phone metadata and the same actions.
+- Global athlete destructive delete is available only on archived rows, matching the gym workflow (active rows offer archive; archived rows offer restore and delete). Coach delete remains available on active rows because multi-role/protected coaches cannot be archived.
+- Intentional contextual differences preserved: the global pages keep a required club filter and club column; bulk selection/import, athlete detail navigation and active-program badges remain club-scoped.

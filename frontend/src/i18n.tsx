@@ -719,6 +719,7 @@ const fa = {
   "validation.required": "این فیلد الزامی است.",
   "nav.coaches": "مربیان",
   "superuser.coaches": "مربیان",
+  "superuser.coachCountLabel": "مربیان: {count}",
   "superuser.coachesSubtitle": "همه مربیان باشگاه‌ها؛ جستجو، ساخت، آرشیو و حذف",
   "superuser.athletes": "ورزشکاران",
   "superuser.athletesSubtitle":
@@ -1496,6 +1497,7 @@ const en: Record<TranslationKey, string> = {
   "validation.required": "This field is required.",
   "nav.coaches": "Coaches",
   "superuser.coaches": "Coaches",
+  "superuser.coachCountLabel": "Coaches: {count}",
   "superuser.coachesSubtitle":
     "All coaches across clubs; search, create, archive and delete",
   "superuser.athletes": "Athletes",

@@ -1,7 +1,16 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Navigate } from "@tanstack/react-router"
-import { Archive, Plus, RotateCcw, Search, Trash2 } from "lucide-react"
-import { useState } from "react"
+import {
+  Archive,
+  Building2,
+  Phone,
+  Plus,
+  RotateCcw,
+  Search,
+  Trash2,
+  Users,
+} from "lucide-react"
+import { useDeferredValue, useEffect, useState } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import {
@@ -13,7 +22,6 @@ import {
   Avatar,
   Button,
   Card,
-  Chip,
   ConfirmDialog,
   Dialog,
   EmptyState,
@@ -24,6 +32,11 @@ import {
   StatusBadge,
   TextField,
 } from "@/components/M3"
+import {
+  PeopleListToolbar,
+  type PeopleTab,
+  type PeopleView,
+} from "@/components/PeopleListToolbar"
 import { useI18n } from "@/i18n"
 import { useSnackbar } from "@/snackbar"
 
@@ -48,13 +61,23 @@ export function SuperuserCoachesPage() {
 }
 
 function CoachesContent() {
-  const { t, formatDate } = useI18n()
+  const { t, formatNumber, formatDate } = useI18n()
   const { gyms } = useAuth()
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
-  const [q, setQ] = useState("")
+  const [search, setSearch] = useState("")
+  const deferredSearch = useDeferredValue(search)
   const [gymFilter, setGymFilter] = useState("")
-  const [includeArchived, setIncludeArchived] = useState(false)
+  const [tab, setTab] = useState<PeopleTab>("active")
+  const [view, setView] = useState<PeopleView>(() => {
+    try {
+      return localStorage.getItem("superuser.coaches.view") === "table"
+        ? "table"
+        : "grid"
+    } catch {
+      return "grid"
+    }
+  })
   const [addOpen, setAddOpen] = useState(false)
   const [created, setCreated] = useState<SuperuserCoachCreated | null>(null)
   const [action, setAction] = useState<Action | null>(null)
@@ -69,19 +92,33 @@ function CoachesContent() {
     initial_password: "",
   })
 
+  useEffect(() => {
+    try {
+      localStorage.setItem("superuser.coaches.view", view)
+    } catch {
+      // Storage may be unavailable; the in-memory view still works.
+    }
+  }, [view])
+
   const coachesQuery = useQuery({
-    queryKey: ["superuser-coaches", q, gymFilter, includeArchived],
+    queryKey: ["superuser-coaches", deferredSearch, gymFilter],
     queryFn: async () =>
       (
         await SuperuserCoachesService.coachesListCoaches({
           query: {
-            q: q || undefined,
+            q: deferredSearch || undefined,
             gym_id: gymFilter || undefined,
-            include_archived: includeArchived,
+            include_archived: true,
           },
         })
       ).data,
   })
+
+  const allRows = coachesQuery.data?.data ?? []
+  const rows = allRows.filter((row) =>
+    tab === "archived" ? !row.is_active : row.is_active,
+  )
+  const hasFilter = search.trim().length > 0 || Boolean(gymFilter)
 
   async function createCoach() {
     setError(null)
@@ -120,12 +157,7 @@ function CoachesContent() {
               : null,
         },
       })
-      await queryClient.invalidateQueries({ queryKey: ["superuser-coaches"] })
-      await queryClient.invalidateQueries({ queryKey: ["gyms"] })
-      await queryClient.invalidateQueries({ queryKey: ["members"] })
-      await queryClient.invalidateQueries({ queryKey: ["athletes"] })
-      await queryClient.invalidateQueries({ queryKey: ["athlete"] })
-      await queryClient.invalidateQueries({ queryKey: ["gym"] })
+      await invalidateAll()
       setAddOpen(false)
       setCreated(response.data)
       setForm({
@@ -142,6 +174,15 @@ function CoachesContent() {
     } finally {
       setBusy(false)
     }
+  }
+
+  async function invalidateAll() {
+    await queryClient.invalidateQueries({ queryKey: ["superuser-coaches"] })
+    await queryClient.invalidateQueries({ queryKey: ["gyms"] })
+    await queryClient.invalidateQueries({ queryKey: ["members"] })
+    await queryClient.invalidateQueries({ queryKey: ["athletes"] })
+    await queryClient.invalidateQueries({ queryKey: ["athlete"] })
+    await queryClient.invalidateQueries({ queryKey: ["gym"] })
   }
 
   async function runAction() {
@@ -161,12 +202,7 @@ function CoachesContent() {
           path: { membership_id: action.row.membership_id },
         })
       }
-      await queryClient.invalidateQueries({ queryKey: ["superuser-coaches"] })
-      await queryClient.invalidateQueries({ queryKey: ["gyms"] })
-      await queryClient.invalidateQueries({ queryKey: ["members"] })
-      await queryClient.invalidateQueries({ queryKey: ["athletes"] })
-      await queryClient.invalidateQueries({ queryKey: ["athlete"] })
-      await queryClient.invalidateQueries({ queryKey: ["gym"] })
+      await invalidateAll()
       show(
         t(
           action.kind === "archive"
@@ -190,6 +226,42 @@ function CoachesContent() {
     label: gym.name,
   }))
 
+  function rowActions(row: SuperuserCoachRow) {
+    return (
+      <>
+        {row.can_archive ? (
+          <Button
+            variant="text"
+            size="sm"
+            icon={
+              row.is_active ? <Archive size={14} /> : <RotateCcw size={14} />
+            }
+            onClick={() =>
+              setAction({
+                kind: row.is_active ? "archive" : "restore",
+                row,
+              })
+            }
+          >
+            {t(row.is_active ? "superuser.archive" : "superuser.restore")}
+          </Button>
+        ) : null}
+        <Button
+          variant="text"
+          size="sm"
+          icon={<Trash2 size={14} />}
+          onClick={() => setAction({ kind: "delete", row })}
+        >
+          {t("common.delete")}
+        </Button>
+      </>
+    )
+  }
+
+  function statusOf(row: SuperuserCoachRow) {
+    return row.is_active ? "active" : "archived"
+  }
+
   return (
     <>
       <PageHeader
@@ -202,35 +274,32 @@ function CoachesContent() {
         }
       />
 
-      <Card className="m3-card--outlined">
-        <div className="row" style={{ gap: 12, flexWrap: "wrap" }}>
-          <div style={{ flex: "1 1 240px" }}>
-            <TextField
-              label={t("superuser.search")}
-              value={q}
-              onChange={(event) => setQ(event.target.value)}
-              leading={<Search size={16} />}
-            />
-          </div>
-          <div style={{ flex: "0 1 220px" }}>
-            <SelectField
-              label={t("superuser.club")}
-              value={gymFilter}
-              onChange={setGymFilter}
-              options={[
-                { value: "", label: t("superuser.allClubs") },
-                ...gymOptions,
-              ]}
-            />
-          </div>
-          <Chip
-            selected={includeArchived}
-            onClick={() => setIncludeArchived((value) => !value)}
-          >
-            {t("superuser.showArchived")}
-          </Chip>
-        </div>
-      </Card>
+      <PeopleListToolbar
+        search={search}
+        onSearch={setSearch}
+        searchLabel={t("athletes.search")}
+        clearSearchLabel={t("athletes.clearSearch")}
+        countLabel={t("superuser.coachCountLabel", {
+          count: formatNumber(rows.length),
+        })}
+        view={view}
+        onViewChange={setView}
+        viewLabel={t("athletes.view")}
+        gridLabel={t("athletes.gridView")}
+        tableLabel={t("athletes.tableView")}
+        clubValue={gymFilter}
+        onClubChange={setGymFilter}
+        clubLabel={t("superuser.club")}
+        clubOptions={[
+          { value: "", label: t("superuser.allClubs") },
+          ...gymOptions,
+        ]}
+        tab={tab}
+        onTabChange={setTab}
+        tabLabel={t("superuser.coaches")}
+        activeLabel={t("status.active")}
+        archivedLabel={t("status.archived")}
+      />
 
       {coachesQuery.isLoading ? (
         <Spinner label={t("common.loading")} />
@@ -240,96 +309,119 @@ function CoachesContent() {
           retryLabel={t("common.retry")}
           onRetry={() => coachesQuery.refetch()}
         />
-      ) : (coachesQuery.data?.data.length ?? 0) === 0 ? (
+      ) : rows.length === 0 ? (
         <EmptyState
-          title={t("superuser.noCoaches")}
-          description={t("superuser.emptyCoachHint")}
+          icon={hasFilter ? <Search size={26} /> : <Users size={26} />}
+          title={hasFilter ? t("common.noResults") : t("superuser.noCoaches")}
+          description={
+            hasFilter
+              ? t("athletes.noResultsHint")
+              : t("superuser.emptyCoachHint")
+          }
           action={
-            <Button icon={<Plus size={17} />} onClick={() => setAddOpen(true)}>
-              {t("superuser.addCoach")}
-            </Button>
+            hasFilter ? (
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setSearch("")
+                  setGymFilter("")
+                }}
+              >
+                {t("athletes.clearSearch")}
+              </Button>
+            ) : (
+              <Button
+                icon={<Plus size={17} />}
+                onClick={() => setAddOpen(true)}
+              >
+                {t("superuser.addCoach")}
+              </Button>
+            )
           }
         />
+      ) : view === "grid" ? (
+        <div className="m3-card-grid">
+          {rows.map((row) => (
+            <div
+              key={row.membership_id}
+              className={`m3-entity-card ${row.is_active ? "" : "is-archived"}`}
+            >
+              <div className="m3-entity-card__body">
+                <div className="m3-entity-card__head">
+                  <div className="m3-entity-card__identity">
+                    <Avatar name={row.full_name ?? row.email} />
+                    <div className="m3-entity-card__person">
+                      <div
+                        className="m3-entity-card__title"
+                        title={row.full_name ?? row.email}
+                      >
+                        {row.full_name ?? row.email}
+                      </div>
+                      <div
+                        className="m3-entity-card__email truncate"
+                        dir="ltr"
+                        title={row.email}
+                      >
+                        {row.email}
+                      </div>
+                    </div>
+                  </div>
+                  <StatusBadge status={statusOf(row)} />
+                </div>
+                <div className="m3-entity-card__meta">
+                  <span>
+                    <Building2 size={13} aria-hidden /> {row.gym_name}
+                  </span>
+                  <span dir="ltr">
+                    <Phone size={13} aria-hidden /> {row.phone || "—"}
+                  </span>
+                  <span className="muted">{formatDate(row.created_at)}</span>
+                </div>
+              </div>
+              <div className="m3-entity-card__footer">
+                <div className="m3-entity-card__actions">{rowActions(row)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
-        <Card className="m3-card--outlined">
-          <div className="m3-table-wrap">
-            <table className="m3-table">
+        <Card className="m3-data-card">
+          <div className="m3-table-wrap m3-data-table-wrap">
+            <table className="m3-table m3-data-table">
               <thead>
                 <tr>
-                  <th>{t("athletes.fullName")}</th>
-                  <th>{t("auth.email")}</th>
-                  <th>{t("profile.phone")}</th>
-                  <th>{t("superuser.club")}</th>
-                  <th>{t("superuser.status")}</th>
-                  <th>{t("common.actions")}</th>
+                  <th scope="col">{t("athletes.fullName")}</th>
+                  <th scope="col">{t("profile.phone")}</th>
+                  <th scope="col">{t("superuser.club")}</th>
+                  <th scope="col">{t("superuser.status")}</th>
+                  <th scope="col">{t("common.actions")}</th>
                 </tr>
               </thead>
               <tbody>
-                {coachesQuery.data?.data.map((row) => (
+                {rows.map((row) => (
                   <tr key={row.membership_id}>
                     <td>
                       <div className="row" style={{ gap: 10 }}>
                         <Avatar name={row.full_name ?? row.email} />
-                        <div>
-                          <div style={{ fontWeight: 650 }}>
-                            {row.full_name ?? row.email}
-                          </div>
-                          <div className="muted" style={{ fontSize: 10.5 }}>
-                            {formatDate(row.created_at)}
-                          </div>
+                        <div className="m3-data-table__person">
+                          <strong>{row.full_name ?? row.email}</strong>
+                          <span dir="ltr">{row.email}</span>
                         </div>
                       </div>
                     </td>
-                    <td dir="ltr" style={{ textAlign: "start" }}>
-                      {row.email}
-                    </td>
-                    <td dir="ltr" style={{ textAlign: "start" }}>
+                    <td dir="ltr" className="m3-data-table__num">
                       {row.phone || "—"}
                     </td>
                     <td>{row.gym_name}</td>
                     <td>
-                      <StatusBadge
-                        status={row.is_active ? "active" : "archived"}
-                      />
+                      <StatusBadge status={statusOf(row)} />
                     </td>
                     <td>
                       <div
                         className="row"
                         style={{ gap: 4, flexWrap: "nowrap" }}
                       >
-                        {row.can_archive ? (
-                          <Button
-                            variant="text"
-                            size="sm"
-                            icon={
-                              row.is_active ? (
-                                <Archive size={14} />
-                              ) : (
-                                <RotateCcw size={14} />
-                              )
-                            }
-                            onClick={() =>
-                              setAction({
-                                kind: row.is_active ? "archive" : "restore",
-                                row,
-                              })
-                            }
-                          >
-                            {t(
-                              row.is_active
-                                ? "superuser.archive"
-                                : "superuser.restore",
-                            )}
-                          </Button>
-                        ) : null}
-                        <Button
-                          variant="text"
-                          size="sm"
-                          icon={<Trash2 size={14} />}
-                          onClick={() => setAction({ kind: "delete", row })}
-                        >
-                          {t("common.delete")}
-                        </Button>
+                        {rowActions(row)}
                       </div>
                     </td>
                   </tr>

@@ -206,6 +206,7 @@ test("global coaches and athletes pages manage people across clubs", async ({
     .getByRole("button", { name: "مربیان" })
     .click()
   await expect(page).toHaveURL(/\/coaches$/)
+  await page.getByRole("button", { name: "جدول" }).click()
 
   await page.getByRole("button", { name: "افزودن مربی" }).click()
   let dialog = page.getByRole("dialog")
@@ -230,7 +231,7 @@ test("global coaches and athletes pages manage people across clubs", async ({
   await coachRow.getByRole("button", { name: "آرشیو" }).click()
   await page.getByRole("dialog").getByRole("button", { name: "آرشیو" }).click()
   await expect(page.getByRole("dialog")).toHaveCount(0)
-  await page.getByRole("button", { name: "نمایش آرشیوشده‌ها" }).click()
+  await page.locator(".m3-tabs").getByRole("button", { name: "آرشیو" }).click()
   const archivedCoach = page.locator("tr", { hasText: coachEmail })
   await expect(archivedCoach.locator(".m3-status")).toHaveText("آرشیو")
   await archivedCoach.getByRole("button", { name: "بازیابی" }).click()
@@ -239,7 +240,7 @@ test("global coaches and athletes pages manage people across clubs", async ({
     .getByRole("button", { name: "بازیابی" })
     .click()
   await expect(page.getByRole("dialog")).toHaveCount(0)
-  await page.getByRole("button", { name: "نمایش آرشیوشده‌ها" }).click()
+  await page.locator(".m3-tabs").getByRole("button", { name: "فعال" }).click()
   await expect(
     page.locator("tr", { hasText: coachEmail }).locator(".m3-status"),
   ).toHaveText("فعال")
@@ -249,6 +250,7 @@ test("global coaches and athletes pages manage people across clubs", async ({
     .getByRole("button", { name: "ورزشکاران" })
     .click()
   await expect(page).toHaveURL(/\/athletes$/)
+  await page.getByRole("button", { name: "جدول" }).click()
   await page.getByRole("button", { name: "افزودن ورزشکار" }).click()
   dialog = page.getByRole("dialog")
   await dialog.getByRole("button", { name: /باشگاه/ }).click()
@@ -274,7 +276,7 @@ test("global coaches and athletes pages manage people across clubs", async ({
   await page.getByRole("dialog").getByRole("button", { name: "آرشیو" }).click()
   await expect(page.getByRole("dialog")).toHaveCount(0)
   await expect(page.locator(".m3-scrim")).toHaveCount(0)
-  await page.getByRole("button", { name: "نمایش آرشیوشده‌ها" }).click()
+  await page.locator(".m3-tabs").getByRole("button", { name: "آرشیو" }).click()
   const archivedRow = page.locator("tr", { hasText: athleteEmail })
   await expect(archivedRow.locator(".m3-status")).toHaveText("آرشیو")
   await archivedRow.getByRole("button", { name: "حذف" }).click()
