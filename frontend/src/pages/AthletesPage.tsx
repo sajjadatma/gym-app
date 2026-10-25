@@ -1,4 +1,8 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import {
   Archive,
@@ -49,7 +53,7 @@ import {
   StatusBadge,
   TextField,
 } from "@/components/M3"
-import { PaginationBar, usePagination } from "@/components/Pagination"
+import { PaginationBar, pageWindow, usePager } from "@/components/Pagination"
 import { useI18n } from "@/i18n"
 import { useSnackbar } from "@/snackbar"
 
@@ -70,7 +74,7 @@ export function AthletesPage() {
       return "grid"
     }
   })
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<Record<string, AthleteSummary>>({})
   const selectAllRef = useRef<HTMLInputElement>(null)
   const tableWrapRef = useRef<HTMLDivElement>(null)
   const [addOpen, setAddOpen] = useState(false)
@@ -93,16 +97,31 @@ export function AthletesPage() {
   })
 
   const canCreate = activeRole === "GYM_ADMIN" || activeRole === "COACH"
+  const resetKey = `${deferredSearch}|${activeRole ?? ""}`
+  const pager = usePager(resetKey)
 
   const athletesQuery = useQuery({
-    queryKey: ["athletes", activeGymId, deferredSearch, activeRole],
+    queryKey: [
+      "athletes",
+      activeGymId,
+      deferredSearch,
+      activeRole,
+      pager.offset,
+      pager.limit,
+    ],
     queryFn: async () =>
       (
         await AthletesService.listAthletes({
-          query: { q: deferredSearch },
+          query: {
+            q: deferredSearch,
+            is_archived: false,
+            offset: pager.offset,
+            limit: pager.limit,
+          },
         })
       ).data,
     enabled: Boolean(activeGymId),
+    placeholderData: keepPreviousData,
   })
 
   const coachesQuery = useQuery({
@@ -116,25 +135,23 @@ export function AthletesPage() {
     enabled: Boolean(activeGymId && isAdmin),
   })
 
-  const athletes = (athletesQuery.data?.data ?? []).filter((athlete) => {
-    if (activeRole === "COACH" && !isAdmin) {
-      return athlete.coach_user_id === me?.id
-    }
-    return true
-  })
-  const pager = usePagination(athletes, `${deferredSearch}|${activeRole ?? ""}`)
+  const athletes = athletesQuery.data?.data ?? []
+  const total = athletesQuery.data?.count ?? 0
+  const pageState = pageWindow(pager, total)
+  if (pager.page !== pageState.page) pager.setPage(pageState.page)
 
   const coachOptions = (coachesQuery.data ?? []).map((coach) => ({
     value: coach.user_id,
     label: coach.full_name ?? coach.email,
   }))
 
-  const selectedAthletes = athletes.filter((athlete) =>
-    selected.has(athlete.user_id),
+  const selectedAthletes = Object.values(selected)
+  const selectedOnPage = athletes.filter((athlete) =>
+    Boolean(selected[athlete.user_id]),
   )
   const allSelected =
-    athletes.length > 0 && selectedAthletes.length === athletes.length
-  const someSelected = selectedAthletes.length > 0 && !allSelected
+    athletes.length > 0 && selectedOnPage.length === athletes.length
+  const someSelected = selectedOnPage.length > 0 && !allSelected
   const ForwardIcon = direction === "rtl" ? ArrowLeft : ArrowRight
   const hasSearch = search.trim().length > 0
 
@@ -152,9 +169,10 @@ export function AthletesPage() {
     }
   }, [someSelected])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear selection when the filter or role changes
   useEffect(() => {
-    setSelected(new Set())
-  }, [])
+    setSelected({})
+  }, [resetKey])
 
   useLayoutEffect(() => {
     if (view !== "table") return
@@ -162,25 +180,33 @@ export function AthletesPage() {
     if (wrapper) wrapper.scrollLeft = wrapper.scrollWidth
   }, [view])
 
-  function toggleSelected(userId: string) {
+  function toggleSelected(athlete: AthleteSummary) {
     setSelected((previous) => {
-      const next = new Set(previous)
-      if (next.has(userId)) next.delete(userId)
-      else next.add(userId)
+      const next = { ...previous }
+      if (next[athlete.user_id]) delete next[athlete.user_id]
+      else next[athlete.user_id] = athlete
       return next
     })
   }
 
   function toggleSelectAll() {
     if (allSelected) {
-      setSelected(new Set())
+      setSelected((previous) => {
+        const next = { ...previous }
+        for (const athlete of athletes) delete next[athlete.user_id]
+        return next
+      })
       return
     }
-    setSelected(new Set(athletes.map((athlete) => athlete.user_id)))
+    setSelected((previous) => {
+      const next = { ...previous }
+      for (const athlete of athletes) next[athlete.user_id] = athlete
+      return next
+    })
   }
 
   function clearSelection() {
-    setSelected(new Set())
+    setSelected({})
   }
 
   async function archiveAthletes() {
@@ -211,7 +237,7 @@ export function AthletesPage() {
       )
     }
     setArchiveTargets([])
-    setSelected(new Set())
+    setSelected({})
     setArchiveBusy(false)
   }
 
@@ -348,7 +374,7 @@ export function AthletesPage() {
         <div className="m3-list-toolbar__actions">
           <span className="m3-count-chip" aria-live="polite">
             {t("athletes.countLabel", {
-              count: formatNumber(athletes.length),
+              count: formatNumber(total),
             })}
           </span>
           <fieldset className="m3-view-toggle">
@@ -391,7 +417,7 @@ export function AthletesPage() {
           onRetry={() => athletesQuery.refetch()}
           retryLabel={t("common.retry")}
         />
-      ) : athletes.length === 0 ? (
+      ) : total === 0 ? (
         <EmptyState
           icon={hasSearch ? <Search size={26} /> : <Users size={26} />}
           title={hasSearch ? t("common.noResults") : t("athletes.empty")}
@@ -419,7 +445,7 @@ export function AthletesPage() {
         />
       ) : view === "grid" ? (
         <div className="m3-card-grid">
-          {pager.pageItems.map((athlete) => (
+          {athletes.map((athlete) => (
             <div
               key={athlete.user_id}
               className={`m3-entity-card ${
@@ -576,19 +602,17 @@ export function AthletesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {pager.pageItems.map((athlete) => (
+                  {athletes.map((athlete) => (
                     <tr
                       key={athlete.user_id}
-                      className={
-                        selected.has(athlete.user_id) ? "is-selected" : ""
-                      }
+                      className={selected[athlete.user_id] ? "is-selected" : ""}
                     >
                       <td className="m3-data-table__check">
                         <label className="m3-checkbox">
                           <input
                             type="checkbox"
-                            checked={selected.has(athlete.user_id)}
-                            onChange={() => toggleSelected(athlete.user_id)}
+                            checked={Boolean(selected[athlete.user_id])}
+                            onChange={() => toggleSelected(athlete)}
                             aria-label={`${t("athletes.select")} ${
                               athlete.full_name ?? athlete.email
                             }`}
@@ -678,14 +702,15 @@ export function AthletesPage() {
         </>
       )}
 
-      {athletes.length > 0 ? (
+      {total > 0 ? (
         <PaginationBar
-          page={pager.page}
-          pageCount={pager.pageCount}
+          page={pageState.page}
+          pageCount={pageState.pageCount}
           pageSize={pager.pageSize}
-          total={pager.total}
-          start={pager.start}
-          end={pager.end}
+          total={pageState.total}
+          start={pageState.start}
+          end={pageState.end}
+          loading={athletesQuery.isFetching}
           onPageChange={pager.setPage}
           onPageSizeChange={pager.setPageSize}
         />

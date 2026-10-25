@@ -7,7 +7,8 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
-from sqlmodel import Session, col, select
+from sqlalchemy import exists, or_
+from sqlmodel import col, select
 
 from app.api.deps import (
     CurrentUser,
@@ -31,7 +32,6 @@ from app.models import (
     AthleteSelfDetail,
     AthleteSelfUpdate,
     AthletesPublic,
-    AthleteSummary,
     BodyAnalysisFile,
     BodyAnalysisFilePublic,
     CoachAssignment,
@@ -60,8 +60,13 @@ from app.services.athlete_lifecycle import (
 from app.services.athlete_lifecycle import (
     validate_coach as _validate_coach,
 )
+from app.services.pagination import (
+    DEFAULT_PAGE_SIZE,
+    MAX_PAGE_SIZE,
+    paginate,
+)
 from app.services.profiles import (
-    athlete_summary,
+    athlete_summaries_page,
     body_file_public,
     self_detail,
     staff_detail,
@@ -75,20 +80,6 @@ from app.services.storage import (
 router = APIRouter(prefix="/athletes", tags=["athletes"])
 
 
-def _athlete_membership(
-    session: Session, *, gym_id: uuid.UUID, user_id: uuid.UUID
-) -> GymMembership:
-    membership = session.exec(
-        select(GymMembership).where(
-            GymMembership.gym_id == gym_id,
-            GymMembership.user_id == user_id,
-        )
-    ).first()
-    if not membership:
-        raise HTTPException(status_code=404, detail="athlete_not_found")
-    return membership
-
-
 @router.get("", response_model=AthletesPublic)
 def list_athletes(
     *,
@@ -97,61 +88,85 @@ def list_athletes(
     ctx: GymStaffDep,
     q: str = Query(default="", max_length=255),
     include_archived: bool = False,
+    is_archived: bool | None = None,
+    assigned_to_me: bool = False,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
 ) -> Any:
-    if include_archived and not ctx.is_admin:
+    archived_scope = is_archived is True or (
+        is_archived is None and include_archived
+    )
+    if archived_scope and not ctx.is_admin:
         raise HTTPException(status_code=403, detail="gym_admin_required")
-    profiles = session.exec(
-        select(AthleteProfile)
+
+    statement = (
+        select(AthleteProfile, User, GymMembership)
+        .join(User, col(User.id) == col(AthleteProfile.user_id))
+        .join(
+            GymMembership,
+            (col(GymMembership.gym_id) == col(AthleteProfile.gym_id))
+            & (col(GymMembership.user_id) == col(AthleteProfile.user_id)),
+        )
         .where(AthleteProfile.gym_id == ctx.gym.id)
-        .order_by(col(AthleteProfile.created_at).desc())
-    ).all()
+    )
 
-    assigned_ids: set[uuid.UUID] | None = None
-    if not ctx.is_admin:
-        assignments = session.exec(
-            select(CoachAssignment).where(
-                CoachAssignment.gym_id == ctx.gym.id,
-                CoachAssignment.coach_user_id == current_user.id,
-                col(CoachAssignment.ended_at).is_(None),
-            )
-        ).all()
-        assigned_ids = {row.athlete_user_id for row in assignments}
+    if is_archived is not None:
+        statement = statement.where(
+            col(AthleteProfile.is_archived).is_(is_archived)
+        )
+    elif not include_archived:
+        statement = statement.where(
+            col(AthleteProfile.is_archived).is_(False)
+        )
 
-    needle = q.strip().lower()
-    summaries: list[AthleteSummary] = []
-    for profile in profiles:
-        if assigned_ids is not None and profile.user_id not in assigned_ids:
-            continue
-        if profile.is_archived and not include_archived:
-            continue
-        user = session.get(User, profile.user_id)
-        if not user:
-            continue
-        if needle:
-            haystack = " ".join(
-                filter(
-                    None,
-                    [user.full_name or "", user.email, profile.phone or ""],
+    if is_archived is not True:
+        if is_archived is None and include_archived:
+            statement = statement.where(
+                or_(
+                    col(GymMembership.is_active).is_(True),
+                    col(AthleteProfile.is_archived).is_(True),
                 )
-            ).lower()
-            if needle not in haystack:
-                continue
-        membership = _athlete_membership(
-            session, gym_id=ctx.gym.id, user_id=profile.user_id
-        )
-        if not membership.is_active and not (include_archived and profile.is_archived):
-            continue
-        assignment = get_current_assignment(session, ctx.gym.id, profile.user_id)
-        summaries.append(
-            athlete_summary(
-                session,
-                profile=profile,
-                user=user,
-                membership=membership,
-                assignment=assignment,
+            )
+        else:
+            statement = statement.where(
+                col(GymMembership.is_active).is_(True)
+            )
+
+    if assigned_to_me or not ctx.is_admin:
+        statement = statement.where(
+            exists(
+                select(CoachAssignment.id).where(
+                    CoachAssignment.gym_id == ctx.gym.id,
+                    CoachAssignment.coach_user_id == current_user.id,
+                    CoachAssignment.athlete_user_id
+                    == AthleteProfile.user_id,
+                    col(CoachAssignment.ended_at).is_(None),
+                )
             )
         )
-    return AthletesPublic(data=summaries, count=len(summaries))
+
+    term = q.strip()
+    if term:
+        pattern = f"%{term}%"
+        statement = statement.where(
+            or_(
+                col(User.email).ilike(pattern),
+                col(User.full_name).ilike(pattern),
+                col(AthleteProfile.phone).ilike(pattern),
+            )
+        )
+
+    statement = statement.order_by(
+        col(AthleteProfile.created_at).desc(),
+        col(AthleteProfile.user_id),
+    )
+    rows, total = paginate(
+        session, statement, offset=offset, limit=limit
+    )
+    summaries = athlete_summaries_page(
+        session, gym_id=ctx.gym.id, rows=rows
+    )
+    return AthletesPublic(data=summaries, count=total)
 
 
 @router.get("/me", response_model=AthleteSelfDetail)

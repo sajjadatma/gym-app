@@ -20,11 +20,12 @@ import {
   Spinner,
 } from "@/components/M3"
 import { useI18n } from "@/i18n"
+import { fetchAllPages } from "@/lib/fetch-all-pages"
 import { useSnackbar } from "@/snackbar"
 
 export function TemplatesPage() {
   const { t, formatDate, formatNumber } = useI18n()
-  const { activeGym, activeGymId, activeRole, isAdmin, me } = useAuth()
+  const { activeGym, activeGymId, activeRole, me } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
@@ -43,11 +44,13 @@ export function TemplatesPage() {
   const athletesQuery = useQuery({
     queryKey: ["athletes", activeGymId, "templates-apply", activeRole],
     queryFn: async () =>
-      (
-        await AthletesService.listAthletes({
-          query: { q: "", include_archived: false },
+      // The picker must offer every eligible athlete, not one page.
+      fetchAllPages(async (offset, limit) => {
+        const response = await AthletesService.listAthletes({
+          query: { q: "", is_archived: false, offset, limit },
         })
-      ).data.data,
+        return response.data
+      }),
     enabled: Boolean(activeGymId && applyTemplate),
   })
 
@@ -64,11 +67,7 @@ export function TemplatesPage() {
   const templates = (templatesQuery.data ?? []).filter(
     (template) => activeRole !== "COACH" || template.created_by_id === me?.id,
   )
-  const athletes = (athletesQuery.data ?? []).filter((athlete) => {
-    if (activeRole === "COACH" && !isAdmin)
-      return athlete.coach_user_id === me?.id
-    return true
-  })
+  const athletes = athletesQuery.data ?? []
 
   async function apply() {
     if (!applyTemplate || !athleteId) {

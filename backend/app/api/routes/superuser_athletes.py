@@ -28,6 +28,11 @@ from app.services.athlete_lifecycle import (
     delete_athlete_record,
     restore_athlete_record,
 )
+from app.services.pagination import (
+    DEFAULT_PAGE_SIZE,
+    MAX_PAGE_SIZE,
+    paginate,
+)
 
 router = APIRouter(prefix="/superuser/athletes", tags=["superuser-athletes"])
 
@@ -57,6 +62,9 @@ def list_athletes(
     q: str = "",
     gym_id: uuid.UUID | None = None,
     include_archived: bool = Query(default=False),
+    is_archived: bool | None = None,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
 ) -> Any:
     statement = (
         select(AthleteProfile, User, Gym)
@@ -65,7 +73,11 @@ def list_athletes(
     )
     if gym_id is not None:
         statement = statement.where(AthleteProfile.gym_id == gym_id)
-    if not include_archived:
+    if is_archived is not None:
+        statement = statement.where(
+            col(AthleteProfile.is_archived).is_(is_archived)
+        )
+    elif not include_archived:
         statement = statement.where(
             col(AthleteProfile.is_archived).is_(False)
         )
@@ -80,16 +92,23 @@ def list_athletes(
             )
         )
     statement = statement.order_by(
-        col(Gym.name), col(User.full_name), col(User.email)
+        col(Gym.name),
+        col(User.full_name),
+        col(User.email),
+        col(User.id),
     )
-    rows = session.exec(statement).all()
+    rows, total = paginate(
+        session, statement, offset=offset, limit=limit
+    )
 
     gym_ids = {gym.id for _profile, _user, gym in rows}
+    athlete_ids = {user.id for _profile, user, _gym in rows}
     assignments = (
         session.exec(
             select(CoachAssignment).where(
                 col(CoachAssignment.ended_at).is_(None),
                 col(CoachAssignment.gym_id).in_(gym_ids),
+                col(CoachAssignment.athlete_user_id).in_(athlete_ids),
             )
         ).all()
         if gym_ids
@@ -132,7 +151,7 @@ def list_athletes(
                 created_at=profile.created_at,
             )
         )
-    return SuperuserAthletesPublic(data=data, count=len(data))
+    return SuperuserAthletesPublic(data=data, count=total)
 
 
 @router.post("", response_model=AthleteCreated)

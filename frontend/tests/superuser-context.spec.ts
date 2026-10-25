@@ -222,6 +222,7 @@ test("global coaches and athletes pages manage people across clubs", async ({
   await expect(coachResult).toHaveCount(0)
   await expect(page.locator(".m3-scrim")).toHaveCount(0)
   await page.waitForTimeout(300)
+  await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(coachEmail)
   await expect(page.getByText(coachEmail)).toBeVisible()
   await expect(page.locator("tr", { hasText: coachEmail })).toContainText(
     "باشگاه آرام",
@@ -269,6 +270,7 @@ test("global coaches and athletes pages manage people across clubs", async ({
   await expect(athleteResult).toHaveCount(0)
   await expect(page.locator(".m3-scrim")).toHaveCount(0)
   await page.waitForTimeout(300)
+  await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(athleteEmail)
   const athleteRow = page.locator("tr", { hasText: athleteEmail })
   await expect(athleteRow).toContainText("باشگاه آرام")
   await expect(athleteRow).toContainText(athletePhone)
@@ -289,6 +291,7 @@ test("global coaches and athletes pages manage people across clubs", async ({
     .locator(".m3-nav-rail")
     .getByRole("button", { name: "مربیان" })
     .click()
+  await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(coachEmail)
   await coachRow.getByRole("button", { name: "حذف از باشگاه" }).click()
   await page
     .getByRole("dialog")
@@ -327,7 +330,17 @@ test("global athlete list paginates and changes page size", async ({
   }))
   await page.route(/\/api\/v1\/superuser\/athletes(\?.*)?$/, async (route) => {
     if (route.request().method() === "GET") {
-      await route.fulfill({ json: { data: rows, count: rows.length } })
+      const url = new URL(route.request().url())
+      const offset = Number(url.searchParams.get("offset") ?? 0)
+      const limit = Number(url.searchParams.get("limit") ?? 10)
+      const archived = url.searchParams.get("is_archived")
+      const matching = archived === "true" ? [] : rows
+      await route.fulfill({
+        json: {
+          data: matching.slice(offset, offset + limit),
+          count: matching.length,
+        },
+      })
       return
     }
     await route.continue()

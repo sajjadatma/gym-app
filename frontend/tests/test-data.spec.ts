@@ -17,9 +17,11 @@ test("managed athlete cleanup is idempotent and preserves seeded athletes", asyn
   })
   expect(beforeResponse.ok()).toBeTruthy()
   const before = await beforeResponse.json()
-  const nima = before.data.find(
-    (item: { email: string }) => item.email === "nima@example.com",
-  )
+  const nimaResponse = await request.get(listingUrl("nima@example.com"), {
+    headers: athleteData.headers,
+  })
+  expect(nimaResponse.ok()).toBeTruthy()
+  const nima = (await nimaResponse.json()).data[0]
   expect(nima).toBeTruthy()
   const nimaBeforeResponse = await request.get(
     `${API_URL}/api/v1/athletes/${nima.user_id}`,

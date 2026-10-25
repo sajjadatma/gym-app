@@ -4,7 +4,8 @@ import secrets
 import uuid
 from typing import Any, cast
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from sqlalchemy import or_
 from sqlmodel import Session, col, select
 
 from app.api.deps import (
@@ -21,6 +22,7 @@ from app.models import (
     GymCreate,
     GymCreated,
     GymMembership,
+    GymMembershipRole,
     GymPublic,
     GymRole,
     GymsPublic,
@@ -43,6 +45,11 @@ from app.services.membership import (
     send_invitation_for_user,
     to_gym_public,
 )
+from app.services.pagination import (
+    DEFAULT_PAGE_SIZE,
+    MAX_PAGE_SIZE,
+    paginate,
+)
 from app.services.profiles import coach_members
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
@@ -53,13 +60,13 @@ def _require_path_gym(ctx_gym: Gym, gym_id: uuid.UUID) -> None:
         raise HTTPException(status_code=404, detail="gym_not_found")
 
 
-def _member_public(
-    session: Session, membership: GymMembership, gym: Gym
+def _member_public_from(
+    *,
+    membership: GymMembership,
+    user: User,
+    roles: set[str],
+    gym: Gym,
 ) -> MemberPublic:
-    user = session.get(User, membership.user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="user_not_found")
-    roles = get_membership_roles(session, membership.id)
     return MemberPublic(
         membership_id=membership.id,
         user_id=user.id,
@@ -70,6 +77,18 @@ def _member_public(
         is_active=membership.is_active,
         is_owner=gym.owner_id == user.id,
         created_at=membership.created_at,
+    )
+
+
+def _member_public(
+    session: Session, membership: GymMembership, gym: Gym
+) -> MemberPublic:
+    user = session.get(User, membership.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="user_not_found")
+    roles = get_membership_roles(session, membership.id)
+    return _member_public_from(
+        membership=membership, user=user, roles=roles, gym=gym
     )
 
 
@@ -309,17 +328,63 @@ def list_members(
     gym_id: uuid.UUID,
     session: SessionDep,
     ctx: GymContextDep,
+    staff_only: bool = False,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
 ) -> Any:
     _require_path_gym(ctx.gym, gym_id)
     if not ctx.is_admin:
         raise HTTPException(status_code=403, detail="gym_admin_required")
-    rows = session.exec(
-        select(GymMembership)
+    statement = (
+        select(GymMembership, User)
+        .join(User, col(User.id) == col(GymMembership.user_id))
         .where(GymMembership.gym_id == gym_id)
-        .order_by(col(GymMembership.created_at))
-    ).all()
-    data = [_member_public(session, row, ctx.gym) for row in rows]
-    return MembersPublic(data=data, count=len(data))
+    )
+    if staff_only:
+        statement = statement.where(
+            or_(
+                col(User.id) == ctx.gym.owner_id,
+                col(GymMembership.id).in_(
+                    select(GymMembershipRole.membership_id).where(
+                        col(GymMembershipRole.role).in_(
+                            ("GYM_ADMIN", "COACH")
+                        )
+                    )
+                ),
+            )
+        )
+    statement = statement.order_by(
+        col(GymMembership.created_at), col(GymMembership.id)
+    )
+    rows, total = paginate(
+        session, statement, offset=offset, limit=limit
+    )
+    role_rows = (
+        session.exec(
+            select(GymMembershipRole).where(
+                col(GymMembershipRole.membership_id).in_(
+                    [membership.id for membership, _user in rows]
+                )
+            )
+        ).all()
+        if rows
+        else []
+    )
+    roles_by_membership: dict[uuid.UUID, set[str]] = {}
+    for role_row in role_rows:
+        roles_by_membership.setdefault(role_row.membership_id, set()).add(
+            role_row.role
+        )
+    data = [
+        _member_public_from(
+            membership=membership,
+            user=user,
+            roles=roles_by_membership.get(membership.id, set()),
+            gym=ctx.gym,
+        )
+        for membership, user in rows
+    ]
+    return MembersPublic(data=data, count=total)
 
 
 @router.post("/{gym_id}/members", response_model=MemberCreated)

@@ -229,7 +229,7 @@ test("import mutation cannot be dismissed while submitting", async ({
   const email = `${athleteData.marker}-import-${Date.now()}@example.com`
   athleteData.trackEmail(email)
   await page.goto("/athletes")
-  await page.getByRole("button", { name: "ورود گروهی" }).click()
+  await page.getByRole("button", { name: "ورود گروهی", exact: true }).click()
   const dialog = page.getByRole("dialog")
   await expect(dialog).toBeVisible()
 

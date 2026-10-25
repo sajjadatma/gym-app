@@ -1,4 +1,8 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 import { Navigate } from "@tanstack/react-router"
 import {
   Archive,
@@ -34,13 +38,14 @@ import {
   StatusBadge,
   TextField,
 } from "@/components/M3"
-import { PaginationBar, usePagination } from "@/components/Pagination"
+import { PaginationBar, pageWindow, usePager } from "@/components/Pagination"
 import {
   PeopleListToolbar,
   type PeopleTab,
   type PeopleView,
 } from "@/components/PeopleListToolbar"
 import { useI18n } from "@/i18n"
+import { fetchAllPages } from "@/lib/fetch-all-pages"
 import { useSnackbar } from "@/snackbar"
 
 type Action = {
@@ -104,28 +109,48 @@ function AthletesContent() {
     }
   }, [view])
 
+  const resetKey = `${deferredSearch}|${gymFilter}|${tab}`
+  const pager = usePager(resetKey)
+
   const athletesQuery = useQuery({
-    queryKey: ["superuser-athletes", deferredSearch, gymFilter],
+    queryKey: [
+      "superuser-athletes",
+      deferredSearch,
+      gymFilter,
+      tab,
+      pager.offset,
+      pager.limit,
+    ],
     queryFn: async () =>
       (
         await SuperuserAthletesService.athletesListAthletes({
           query: {
             q: deferredSearch || undefined,
             gym_id: gymFilter || undefined,
-            include_archived: true,
+            is_archived: tab === "archived",
+            offset: pager.offset,
+            limit: pager.limit,
           },
         })
       ).data,
+    placeholderData: keepPreviousData,
   })
 
   const coachOptionsQuery = useQuery({
     queryKey: ["superuser-coaches", form.gym_id, "athlete-options"],
     queryFn: async () =>
-      (
-        await SuperuserCoachesService.coachesListCoaches({
-          query: { gym_id: form.gym_id, include_archived: false },
+      // Every coach in the club must be reachable in the picker.
+      fetchAllPages(async (offset, limit) => {
+        const response = await SuperuserCoachesService.coachesListCoaches({
+          query: {
+            gym_id: form.gym_id,
+            is_active: true,
+            offset,
+            limit,
+          },
         })
-      ).data.data,
+        return response.data
+      }),
     enabled: Boolean(form.gym_id),
   })
   const coachOptions = (coachOptionsQuery.data ?? []).map((coach) => ({
@@ -133,11 +158,10 @@ function AthletesContent() {
     label: coach.full_name ?? coach.email,
   }))
 
-  const allRows = athletesQuery.data?.data ?? []
-  const rows = allRows.filter((row) =>
-    tab === "archived" ? row.is_archived : !row.is_archived,
-  )
-  const pager = usePagination(rows, `${deferredSearch}|${gymFilter}|${tab}`)
+  const rows = athletesQuery.data?.data ?? []
+  const total = athletesQuery.data?.count ?? 0
+  const pageState = pageWindow(pager, total)
+  if (pager.page !== pageState.page) pager.setPage(pageState.page)
   const hasFilter = search.trim().length > 0 || Boolean(gymFilter)
 
   async function invalidateAll() {
@@ -299,7 +323,7 @@ function AthletesContent() {
         searchLabel={t("athletes.search")}
         clearSearchLabel={t("athletes.clearSearch")}
         countLabel={t("athletes.countLabel", {
-          count: formatNumber(rows.length),
+          count: formatNumber(total),
         })}
         view={view}
         onViewChange={setView}
@@ -328,7 +352,7 @@ function AthletesContent() {
           retryLabel={t("common.retry")}
           onRetry={() => athletesQuery.refetch()}
         />
-      ) : rows.length === 0 ? (
+      ) : total === 0 ? (
         <EmptyState
           icon={hasFilter ? <Search size={26} /> : <Users size={26} />}
           title={hasFilter ? t("common.noResults") : t("superuser.noAthletes")}
@@ -360,7 +384,7 @@ function AthletesContent() {
         />
       ) : view === "grid" ? (
         <div className="m3-card-grid">
-          {pager.pageItems.map((row) => (
+          {rows.map((row) => (
             <div
               key={`${row.gym_id}:${row.user_id}`}
               className={`m3-entity-card ${row.is_archived ? "is-archived" : ""}`}
@@ -426,7 +450,7 @@ function AthletesContent() {
                 </tr>
               </thead>
               <tbody>
-                {pager.pageItems.map((row) => (
+                {rows.map((row) => (
                   <tr key={`${row.gym_id}:${row.user_id}`}>
                     <td>
                       <div className="row" style={{ gap: 10 }}>
@@ -463,14 +487,15 @@ function AthletesContent() {
         </Card>
       )}
 
-      {rows.length > 0 ? (
+      {total > 0 ? (
         <PaginationBar
-          page={pager.page}
-          pageCount={pager.pageCount}
+          page={pageState.page}
+          pageCount={pageState.pageCount}
           pageSize={pager.pageSize}
-          total={pager.total}
-          start={pager.start}
-          end={pager.end}
+          total={pageState.total}
+          start={pageState.start}
+          end={pageState.end}
+          loading={athletesQuery.isFetching}
           onPageChange={pager.setPage}
           onPageSizeChange={pager.setPageSize}
         />

@@ -1,48 +1,59 @@
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useState } from "react"
 
 import { useI18n } from "@/i18n"
 import { Button, SelectField } from "./M3"
 
+export const DEFAULT_PAGE_SIZE = 10
 const PAGE_SIZES = [10, 25, 50]
 
-export function usePagination<T>(
-  items: T[],
-  resetKey?: string,
-  initialPageSize = 10,
-) {
+/**
+ * Pager state for a server-paginated list. `total` is not needed here: the
+ * request offset/limit must be known before the page is fetched.
+ */
+export function usePager(resetKey = "") {
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(initialPageSize)
-  const pageCount = Math.max(1, Math.ceil(items.length / pageSize))
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
+  const [activeKey, setActiveKey] = useState(resetKey)
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset page when filters/tab change
-  useEffect(() => {
+  // Reset during render so the first request after a filter change never asks
+  // for the old page number.
+  if (activeKey !== resetKey) {
+    setActiveKey(resetKey)
     setPage(1)
-  }, [resetKey])
-
-  useEffect(() => {
-    setPage((current) => Math.min(current, pageCount))
-  }, [pageCount])
-
-  const start = (page - 1) * pageSize
-  const pageItems = useMemo(
-    () => items.slice(start, start + pageSize),
-    [items, start, pageSize],
-  )
+  }
 
   return {
     page,
-    pageCount,
     pageSize,
-    pageItems,
-    start: items.length === 0 ? 0 : start + 1,
-    end: Math.min(start + pageSize, items.length),
-    total: items.length,
+    offset: (page - 1) * pageSize,
+    limit: pageSize,
     setPage,
     setPageSize: (size: number) => {
       setPageSize(size)
       setPage(1)
     },
+  }
+}
+
+/**
+ * Clamp the pager to the server's total and derive the visible range.
+ * Callers should pass `page` back to `setPage` when it differs from
+ * `pager.page`, so deleting the last row of a page cannot leave an
+ * out-of-range request in place.
+ */
+export function pageWindow(
+  pager: Pick<ReturnType<typeof usePager>, "page" | "pageSize">,
+  total: number,
+) {
+  const pageCount = Math.max(1, Math.ceil(total / pager.pageSize))
+  const page = Math.min(pager.page, pageCount)
+  return {
+    page,
+    pageCount,
+    total,
+    start: total === 0 ? 0 : (page - 1) * pager.pageSize + 1,
+    end: Math.min(page * pager.pageSize, total),
   }
 }
 
@@ -53,6 +64,7 @@ type PaginationBarProps = {
   total: number
   start: number
   end: number
+  loading?: boolean
   onPageChange: (page: number) => void
   onPageSizeChange: (size: number) => void
 }
@@ -64,6 +76,7 @@ export function PaginationBar({
   total,
   start,
   end,
+  loading = false,
   onPageChange,
   onPageSizeChange,
 }: PaginationBarProps) {
@@ -72,10 +85,14 @@ export function PaginationBar({
   const NextIcon = direction === "rtl" ? ChevronLeft : ChevronRight
 
   if (total === 0) return null
-  if (total <= pageSize && pageSize === 10) return null
+  if (total <= pageSize && pageSize === DEFAULT_PAGE_SIZE) return null
 
   return (
-    <nav className="m3-pagination" aria-label={t("common.pagination")}>
+    <nav
+      className="m3-pagination"
+      aria-label={t("common.pagination")}
+      aria-busy={loading}
+    >
       <div className="m3-pagination__size">
         <SelectField
           label={t("common.rowsPerPage")}

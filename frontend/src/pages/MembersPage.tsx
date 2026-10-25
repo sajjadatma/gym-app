@@ -1,4 +1,8 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 import {
   Copy,
   Mail,
@@ -26,7 +30,7 @@ import {
   StatusBadge,
   TextField,
 } from "@/components/M3"
-import { PaginationBar, usePagination } from "@/components/Pagination"
+import { PaginationBar, pageWindow, usePager } from "@/components/Pagination"
 import { useI18n } from "@/i18n"
 import { useSnackbar } from "@/snackbar"
 
@@ -51,22 +55,29 @@ export function MembersPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const pager = usePager(activeGymId ?? "")
+
   const membersQuery = useQuery({
-    queryKey: ["members", activeGymId],
+    queryKey: ["members", activeGymId, pager.offset, pager.limit],
     queryFn: async () =>
       (
         await GymsService.listMembers({
           path: { gym_id: activeGymId! },
+          query: {
+            staff_only: true,
+            offset: pager.offset,
+            limit: pager.limit,
+          },
         })
-      ).data.data,
+      ).data,
     enabled: Boolean(activeGymId && isAdmin),
+    placeholderData: keepPreviousData,
   })
 
-  const members = (membersQuery.data ?? []).filter(
-    (member) =>
-      member.is_owner || member.roles.some((role) => role !== "ATHLETE"),
-  )
-  const pager = usePagination(members, activeGymId ?? "")
+  const members = membersQuery.data?.data ?? []
+  const total = membersQuery.data?.count ?? 0
+  const pageState = pageWindow(pager, total)
+  if (pager.page !== pageState.page) pager.setPage(pageState.page)
 
   if (!activeGym) {
     return (
@@ -222,7 +233,7 @@ export function MembersPage() {
         }
       />
 
-      {members.length === 0 ? (
+      {total === 0 ? (
         <EmptyState
           icon={<Users size={26} />}
           title={t("members.noMembers")}
@@ -246,7 +257,7 @@ export function MembersPage() {
                 </tr>
               </thead>
               <tbody>
-                {pager.pageItems.map((member) => (
+                {members.map((member) => (
                   <tr key={member.membership_id}>
                     <td>
                       <div
@@ -348,14 +359,15 @@ export function MembersPage() {
         </Card>
       )}
 
-      {members.length > 0 ? (
+      {total > 0 ? (
         <PaginationBar
-          page={pager.page}
-          pageCount={pager.pageCount}
+          page={pageState.page}
+          pageCount={pageState.pageCount}
           pageSize={pager.pageSize}
-          total={pager.total}
-          start={pager.start}
-          end={pager.end}
+          total={pageState.total}
+          start={pageState.start}
+          end={pageState.end}
+          loading={membersQuery.isFetching}
           onPageChange={pager.setPage}
           onPageSizeChange={pager.setPageSize}
         />

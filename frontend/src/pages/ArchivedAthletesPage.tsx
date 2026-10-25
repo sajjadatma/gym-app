@@ -1,4 +1,8 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { RotateCcw, Search, Trash2, Users, X } from "lucide-react"
 import { useDeferredValue, useEffect, useRef, useState } from "react"
@@ -20,54 +24,68 @@ import {
   Spinner,
   TextField,
 } from "@/components/M3"
-import { PaginationBar, usePagination } from "@/components/Pagination"
+import { PaginationBar, pageWindow, usePager } from "@/components/Pagination"
 import { useI18n } from "@/i18n"
 import { useSnackbar } from "@/snackbar"
 
 export function ArchivedAthletesPage() {
   const { t, formatNumber } = useI18n()
-  const { activeGym, activeGymId, activeRole, isAdmin, me } = useAuth()
+  const { activeGym, activeGymId, isAdmin } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
   const [search, setSearch] = useState("")
   const deferredSearch = useDeferredValue(search)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<Record<string, AthleteSummary>>({})
   const [deleteTargets, setDeleteTargets] = useState<DeleteAthleteTarget[]>([])
   const [busy, setBusy] = useState(false)
   const selectAllRef = useRef<HTMLInputElement>(null)
 
+  const pager = usePager(deferredSearch)
+
   const archivedQuery = useQuery({
-    queryKey: ["athletes", activeGymId, "archived", deferredSearch],
+    queryKey: [
+      "athletes",
+      activeGymId,
+      "archived",
+      deferredSearch,
+      pager.offset,
+      pager.limit,
+    ],
     queryFn: async () =>
       (
         await AthletesService.listAthletes({
-          query: { q: deferredSearch, include_archived: true },
+          query: {
+            q: deferredSearch,
+            is_archived: true,
+            offset: pager.offset,
+            limit: pager.limit,
+          },
         })
       ).data,
     enabled: Boolean(activeGymId && isAdmin),
     staleTime: 0,
     refetchOnWindowFocus: true,
+    placeholderData: keepPreviousData,
   })
 
+  const archived = archivedQuery.data?.data ?? []
+  const total = archivedQuery.data?.count ?? 0
+  const pageState = pageWindow(pager, total)
+  if (pager.page !== pageState.page) pager.setPage(pageState.page)
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear selection when the filter changes
   useEffect(() => {
-    setSelected(new Set())
-  }, [])
+    setSelected({})
+  }, [deferredSearch])
 
-  const archived = (archivedQuery.data?.data ?? []).filter((athlete) => {
-    if (!athlete.is_archived) return false
-    if (activeRole === "COACH" && !isAdmin)
-      return athlete.coach_user_id === me?.id
-    return true
-  })
-
-  const selectedAthletes = archived.filter((athlete) =>
-    selected.has(athlete.user_id),
+  const selectedAthletes = Object.values(selected)
+  const selectedOnPage = archived.filter((athlete) =>
+    Boolean(selected[athlete.user_id]),
   )
-  const pager = usePagination(archived, search)
   const allSelected =
-    archived.length > 0 && selectedAthletes.length === archived.length
-  const someSelected = selectedAthletes.length > 0 && !allSelected
+    archived.length > 0 && selectedOnPage.length === archived.length
+  const someSelected = selectedOnPage.length > 0 && !allSelected
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -75,21 +93,29 @@ export function ArchivedAthletesPage() {
     }
   }, [someSelected])
 
-  function toggleSelected(userId: string) {
+  function toggleSelected(athlete: AthleteSummary) {
     setSelected((previous) => {
-      const next = new Set(previous)
-      if (next.has(userId)) next.delete(userId)
-      else next.add(userId)
+      const next = { ...previous }
+      if (next[athlete.user_id]) delete next[athlete.user_id]
+      else next[athlete.user_id] = athlete
       return next
     })
   }
 
   function toggleSelectAll() {
     if (allSelected) {
-      setSelected(new Set())
+      setSelected((previous) => {
+        const next = { ...previous }
+        for (const athlete of archived) delete next[athlete.user_id]
+        return next
+      })
       return
     }
-    setSelected(new Set(archived.map((athlete) => athlete.user_id)))
+    setSelected((previous) => {
+      const next = { ...previous }
+      for (const athlete of archived) next[athlete.user_id] = athlete
+      return next
+    })
   }
 
   function openAthlete(userId: string) {
@@ -126,7 +152,7 @@ export function ArchivedAthletesPage() {
         failed ? "error" : "success",
       )
     }
-    setSelected(new Set())
+    setSelected({})
     setBusy(false)
   }
 
@@ -193,7 +219,7 @@ export function ArchivedAthletesPage() {
         <div className="m3-list-toolbar__actions">
           <span className="m3-count-chip" aria-live="polite">
             {t("athletes.countLabel", {
-              count: formatNumber(archived.length),
+              count: formatNumber(total),
             })}
           </span>
         </div>
@@ -207,7 +233,7 @@ export function ArchivedAthletesPage() {
           onRetry={() => archivedQuery.refetch()}
           retryLabel={t("common.retry")}
         />
-      ) : archived.length === 0 ? (
+      ) : total === 0 ? (
         <EmptyState
           icon={<Users size={26} />}
           title={t("athletes.archivedEmpty")}
@@ -290,19 +316,17 @@ export function ArchivedAthletesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {pager.pageItems.map((athlete) => (
+                  {archived.map((athlete) => (
                     <tr
                       key={athlete.user_id}
-                      className={
-                        selected.has(athlete.user_id) ? "is-selected" : ""
-                      }
+                      className={selected[athlete.user_id] ? "is-selected" : ""}
                     >
                       <td className="m3-data-table__check">
                         <label className="m3-checkbox">
                           <input
                             type="checkbox"
-                            checked={selected.has(athlete.user_id)}
-                            onChange={() => toggleSelected(athlete.user_id)}
+                            checked={Boolean(selected[athlete.user_id])}
+                            onChange={() => toggleSelected(athlete)}
                             aria-label={`${t("athletes.select")} ${
                               athlete.full_name ?? athlete.email
                             }`}
@@ -370,14 +394,15 @@ export function ArchivedAthletesPage() {
         </>
       )}
 
-      {archived.length > 0 ? (
+      {total > 0 ? (
         <PaginationBar
-          page={pager.page}
-          pageCount={pager.pageCount}
+          page={pageState.page}
+          pageCount={pageState.pageCount}
           pageSize={pager.pageSize}
-          total={pager.total}
-          start={pager.start}
-          end={pager.end}
+          total={pageState.total}
+          start={pageState.start}
+          end={pageState.end}
+          loading={archivedQuery.isFetching}
           onPageChange={pager.setPage}
           onPageSizeChange={pager.setPageSize}
         />
@@ -389,7 +414,7 @@ export function ArchivedAthletesPage() {
         onClose={() => setDeleteTargets([])}
         onDeleted={() => {
           setDeleteTargets([])
-          setSelected(new Set())
+          setSelected({})
         }}
       />
     </>

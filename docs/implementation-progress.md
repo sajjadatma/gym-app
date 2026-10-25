@@ -172,11 +172,17 @@ The real Super Admin password and invitation tokens are deliberately absent from
 ### Independent review outcomes — 2026-10-25
 
 - Coach removal wording now distinguishes removing a role from deleting an account: the action and confirmation say **حذف از باشگاه / Remove from club**, the confirmation states that active athlete assignments in that club end, that the action is irreversible, and that the account, other roles, other clubs and history are preserved. The success toast is specific to the coach removal.
-- Measured global coach-list query behavior: 23 SELECT statements for 20 coach rows (list query + one role lookup per row, plus auth). Acceptable for the local MVP; a grouped role query or pagination should precede larger datasets. Global list responses are unbounded and the client filters active/archived locally.
+- Global coach-list rows are now assembled from one batched role lookup per page instead of one lookup per row.
 
-### List pagination — 2026-10-25
+### Server-side list pagination — 2026-10-25
 
-- Gym athletes (cards/table), archived athletes, members, global athletes and global coaches now paginate with 10/25/50 rows per page, previous/next controls, current-page status, and automatic reset when search, club filter or active/archived tab changes.
-- Pagination is client-side over the already-fetched filtered lists, so backend endpoints and business rules are unchanged. The pagination footer is hidden when the whole list fits the default page size; the page-size control appears once paging is needed and keeps the footer visible after a size change.
+- Gym athletes (cards/table), archived athletes, members, global athletes and global coaches paginate on the server with validated `offset`/`limit` (default 10, maximum 50), 10/25/50 page sizes, previous/next controls, current-page status, and automatic reset when search, club filter or active/archived tab changes.
+- `count` in every list response is the total number of authorized matching rows, not the page length. The client derives the page count from it; an out-of-range page after archiving or deleting clamps back to the last valid page.
+- Authorization, search, club isolation, coach assignment scope, archive status and staff-only membership filtering run in SQL before counting and slicing. Gym athletes accepts `is_archived`, `assigned_to_me`; members accepts `staff_only`; global lists accept `is_archived` / `is_active`. Existing `include_archived` behavior is preserved for compatibility.
+- Ordering has a unique tie-breaker (`user_id`, `membership_id`, `GymMembership.id`) so rows cannot move between pages when sort values tie. Offset paging still shifts boundaries if records are inserted or deleted concurrently; it is not a snapshot.
+- Per-row lookups on the page were batched: athlete summaries fetch assignments, coach names and active program versions for the whole page; member and coach roles are fetched with one grouped query. A test counts SELECT statements for `limit=1` and a full page and requires them to match.
+- Select-all now means **the current page** and the confirmation count includes selections made on other pages. Selecting individual rows across pages is retained; moving the search/filter/tab clears the selection.
+- Pagination state is not stored in the URL yet. Deep links reopen page 1 with default filters.
+- Selector data sources do not use table pagination: the template athlete picker and the superuser coach picker page through the API to collect every eligible option, so choices are never silently truncated. The per-club coach picker is unchanged.
 - Tables that are not list views (athlete-import preview, program structure editor, print sheet) are intentionally not paginated.
-- Playwright tests that select athletes by name now search first, so they remain independent of page size and list growth; a mocked 23-row test pins paging, page-size changes and page reset behavior.
+- Playwright tests that select athletes by name search first; a mocked 23-row test pins paging, page-size changes, server `count` and page resets.

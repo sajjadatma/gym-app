@@ -50,13 +50,18 @@ export function DashboardPage() {
   })
 
   const athletesQuery = useQuery({
-    queryKey: ["athletes", activeGymId, "dashboard"],
+    queryKey: ["athletes", activeGymId, "dashboard", activeRole],
     queryFn: async () =>
       (
         await AthletesService.listAthletes({
-          query: { q: "", include_archived: false },
+          query: {
+            q: "",
+            is_archived: false,
+            assigned_to_me: activeRole === "COACH",
+            limit: 4,
+          },
         })
-      ).data.data,
+      ).data,
     enabled: Boolean(activeGymId && (isAdmin || isCoach)),
   })
 
@@ -159,14 +164,12 @@ export function DashboardPage() {
     (item) => item.status === "ACTIVE",
   )
   const profile = selfQuery.data?.profile
-  const dashboardAthletes = (athletesQuery.data ?? []).filter(
-    (athlete) => activeRole !== "COACH" || athlete.coach_user_id === me?.id,
-  )
+  const dashboardAthletes = athletesQuery.data?.data ?? []
   const dashboardTemplates = (templatesQuery.data ?? []).filter(
     (template) => activeRole !== "COACH" || template.created_by_id === me?.id,
   )
   const athleteCount =
-    dashboardAthletes.length || (activeGym.stats?.athletes ?? 0)
+    athletesQuery.data?.count ?? activeGym.stats?.athletes ?? 0
   const templateCount = dashboardTemplates.length
   const profileFields = profile
     ? [

@@ -1,4 +1,8 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 import { Navigate } from "@tanstack/react-router"
 import {
   Archive,
@@ -32,7 +36,7 @@ import {
   StatusBadge,
   TextField,
 } from "@/components/M3"
-import { PaginationBar, usePagination } from "@/components/Pagination"
+import { PaginationBar, pageWindow, usePager } from "@/components/Pagination"
 import {
   PeopleListToolbar,
   type PeopleTab,
@@ -101,25 +105,37 @@ function CoachesContent() {
     }
   }, [view])
 
+  const resetKey = `${deferredSearch}|${gymFilter}|${tab}`
+  const pager = usePager(resetKey)
+
   const coachesQuery = useQuery({
-    queryKey: ["superuser-coaches", deferredSearch, gymFilter],
+    queryKey: [
+      "superuser-coaches",
+      deferredSearch,
+      gymFilter,
+      tab,
+      pager.offset,
+      pager.limit,
+    ],
     queryFn: async () =>
       (
         await SuperuserCoachesService.coachesListCoaches({
           query: {
             q: deferredSearch || undefined,
             gym_id: gymFilter || undefined,
-            include_archived: true,
+            is_active: tab === "active",
+            offset: pager.offset,
+            limit: pager.limit,
           },
         })
       ).data,
+    placeholderData: keepPreviousData,
   })
 
-  const allRows = coachesQuery.data?.data ?? []
-  const rows = allRows.filter((row) =>
-    tab === "archived" ? !row.is_active : row.is_active,
-  )
-  const pager = usePagination(rows, `${deferredSearch}|${gymFilter}|${tab}`)
+  const rows = coachesQuery.data?.data ?? []
+  const total = coachesQuery.data?.count ?? 0
+  const pageState = pageWindow(pager, total)
+  if (pager.page !== pageState.page) pager.setPage(pageState.page)
   const hasFilter = search.trim().length > 0 || Boolean(gymFilter)
 
   async function createCoach() {
@@ -282,7 +298,7 @@ function CoachesContent() {
         searchLabel={t("athletes.search")}
         clearSearchLabel={t("athletes.clearSearch")}
         countLabel={t("superuser.coachCountLabel", {
-          count: formatNumber(rows.length),
+          count: formatNumber(total),
         })}
         view={view}
         onViewChange={setView}
@@ -311,7 +327,7 @@ function CoachesContent() {
           retryLabel={t("common.retry")}
           onRetry={() => coachesQuery.refetch()}
         />
-      ) : rows.length === 0 ? (
+      ) : total === 0 ? (
         <EmptyState
           icon={hasFilter ? <Search size={26} /> : <Users size={26} />}
           title={hasFilter ? t("common.noResults") : t("superuser.noCoaches")}
@@ -343,7 +359,7 @@ function CoachesContent() {
         />
       ) : view === "grid" ? (
         <div className="m3-card-grid">
-          {pager.pageItems.map((row) => (
+          {rows.map((row) => (
             <div
               key={row.membership_id}
               className={`m3-entity-card ${row.is_active ? "" : "is-archived"}`}
@@ -400,7 +416,7 @@ function CoachesContent() {
                 </tr>
               </thead>
               <tbody>
-                {pager.pageItems.map((row) => (
+                {rows.map((row) => (
                   <tr key={row.membership_id}>
                     <td>
                       <div className="row" style={{ gap: 10 }}>
@@ -434,14 +450,15 @@ function CoachesContent() {
         </Card>
       )}
 
-      {rows.length > 0 ? (
+      {total > 0 ? (
         <PaginationBar
-          page={pager.page}
-          pageCount={pager.pageCount}
+          page={pageState.page}
+          pageCount={pageState.pageCount}
           pageSize={pager.pageSize}
-          total={pager.total}
-          start={pager.start}
-          end={pager.end}
+          total={pageState.total}
+          start={pageState.start}
+          end={pageState.end}
+          loading={coachesQuery.isFetching}
           onPageChange={pager.setPage}
           onPageSizeChange={pager.setPageSize}
         />

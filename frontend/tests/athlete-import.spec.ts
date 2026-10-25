@@ -15,7 +15,7 @@ test("manager imports athletes from CSV after previewing rows", async ({
   request,
 }) => {
   await page.goto("/athletes")
-  await page.getByRole("button", { name: "ورود گروهی" }).click()
+  await page.getByRole("button", { name: "ورود گروهی", exact: true }).click()
   const dialog = page.getByRole("dialog")
   await expect(dialog).toBeVisible()
   await expect(
@@ -97,7 +97,7 @@ test("manager imports athletes from CSV after previewing rows", async ({
   const athlete = (await created.json()).data[0]
   expect(athlete.email).toBe(email)
 
-  await page.getByRole("button", { name: "ورود گروهی" }).click()
+  await page.getByRole("button", { name: "ورود گروهی", exact: true }).click()
   const reopened = page.getByRole("dialog")
   await expect(reopened).toBeVisible()
   await expect(reopened.locator(".m3-import-file__name")).toHaveCount(0)

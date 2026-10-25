@@ -2538,7 +2538,20 @@ export type gymsListMembersData = {
          */
         gym_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Staff Only
+         */
+        staff_only?: boolean;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
     url: '/api/v1/gyms/{gym_id}/members';
 };
 
@@ -2690,6 +2703,22 @@ export type athletesListAthletesData = {
          * Include Archived
          */
         include_archived?: boolean;
+        /**
+         * Is Archived
+         */
+        is_archived?: boolean | null;
+        /**
+         * Assigned To Me
+         */
+        assigned_to_me?: boolean;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
     };
     url: '/api/v1/athletes';
 };
@@ -3250,6 +3279,18 @@ export type superuserCoachesListCoachesData = {
          * Include Archived
          */
         include_archived?: boolean;
+        /**
+         * Is Active
+         */
+        is_active?: boolean | null;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
     };
     url: '/api/v1/superuser/coaches';
 };
@@ -3403,6 +3444,18 @@ export type superuserAthletesListAthletesData = {
          * Include Archived
          */
         include_archived?: boolean;
+        /**
+         * Is Archived
+         */
+        is_archived?: boolean | null;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
     };
     url: '/api/v1/superuser/athletes';
 };

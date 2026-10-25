@@ -28,6 +28,11 @@ from app.services.membership import (
     end_active_coach_assignments,
     ensure_membership,
 )
+from app.services.pagination import (
+    DEFAULT_PAGE_SIZE,
+    MAX_PAGE_SIZE,
+    paginate,
+)
 
 router = APIRouter(prefix="/superuser/coaches", tags=["superuser-coaches"])
 
@@ -89,6 +94,9 @@ def list_coaches(
     q: str = "",
     gym_id: uuid.UUID | None = None,
     include_archived: bool = Query(default=False),
+    is_active: bool | None = None,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
 ) -> Any:
     statement = (
         select(User, GymMembership, Gym)
@@ -105,8 +113,14 @@ def list_coaches(
     )
     if gym_id is not None:
         statement = statement.where(GymMembership.gym_id == gym_id)
-    if not include_archived:
-        statement = statement.where(col(GymMembership.is_active).is_(True))
+    if is_active is not None:
+        statement = statement.where(
+            col(GymMembership.is_active).is_(is_active)
+        )
+    elif not include_archived:
+        statement = statement.where(
+            col(GymMembership.is_active).is_(True)
+        )
     term = q.strip()
     if term:
         pattern = f"%{term}%"
@@ -118,25 +132,49 @@ def list_coaches(
             )
         )
     statement = statement.order_by(
-        col(Gym.name), col(User.full_name), col(User.email)
+        col(Gym.name),
+        col(User.full_name),
+        col(User.email),
+        col(GymMembership.id),
     )
-    result = session.exec(statement).all()
-    gym_ids = {gym.id for _user, _membership, gym in result}
+    rows, total = paginate(
+        session, statement, offset=offset, limit=limit
+    )
+
+    membership_ids = [membership.id for _user, membership, _gym in rows]
+    role_rows = (
+        session.exec(
+            select(GymMembershipRole).where(
+                col(GymMembershipRole.membership_id).in_(membership_ids)
+            )
+        ).all()
+        if membership_ids
+        else []
+    )
+    roles_by_membership: dict[uuid.UUID, set[str]] = {}
+    for role_row in role_rows:
+        roles_by_membership.setdefault(role_row.membership_id, set()).add(
+            role_row.role
+        )
+
+    gym_ids = {gym.id for _user, _membership, gym in rows}
+    user_ids = {user.id for user, _membership, _gym in rows}
     profile_pairs = (
         set(
             session.exec(
                 select(AthleteProfile.gym_id, AthleteProfile.user_id).where(
-                    col(AthleteProfile.gym_id).in_(gym_ids)
+                    col(AthleteProfile.gym_id).in_(gym_ids),
+                    col(AthleteProfile.user_id).in_(user_ids),
                 )
             ).all()
         )
         if gym_ids
         else set()
     )
-    rows = []
-    for user, membership, gym in result:
-        roles = get_membership_roles(session, membership.id)
-        rows.append(
+    data = []
+    for user, membership, gym in rows:
+        roles = roles_by_membership.get(membership.id, set())
+        data.append(
             _coach_row(
                 user,
                 membership,
@@ -148,7 +186,7 @@ def list_coaches(
                 and (gym.id, user.id) not in profile_pairs,
             )
         )
-    return SuperuserCoachesPublic(data=rows, count=len(rows))
+    return SuperuserCoachesPublic(data=data, count=total)
 
 
 @router.post("", response_model=SuperuserCoachCreated)

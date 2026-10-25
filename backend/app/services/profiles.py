@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 
 from sqlmodel import Session, col, select
 
@@ -103,6 +104,87 @@ def athlete_summary(
         active_program_version=active.version_number if active else None,
         created_at=profile.created_at,
     )
+
+
+def athlete_summaries_page(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    rows: Sequence[tuple[AthleteProfile, User, GymMembership]],
+) -> list[AthleteSummary]:
+    """Build summaries for one page of athletes with constant query count.
+
+    Assignments, coach names and active program versions are fetched for the
+    whole page at once instead of per row.
+    """
+    if not rows:
+        return []
+
+    athlete_ids = [user.id for _profile, user, _membership in rows]
+    assignments = session.exec(
+        select(CoachAssignment).where(
+            CoachAssignment.gym_id == gym_id,
+            col(CoachAssignment.ended_at).is_(None),
+            col(CoachAssignment.athlete_user_id).in_(athlete_ids),
+        )
+    ).all()
+    assignment_map = {
+        assignment.athlete_user_id: assignment for assignment in assignments
+    }
+    coach_ids = {assignment.coach_user_id for assignment in assignments}
+    coaches = (
+        session.exec(select(User).where(col(User.id).in_(coach_ids))).all()
+        if coach_ids
+        else []
+    )
+    coach_names = {coach.id: coach.full_name for coach in coaches}
+
+    versions = session.exec(
+        select(WorkoutProgramVersion, WorkoutProgram)
+        .join(
+            WorkoutProgram,
+            col(WorkoutProgram.id) == col(WorkoutProgramVersion.program_id),
+        )
+        .where(
+            WorkoutProgram.gym_id == gym_id,
+            col(WorkoutProgram.athlete_user_id).in_(athlete_ids),
+            WorkoutProgramVersion.status == "ACTIVE",
+        )
+    ).all()
+    active_versions: dict[uuid.UUID, WorkoutProgramVersion] = {}
+    for version, program in versions:
+        active_versions.setdefault(program.athlete_user_id, version)
+
+    summaries: list[AthleteSummary] = []
+    for profile, user, membership in rows:
+        assignment = assignment_map.get(user.id)
+        active = active_versions.get(user.id)
+        summaries.append(
+            AthleteSummary(
+                user_id=user.id,
+                gym_id=profile.gym_id,
+                email=user.email,
+                full_name=user.full_name,
+                phone=profile.phone,
+                is_active=membership.is_active,
+                is_archived=profile.is_archived,
+                coach_user_id=(
+                    assignment.coach_user_id if assignment else None
+                ),
+                coach_name=(
+                    coach_names.get(assignment.coach_user_id)
+                    if assignment
+                    else None
+                ),
+                active_program_id=active.id if active else None,
+                active_program_title=active.title if active else None,
+                active_program_version=(
+                    active.version_number if active else None
+                ),
+                created_at=profile.created_at,
+            )
+        )
+    return summaries
 
 
 def assignments_public(
