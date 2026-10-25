@@ -46,6 +46,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-workspace --package app
 
 COPY ./backend/scripts /app/backend/scripts
+COPY ./scripts/verify_restore.py /app/backend/scripts/verify_restore.py
 RUN chmod +x /app/backend/scripts/start.sh
 
 COPY ./backend/pyproject.toml ./backend/alembic.ini /app/backend/

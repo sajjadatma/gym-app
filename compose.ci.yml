@@ -1,0 +1,24 @@
+# Disposable CI stack: reuses the deployment services without Traefik.
+# Required env: COMPOSE_PROJECT_NAME, BACKEND_IMAGE, POSTGRES_PASSWORD,
+# SECRET_KEY, FIRST_SUPERUSER, FIRST_SUPERUSER_PASSWORD, DOMAIN, ACME_EMAIL.
+services:
+  proxy:
+    profiles: ["proxy"]
+
+  backend:
+    environment:
+      FASTAPI_ENV: development
+      FRONTEND_HOST: http://localhost:8000
+      COOKIE_SECURE: "false"
+      HSTS_ENABLED: "false"
+      TRUST_PROXY_HEADERS: "false"
+      LOG_JSON: "false"
+      SENTRY_ENVIRONMENT: ""
+      EMAIL_REDIRECT_TO: ""
+      RATE_LIMIT_ENABLED: "false"
+    ports:
+      - "8000:8000"
+
+  db:
+    ports:
+      - "5433:5432"

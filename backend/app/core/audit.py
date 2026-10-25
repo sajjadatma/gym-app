@@ -16,10 +16,12 @@ def audit(
 ) -> None:
     """Record a security-relevant mutation without logging PII or secrets."""
     logger.info(
-        "audit event=%s actor=%s gym=%s target=%s detail=%s",
-        event,
-        actor_id,
-        gym_id,
-        target_id,
-        detail or "-",
+        "audit",
+        extra={
+            "event": event,
+            "actor_id": actor_id,
+            "gym_id": gym_id,
+            "target_id": target_id,
+            "detail": detail,
+        },
     )

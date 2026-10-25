@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Gym Management"
     SENTRY_DSN: HttpUrl | None = None
     SENTRY_TRACES_SAMPLE_RATE: float = 0.0
+    SENTRY_ENVIRONMENT: str | None = None
     DATABASE_URL: PostgresDsn
     TEST_DATABASE_URL: PostgresDsn | None = None
 
@@ -57,6 +58,7 @@ class Settings(BaseSettings):
     RECOVERY_RATE_WINDOW_SECONDS: int = 60 * 60
     RECOVERY_IP_RATE_LIMIT: int = 30
     TRUST_PROXY_HEADERS: bool = False
+    LOG_JSON: bool = False
 
     @field_validator("DATABASE_URL", "TEST_DATABASE_URL", mode="before")
     @classmethod
@@ -77,6 +79,8 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str | None = None
     EMAILS_FROM_EMAIL: EmailStr | None = None
     EMAILS_FROM_NAME: str | None = None
+    # Staging must never deliver to real user addresses.
+    EMAIL_REDIRECT_TO: EmailStr | None = None
 
     @model_validator(mode="after")
     def _set_default_emails_from(self) -> Self:
@@ -119,9 +123,18 @@ class Settings(BaseSettings):
             raise ValueError("COOKIE_SAMESITE=none requires COOKIE_SECURE=true")
         if self.FASTAPI_ENV in {"staging", "production"}:
             if len(self.SECRET_KEY) < 32:
-                raise ValueError("SECRET_KEY must be at least 32 characters in production")
+                raise ValueError(
+                    "SECRET_KEY must be at least 32 characters in production"
+                )
             if not self.COOKIE_SECURE:
                 raise ValueError("COOKIE_SECURE must be true in staging/production")
+        if self.FASTAPI_ENV == "staging" and self.SMTP_HOST:
+            if not self.EMAIL_REDIRECT_TO:
+                raise ValueError(
+                    "EMAIL_REDIRECT_TO is required when SMTP is enabled in staging"
+                )
+        if self.FASTAPI_ENV == "production" and self.EMAIL_REDIRECT_TO:
+            raise ValueError("EMAIL_REDIRECT_TO must not be set in production")
         return self
 
 

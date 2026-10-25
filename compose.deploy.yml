@@ -1,0 +1,147 @@
+# Shared deployment stack for staging and production.
+#
+# Always combine this file with an environment override:
+#   docker compose --env-file .env.staging \
+#     -f compose.deploy.yml -f compose.staging.yml up -d --build
+#
+# The environment file selects the isolated Compose project, volumes, domain,
+# database password, secrets and ACME directory. See deploy/README.md.
+name: ${COMPOSE_PROJECT_NAME:?COMPOSE_PROJECT_NAME must be set}
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  proxy:
+    image: traefik:v3.7
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - --providers.docker
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=edge
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?Variable not set}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.letsencrypt.acme.caserver=${ACME_CA_SERVER:-https://acme-v02.api.letsencrypt.org/directory}
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --accesslog=true
+      - --accesslog.format=json
+      - --log.format=json
+      - --log.level=INFO
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    networks:
+      - edge
+    logging: *default-logging
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Variable not set}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    volumes:
+      - app-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-app}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - internal
+    logging: *default-logging
+
+  backend:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+    environment:
+      PROJECT_NAME: ${PROJECT_NAME:-Gym Management}
+      SECRET_KEY: ${SECRET_KEY:?Variable not set}
+      FIRST_SUPERUSER: ${FIRST_SUPERUSER:?Variable not set}
+      FIRST_SUPERUSER_PASSWORD: ${FIRST_SUPERUSER_PASSWORD:?Variable not set}
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Variable not set}@db:5432/${POSTGRES_DB:-app}
+      FRONTEND_HOST: https://${DOMAIN:?Variable not set}
+      COOKIE_SECURE: "true"
+      COOKIE_SAMESITE: lax
+      HSTS_ENABLED: ${HSTS_ENABLED:-true}
+      TRUST_PROXY_HEADERS: "true"
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-*}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+      CSP_CONNECT_SRC: ${CSP_CONNECT_SRC:-'self'}
+      LOG_JSON: ${LOG_JSON:-true}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-}
+      BODY_ANALYSIS_DIR: /app/backend/uploads/body-analysis
+      BODY_ANALYSIS_MAX_BYTES: ${BODY_ANALYSIS_MAX_BYTES:-10485760}
+      MAX_JSON_BODY_BYTES: ${MAX_JSON_BODY_BYTES:-1048576}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_TLS: ${SMTP_TLS:-true}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL:-}
+      EMAILS_FROM_NAME: ${EMAILS_FROM_NAME:-}
+      EMAIL_REDIRECT_TO: ${EMAIL_REDIRECT_TO:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    volumes:
+      - uploads:/app/backend/uploads
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/utils/ready/').read()",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.backend.rule=Host(`${DOMAIN:?Variable not set}`)
+      - traefik.http.routers.backend.entrypoints=websecure
+      - traefik.http.routers.backend.tls=true
+      - traefik.http.routers.backend.tls.certresolver=letsencrypt
+      - traefik.http.routers.backend.middlewares=gym-bodylimit
+      - traefik.http.middlewares.gym-bodylimit.buffering.maxRequestBodyBytes=12582912
+      - traefik.http.middlewares.gym-bodylimit.buffering.memRequestBodyBytes=2097152
+      - traefik.http.services.backend.loadbalancer.server.port=8000
+    networks:
+      - edge
+      - internal
+    logging: *default-logging
+
+volumes:
+  app-db-data:
+  uploads:
+  letsencrypt:
+
+networks:
+  edge:
+  internal:
+    internal: true

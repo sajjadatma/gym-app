@@ -1,0 +1,13 @@
+# Staging override for compose.deploy.yml.
+#
+#   docker compose --env-file .env.staging \
+#     -f compose.deploy.yml -f compose.staging.yml up -d --build
+#
+# Staging uses its own Compose project, database, volumes, domain, secrets and
+# browser sessions. It must use the Let's Encrypt staging ACME directory and
+# redirect all email to a sandbox address.
+services:
+  backend:
+    environment:
+      FASTAPI_ENV: staging
+      HSTS_ENABLED: ${HSTS_ENABLED:-false}

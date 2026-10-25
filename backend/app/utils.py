@@ -50,8 +50,11 @@ def send_email(
     if not settings.emails_enabled:
         raise RuntimeError("email_delivery_not_configured")
     assert settings.EMAILS_FROM_EMAIL  # For type checker
+    redirected = bool(settings.EMAIL_REDIRECT_TO)
+    target = str(settings.EMAIL_REDIRECT_TO or email_to)
+    safe_subject = f"[{settings.FASTAPI_ENV or 'test'}] {subject}" if redirected else subject
     message = emails.message.Message(
-        subject=subject,
+        subject=safe_subject,
         html=html_content,
         mail_from=(settings.EMAILS_FROM_NAME, settings.EMAILS_FROM_EMAIL),
     )
@@ -67,8 +70,11 @@ def send_email(
         smtp_options["user"] = settings.SMTP_USER
     if settings.SMTP_PASSWORD:
         smtp_options["password"] = settings.SMTP_PASSWORD
-    response = message.send(to=email_to, smtp=smtp_options)
-    logger.info("email delivery attempted: %s", response.status_code)
+    response = message.send(to=target, smtp=smtp_options)
+    logger.info(
+        "email_delivery_attempted",
+        extra={"status_code": response.status_code, "redirected": redirected},
+    )
 
 
 def generate_reset_password_email(email_to: str, token: str) -> EmailData:

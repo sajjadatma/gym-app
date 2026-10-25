@@ -14,6 +14,7 @@ from starlette.responses import Response
 
 from app.api.main import api_router
 from app.core.config import settings
+from app.core.logging import configure_logging
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -23,12 +24,14 @@ def custom_generate_unique_id(route: APIRoute) -> str:
     return f"{tag}-{route.name}"
 
 
+configure_logging()
 logger = logging.getLogger("app.request")
 
 if settings.SENTRY_DSN and settings.FASTAPI_ENV != "development":
     sentry_sdk.init(
         dsn=str(settings.SENTRY_DSN),
         send_default_pii=False,
+        environment=settings.SENTRY_ENVIRONMENT or settings.FASTAPI_ENV,
         max_request_body_size="never",
         traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
     )
@@ -90,21 +93,25 @@ async def hardening_middleware(request: Request, call_next: Any) -> Response:
             response = await call_next(request)
     except Exception:
         logger.exception(
-            "request failed id=%s method=%s path=%s",
-            request_id,
-            method,
-            safe_path,
+            "request_failed",
+            extra={
+                "request_id": request_id,
+                "method": method,
+                "path": safe_path,
+            },
         )
         raise
     finally:
         duration_ms = round((time.monotonic() - started) * 1000, 1)
         logger.info(
-            "request id=%s method=%s path=%s status=%s duration_ms=%s",
-            request_id,
-            method,
-            safe_path,
-            response.status_code if "response" in locals() else 500,
-            duration_ms,
+            "request",
+            extra={
+                "request_id": request_id,
+                "method": method,
+                "path": safe_path,
+                "status": response.status_code if "response" in locals() else 500,
+                "duration_ms": duration_ms,
+            },
         )
 
     response.headers.setdefault("X-Request-ID", request_id)

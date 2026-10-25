@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import math
 import threading
 import time
@@ -74,13 +75,23 @@ def reset_rate_limits() -> None:
     limiter.clear()
 
 
+def _parse_ip(value: str) -> str | None:
+    try:
+        return str(ipaddress.ip_address(value.strip()))
+    except ValueError:
+        return None
+
+
 def client_ip(request: Request) -> str:
     if settings.TRUST_PROXY_HEADERS:
         forwarded = request.headers.get("x-forwarded-for")
         if forwarded:
-            # The deployment has a single trusted proxy in front of the app.
-            # Use the value added by that proxy, not a client-supplied prefix.
-            return forwarded.split(",")[-1].strip()
+            # Traefik appends the peer address to X-Forwarded-For. Use the
+            # rightmost value (the trusted proxy's observation), never a
+            # client-supplied prefix. Invalid values fall back to the socket.
+            candidate = _parse_ip(forwarded.split(",")[-1])
+            if candidate:
+                return candidate
     return request.client.host if request.client else "unknown"
 
 

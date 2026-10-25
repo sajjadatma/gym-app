@@ -1,0 +1,12 @@
+[Unit]
+Description=Gym Management database and uploads backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=gymbackup
+Group=docker
+WorkingDirectory=/opt/gym-app
+EnvironmentFile=/etc/gym-app/backup.env
+ExecStart=/opt/gym-app/scripts/backup_compose.sh

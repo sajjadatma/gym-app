@@ -215,3 +215,117 @@ def test_production_mode_requires_secure_cookies() -> None:
             FIRST_SUPERUSER_PASSWORD="not-a-default-password",
             DATABASE_URL=settings.DATABASE_URL,
         )
+
+
+def _request_with(headers: list[tuple[str, str]], peer: str = "127.0.0.1"):
+    from starlette.requests import Request
+
+    return Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": [(key.encode(), value.encode()) for key, value in headers],
+            "client": (peer, 1234),
+            "scheme": "http",
+            "server": ("testserver", 80),
+            "query_string": b"",
+        }
+    )
+
+
+def test_client_ip_ignores_forwarded_headers_when_untrusted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core.rate_limit import client_ip
+
+    monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", False)
+    request = _request_with([("x-forwarded-for", "1.2.3.4, 5.6.7.8")])
+    assert client_ip(request) == "127.0.0.1"
+
+
+def test_client_ip_uses_only_proxy_appended_address(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core.rate_limit import client_ip
+
+    monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", True)
+    request = _request_with([("x-forwarded-for", "9.9.9.9, 203.0.113.7")])
+    # A client-supplied prefix must not become the rate-limit identity.
+    assert client_ip(request) == "203.0.113.7"
+
+
+def test_client_ip_falls_back_on_malformed_forwarded_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core.rate_limit import client_ip
+
+    monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", True)
+    request = _request_with([("x-forwarded-for", "1.2.3.4, not-an-ip")])
+    assert client_ip(request) == "127.0.0.1"
+
+
+def _base_settings(**overrides: object) -> dict[str, object]:
+    values: dict[str, object] = {
+        "SECRET_KEY": "x" * 64,
+        "COOKIE_SECURE": True,
+        "FIRST_SUPERUSER": settings.FIRST_SUPERUSER,
+        "FIRST_SUPERUSER_PASSWORD": "not-a-default-password",
+        "DATABASE_URL": settings.DATABASE_URL,
+    }
+    values.update(overrides)
+    return values
+
+
+def test_staging_requires_email_sandbox_when_smtp_is_enabled() -> None:
+    with pytest.raises(ValueError, match="EMAIL_REDIRECT_TO"):
+        Settings(
+            **_base_settings(
+                FASTAPI_ENV="staging",
+                SMTP_HOST="smtp.example.test",
+            )
+        )
+
+
+def test_production_rejects_email_redirection() -> None:
+    with pytest.raises(ValueError, match="EMAIL_REDIRECT_TO"):
+        Settings(
+            **_base_settings(
+                FASTAPI_ENV="production",
+                EMAIL_REDIRECT_TO="sandbox@example.test",
+            )
+        )
+
+
+def test_staging_email_is_redirected_to_sandbox(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    import emails
+
+    from app.utils import send_email
+
+    captured: dict[str, object] = {}
+
+    class FakeMessage:
+        def __init__(self, **kwargs: object) -> None:
+            captured["message"] = kwargs
+
+        def send(self, *, to: str, smtp: dict[str, object]) -> object:
+            captured["to"] = to
+            captured["smtp"] = smtp
+            return SimpleNamespace(status_code=250)
+
+    monkeypatch.setattr(emails.message, "Message", FakeMessage)
+    monkeypatch.setattr(settings, "SMTP_HOST", "smtp.example.test")
+    monkeypatch.setattr(settings, "EMAILS_FROM_EMAIL", "no-reply@example.test")
+    monkeypatch.setattr(settings, "EMAIL_REDIRECT_TO", "sandbox@example.test")
+    monkeypatch.setattr(settings, "FASTAPI_ENV", "staging")
+
+    send_email(email_to="real-user@example.test", subject="Invitation", html_content="ok")
+
+    assert captured["to"] == "sandbox@example.test"
+    message = captured["message"]
+    assert isinstance(message, dict)
+    assert str(message["subject"]).startswith("[staging]")
