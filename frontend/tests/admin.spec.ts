@@ -181,3 +181,12 @@ test("club users reach club settings from the workspace", async ({ page }) => {
   await page.locator(".m3-back-button").first().click()
   await expect(page).toHaveURL(/\/gyms\/[^/]+$/)
 })
+
+test("club users do not get global people management", async ({ page }) => {
+  await page.goto("/")
+  await expect(
+    page.locator(".m3-nav-rail").getByRole("button", { name: "مربیان" }),
+  ).toHaveCount(0)
+  await page.goto("/coaches")
+  await expect(page).toHaveURL(/\/gyms\/[^/]+\/members$/)
+})

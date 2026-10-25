@@ -155,6 +155,8 @@ export function AppShell() {
       ? [
           { to: "/", label: "nav.dashboard", icon: LayoutDashboard },
           { to: "/gyms", label: "nav.gyms", icon: Building2 },
+          { to: "/coaches", label: "nav.coaches", icon: UserRound },
+          { to: "/athletes", label: "nav.athletes", icon: Users },
         ]
       : [{ to: "/", label: "nav.dashboard", icon: LayoutDashboard }]
   } else if (activeRole === "ATHLETE") {

@@ -17,6 +17,7 @@ import { Route as RecoverPasswordRouteImport } from './routes/recover-password'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppAthletesRouteImport } from './routes/_app.athletes'
+import { Route as AppCoachesRouteImport } from './routes/_app.coaches'
 import { Route as AppExercisesRouteImport } from './routes/_app.exercises'
 import { Route as AppGymsRouteImport } from './routes/_app.gyms'
 import { Route as AppMembersRouteImport } from './routes/_app.members'
@@ -91,6 +92,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppAthletesRoute = AppAthletesRouteImport.update({
   id: '/athletes',
   path: '/athletes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCoachesRoute = AppCoachesRouteImport.update({
+  id: '/coaches',
+  path: '/coaches',
   getParentRoute: () => AppRoute,
 } as any)
 const AppExercisesRoute = AppExercisesRouteImport.update({
@@ -292,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/athletes': typeof AppAthletesRouteWithChildren
+  '/coaches': typeof AppCoachesRoute
   '/exercises': typeof AppExercisesRoute
   '/gyms': typeof AppGymsRouteWithChildren
   '/members': typeof AppMembersRoute
@@ -335,6 +342,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/coaches': typeof AppCoachesRoute
   '/exercises': typeof AppExercisesRoute
   '/members': typeof AppMembersRoute
   '/profile': typeof AppProfileRoute
@@ -375,6 +383,7 @@ export interface FileRoutesById {
   '/recover-password': typeof RecoverPasswordRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_app/athletes': typeof AppAthletesRouteWithChildren
+  '/_app/coaches': typeof AppCoachesRoute
   '/_app/exercises': typeof AppExercisesRoute
   '/_app/gyms': typeof AppGymsRouteWithChildren
   '/_app/members': typeof AppMembersRoute
@@ -423,6 +432,7 @@ export interface FileRouteTypes {
     | '/recover-password'
     | '/reset-password'
     | '/athletes'
+    | '/coaches'
     | '/exercises'
     | '/gyms'
     | '/members'
@@ -466,6 +476,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/recover-password'
     | '/reset-password'
+    | '/coaches'
     | '/exercises'
     | '/members'
     | '/profile'
@@ -505,6 +516,7 @@ export interface FileRouteTypes {
     | '/recover-password'
     | '/reset-password'
     | '/_app/athletes'
+    | '/_app/coaches'
     | '/_app/exercises'
     | '/_app/gyms'
     | '/_app/members'
@@ -610,6 +622,13 @@ declare module '@tanstack/react-router' {
       path: '/athletes'
       fullPath: '/athletes'
       preLoaderRoute: typeof AppAthletesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/coaches': {
+      id: '/_app/coaches'
+      path: '/coaches'
+      fullPath: '/coaches'
+      preLoaderRoute: typeof AppCoachesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/exercises': {
@@ -1004,6 +1023,7 @@ const AppTemplatesRouteWithChildren = AppTemplatesRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAthletesRoute: typeof AppAthletesRouteWithChildren
+  AppCoachesRoute: typeof AppCoachesRoute
   AppExercisesRoute: typeof AppExercisesRoute
   AppGymsRoute: typeof AppGymsRouteWithChildren
   AppMembersRoute: typeof AppMembersRoute
@@ -1016,6 +1036,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAthletesRoute: AppAthletesRouteWithChildren,
+  AppCoachesRoute: AppCoachesRoute,
   AppExercisesRoute: AppExercisesRoute,
   AppGymsRoute: AppGymsRouteWithChildren,
   AppMembersRoute: AppMembersRoute,
