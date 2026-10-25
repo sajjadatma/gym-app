@@ -37,7 +37,7 @@ echo "Restoring database..." >&2
   --no-privileges -U postgres -d "$POSTGRES_DB" < "$BACKUP_PATH/db.dump"
 
 echo "Restoring uploads..." >&2
-"${COMPOSE[@]}" exec -T backend sh -c \
+"${COMPOSE[@]}" run --rm --no-deps -T backend sh -c \
   'find /app/backend/uploads -mindepth 1 -delete && tar -xzf - -C /app/backend/uploads' \
   < "$BACKUP_PATH/uploads.tar.gz"
 

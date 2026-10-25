@@ -52,4 +52,22 @@ docker run --rm --network "$NETWORK" \
   --database-url "postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/app_restore" \
   --upload-dir /uploads --expected-counts /counts.txt
 
+echo "drill: live restore through restore_compose.sh"
+victim="$("${COMPOSE[@]}" exec -T db psql -U postgres -d app -Atc \
+  'SELECT id FROM gym ORDER BY created_at LIMIT 1;')"
+original="$("${COMPOSE[@]}" exec -T db psql -U postgres -d app -Atc \
+  "SELECT name FROM gym WHERE id='$victim';")"
+"${COMPOSE[@]}" exec -T db psql -U postgres -d app -v ON_ERROR_STOP=1 -c \
+  "UPDATE gym SET name='CORRUPTED-BY-DRILL' WHERE id='$victim';"
+BACKUP_PATH="$backup_path" DEPLOY_ENV=ci CONFIRM_RESTORE=YES \
+  bash scripts/restore_compose.sh
+restored="$("${COMPOSE[@]}" exec -T db psql -U postgres -d app -Atc \
+  "SELECT name FROM gym WHERE id='$victim';")"
+if [ "$restored" != "$original" ]; then
+  echo "drill: FAIL live restore did not revert gym name" >&2
+  exit 1
+fi
+curl -fsS http://localhost:8000/api/v1/utils/ready/ >/dev/null
+echo "drill: live restore OK"
+
 echo "drill: PASS"
