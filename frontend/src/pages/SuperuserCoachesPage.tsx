@@ -7,7 +7,7 @@ import {
   Plus,
   RotateCcw,
   Search,
-  Trash2,
+  UserMinus,
   Users,
 } from "lucide-react"
 import { useDeferredValue, useEffect, useState } from "react"
@@ -209,7 +209,7 @@ function CoachesContent() {
             ? "superuser.archived"
             : action.kind === "restore"
               ? "superuser.restored"
-              : "superuser.deleted",
+              : "superuser.coachRemoved",
         ),
         "success",
       )
@@ -249,10 +249,10 @@ function CoachesContent() {
         <Button
           variant="text"
           size="sm"
-          icon={<Trash2 size={14} />}
+          icon={<UserMinus size={14} />}
           onClick={() => setAction({ kind: "delete", row })}
         >
-          {t("common.delete")}
+          {t("superuser.removeCoach")}
         </Button>
       </>
     )
@@ -541,7 +541,7 @@ function CoachesContent() {
         )}
         confirmLabel={t(
           action?.kind === "delete"
-            ? "common.delete"
+            ? "superuser.removeCoach"
             : action?.kind === "restore"
               ? "superuser.restore"
               : "superuser.archive",

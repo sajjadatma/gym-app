@@ -289,8 +289,11 @@ test("global coaches and athletes pages manage people across clubs", async ({
     .locator(".m3-nav-rail")
     .getByRole("button", { name: "مربیان" })
     .click()
-  await coachRow.getByRole("button", { name: "حذف" }).click()
-  await page.getByRole("dialog").getByRole("button", { name: "حذف" }).click()
+  await coachRow.getByRole("button", { name: "حذف از باشگاه" }).click()
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "حذف از باشگاه" })
+    .click()
   await expect(page.getByRole("dialog")).toHaveCount(0)
   await expect(page.locator(".m3-scrim")).toHaveCount(0)
   await expect(page.getByText(coachEmail)).toHaveCount(0)

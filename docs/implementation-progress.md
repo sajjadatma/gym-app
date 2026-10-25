@@ -168,3 +168,8 @@ The real Super Admin password and invitation tokens are deliberately absent from
 - Global tables use the shared `m3-data-table` identity cells, status badges, and row actions; cards show avatar, club, coach/phone metadata and the same actions.
 - Global athlete destructive delete is available only on archived rows, matching the gym workflow (active rows offer archive; archived rows offer restore and delete). Coach delete remains available on active rows because multi-role/protected coaches cannot be archived.
 - Intentional contextual differences preserved: the global pages keep a required club filter and club column; bulk selection/import, athlete detail navigation and active-program badges remain club-scoped.
+
+### Independent review outcomes — 2026-10-25
+
+- Coach removal wording now distinguishes removing a role from deleting an account: the action and confirmation say **حذف از باشگاه / Remove from club**, the confirmation states that active athlete assignments in that club end, that the action is irreversible, and that the account, other roles, other clubs and history are preserved. The success toast is specific to the coach removal.
+- Measured global coach-list query behavior: 23 SELECT statements for 20 coach rows (list query + one role lookup per row, plus auth). Acceptable for the local MVP; a grouped role query or pagination should precede larger datasets. Global list responses are unbounded and the client filters active/archived locally.

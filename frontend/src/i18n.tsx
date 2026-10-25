@@ -741,9 +741,11 @@ const fa = {
   "superuser.archiveCoachTitle": "آرشیو مربی",
   "superuser.archiveCoachBody":
     "عضویت این مربی در این باشگاه غیرفعال می‌شود و تخصیص ورزشکارانش پایان می‌یابد. تاریخچه حفظ می‌شود.",
-  "superuser.deleteCoachTitle": "حذف نقش مربی",
+  "superuser.removeCoach": "حذف از باشگاه",
+  "superuser.coachRemoved": "مربی از این باشگاه حذف شد.",
+  "superuser.deleteCoachTitle": "حذف مربی از باشگاه",
   "superuser.deleteCoachBody":
-    "نقش مربی از این باشگاه حذف می‌شود. حساب کاربری، نقش‌های دیگر و باشگاه‌های دیگر حفظ می‌شوند.",
+    "نقش مربی از این باشگاه حذف می‌شود و تخصیص‌های فعال ورزشکارانش در این باشگاه پایان می‌یابد. این عمل قابل بازگشت نیست؛ حساب کاربری، نقش‌های دیگر، باشگاه‌های دیگر و تاریخچه حفظ می‌شوند.",
   "superuser.archiveAthleteTitle": "آرشیو ورزشکار",
   "superuser.archiveAthleteBody":
     "ورزشکار آرشیو می‌شود؛ تاریخچه و برنامه‌ها حفظ می‌شوند.",
@@ -1520,9 +1522,11 @@ const en: Record<TranslationKey, string> = {
   "superuser.archiveCoachTitle": "Archive coach",
   "superuser.archiveCoachBody":
     "This coach membership is deactivated in this club and their athlete assignments end. History is preserved.",
-  "superuser.deleteCoachTitle": "Remove coach role",
+  "superuser.removeCoach": "Remove from club",
+  "superuser.coachRemoved": "Coach removed from this club.",
+  "superuser.deleteCoachTitle": "Remove coach from club",
   "superuser.deleteCoachBody":
-    "The coach role is removed from this club. The user account, other roles and other clubs are preserved.",
+    "The coach role is removed from this club and their active athlete assignments here end. This cannot be undone; the user account, other roles, other clubs and history are preserved.",
   "superuser.archiveAthleteTitle": "Archive athlete",
   "superuser.archiveAthleteBody":
     "The athlete is archived; history and programs are preserved.",

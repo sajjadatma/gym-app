@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import uuid
+
 from fastapi.testclient import TestClient
+from sqlalchemy import func
 from sqlmodel import Session, select
 
-from app.models import CoachAssignment, GymMembership
+from app.models import CoachAssignment, GymMembership, User
 from tests.utils.helpers import (
     add_member,
     auth_headers,
@@ -124,7 +127,9 @@ def test_superuser_coach_list_is_authorized_and_cross_gym(
 
 
 def test_superuser_create_coach_requires_phone_and_reuses_account(
-    client: TestClient, superuser_headers: dict[str, str]
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
 ) -> None:
     gym_a, _owner_a = _owner(client, superuser_headers, "Coach Create A")
     gym_b, _owner_b = _owner(client, superuser_headers, "Coach Create B")
@@ -154,6 +159,9 @@ def test_superuser_create_coach_requires_phone_and_reuses_account(
     )
     assert second["coach"]["user_id"] == first["coach"]["user_id"]
     assert second["coach"]["phone"] == "09123333333"
+    assert db_session.exec(
+        select(func.count()).select_from(User).where(User.email == email)
+    ).one() == 1
 
     duplicate = client.post(
         "/api/v1/superuser/coaches",
@@ -432,6 +440,76 @@ def test_superuser_coach_with_athlete_profile_cannot_be_archived(
         email=email,
         coach_user_id=coach["user_id"],
     )
+
+    listing = client.get(
+        "/api/v1/superuser/coaches", headers=superuser_headers
+    ).json()["data"]
+    row = next(
+        item for item in listing if item["membership_id"] == coach["membership_id"]
+    )
+    assert row["can_archive"] is False
+
+    archived = client.post(
+        f"/api/v1/superuser/coaches/{coach['membership_id']}/archive",
+        headers=superuser_headers,
+    )
+    assert archived.status_code == 409, archived.text
+    assert archived.json()["detail"] == "coach_archive_not_allowed"
+
+
+def test_all_coach_management_routes_reject_non_superusers(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = _owner(client, superuser_headers, "Coach Forbidden Gym")
+    membership_id = uuid.uuid4()
+    calls = [
+        ("get", "/api/v1/superuser/coaches", None),
+        (
+            "post",
+            "/api/v1/superuser/coaches",
+            {
+                "gym_id": gym["id"],
+                "email": unique_email("forbidden-create"),
+                "full_name": "Forbidden",
+                "phone": "09120000000",
+            },
+        ),
+        (
+            "post",
+            f"/api/v1/superuser/coaches/{membership_id}/archive",
+            None,
+        ),
+        (
+            "post",
+            f"/api/v1/superuser/coaches/{membership_id}/restore",
+            None,
+        ),
+        ("delete", f"/api/v1/superuser/coaches/{membership_id}", None),
+    ]
+    for method, url, body in calls:
+        request = getattr(client, method)
+        response = (
+            request(url, headers=owner, json=body)
+            if body is not None
+            else request(url, headers=owner)
+        )
+        assert response.status_code == 403, (method, url, response.text)
+
+
+def test_superuser_cannot_archive_own_coach_membership(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    me = client.get("/api/v1/users/me", headers=superuser_headers)
+    assert me.status_code == 200, me.text
+    gym, owner = _owner(client, superuser_headers, "Coach Self Gym")
+    coach = add_member(
+        client,
+        owner,
+        gym["id"],
+        email=me.json()["email"],
+        roles=["COACH"],
+        phone="09120000000",
+    )["member"]
 
     listing = client.get(
         "/api/v1/superuser/coaches", headers=superuser_headers
