@@ -69,7 +69,8 @@ echo "verify: restart persistence OK"
 
 echo "verify: runtime rate limiting returns 429"
 docker rm -f ci-rate-limit >/dev/null 2>&1 || true
-docker run -d --name ci-rate-limit --network "$NETWORK" -p 8001:8000 \
+docker run -d --name ci-rate-limit --network "${COMPOSE_PROJECT_NAME}_edge" \
+  --network "$NETWORK" -p 8001:8000 \
   -e FASTAPI_ENV=development \
   -e FRONTEND_HOST=http://localhost:8001 \
   -e SECRET_KEY="$SECRET_KEY" \
