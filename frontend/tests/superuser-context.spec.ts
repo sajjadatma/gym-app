@@ -124,7 +124,7 @@ test("club workspace highlights the dashboard item and keeps its URL", async ({
   ).toHaveText(/داشبورد/)
   await expect(
     page.locator(".m3-nav-rail").getByRole("button", { name: "باشگاه‌ها" }),
-  ).not.toHaveAttribute("aria-current", "page")
+  ).toHaveCount(0)
 
   await page
     .locator(".m3-nav-rail")
@@ -150,4 +150,28 @@ test("club-scoped deep links without a club return to the clubs list", async ({
   await loginAsSuperuser(page)
   await page.goto("/athletes")
   await expect(page).toHaveURL((url) => url.pathname === "/gyms")
+})
+
+test("superuser inside a club hides the clubs nav and can return to the global dashboard", async ({
+  page,
+}) => {
+  await loginAsSuperuser(page)
+  await expect(
+    page.locator(".m3-nav-rail").getByRole("button", { name: "باشگاه‌ها" }),
+  ).toBeVisible()
+
+  await page.getByRole("button", { name: "ورود به باشگاه" }).first().click()
+  await expect(page).toHaveURL(/\/gyms\/[^/]+$/)
+  await expect(
+    page.locator(".m3-nav-rail").getByRole("button", { name: "باشگاه‌ها" }),
+  ).toHaveCount(0)
+
+  const back = page.getByRole("button", { name: "بازگشت به داشبورد سراسری" })
+  await expect(back).toBeVisible()
+  await back.click()
+  await expect(page).toHaveURL((url) => url.pathname === "/")
+  await expect(page.locator(".m3-topbar__gym")).toHaveCount(0)
+  await expect(
+    page.getByRole("button", { name: "ورود به باشگاه" }).first(),
+  ).toBeVisible()
 })

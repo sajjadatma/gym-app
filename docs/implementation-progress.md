@@ -151,3 +151,4 @@ The real Super Admin password and invitation tokens are deliberately absent from
 - Route-level role guards: staff sections redirect athletes to the club dashboard; `/members` requires admin; athlete self pages redirect non-athletes. The guards use the union of the user's club roles, matching backend authorization.
 - Non-superusers landing on `/` are redirected to their active club workspace; the `/` route is the superuser global dashboard only when no club is active.
 - Print preview remains at `/print/:versionId` and uses the active club context from the same browser session.
+- Superusers inside a club no longer see the global clubs item in the sidebar; the club dashboard header offers «بازگشت به داشبورد سراسری», and «همه باشگاه‌ها» remains in the club switcher for leaving from any club page.

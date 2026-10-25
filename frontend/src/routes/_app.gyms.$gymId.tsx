@@ -41,7 +41,7 @@ function ClubLayout() {
     gym && (isSuperuser || gym.is_owner || gym.my_roles.includes("GYM_ADMIN")),
   )
   const isStaff = Boolean(gym && (isAdmin || gym.my_roles.includes("COACH")))
-  const isAthlete = Boolean(gym && gym.my_roles.includes("ATHLETE"))
+  const isAthlete = Boolean(gym?.my_roles.includes("ATHLETE"))
   const allowed =
     section === ""
       ? true

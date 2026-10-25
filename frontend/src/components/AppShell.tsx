@@ -213,7 +213,9 @@ export function AppShell() {
         label: "nav.dashboard",
         icon: LayoutDashboard,
       },
-      { to: "/gyms", label: "nav.gyms", icon: Building2 },
+      ...(isSuperuser
+        ? []
+        : ([{ to: "/gyms", label: "nav.gyms", icon: Building2 }] as NavItem[])),
       {
         to: clubPath("/athletes"),
         params: clubParams,
