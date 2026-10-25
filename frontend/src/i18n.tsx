@@ -658,6 +658,12 @@ const fa = {
   "errors.not_a_gym_member": "شما عضو فعال این باشگاه نیستید.",
   "errors.gym_admin_required": "این عملیات به دسترسی مدیر باشگاه نیاز دارد.",
   "errors.coach_phone_required": "برای مربی، شماره تلفن الزامی است.",
+  "errors.coach_already_exists": "این کاربر از قبل در این باشگاه مربی است.",
+  "errors.coach_archive_not_allowed":
+    "این عضویت قابل آرشیو نیست؛ از حذف نقش مربی استفاده کنید.",
+  "errors.coach_already_archived": "این مربی از قبل آرشیو شده است.",
+  "errors.coach_not_archived": "این مربی آرشیو نشده است.",
+  "errors.coach_not_found": "مربی پیدا نشد.",
   "errors.gym_staff_required": "این عملیات برای کادر باشگاه مجاز است.",
   "errors.athlete_membership_cannot_be_deactivated":
     "عضویت ورزشکار را نمی‌توان غیرفعال کرد؛ ورزشکار را آرشیو کنید.",
@@ -1429,6 +1435,12 @@ const en: Record<TranslationKey, string> = {
   "errors.not_a_gym_member": "You are not an active member of this gym.",
   "errors.gym_admin_required": "This action requires gym admin access.",
   "errors.coach_phone_required": "A coach phone number is required.",
+  "errors.coach_already_exists": "This user is already a coach in this club.",
+  "errors.coach_archive_not_allowed":
+    "This membership cannot be archived; remove the coach role instead.",
+  "errors.coach_already_archived": "This coach is already archived.",
+  "errors.coach_not_archived": "This coach is not archived.",
+  "errors.coach_not_found": "Coach not found.",
   "errors.gym_staff_required": "This action is limited to gym staff.",
   "errors.athlete_membership_cannot_be_deactivated":
     "An athlete membership cannot be deactivated; archive the athlete instead.",

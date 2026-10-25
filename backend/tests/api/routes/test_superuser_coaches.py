@@ -92,6 +92,13 @@ def test_superuser_coach_list_is_authorized_and_cross_gym(
         client.get("/api/v1/superuser/coaches", headers=owner_a).status_code
         == 403
     )
+    assert (
+        client.delete(
+            "/api/v1/superuser/coaches/00000000-0000-0000-0000-000000000000",
+            headers=owner_a,
+        ).status_code
+        == 403
+    )
 
     listing = client.get("/api/v1/superuser/coaches", headers=superuser_headers)
     assert listing.status_code == 200, listing.text
@@ -224,7 +231,9 @@ def test_superuser_archive_ends_assignments_and_restore_keeps_history(
 
 
 def test_superuser_archive_protects_owner_and_multi_role_memberships(
-    client: TestClient, superuser_headers: dict[str, str]
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
 ) -> None:
     gym, owner = _owner(client, superuser_headers, "Coach Protection Gym")
     # The owner account already owns the membership; add the COACH role to it.
@@ -247,6 +256,28 @@ def test_superuser_archive_protects_owner_and_multi_role_memberships(
     )
     assert owner_archive.status_code == 409, owner_archive.text
     assert owner_archive.json()["detail"] == "coach_archive_not_allowed"
+
+    owner_role_removed = client.delete(
+        f"/api/v1/superuser/coaches/{owner_row['membership_id']}",
+        headers=superuser_headers,
+    )
+    assert owner_role_removed.status_code == 200, owner_role_removed.text
+    owner_membership = db_session.get(
+        GymMembership, owner_row["membership_id"]
+    )
+    assert owner_membership is not None
+    owner_row_after = next(
+        row
+        for row in client.get(
+            f"/api/v1/gyms/{gym['id']}/members", headers=owner
+        ).json()["data"]
+        if row["membership_id"] == owner_row["membership_id"]
+    )
+    assert "COACH" not in owner_row_after["roles"]
+    assert (
+        client.get(f"/api/v1/gyms/{gym['id']}", headers=owner).status_code
+        == 200
+    )
 
     admin_coach = _coach(
         client,
@@ -280,6 +311,12 @@ def test_superuser_delete_coach_is_club_scoped_and_preserves_access(
         phone="09125555555",
     )
     coach_b = _coach(client, owner_b, gym_b, email=email, phone="09125555555")
+    athlete_a = create_athlete(
+        client,
+        owner_a,
+        email=unique_email("delete-coach-athlete"),
+        coach_user_id=coach_a["user_id"],
+    )["athlete"]["profile"]
 
     removed = client.delete(
         f"/api/v1/superuser/coaches/{coach_a['membership_id']}",
@@ -305,6 +342,17 @@ def test_superuser_delete_coach_is_club_scoped_and_preserves_access(
         ).json()["count"]
         == 1
     )
+    ended = db_session.exec(
+        select(CoachAssignment).where(
+            CoachAssignment.gym_id == gym_a["id"],
+            CoachAssignment.coach_user_id == coach_a["user_id"],
+        )
+    ).all()
+    assert ended and all(row.ended_at is not None for row in ended)
+    still_present = client.get(
+        f"/api/v1/athletes/{athlete_a['user_id']}", headers=owner_a
+    )
+    assert still_present.status_code == 200, still_present.text
 
     sole_coach = _coach(
         client,
@@ -370,3 +418,32 @@ def test_superuser_archive_only_ends_assignments_in_that_club(
             )
         ).one()
         assert (assignment.ended_at is not None) is expected_ended
+
+
+def test_superuser_coach_with_athlete_profile_cannot_be_archived(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = _owner(client, superuser_headers, "Coach Athlete Profile Gym")
+    email = unique_email("coach-profile")
+    coach = _coach(client, owner, gym, email=email)
+    create_athlete(
+        client,
+        owner,
+        email=email,
+        coach_user_id=coach["user_id"],
+    )
+
+    listing = client.get(
+        "/api/v1/superuser/coaches", headers=superuser_headers
+    ).json()["data"]
+    row = next(
+        item for item in listing if item["membership_id"] == coach["membership_id"]
+    )
+    assert row["can_archive"] is False
+
+    archived = client.post(
+        f"/api/v1/superuser/coaches/{coach['membership_id']}/archive",
+        headers=superuser_headers,
+    )
+    assert archived.status_code == 409, archived.text
+    assert archived.json()["detail"] == "coach_archive_not_allowed"

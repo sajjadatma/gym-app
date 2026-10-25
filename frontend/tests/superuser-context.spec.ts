@@ -226,6 +226,24 @@ test("global coaches and athletes pages manage people across clubs", async ({
     "باشگاه آرام",
   )
 
+  const coachRow = page.locator("tr", { hasText: coachEmail })
+  await coachRow.getByRole("button", { name: "آرشیو" }).click()
+  await page.getByRole("dialog").getByRole("button", { name: "آرشیو" }).click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  await page.getByRole("button", { name: "نمایش آرشیوشده‌ها" }).click()
+  const archivedCoach = page.locator("tr", { hasText: coachEmail })
+  await expect(archivedCoach.locator(".m3-status")).toHaveText("آرشیو")
+  await archivedCoach.getByRole("button", { name: "بازیابی" }).click()
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "بازیابی" })
+    .click()
+  await expect(page.getByRole("dialog")).toHaveCount(0)
+  await page.getByRole("button", { name: "نمایش آرشیوشده‌ها" }).click()
+  await expect(
+    page.locator("tr", { hasText: coachEmail }).locator(".m3-status"),
+  ).toHaveText("فعال")
+
   await page
     .locator(".m3-nav-rail")
     .getByRole("button", { name: "ورزشکاران" })
@@ -269,7 +287,6 @@ test("global coaches and athletes pages manage people across clubs", async ({
     .locator(".m3-nav-rail")
     .getByRole("button", { name: "مربیان" })
     .click()
-  const coachRow = page.locator("tr", { hasText: coachEmail })
   await coachRow.getByRole("button", { name: "حذف" }).click()
   await page.getByRole("dialog").getByRole("button", { name: "حذف" }).click()
   await expect(page.getByRole("dialog")).toHaveCount(0)

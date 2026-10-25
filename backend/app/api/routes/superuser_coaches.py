@@ -197,14 +197,17 @@ def create_coach(
     session.commit()
     session.refresh(membership)
     session.refresh(activation.user)
+    roles = get_membership_roles(session, membership.id)
     return SuperuserCoachCreated(
         coach=_coach_row(
             activation.user,
             membership,
             gym,
-            {"COACH"},
-            gym.owner_id != activation.user.id
-            and activation.user.id != current_user.id,
+            roles,
+            roles == {"COACH"}
+            and gym.owner_id != activation.user.id
+            and activation.user.id != current_user.id
+            and _profile_in_gym(session, gym.id, activation.user.id) is None,
         ),
         initial_password=activation.initial_password,
         invitation_sent=activation.invitation_sent,

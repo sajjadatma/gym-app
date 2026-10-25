@@ -72,10 +72,10 @@ Latest verified 2026-10-25 against the local dev servers (`:8000` backend, `:517
 ```sh
 cd backend
 uv run pytest -q
-# 77 passed
+# 93 passed
 
 uv run pytest -q -m migrations
-# 4 passed, 73 deselected
+# 4 passed, 89 deselected
 
 uv run alembic check
 # No new upgrade operations detected
@@ -85,8 +85,8 @@ uv run python scripts/verify_superadmin_login.py
 
 cd ../frontend
 bunx playwright test
-# 56 total: 50 passed, 6 skipped
-# Skipped: 5 superuser-journey tests without PLAYWRIGHT_SUPERUSER_* credentials
+# 67 total: 54 passed, 13 skipped
+# Skipped: 12 superuser-journey tests without PLAYWRIGHT_SUPERUSER_* credentials
 # and the production-service-worker-only test (tests/pwa.spec.ts:46-49),
 # gated by PWA_PROD=1; not failures.
 
@@ -100,7 +100,7 @@ CONFIRM_RESET_GYM_APP=YES SEED_DEMO_DATA=YES bash scripts/reset_dev_db.sh
 # reset -> migrations -> idempotent seed -> demo seed OK
 ```
 
-Playwright status: full desktop + emulated Pixel 5 suite is green (50 passed; 6 skipped — 5 superuser tests without `PLAYWRIGHT_SUPERUSER_*` credentials and 1 production-only PWA skip); the superuser project is green (5 passed) against a disposable database on `:8001`/`:5174`; the production PWA subset is also green when run against the built app at `:8000` with `PWA_PROD=1`. No Playwright failures are known.
+Playwright status: full desktop + emulated Pixel 5 suite is green (54 passed; 13 skipped — 12 superuser tests without `PLAYWRIGHT_SUPERUSER_*` credentials and 1 production-only PWA skip); the superuser project is green (12 passed) against a disposable database on `:8001`/`:5174`; the production PWA subset is also green when run against the built app at `:8000` with `PWA_PROD=1`. No Playwright failures are known.
 
 The real Super Admin password and invitation tokens are deliberately absent from this document and all tracked files.
 

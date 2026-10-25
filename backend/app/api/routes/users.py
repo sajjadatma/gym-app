@@ -74,6 +74,8 @@ def update_user_me(
         if existing and existing.id != current_user.id:
             raise HTTPException(status_code=409, detail="email_already_exists")
     data = user_in.model_dump(exclude_unset=True)
+    if "phone" in data:
+        data["phone"] = (data["phone"] or "").strip() or None
     current_user.sqlmodel_update(data)
     session.add(current_user)
     session.commit()

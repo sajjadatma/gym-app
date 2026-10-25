@@ -122,6 +122,10 @@ function CoachesContent() {
       })
       await queryClient.invalidateQueries({ queryKey: ["superuser-coaches"] })
       await queryClient.invalidateQueries({ queryKey: ["gyms"] })
+      await queryClient.invalidateQueries({ queryKey: ["members"] })
+      await queryClient.invalidateQueries({ queryKey: ["athletes"] })
+      await queryClient.invalidateQueries({ queryKey: ["athlete"] })
+      await queryClient.invalidateQueries({ queryKey: ["gym"] })
       setAddOpen(false)
       setCreated(response.data)
       setForm({
@@ -159,6 +163,10 @@ function CoachesContent() {
       }
       await queryClient.invalidateQueries({ queryKey: ["superuser-coaches"] })
       await queryClient.invalidateQueries({ queryKey: ["gyms"] })
+      await queryClient.invalidateQueries({ queryKey: ["members"] })
+      await queryClient.invalidateQueries({ queryKey: ["athletes"] })
+      await queryClient.invalidateQueries({ queryKey: ["athlete"] })
+      await queryClient.invalidateQueries({ queryKey: ["gym"] })
       show(
         t(
           action.kind === "archive"
