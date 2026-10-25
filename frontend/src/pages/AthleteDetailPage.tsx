@@ -16,6 +16,7 @@ import {
   RotateCcw,
   Save,
   ShieldAlert,
+  Sparkles,
   Trash2,
   UserRound,
 } from "lucide-react"
@@ -1190,6 +1191,12 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
         }
       >
         <div className="stack">
+          <div className="program-create-intro">
+            <span aria-hidden>
+              <Sparkles size={18} />
+            </span>
+            <p>{t("program.createHint")}</p>
+          </div>
           {error ? <div className="m3-inline-alert">{error}</div> : null}
           <TextField
             label={t("program.titleLabel")}

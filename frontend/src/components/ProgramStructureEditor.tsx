@@ -290,28 +290,35 @@ export function ProgramStructureEditor({
     const chronological = weekdayRank(day.weekday) !== UNKNOWN_WEEKDAY_RANK
     return (
       <section
-        className="m3-day"
+        className="m3-day program-day-sheet"
         id={`workout-day-${dayIndex}`}
         role="tabpanel"
         aria-labelledby={`workout-day-tab-${dayIndex}`}
       >
-        <header className="m3-day__header">
-          <div className="m3-day__title">
-            <span className="m3-day__number">
-              {formatNumber(activeTabIndex + 1)}
+        <header className="program-day-sheet__header">
+          <div className="program-day-sheet__identity">
+            <span className="program-day-sheet__number">
+              {formatNumber(day.day_number ?? dayIndex + 1)}
             </span>
-            <TextField
-              label={t("program.dayTitle")}
-              containerClassName="m3-day-title-field"
-              value={day.title}
-              onChange={(event) =>
-                updateDay(dayIndex, { title: event.target.value })
-              }
-              disabled={readOnly}
-            />
+            <div className="program-day-sheet__title">
+              <span className="program-day-sheet__eyebrow">
+                {day.weekday
+                  ? t(`weekday.${day.weekday}` as TranslationKey)
+                  : t("program.day")}
+              </span>
+              <TextField
+                label={t("program.dayTitle")}
+                containerClassName="m3-day-title-field"
+                value={day.title}
+                onChange={(event) =>
+                  updateDay(dayIndex, { title: event.target.value })
+                }
+                disabled={readOnly}
+              />
+            </div>
           </div>
           {!readOnly ? (
-            <div className="m3-day__tools">
+            <div className="program-day-sheet__tools">
               {!chronological ? (
                 <>
                   <IconButton
@@ -414,12 +421,15 @@ export function ProgramStructureEditor({
               (item) => item.id === exercise.exercise_id,
             )
             return (
-              <div
-                className="m3-exercise-block"
+              <article
+                className="m3-exercise-block program-exercise"
                 key={`${exercise.exercise_id}-${exerciseIndex}`}
               >
-                <div className="m3-exercise-block__head">
-                  <div style={{ flex: 1, minWidth: 220 }}>
+                <div className="program-exercise__head">
+                  <span className="program-exercise__order" aria-hidden>
+                    {formatNumber(exerciseIndex + 1)}
+                  </span>
+                  <div className="program-exercise__identity">
                     <SearchableSelectField
                       label={t("program.exercise")}
                       value={exercise.exercise_id}
@@ -444,13 +454,18 @@ export function ProgramStructureEditor({
                       disabled={readOnly}
                     />
                     {libraryEntry ? (
-                      <div className="m3-exercise-block__meta">
-                        {t("program.muscleGroup")}: {libraryEntry.muscle_group}
+                      <div className="program-exercise__meta">
+                        <span className="program-exercise__chip">
+                          {libraryEntry.muscle_group}
+                        </span>
+                        <span className="muted">
+                          {t("program.muscleGroup")}
+                        </span>
                       </div>
                     ) : null}
                   </div>
                   {!readOnly ? (
-                    <div className="m3-exercise-block__tools">
+                    <div className="program-exercise__tools">
                       <IconButton
                         label={t("program.moveUp")}
                         onClick={() => {
@@ -512,195 +527,210 @@ export function ProgramStructureEditor({
                     })
                   }
                   disabled={readOnly}
-                  containerClassName="m3-mt-xs"
+                  containerClassName="program-exercise__notes"
                 />
 
-                <div className="m3-set-editor">
-                  <table className="m3-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">{t("program.set")}</th>
-                        <th scope="col">{t("program.repsMin")}</th>
-                        <th scope="col">{t("program.repsMax")}</th>
-                        <th scope="col">
-                          {t("program.weight")} ({t("common.units.kg")})
-                        </th>
-                        <th scope="col">{t("program.intensity")}</th>
-                        <th scope="col">
-                          {t("program.rest")} ({t("common.units.seconds")})
-                        </th>
-                        <th scope="col">
-                          {t("program.duration")} ({t("common.units.seconds")})
-                        </th>
-                        <th scope="col">{t("program.setNote")}</th>
+                <div className="m3-set-editor program-set-ledger">
+                  <div className="program-set-ledger__head" aria-hidden>
+                    <span>{t("program.set")}</span>
+                    <span>{t("program.repsMin")}</span>
+                    <span>{t("program.repsMax")}</span>
+                    <span>
+                      {t("program.weight")} ({t("common.units.kg")})
+                    </span>
+                    <span>{t("program.intensity")}</span>
+                    <span>
+                      {t("program.rest")} ({t("common.units.seconds")})
+                    </span>
+                    <span>
+                      {t("program.duration")} ({t("common.units.seconds")})
+                    </span>
+                    <span>{t("program.setNote")}</span>
+                    <span>{t("common.actions")}</span>
+                  </div>
+                  {exercise.sets.map((set, setIndex) => (
+                    <fieldset
+                      className="program-set-row"
+                      aria-label={`${t("program.set")} ${formatNumber(
+                        setIndex + 1,
+                      )}`}
+                      key={`${set.set_number}-${setIndex}`}
+                    >
+                      <span className="program-set-row__number" aria-hidden>
+                        {formatNumber(setIndex + 1)}
+                      </span>
+                      <div
+                        className="program-set-field"
+                        data-label={t("program.repsMin")}
+                      >
+                        <SetField
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          value={set.reps_min ?? ""}
+                          label={t("program.repsMin")}
+                          disabled={readOnly}
+                          onChange={(event) =>
+                            updateSet(dayIndex, exerciseIndex, setIndex, {
+                              reps_min: toNumber(event.target.value),
+                            })
+                          }
+                        />
+                      </div>
+                      <div
+                        className="program-set-field"
+                        data-label={t("program.repsMax")}
+                      >
+                        <SetField
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          value={set.reps_max ?? ""}
+                          label={t("program.repsMax")}
+                          disabled={readOnly}
+                          onChange={(event) =>
+                            updateSet(dayIndex, exerciseIndex, setIndex, {
+                              reps_max: toNumber(event.target.value),
+                            })
+                          }
+                        />
+                      </div>
+                      <div
+                        className="program-set-field"
+                        data-label={`${t("program.weight")} (${t(
+                          "common.units.kg",
+                        )})`}
+                      >
+                        <SetField
+                          type="number"
+                          min={0}
+                          step="0.5"
+                          inputMode="decimal"
+                          value={set.weight_kg ?? ""}
+                          label={t("program.weight")}
+                          disabled={readOnly}
+                          onChange={(event) =>
+                            updateSet(dayIndex, exerciseIndex, setIndex, {
+                              weight_kg: toNumber(event.target.value),
+                            })
+                          }
+                        />
+                      </div>
+                      <div
+                        className="program-set-field"
+                        data-label={t("program.intensity")}
+                      >
+                        <SetField
+                          type="text"
+                          value={set.intensity ?? ""}
+                          label={t("program.intensity")}
+                          disabled={readOnly}
+                          onChange={(event) =>
+                            updateSet(dayIndex, exerciseIndex, setIndex, {
+                              intensity: event.target.value || null,
+                            })
+                          }
+                        />
+                      </div>
+                      <div
+                        className="program-set-field"
+                        data-label={`${t("program.rest")} (${t(
+                          "common.units.seconds",
+                        )})`}
+                      >
+                        <SetField
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          value={set.rest_seconds ?? ""}
+                          label={t("program.rest")}
+                          disabled={readOnly}
+                          onChange={(event) =>
+                            updateSet(dayIndex, exerciseIndex, setIndex, {
+                              rest_seconds: toNumber(event.target.value),
+                            })
+                          }
+                        />
+                      </div>
+                      <div
+                        className="program-set-field"
+                        data-label={`${t("program.duration")} (${t(
+                          "common.units.seconds",
+                        )})`}
+                      >
+                        <SetField
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          value={set.duration_seconds ?? ""}
+                          label={t("program.duration")}
+                          disabled={readOnly}
+                          onChange={(event) =>
+                            updateSet(dayIndex, exerciseIndex, setIndex, {
+                              duration_seconds: toNumber(event.target.value),
+                            })
+                          }
+                        />
+                      </div>
+                      <div
+                        className="program-set-field"
+                        data-label={t("program.setNote")}
+                      >
+                        <SetField
+                          type="text"
+                          value={set.note ?? ""}
+                          label={t("program.setNote")}
+                          disabled={readOnly}
+                          onChange={(event) =>
+                            updateSet(dayIndex, exerciseIndex, setIndex, {
+                              note: event.target.value || null,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="program-set-row__actions">
                         {!readOnly ? (
-                          <th scope="col">{t("common.actions")}</th>
+                          <>
+                            <IconButton
+                              label={t("program.duplicateSet")}
+                              onClick={() =>
+                                duplicateSet(dayIndex, exerciseIndex, setIndex)
+                              }
+                            >
+                              <Copy size={14} />
+                            </IconButton>
+                            <IconButton
+                              label={t("program.removeSet")}
+                              onClick={() =>
+                                removeSet(dayIndex, exerciseIndex, setIndex)
+                              }
+                            >
+                              <Trash2 size={14} />
+                            </IconButton>
+                          </>
                         ) : null}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {exercise.sets.map((set, setIndex) => (
-                        <tr key={`${set.set_number}-${setIndex}`}>
-                          <td style={{ textAlign: "center", fontWeight: 700 }}>
-                            {formatNumber(setIndex + 1)}
-                          </td>
-                          <td>
-                            <SetField
-                              type="number"
-                              inputMode="numeric"
-                              min={0}
-                              value={set.reps_min ?? ""}
-                              label={t("program.repsMin")}
-                              disabled={readOnly}
-                              onChange={(event) =>
-                                updateSet(dayIndex, exerciseIndex, setIndex, {
-                                  reps_min: toNumber(event.target.value),
-                                })
-                              }
-                            />
-                          </td>
-                          <td>
-                            <SetField
-                              type="number"
-                              inputMode="numeric"
-                              min={0}
-                              value={set.reps_max ?? ""}
-                              label={t("program.repsMax")}
-                              disabled={readOnly}
-                              onChange={(event) =>
-                                updateSet(dayIndex, exerciseIndex, setIndex, {
-                                  reps_max: toNumber(event.target.value),
-                                })
-                              }
-                            />
-                          </td>
-                          <td>
-                            <SetField
-                              type="number"
-                              min={0}
-                              step="0.5"
-                              inputMode="decimal"
-                              value={set.weight_kg ?? ""}
-                              label={t("program.weight")}
-                              disabled={readOnly}
-                              onChange={(event) =>
-                                updateSet(dayIndex, exerciseIndex, setIndex, {
-                                  weight_kg: toNumber(event.target.value),
-                                })
-                              }
-                            />
-                          </td>
-                          <td>
-                            <SetField
-                              type="text"
-                              value={set.intensity ?? ""}
-                              label={t("program.intensity")}
-                              disabled={readOnly}
-                              onChange={(event) =>
-                                updateSet(dayIndex, exerciseIndex, setIndex, {
-                                  intensity: event.target.value || null,
-                                })
-                              }
-                            />
-                          </td>
-                          <td>
-                            <SetField
-                              type="number"
-                              inputMode="numeric"
-                              min={0}
-                              value={set.rest_seconds ?? ""}
-                              label={t("program.rest")}
-                              disabled={readOnly}
-                              onChange={(event) =>
-                                updateSet(dayIndex, exerciseIndex, setIndex, {
-                                  rest_seconds: toNumber(event.target.value),
-                                })
-                              }
-                            />
-                          </td>
-                          <td>
-                            <SetField
-                              type="number"
-                              inputMode="numeric"
-                              min={0}
-                              value={set.duration_seconds ?? ""}
-                              label={t("program.duration")}
-                              disabled={readOnly}
-                              onChange={(event) =>
-                                updateSet(dayIndex, exerciseIndex, setIndex, {
-                                  duration_seconds: toNumber(
-                                    event.target.value,
-                                  ),
-                                })
-                              }
-                            />
-                          </td>
-                          <td>
-                            <SetField
-                              type="text"
-                              value={set.note ?? ""}
-                              label={t("program.setNote")}
-                              disabled={readOnly}
-                              onChange={(event) =>
-                                updateSet(dayIndex, exerciseIndex, setIndex, {
-                                  note: event.target.value || null,
-                                })
-                              }
-                            />
-                          </td>
-                          {!readOnly ? (
-                            <td>
-                              <div
-                                className="row"
-                                style={{ gap: 2, flexWrap: "nowrap" }}
-                              >
-                                <IconButton
-                                  label={t("program.duplicateSet")}
-                                  onClick={() =>
-                                    duplicateSet(
-                                      dayIndex,
-                                      exerciseIndex,
-                                      setIndex,
-                                    )
-                                  }
-                                >
-                                  <Copy size={14} />
-                                </IconButton>
-                                <IconButton
-                                  label={t("program.removeSet")}
-                                  onClick={() =>
-                                    removeSet(dayIndex, exerciseIndex, setIndex)
-                                  }
-                                >
-                                  <Trash2 size={14} />
-                                </IconButton>
-                              </div>
-                            </td>
-                          ) : null}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </div>
+                    </fieldset>
+                  ))}
                   {exercise.sets.length === 0 ? (
-                    <p className="muted" style={{ fontSize: 11, padding: 8 }}>
+                    <p className="program-set-ledger__empty">
                       {t("program.noSets")}
                     </p>
                   ) : null}
                 </div>
 
                 {!readOnly ? (
-                  <div className="row" style={{ marginTop: 8 }}>
-                    <Button
-                      variant="text"
-                      size="sm"
-                      icon={<Plus size={14} />}
-                      onClick={() => addSet(dayIndex, exerciseIndex)}
-                    >
-                      {t("program.addSet")}
-                    </Button>
-                  </div>
+                  <Button
+                    variant="outlined"
+                    size="sm"
+                    className="program-add-set"
+                    icon={<Plus size={14} />}
+                    onClick={() => addSet(dayIndex, exerciseIndex)}
+                  >
+                    {t("program.addSet")}
+                  </Button>
                 ) : null}
-              </div>
+              </article>
             )
           })}
 
@@ -718,7 +748,7 @@ export function ProgramStructureEditor({
   }
 
   return (
-    <div className="stack">
+    <div className="program-authoring">
       {categoriesQuery.isError ? (
         <ErrorState
           message={translateApiError(categoriesQuery.error, t)}
@@ -727,64 +757,103 @@ export function ProgramStructureEditor({
         />
       ) : null}
 
-      {days.length === 0 ? (
-        <div className="m3-empty">
-          <h3>{t("program.noDays")}</h3>
-          {!readOnly ? (
-            <Button icon={<Plus size={16} />} onClick={addDay}>
-              {t("program.addDay")}
-            </Button>
-          ) : null}
+      <aside className="program-day-rail" aria-label={t("program.days")}>
+        <div className="program-day-rail__head">
+          <div>
+            <span className="program-day-rail__eyebrow">
+              {t("program.structure")}
+            </span>
+            <strong>{t("program.days")}</strong>
+          </div>
+          <span className="program-day-rail__count">
+            {formatNumber(days.length)}
+          </span>
         </div>
-      ) : null}
 
-      {days.length > 0 ? (
-        <div
-          className="m3-day-tabs"
-          role="tablist"
-          aria-label={t("program.days")}
-        >
-          {shownTabs.map((entry, tabIndex) => {
-            const active = tabIndex === activeTabIndex
-            return (
-              <button
-                key={entry.index}
-                type="button"
-                role="tab"
-                id={`workout-day-tab-${entry.index}`}
-                aria-selected={active}
-                aria-controls={`workout-day-${entry.index}`}
-                className={`m3-day-tab ${active ? "m3-day-tab--active" : ""}`}
-                onClick={() => setActiveTabIndex(tabIndex)}
-              >
-                <span className="m3-day-tab__number">
-                  {formatNumber(tabIndex + 1)}
-                </span>
-                <span className="m3-day-tab__title">
-                  {entry.day.weekday
-                    ? t(`weekday.${entry.day.weekday}` as TranslationKey)
-                    : entry.day.title}
-                </span>
-                <span className="m3-day-tab__count">
-                  {formatNumber(entry.day.exercises.length)}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      ) : null}
+        {days.length === 0 ? (
+          <p className="program-day-rail__empty">{t("program.noDays")}</p>
+        ) : (
+          <div
+            className="program-day-tabs"
+            role="tablist"
+            aria-label={t("program.days")}
+          >
+            {shownTabs.map((entry, tabIndex) => {
+              const active = tabIndex === activeTabIndex
+              const setCount = entry.day.exercises.reduce(
+                (total, exercise) => total + exercise.sets.length,
+                0,
+              )
+              return (
+                <button
+                  key={entry.index}
+                  type="button"
+                  role="tab"
+                  id={`workout-day-tab-${entry.index}`}
+                  aria-selected={active}
+                  aria-controls={`workout-day-${entry.index}`}
+                  className={`program-day-tab ${active ? "is-active" : ""}`}
+                  onClick={() => setActiveTabIndex(tabIndex)}
+                >
+                  <span className="program-day-tab__number">
+                    {formatNumber(entry.day.day_number ?? tabIndex + 1)}
+                  </span>
+                  <span className="program-day-tab__body">
+                    <span className="program-day-tab__title">
+                      {entry.day.weekday
+                        ? t(`weekday.${entry.day.weekday}` as TranslationKey)
+                        : entry.day.title}
+                    </span>
+                    <span className="program-day-tab__meta">
+                      {formatNumber(entry.day.exercises.length)}{" "}
+                      {t("program.metricExercises")} · {formatNumber(setCount)}{" "}
+                      {t("program.metricSets")}
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
 
-      {renderActiveDay()}
-
-      {!readOnly &&
-      days.length > 0 &&
-      (dayLimit === null || days.length < dayLimit) ? (
-        <div>
-          <Button variant="outlined" icon={<Plus size={16} />} onClick={addDay}>
+        {!readOnly &&
+        days.length > 0 &&
+        (dayLimit === null || days.length < dayLimit) ? (
+          <Button
+            variant="outlined"
+            className="program-day-rail__add"
+            icon={<Plus size={16} />}
+            onClick={addDay}
+          >
             {t("program.addDay")}
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+
+        {dayLimit !== null ? (
+          <p className="program-day-rail__limit">
+            {formatNumber(days.length)} / {formatNumber(dayLimit)}
+          </p>
+        ) : null}
+      </aside>
+
+      <div className="program-day-stage">
+        {days.length === 0 ? (
+          <div className="program-empty-state">
+            <span className="program-empty-state__icon" aria-hidden>
+              <Plus size={22} />
+            </span>
+            <h3>{t("program.noDays")}</h3>
+            <p className="muted">{t("program.draftBanner")}</p>
+            {!readOnly && (dayLimit === null || days.length < dayLimit) ? (
+              <Button icon={<Plus size={16} />} onClick={addDay}>
+                {t("program.addDay")}
+              </Button>
+            ) : null}
+          </div>
+        ) : (
+          renderActiveDay()
+        )}
+      </div>
     </div>
   )
 }
