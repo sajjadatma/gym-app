@@ -152,3 +152,12 @@ The real Super Admin password and invitation tokens are deliberately absent from
 - Non-superusers landing on `/` are redirected to their active club workspace; the `/` route is the superuser global dashboard only when no club is active.
 - Print preview remains at `/print/:versionId` and uses the active club context from the same browser session.
 - Superusers inside a club no longer see the global clubs item in the sidebar; the app header offers a «داشبورد سراسری» action on every club page, and «همه باشگاه‌ها» remains in the club switcher for leaving from any club page.
+
+### Global coach and athlete management — 2026-10-25
+
+- Superusers in global mode get **مربیان** (`/coaches`) and **ورزشکاران** (`/athletes`) pages listing people across all clubs with club name, email, phone, status, and assigned coach (athletes). Both disappear inside a club and redirect to the club pages.
+- Coaches are club memberships: one row per coach per club. Create requires a club and a phone; existing accounts are reused and a non-empty account phone is never overwritten. `User.phone` is optional at the database level (migration `f0a1b2c3d4e5`) and editable from the profile.
+- Coach **archive** deactivates the membership only when it carries just the COACH role and is not the owner, the acting superuser, or linked to an athlete profile. Archive and delete end that club's active coach assignments in the same transaction; assignment history is preserved and restore does not recreate assignments.
+- Coach **delete** removes only the COACH role from that club, deleting the membership only when nothing else remains; accounts, other roles, other clubs, athletes, and workout history are preserved.
+- Athlete actions are club-scoped and reuse the existing lifecycle rules (archive/restore/delete, extra roles preserved, account retained for other clubs). Global athlete creation still requires an active coach; the dialog disables creation when the club has none.
+- Backend exposes superuser-only `/api/v1/superuser/coaches` and `/api/v1/superuser/athletes` endpoints with explicit club ids; non-superusers receive 403 independently of the UI.
