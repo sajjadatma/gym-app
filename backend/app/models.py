@@ -276,7 +276,9 @@ class SuperuserCoachRow(SQLModel):
     email: EmailStr
     full_name: str | None = None
     phone: str | None = None
+    roles: list[GymRole]
     is_active: bool
+    can_archive: bool
     created_at: datetime
 
 

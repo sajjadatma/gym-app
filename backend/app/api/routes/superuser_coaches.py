@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import or_
@@ -13,6 +13,7 @@ from app.models import (
     Gym,
     GymMembership,
     GymMembershipRole,
+    GymRole,
     Message,
     SuperuserCoachCreate,
     SuperuserCoachCreated,
@@ -32,7 +33,11 @@ router = APIRouter(prefix="/superuser/coaches", tags=["superuser-coaches"])
 
 
 def _coach_row(
-    user: User, membership: GymMembership, gym: Gym
+    user: User,
+    membership: GymMembership,
+    gym: Gym,
+    roles: set[str],
+    can_archive: bool,
 ) -> SuperuserCoachRow:
     return SuperuserCoachRow(
         membership_id=membership.id,
@@ -42,7 +47,9 @@ def _coach_row(
         email=user.email,
         full_name=user.full_name,
         phone=user.phone,
+        roles=cast(list[GymRole], sorted(roles)),
         is_active=membership.is_active,
+        can_archive=can_archive,
         created_at=membership.created_at,
     )
 
@@ -78,7 +85,7 @@ def _profile_in_gym(
 def list_coaches(
     *,
     session: SessionDep,
-    _current_user: CurrentSuperuser,
+    current_user: CurrentSuperuser,
     q: str = "",
     gym_id: uuid.UUID | None = None,
     include_archived: bool = Query(default=False),
@@ -113,10 +120,34 @@ def list_coaches(
     statement = statement.order_by(
         col(Gym.name), col(User.full_name), col(User.email)
     )
-    rows = [
-        _coach_row(user, membership, gym)
-        for user, membership, gym in session.exec(statement).all()
-    ]
+    result = session.exec(statement).all()
+    gym_ids = {gym.id for _user, _membership, gym in result}
+    profile_pairs = (
+        set(
+            session.exec(
+                select(AthleteProfile.gym_id, AthleteProfile.user_id).where(
+                    col(AthleteProfile.gym_id).in_(gym_ids)
+                )
+            ).all()
+        )
+        if gym_ids
+        else set()
+    )
+    rows = []
+    for user, membership, gym in result:
+        roles = get_membership_roles(session, membership.id)
+        rows.append(
+            _coach_row(
+                user,
+                membership,
+                gym,
+                roles,
+                roles == {"COACH"}
+                and gym.owner_id != user.id
+                and user.id != current_user.id
+                and (gym.id, user.id) not in profile_pairs,
+            )
+        )
     return SuperuserCoachesPublic(data=rows, count=len(rows))
 
 
@@ -124,7 +155,7 @@ def list_coaches(
 def create_coach(
     *,
     session: SessionDep,
-    _current_user: CurrentSuperuser,
+    current_user: CurrentSuperuser,
     body: SuperuserCoachCreate,
 ) -> Any:
     phone = body.phone.strip() or None
@@ -167,7 +198,14 @@ def create_coach(
     session.refresh(membership)
     session.refresh(activation.user)
     return SuperuserCoachCreated(
-        coach=_coach_row(activation.user, membership, gym),
+        coach=_coach_row(
+            activation.user,
+            membership,
+            gym,
+            {"COACH"},
+            gym.owner_id != activation.user.id
+            and activation.user.id != current_user.id,
+        ),
         initial_password=activation.initial_password,
         invitation_sent=activation.invitation_sent,
     )
