@@ -77,13 +77,13 @@ uv run ruff check app tests
 # All checks passed
 
 uv run mypy app
-# Success: no issues found in 39 source files
+# Success: no issues found in 40 source files
 
 uv run pytest -q
-# 112 passed
+# 124 passed
 
 uv run pytest -q -m migrations
-# 4 passed, 108 deselected
+# 4 passed, 120 deselected
 
 uv run alembic check
 # No new upgrade operations detected
@@ -115,7 +115,7 @@ CONFIRM_RESET_GYM_APP=YES SEED_DEMO_DATA=YES bash scripts/reset_dev_db.sh
 
 Release hardening evidence, including the isolated backup/restore drill, is in `docs/release/production-hardening-results.md`.
 
-Playwright status: full desktop + emulated Pixel 5 suite is green (69 passed; 1 skipped — the production-only PWA service-worker test, covered by the separate `PWA_PROD=1` run). No Playwright failures are known. Docker image build and public TLS/ACME remain **NOT VERIFIED** (no Docker daemon; no public domain).
+Playwright status: full desktop + emulated Pixel 5 suite is green locally (69 passed; 1 skipped — the production-only PWA service-worker test, covered by the separate `PWA_PROD=1` run). CI also runs 25 critical journeys and 2 PWA smoke tests against the built Docker image. Docker image build/startup, migrations, restart persistence, concurrent-start migration locking, config failure, runtime rate limiting and backup/restore are now **VERIFIED IN CI** (run `40207933344`). Traefik/ACME/public TLS and real SMTP delivery remain **NOT VERIFIED** until a real host/domain and provider credentials are supplied.
 
 The real Super Admin password and invitation tokens are deliberately absent from this document and all tracked files.
 

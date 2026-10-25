@@ -2,23 +2,28 @@
 
 **Audit date:** 2026-10-25
 **Audited commit:** `fbb9a22`
+**Release-engineering commit:** `12ef88f`
 **Decision owner:** Independent audit (Principal Architect / Product / Security / QA perspective)
 
 ## 1. Executive summary
 
-The approved **local** MVP1 is functionally complete and now hardened. Post-hardening verification: backend **112 passed**, migration tests **4 passed**, Ruff/mypy clean, `alembic check` clean, frontend lint/type/build clean, service-worker unit tests **6 passed**, full Playwright **69 passed / 1 skipped**, and production PWA smoke **2 passed**.
+The approved MVP1 is functionally complete, hardened, and now deployable in a reproducible Docker topology. Verification: backend **124 passed** locally (CI: 120 + 4 migration tests), Ruff/mypy clean, `alembic check` clean, frontend lint/type/build clean, service-worker tests **6 passed**, full Playwright **69 passed / 1 skipped**, and production PWA smoke **2 passed** both locally and in CI.
 
-Confirmed authentication, session, abuse-protection, deployment-readiness, email-escaping, and backup/restore blockers are resolved and verified locally. An isolated backup/restore drill passed with matching row counts and byte-identical uploads. Two environment-dependent checks remain **NOT VERIFIED**: Docker image execution (no Docker daemon available) and public TLS/ACME/DNS (local self-signed HTTPS verified only).
+The Docker image now builds and runs in CI. CI verifies startup, migrations at the expected revision, restart persistence, fail-fast configuration, runtime `429` rate limiting, concurrent-start migration serialization, 25 critical Playwright journeys, PWA smoke, and both isolated and live backup restores. Staging and production configuration templates validate and are isolated by Compose project.
 
-Detailed evidence: `production-hardening-results.md`. Deployment procedure: `production-deployment-runbook.md`.
+Remaining **NOT VERIFIED** items are environment-specific: real DNS/ACME/TLS and Traefik runtime, real SMTP delivery, and an actual staging/production deployment with a target-storage restore drill.
+
+Detailed evidence: `staging-production-readiness.md`, `release-candidate-report.md`, `production-hardening-results.md`. Deployment procedures: `staging-deployment-runbook.md`, `production-deployment-runbook.md`.
 
 ## 2. Release verdicts
 
 | Target | Verdict | Reason |
 |---|---|---|
 | **Local MVP Readiness** | **GO** | Approved local scope is complete; hardened suites are green. Use disposable/demo data. |
-| **Controlled Private Pilot** | **CONDITIONAL GO** for real user data | All applicable BLOCKER/HIGH findings are resolved and locally verified. Conditions: verify TLS/ACME on the real host, build/run the Docker image on a Docker-capable host, configure SMTP and monitoring, and run the restore drill against target storage. |
-| **Public Production** | **NO-GO** | Pilot conditions plus durable monitoring/alerting, audit retention, target-environment restore verification, and public TLS proof are still required. |
+| **Staging Configuration** | **GO** | Shared Compose + staging override, preflight, isolated project/volumes/secrets, Mailpit/email redirection, and CI Docker runtime are verified. |
+| **Staging Deployment** | **NOT VERIFIED** | No staging host/DNS/ACME/SMTP credentials were provided. |
+| **Controlled Private Pilot** | **CONDITIONAL GO** for real user data | BLOCKER/HIGH findings are resolved. Conditions: deploy staging, prove TLS/ACME and SMTP, run a target-storage restore drill, and enable monitoring. |
+| **Public Production** | **NO-GO** | Pilot gates plus durable monitoring/audit retention and proven public production TLS are still required. |
 
 ## 3. Feature completeness
 
@@ -72,7 +77,7 @@ Correctly excluded: attendance, workout logging/analytics, chat, nutrition, paym
 | M-4 | **Accepted for MVP.** Measured global sort ~33 ms at 50k rows; no speculative pagination added. |
 | M-5 | **Partially resolved.** JSON `Content-Length` cap enforced; proxy must enforce streamed body limits. |
 | M-6 | **Accepted for MVP.** Blocking upload/import work remains; no measured incident at MVP scale; single worker. |
-| M-7 | **Accepted operational gap.** CI still excludes Playwright/PWA/Docker; they are manual release gates. |
+| M-7 | **Resolved.** CI now builds/starts Docker, runs critical Playwright and PWA, checks migrations/restart/config failure/rate limits, and performs backup/restore drills. Full E2E remains a release-workflow gate. |
 | M-8 | **Resolved.** Counts, verdicts and deployment docs refreshed. |
 
 ### LOW
@@ -81,25 +86,25 @@ L-1 (real-looking email in docs), L-2 (legacy `item` table), L-3 (search wildcar
 
 ## 5. Remaining conditions before pilot/public production
 
-All code-level BLOCKER/HIGH corrections are implemented and locally verified. The following are environment or operational gates that cannot be satisfied from the development host.
+The code-level BLOCKER/HIGH corrections and Docker runtime gates are complete. The following require real infrastructure or credentials.
 
 **Required before a controlled private pilot with real data:**
 
-1. **B-3:** Deploy to the target host with real DNS; confirm ACME issuance, certificate chain, HTTP→HTTPS redirect and HSTS with the commands in the runbook §5.
-2. **H-1:** Build and start the Docker image on a Docker-capable host; confirm the entrypoint migrates and readiness becomes healthy.
-3. Configure SMTP and verify an actual invitation and password-recovery email.
-4. Run the backup/restore drill against the target storage and retain the evidence.
-5. Configure an external readiness check, log collection, and a certificate-expiry alert.
+1. Deploy staging to a real host with DNS; verify ACME (staging CA), certificate, HTTP→HTTPS redirect and security headers.
+2. Deploy production with the tested image; verify public ACME/TLS, HSTS and proxy behavior.
+3. Configure SMTP and verify an actual invitation and password-recovery email to a controlled recipient.
+4. Run `scripts/backup_compose.sh` against target storage and complete an isolated restore drill with target volumes.
+5. Configure external readiness checks, log shipping, Sentry, backup-freshness and certificate-expiry alerts.
+6. Confirm staging and production use different projects, domains, secrets and volumes on the real host.
 
 **Required before public production, in addition:**
 
-6. Ship logs (including `audit event=...`) to durable, access-controlled storage with retention.
-7. Add metrics/alerting for error rate, latency, `429` volume, DB health, disk and certificate expiry.
-8. Ensure the edge proxy enforces streaming/chunked body limits (M-5).
-9. Add Playwright/PWA/Docker/restore checks to CI or the release checklist (M-7).
+7. Ship JSON logs (including `audit event=...`) to durable, access-controlled storage with retention.
+8. Add metrics/alerting for error rate, latency, `429` volume, DB health, disk and certificate expiry.
+9. Replace the in-process limiter with a shared store before raising `WEB_CONCURRENCY` above 1.
 10. Commit the authoritative MVP1 specification and reconcile docs (M-1).
-11. Replace the in-process limiter with a shared store before raising `WEB_CONCURRENCY` above 1.
-12. Decide and document the scale limit for remaining unbounded collections (M-4).
+11. Decide and document the scale limit for remaining unbounded collections (M-4).
+12. Verify a full disaster-recovery exercise (host loss + backup restore) on the target.
 
 ## 6. Accepted MVP limitations
 
@@ -118,22 +123,28 @@ These are consistent with the approved local scope and are **not** release-block
 
 ## 7. Evidence appendix
 
-### Automated gates (disposable `gym_app_hardening_test`)
+### Automated gates (release candidate `12ef88f`)
 
 | Command | Result |
 |---|---|
 | `cd backend && uv run ruff check app tests` | All checks passed |
-| `cd backend && uv run mypy app` | Success, 39 source files |
-| `cd backend && uv run pytest -q` | **112 passed** |
-| `cd backend && uv run pytest -q -m migrations` | **4 passed**, 108 deselected |
+| `cd backend && uv run mypy app` | Success, 40 source files |
+| `cd backend && uv run pytest -q` | **124 passed** |
+| CI backend (excluding migration marker) | **120 passed**, 4 deselected |
+| `cd backend && uv run pytest -q -m migrations` | **4 passed** |
 | `cd backend && uv run alembic check` | No new upgrade operations detected |
 | `cd frontend && bun run lint:check` | 129 files, no fixes |
 | `cd frontend && bunx tsc -p tsconfig.build.json --noEmit` | Pass |
 | `cd frontend && bun run build` | Pass |
 | `cd frontend && node --test tests-unit/...` | **6 passed** |
-| `cd frontend && bunx playwright test` | **69 passed**, 1 skipped (70 total) |
-| Production PWA smoke (`PWA_PROD=1 --no-deps`) | **2 passed** |
-| `docker compose -f compose.production.yml config` | Valid with required env |
+| Full Playwright (local) | **69 passed**, 1 skipped (70 total) |
+| CI critical Playwright | **25 passed** |
+| Production PWA smoke (local + CI) | **2 passed** |
+| Staging/production/CI Compose config | Valid |
+| CI Docker build + startup + migrations | Pass |
+| CI restart/config-failure/rate-limit/migration-race | Pass |
+| CI isolated + live backup restore | Pass |
+| Release workflow | See `release-candidate-report.md` |
 
 ### Runtime probes
 
@@ -151,11 +162,14 @@ These are consistent with the approved local scope and are **not** release-block
 - CORS: configured frontend origin allowed; foreign origin receives no allow-origin header.
 - `.env` not tracked and absent from Git history; no `.pem`/`.key` tracked.
 - PWA worker production test: shell cached; no `/api/` cache entries.
-- Docker image build/run: **NOT VERIFIED** — Docker daemon unavailable.
-- Public ACME/DNS/TLS: **NOT VERIFIED** — no real domain tested.
+- CI Docker runtime: image built, stack ready, migrations at `f0a1b2c3d4e5`, restart persistence OK, invalid config rejected, runtime `400 400 429` with `Retry-After: 900`, concurrent migrations `(1|1)`.
+- CI backup/restore: isolated and live restores `ok:true` with matching counts and upload file.
+- Traefik/ACME/DNS/TLS: **NOT VERIFIED** — no real domain/host tested.
+- Real SMTP delivery: **NOT VERIFIED** — Mailpit sandbox only.
+- Actual staging/production deployment: **NOT VERIFIED** — no hosts provided.
 
 ## 8. Final decision
 
-**Local MVP: GO. Controlled private pilot with real user data: CONDITIONAL GO. Public production: NO-GO.**
+**Local MVP: GO. Staging configuration: GO. Staging/production deployment: NOT VERIFIED. Controlled private pilot: CONDITIONAL GO. Public production: NO-GO.**
 
-The application is functionally complete for approved MVP1 scope, its authorization/isolation core remains sound, and all applicable BLOCKER/HIGH findings are corrected and locally verified. The pilot remains conditional on completing the target-environment gates in §5; public production additionally requires operational monitoring/audit durability and public TLS proof.
+The application is functionally complete for approved MVP1 scope, its authorization/isolation core remains sound, and all applicable BLOCKER/HIGH findings are corrected. Docker runtime, migrations, critical journeys and backup/restore are verified in CI. The pilot remains conditional on completing the real-host gates in §5; public production additionally requires operational monitoring/audit durability and public TLS proof.

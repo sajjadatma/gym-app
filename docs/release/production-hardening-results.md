@@ -5,6 +5,8 @@
 **Baseline audit:** `mvp1-security-operations-audit.md` at `fbb9a22`
 **Plan:** `production-hardening-plan.md`
 
+> **Update 2026-10-25:** Docker image build/startup, migrations, restart persistence, config failure, rate limiting, concurrent migrations and backup/restore are now verified in CI. Staging/production Compose and preflight validation are also verified. See `staging-production-readiness.md` and `release-candidate-report.md`; the Docker/TLS lines below describe the earlier local-only verification state.
+
 ## 1. Status summary
 
 Implementation and local verification of every confirmed BLOCKER/HIGH finding are complete. All automated suites pass on a disposable database. The isolated backup/restore drill passed with verified row counts and byte-identical upload data.
