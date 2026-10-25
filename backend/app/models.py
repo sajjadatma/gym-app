@@ -268,6 +268,37 @@ class MemberCreated(SQLModel):
     initial_password: str | None = None
     invitation_sent: bool = False
 
+class SuperuserCoachRow(SQLModel):
+    membership_id: uuid.UUID
+    gym_id: uuid.UUID
+    gym_name: str
+    user_id: uuid.UUID
+    email: EmailStr
+    full_name: str | None = None
+    phone: str | None = None
+    is_active: bool
+    created_at: datetime
+
+
+class SuperuserCoachesPublic(SQLModel):
+    data: list[SuperuserCoachRow]
+    count: int
+
+
+class SuperuserCoachCreate(SQLModel):
+    gym_id: uuid.UUID
+    email: EmailStr
+    full_name: str | None = Field(default=None, max_length=255)
+    phone: str = Field(min_length=1, max_length=50)
+    activation_method: ActivationMethod = "invite"
+    initial_password: str | None = Field(default=None, min_length=8, max_length=128)
+
+
+class SuperuserCoachCreated(SQLModel):
+    coach: SuperuserCoachRow
+    initial_password: str | None = None
+    invitation_sent: bool = False
+
 
 # ---------------------------------------------------------------------------
 # Athlete profiles and coach assignment

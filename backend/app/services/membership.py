@@ -3,6 +3,7 @@ from __future__ import annotations
 import secrets
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import cast
 
 from fastapi import HTTPException
@@ -12,6 +13,7 @@ from app.core.security import get_password_hash
 from app.models import (
     ActivationMethod,
     AthleteProfile,
+    CoachAssignment,
     Gym,
     GymMembership,
     GymMembershipRole,
@@ -37,6 +39,28 @@ class ActivationResult:
 
 def normalize_roles(roles: list[str]) -> list[str]:
     return sorted(set(roles))
+
+
+def end_active_coach_assignments(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    coach_user_id: uuid.UUID,
+    now: datetime | None = None,
+) -> int:
+    """Close current assignments for this coach in this gym only."""
+    ended_at = now or datetime.now(UTC)
+    rows = session.exec(
+        select(CoachAssignment).where(
+            CoachAssignment.gym_id == gym_id,
+            CoachAssignment.coach_user_id == coach_user_id,
+            col(CoachAssignment.ended_at).is_(None),
+        )
+    ).all()
+    for row in rows:
+        row.ended_at = ended_at
+        session.add(row)
+    return len(rows)
 
 
 def ensure_membership(
