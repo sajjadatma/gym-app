@@ -60,6 +60,8 @@ jobs:
       - name: Mypy
         working-directory: backend
         run: uv run mypy app
+      - name: Workflow security lint
+        run: uv run zizmor .github/workflows
       - name: Pytest (excluding migration smoke test)
         working-directory: backend
         run: uv run pytest -q -m "not migrations"
