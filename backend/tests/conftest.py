@@ -11,6 +11,7 @@ from sqlmodel import Session, create_engine, select
 
 from app.api.deps import get_db
 from app.core.config import settings
+from app.core.rate_limit import reset_rate_limits
 from app.core.security import get_password_hash
 from app.main import app
 from app.models import Exercise, SQLModel, User
@@ -20,6 +21,9 @@ from tests.utils.helpers import TEST_SUPERUSER_PASSWORD
 
 if not settings.TEST_DATABASE_URL:
     raise RuntimeError("TEST_DATABASE_URL must be configured for tests")
+# Keep normal regression fixtures independent of request volume; the dedicated
+# abuse tests enable the limiter explicitly.
+settings.RATE_LIMIT_ENABLED = False
 if not str(settings.TEST_DATABASE_URL).rstrip("/").endswith("_test"):
     raise RuntimeError("Refusing to run tests against a non-test database")
 
@@ -76,6 +80,7 @@ def prepare_database(tmp_path_factory: pytest.TempPathFactory) -> Generator[None
 
 @pytest.fixture(autouse=True)
 def clean_database() -> Generator[None]:
+    reset_rate_limits()
     tables = [
         table.name
         for table in SQLModel.metadata.sorted_tables

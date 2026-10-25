@@ -6,11 +6,19 @@ test("admin creates catalog entries; coach selects them; day categories reach at
   request,
 }) => {
   await page.goto("/exercises")
-  const token = await page.evaluate(() => localStorage.getItem("access_token"))
   const gymId = await page.evaluate(() =>
     localStorage.getItem("gym.activeGymId"),
   )
-  const admin = { Authorization: `Bearer ${token}`, "X-Gym-ID": gymId! }
+  const adminLogin = await request.post(
+    `${API_URL}/api/v1/login/access-token`,
+    { form: { username: "ali@example.com", password: DEMO_PASSWORD } },
+  )
+  expect(adminLogin.ok()).toBeTruthy()
+  const adminToken = (await adminLogin.json()).access_token
+  const admin = {
+    Authorization: `Bearer ${adminToken}`,
+    "X-Gym-ID": gymId!,
+  }
   const suffix = Date.now()
   const categoryName = `دسته نمونه ${suffix}`
   const exerciseName = `حرکت نمونه ${suffix}`
@@ -59,7 +67,7 @@ test("admin creates catalog entries; coach selects them; day categories reach at
   })
   expect(created.ok()).toBeTruthy()
   const athleteId = (await created.json()).athlete.profile.user_id
-  await page.evaluate(() => localStorage.removeItem("access_token"))
+  await page.context().clearCookies()
   await page.goto("/login")
   await page.getByLabel(/ایمیل/).fill("reza@example.com")
   await page.getByLabel(/رمز عبور/).fill(DEMO_PASSWORD)
@@ -78,9 +86,12 @@ test("admin creates catalog entries; coach selects them; day categories reach at
   await expect(
     page.getByRole("button", { name: "ویرایش", exact: true }),
   ).toHaveCount(0)
-  const coachToken = await page.evaluate(() =>
-    localStorage.getItem("access_token"),
+  const coachLogin = await request.post(
+    `${API_URL}/api/v1/login/access-token`,
+    { form: { username: "reza@example.com", password: DEMO_PASSWORD } },
   )
+  expect(coachLogin.ok()).toBeTruthy()
+  const coachToken = (await coachLogin.json()).access_token
   const rejected = await request.post(`${API_URL}/api/v1/exercise-categories`, {
     headers: { Authorization: `Bearer ${coachToken}`, "X-Gym-ID": gymId! },
     data: { name: `forbidden-${suffix}` },
@@ -130,7 +141,7 @@ test("admin creates catalog entries; coach selects them; day categories reach at
     data: { current_password: DEMO_PASSWORD, new_password: "DemoAthlete456!" },
   })
   expect(changed.ok()).toBeTruthy()
-  await page.evaluate(() => localStorage.removeItem("access_token"))
+  await page.context().clearCookies()
   await page.goto("/login")
   await page.getByLabel(/ایمیل/).fill(email)
   await page.getByLabel(/رمز عبور/).fill("DemoAthlete456!")

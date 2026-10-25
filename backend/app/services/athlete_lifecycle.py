@@ -11,6 +11,7 @@ from app.api.deps import (
     get_athlete_access,
     get_current_assignment,
 )
+from app.core.audit import audit
 from app.models import (
     AthleteCreate,
     AthleteCreated,
@@ -160,6 +161,12 @@ def archive_athlete_record(
         session.add(access.membership)
     session.add(access.profile)
     session.commit()
+    audit(
+        "athlete.archived",
+        actor_id=current_user.id,
+        gym_id=ctx.gym.id,
+        target_id=athlete_user_id,
+    )
     return Message(message="athlete_archived")
 
 
@@ -226,6 +233,12 @@ def restore_athlete_record(
             )
         )
     session.commit()
+    audit(
+        "athlete.restored",
+        actor_id=current_user.id,
+        gym_id=ctx.gym.id,
+        target_id=athlete_user_id,
+    )
     session.refresh(access.profile)
     return staff_detail(
         session,
@@ -310,6 +323,12 @@ def delete_athlete_record(
     if not memberships and not owns_a_gym:
         session.delete(access.user)
     session.commit()
+    audit(
+        "athlete.deleted",
+        actor_id=current_user.id,
+        gym_id=ctx.gym.id,
+        target_id=athlete_user_id,
+    )
     # Files are removed only after the durable commit; cleanup is idempotent.
     delete_stored_files(stored_names)
     return Message(message="athlete_deleted")

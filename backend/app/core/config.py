@@ -22,13 +22,14 @@ class Settings(BaseSettings):
     )
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
-    # 60 minutes * 24 hours * 8 days = 8 days
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
+    # Short-lived enough to limit stolen-token impact; refresh is by re-login.
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 12
     FRONTEND_HOST: str = "http://localhost:5173"
-    FASTAPI_ENV: Literal["development"] | None = None
+    FASTAPI_ENV: Literal["development", "staging", "production"] | None = None
 
     PROJECT_NAME: str = "Gym Management"
     SENTRY_DSN: HttpUrl | None = None
+    SENTRY_TRACES_SAMPLE_RATE: float = 0.0
     DATABASE_URL: PostgresDsn
     TEST_DATABASE_URL: PostgresDsn | None = None
 
@@ -36,6 +37,26 @@ class Settings(BaseSettings):
         Path(__file__).resolve().parents[2] / "uploads" / "body-analysis"
     )
     BODY_ANALYSIS_MAX_BYTES: int = 10 * 1024 * 1024
+
+    # Browser session cookies. Bearer tokens remain available for API clients.
+    ACCESS_COOKIE_NAME: str = "gym_access_token"
+    CSRF_COOKIE_NAME: str = "gym_csrf_token"
+    COOKIE_SECURE: bool = False
+    COOKIE_SAMESITE: Literal["lax", "strict", "none"] = "lax"
+    COOKIE_DOMAIN: str | None = None
+    HSTS_ENABLED: bool = False
+    CSP_CONNECT_SRC: str = "'self'"
+
+    # Request/abuse limits.
+    MAX_JSON_BODY_BYTES: int = 1024 * 1024
+    RATE_LIMIT_ENABLED: bool = True
+    LOGIN_RATE_LIMIT: int = 5
+    LOGIN_RATE_WINDOW_SECONDS: int = 15 * 60
+    LOGIN_IP_RATE_LIMIT: int = 50
+    RECOVERY_RATE_LIMIT: int = 5
+    RECOVERY_RATE_WINDOW_SECONDS: int = 60 * 60
+    RECOVERY_IP_RATE_LIMIT: int = 30
+    TRUST_PROXY_HEADERS: bool = False
 
     @field_validator("DATABASE_URL", "TEST_DATABASE_URL", mode="before")
     @classmethod
@@ -94,7 +115,13 @@ class Settings(BaseSettings):
         self._check_default_secret(
             "FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD
         )
-
+        if self.COOKIE_SAMESITE == "none" and not self.COOKIE_SECURE:
+            raise ValueError("COOKIE_SAMESITE=none requires COOKIE_SECURE=true")
+        if self.FASTAPI_ENV in {"staging", "production"}:
+            if len(self.SECRET_KEY) < 32:
+                raise ValueError("SECRET_KEY must be at least 32 characters in production")
+            if not self.COOKIE_SECURE:
+                raise ValueError("COOKIE_SECURE must be true in staging/production")
         return self
 
 

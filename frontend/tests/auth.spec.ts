@@ -13,8 +13,10 @@ test("invalid login shows a Persian error and does not store a token", async ({
     "ایمیل یا رمز عبور نادرست است.",
   )
   await expect(page).toHaveURL(/\/login$/)
-  const token = await page.evaluate(() => localStorage.getItem("access_token"))
-  expect(token).toBeNull()
+  const authCookies = (await page.context().cookies()).filter(
+    (cookie) => cookie.name === "gym_access_token",
+  )
+  expect(authCookies).toHaveLength(0)
 })
 
 test("unauthenticated users are redirected to login", async ({ page }) => {

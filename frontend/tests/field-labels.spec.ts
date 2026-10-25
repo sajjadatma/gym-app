@@ -132,7 +132,7 @@ test("athlete profile and upload controls have associated labels", async ({
   page,
 }) => {
   await page.goto("/login")
-  await page.evaluate(() => localStorage.removeItem("access_token"))
+  await page.context().clearCookies()
   await page.reload()
   await page.getByLabel(/ایمیل/).fill(ATHLETE_EMAIL)
   await page.getByLabel(/رمز عبور/).fill(DEMO_PASSWORD)

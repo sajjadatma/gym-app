@@ -14,6 +14,7 @@ from app.api.deps import (
     GymContextDep,
     SessionDep,
 )
+from app.core.audit import audit
 from app.core.security import get_password_hash
 from app.models import (
     AthleteProfile,
@@ -308,6 +309,12 @@ def transfer_ownership(
     ctx.gym.owner_id = new_owner.id
     session.add(ctx.gym)
     session.commit()
+    audit(
+        "gym.ownership_transferred",
+        actor_id=current_user.id,
+        gym_id=ctx.gym.id,
+        target_id=new_owner.id,
+    )
     session.refresh(ctx.gym)
     return OwnershipTransferred(
         gym=to_gym_public(
@@ -466,6 +473,13 @@ def update_member(
         membership.is_active = body.is_active
         session.add(membership)
     session.commit()
+    audit(
+        "membership.updated",
+        actor_id=current_user.id,
+        gym_id=gym_id,
+        target_id=membership.id,
+        detail=f"roles={sorted(body.roles) if body.roles is not None else 'unchanged'} active={body.is_active}",
+    )
     session.refresh(membership)
     return _member_public(session, membership, ctx.gym)
 

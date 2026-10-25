@@ -8,14 +8,12 @@ import {
   useMemo,
   useState,
 } from "react"
-import { getApiErrorDetail } from "./api"
 import type { GymPublic, UserMePublic } from "./client"
 import { GymsService, LoginService, UsersService } from "./client"
 
 type RoleMode = "GYM_ADMIN" | "COACH" | "ATHLETE"
 
 type AuthContextValue = {
-  token: string | null
   me: UserMePublic | null
   gyms: GymPublic[]
   activeGym: GymPublic | null
@@ -32,7 +30,7 @@ type AuthContextValue = {
   setActiveGym: (gymId: string | null) => void
   setActiveRole: (role: RoleMode) => void
   login: (email: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   refresh: () => Promise<void>
 }
 
@@ -50,9 +48,6 @@ function pickDefaultRole(gym: GymPublic | null): RoleMode | null {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
-  const [token, setToken] = useState<string | null>(() =>
-    localStorage.getItem("access_token"),
-  )
   const [activeGymId, setActiveGymIdState] = useState<string | null>(() =>
     localStorage.getItem("gym.activeGymId"),
   )
@@ -64,35 +59,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const meQuery = useQuery({
     queryKey: ["me"],
     queryFn: async () => (await UsersService.readUserMe()).data,
-    enabled: Boolean(token),
     retry: false,
   })
 
   const gymsQuery = useQuery({
     queryKey: ["gyms"],
     queryFn: async () => (await GymsService.listGyms()).data.data,
-    enabled: Boolean(token),
+    enabled: Boolean(meQuery.data),
     retry: false,
   })
 
   const me = meQuery.data ?? null
   const gyms = gymsQuery.data ?? []
   const activeGym = gyms.find((gym) => gym.id === activeGymId) ?? null
-
-  useEffect(() => {
-    if (!token) return
-    const error = meQuery.error ?? gymsQuery.error
-    if (!error) return
-    const detail = getApiErrorDetail(error)
-    if (
-      ["invalid_credentials", "invalid_token", "user_not_found"].includes(
-        detail ?? "",
-      )
-    ) {
-      localStorage.removeItem("access_token")
-      setToken(null)
-    }
-  }, [token, meQuery.error, gymsQuery.error])
 
   useEffect(() => {
     if (
@@ -162,23 +141,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string) => {
-      const response = await LoginService.loginAccessToken({
+      await LoginService.loginAccessToken({
         body: { username: email, password },
       })
       localStorage.removeItem("gym.activeGymId")
       localStorage.removeItem("gym.activeRole")
       setActiveGymIdState(null)
       setActiveRoleState(null)
-      localStorage.setItem("access_token", response.data.access_token)
-      setToken(response.data.access_token)
       await queryClient.invalidateQueries()
     },
     [queryClient],
   )
 
-  const logout = useCallback(() => {
-    localStorage.removeItem("access_token")
-    setToken(null)
+  const logout = useCallback(async () => {
+    try {
+      await LoginService.logout()
+    } catch {
+      // The cookie may already be expired; still return to the login screen.
+    }
     queryClient.clear()
     window.location.assign("/login")
   }, [queryClient])
@@ -205,14 +185,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAthlete = effectiveRole === "ATHLETE"
 
   const value: AuthContextValue = {
-    token,
     me,
     gyms,
     activeGym,
     activeGymId,
     activeRole: effectiveRole,
     availableRoles,
-    isLoading: Boolean(token) && (meQuery.isLoading || gymsQuery.isLoading),
+    isLoading: meQuery.isLoading || (Boolean(me) && gymsQuery.isLoading),
     isSuperuser,
     isAdmin,
     isCoach,

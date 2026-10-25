@@ -1,3 +1,4 @@
+import { Navigate } from "@tanstack/react-router"
 import { KeyRound } from "lucide-react"
 import { type FormEvent, useState } from "react"
 import { translateApiError } from "@/api"
@@ -37,12 +38,16 @@ export function ChangePasswordPage() {
       })
       // The password change revokes every token issued before it, including
       // this session's, so return to the login page for a fresh token.
-      logout()
+      await logout()
     } catch (err) {
       setError(translateApiError(err, t))
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!isLoading && !me) {
+    return <Navigate to="/login" replace />
   }
 
   if (isLoading) {

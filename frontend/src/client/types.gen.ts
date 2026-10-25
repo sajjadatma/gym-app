@@ -2235,6 +2235,22 @@ export type loginLoginAccessTokenResponses = {
 
 export type loginLoginAccessTokenResponse = loginLoginAccessTokenResponses[keyof loginLoginAccessTokenResponses];
 
+export type loginLogoutData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/logout';
+};
+
+export type loginLogoutResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type loginLogoutResponse = loginLogoutResponses[keyof loginLogoutResponses];
+
 export type loginRecoverPasswordData = {
     body?: never;
     path: {
@@ -4305,3 +4321,23 @@ export type utilsHealthCheckResponses = {
 };
 
 export type utilsHealthCheckResponse = utilsHealthCheckResponses[keyof utilsHealthCheckResponses];
+
+export type utilsReadinessCheckData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/utils/ready/';
+};
+
+export type utilsReadinessCheckResponses = {
+    /**
+     * Response Utils-Readiness Check
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: string;
+    };
+};
+
+export type utilsReadinessCheckResponse = utilsReadinessCheckResponses[keyof utilsReadinessCheckResponses];

@@ -1,4 +1,9 @@
-import { Outlet, useNavigate, useRouterState } from "@tanstack/react-router"
+import {
+  Navigate,
+  Outlet,
+  useNavigate,
+  useRouterState,
+} from "@tanstack/react-router"
 import {
   Bookmark,
   Building2,
@@ -144,7 +149,7 @@ export function AppShell() {
   }
 
   if (!me) {
-    return null
+    return <Navigate to="/login" replace />
   }
 
   const clubParams = activeGymId ? { gymId: activeGymId } : undefined

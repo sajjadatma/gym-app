@@ -15,6 +15,7 @@ from app.api.deps import (
     SessionDep,
     get_athlete_access,
 )
+from app.core.audit import audit
 from app.models import (
     Message,
     ProgramTemplate,
@@ -242,6 +243,12 @@ def delete_program_version(
     ensure_staff_write(access)
     session.delete(version)
     session.commit()
+    audit(
+        "program_version.deleted",
+        actor_id=current_user.id,
+        gym_id=ctx.gym.id,
+        target_id=version_id,
+    )
     return Message(message="program_version_deleted")
 
 
@@ -328,6 +335,12 @@ def publish_program_version(
         session.rollback()
         raise HTTPException(status_code=409, detail="active_program_conflict") from exc
     session.refresh(version)
+    audit(
+        "program_version.published",
+        actor_id=current_user.id,
+        gym_id=ctx.gym.id,
+        target_id=version_id,
+    )
     return version_detail(session, version, program)
 
 
@@ -355,6 +368,12 @@ def archive_program_version(
     version.archived_at = datetime.now(UTC)
     session.add(version)
     session.commit()
+    audit(
+        "program_version.archived",
+        actor_id=current_user.id,
+        gym_id=ctx.gym.id,
+        target_id=version_id,
+    )
     session.refresh(version)
     return version_detail(session, version, program)
 

@@ -8,7 +8,7 @@ from typing import Any
 
 import emails
 import jwt
-from jinja2 import Template
+from jinja2 import Environment, select_autoescape
 from jwt.exceptions import InvalidTokenError
 
 from app.core import security
@@ -34,8 +34,11 @@ def render_email_template(*, template_name: str, context: dict[str, Any]) -> str
     template_str = (
         Path(__file__).parent / "email-templates" / template_name
     ).read_text(encoding="utf-8")
-    template: Template = Template(template_str)
-    return template.render(context)
+    environment = Environment(
+        autoescape=select_autoescape(default_for_string=True, default=True)
+    )
+    template = environment.from_string(template_str)
+    return template.render(**context)
 
 
 def send_email(

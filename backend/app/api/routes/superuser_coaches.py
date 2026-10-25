@@ -8,6 +8,7 @@ from sqlalchemy import or_
 from sqlmodel import Session, col, select
 
 from app.api.deps import CurrentSuperuser, SessionDep
+from app.core.audit import audit
 from app.models import (
     AthleteProfile,
     Gym,
@@ -277,6 +278,12 @@ def archive_coach(
     membership.is_active = False
     session.add(membership)
     session.commit()
+    audit(
+        "coach.archived",
+        actor_id=current_user.id,
+        gym_id=gym.id,
+        target_id=membership.id,
+    )
     return Message(message="coach_archived")
 
 
@@ -302,6 +309,12 @@ def restore_coach(
     membership.is_active = True
     session.add(membership)
     session.commit()
+    audit(
+        "coach.restored",
+        actor_id=current_user.id,
+        gym_id=gym.id,
+        target_id=membership.id,
+    )
     return Message(message="coach_restored")
 
 
@@ -332,4 +345,10 @@ def delete_coach(
     ):
         session.delete(membership)
     session.commit()
+    audit(
+        "coach.removed_from_club",
+        actor_id=_current_user.id,
+        gym_id=gym.id,
+        target_id=membership.id,
+    )
     return Message(message="coach_removed")

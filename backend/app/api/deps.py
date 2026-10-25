@@ -15,6 +15,7 @@ from sqlmodel import Session, col, select
 from app.core import security
 from app.core.config import settings
 from app.core.db import engine
+from app.core.session import SAFE_METHODS, token_from_request, verify_csrf
 from app.models import (
     AthleteProfile,
     CoachAssignment,
@@ -26,7 +27,8 @@ from app.models import (
 from app.services.access import get_membership_roles
 
 reusable_oauth2 = OAuth2PasswordBearer(
-    tokenUrl=f"{settings.API_V1_STR}/login/access-token"
+    tokenUrl=f"{settings.API_V1_STR}/login/access-token",
+    auto_error=False,
 )
 
 
@@ -36,10 +38,19 @@ def get_db() -> Generator[Session]:
 
 
 SessionDep = Annotated[Session, Depends(get_db)]
-TokenDep = Annotated[str, Depends(reusable_oauth2)]
+TokenDep = Annotated[str | None, Depends(reusable_oauth2)]
 
 
-def get_current_user(request: Request, session: SessionDep, token: TokenDep) -> User:
+def get_current_user(
+    request: Request, session: SessionDep, bearer_token: TokenDep
+) -> User:
+    token, cookie_auth = token_from_request(request, bearer_token)
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="not_authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     try:
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
@@ -65,6 +76,8 @@ def get_current_user(request: Request, session: SessionDep, token: TokenDep) -> 
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="invalid_credentials",
         )
+    if cookie_auth and request.method not in SAFE_METHODS and not verify_csrf(request):
+        raise HTTPException(status_code=403, detail="csrf_failed")
     if user.must_change_password and request.url.path not in {
         f"{settings.API_V1_STR}/users/me",
         f"{settings.API_V1_STR}/users/me/password",

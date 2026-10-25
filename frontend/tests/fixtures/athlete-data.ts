@@ -32,19 +32,18 @@ type AthleteSummary = {
 export const test = base.extend<{ athleteData: AthleteData }>({
   athleteData: async ({ page, request }, use) => {
     await page.goto("/")
-    await page.waitForFunction(
-      () =>
-        Boolean(localStorage.getItem("access_token")) &&
-        Boolean(localStorage.getItem("gym.activeGymId")),
-    )
-    const token = await page.evaluate(() =>
-      localStorage.getItem("access_token"),
+    await page.waitForFunction(() =>
+      Boolean(localStorage.getItem("gym.activeGymId")),
     )
     const gymId = await page.evaluate(() =>
       localStorage.getItem("gym.activeGymId"),
     )
-    expect(token).toBeTruthy()
     expect(gymId).toBeTruthy()
+    const login = await request.post(`${API_URL}/api/v1/login/access-token`, {
+      form: { username: "ali@example.com", password: DEMO_PASSWORD },
+    })
+    expect(login.ok()).toBeTruthy()
+    const token = (await login.json()).access_token as string
     const headers: Record<string, string> = Object.freeze({
       Authorization: `Bearer ${token}`,
       "X-Gym-ID": gymId!,

@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { athletesArchiveAthleteData, athletesArchiveAthleteErrors, athletesArchiveAthleteResponses, athletesBulkImportAthletesData, athletesBulkImportAthletesErrors, athletesBulkImportAthletesResponses, athletesCreateAthleteData, athletesCreateAthleteErrors, athletesCreateAthleteResponses, athletesDeleteAthleteData, athletesDeleteAthleteErrors, athletesDeleteAthleteResponses, athletesDownloadAthleteImportTemplateData, athletesDownloadAthleteImportTemplateErrors, athletesDownloadAthleteImportTemplateResponses, athletesDownloadBodyFileData, athletesDownloadBodyFileErrors, athletesDownloadBodyFileResponses, athletesListAthletesData, athletesListAthletesErrors, athletesListAthletesResponses, athletesListBodyFilesData, athletesListBodyFilesErrors, athletesListBodyFilesResponses, athletesPreviewAthleteImportData, athletesPreviewAthleteImportErrors, athletesPreviewAthleteImportResponses, athletesReadAthleteData, athletesReadAthleteErrors, athletesReadAthleteResponses, athletesReadMyAthleteProfileData, athletesReadMyAthleteProfileErrors, athletesReadMyAthleteProfileResponses, athletesReassignCoachData, athletesReassignCoachErrors, athletesReassignCoachResponses, athletesRestoreAthleteData, athletesRestoreAthleteErrors, athletesRestoreAthleteResponses, athletesUpdateAthleteData, athletesUpdateAthleteErrors, athletesUpdateAthleteResponses, athletesUpdateMyAthleteProfileData, athletesUpdateMyAthleteProfileErrors, athletesUpdateMyAthleteProfileResponses, athletesUploadBodyFileData, athletesUploadBodyFileErrors, athletesUploadBodyFileResponses, exerciseCategoriesCreateExerciseCategoryData, exerciseCategoriesCreateExerciseCategoryErrors, exerciseCategoriesCreateExerciseCategoryResponses, exerciseCategoriesListExerciseCategoriesData, exerciseCategoriesListExerciseCategoriesErrors, exerciseCategoriesListExerciseCategoriesResponses, exercisesCreateExerciseData, exercisesCreateExerciseErrors, exercisesCreateExerciseResponses, exercisesListExercisesData, exercisesListExercisesErrors, exercisesListExercisesResponses, exercisesUpdateExerciseData, exercisesUpdateExerciseErrors, exercisesUpdateExerciseResponses, gymsCreateGymData, gymsCreateGymErrors, gymsCreateGymResponses, gymsCreateMemberData, gymsCreateMemberErrors, gymsCreateMemberResponses, gymsListCoachesData, gymsListCoachesErrors, gymsListCoachesResponses, gymsListGymsData, gymsListGymsResponses, gymsListMembersData, gymsListMembersErrors, gymsListMembersResponses, gymsReadGymData, gymsReadGymErrors, gymsReadGymResponses, gymsTransferOwnershipData, gymsTransferOwnershipErrors, gymsTransferOwnershipResponses, gymsUpdateGymData, gymsUpdateGymErrors, gymsUpdateGymResponses, gymsUpdateMemberData, gymsUpdateMemberErrors, gymsUpdateMemberResponses, loginAcceptInvitationData, loginAcceptInvitationErrors, loginAcceptInvitationResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, programsArchiveProgramVersionData, programsArchiveProgramVersionErrors, programsArchiveProgramVersionResponses, programsCreateNewDraftData, programsCreateNewDraftErrors, programsCreateNewDraftResponses, programsCreateProgramData, programsCreateProgramErrors, programsCreateProgramResponses, programsDeleteProgramVersionData, programsDeleteProgramVersionErrors, programsDeleteProgramVersionResponses, programsListProgramsData, programsListProgramsErrors, programsListProgramsResponses, programsPublishProgramVersionData, programsPublishProgramVersionErrors, programsPublishProgramVersionResponses, programsReadProgramVersionData, programsReadProgramVersionErrors, programsReadProgramVersionResponses, programsSaveAsTemplateData, programsSaveAsTemplateErrors, programsSaveAsTemplateResponses, programsUpdateProgramVersionData, programsUpdateProgramVersionErrors, programsUpdateProgramVersionResponses, superuserAthletesArchiveAthleteData, superuserAthletesArchiveAthleteErrors, superuserAthletesArchiveAthleteResponses, superuserAthletesCreateAthleteData, superuserAthletesCreateAthleteErrors, superuserAthletesCreateAthleteResponses, superuserAthletesDeleteAthleteData, superuserAthletesDeleteAthleteErrors, superuserAthletesDeleteAthleteResponses, superuserAthletesListAthletesData, superuserAthletesListAthletesErrors, superuserAthletesListAthletesResponses, superuserAthletesRestoreAthleteData, superuserAthletesRestoreAthleteErrors, superuserAthletesRestoreAthleteResponses, superuserCoachesArchiveCoachData, superuserCoachesArchiveCoachErrors, superuserCoachesArchiveCoachResponses, superuserCoachesCreateCoachData, superuserCoachesCreateCoachErrors, superuserCoachesCreateCoachResponses, superuserCoachesDeleteCoachData, superuserCoachesDeleteCoachErrors, superuserCoachesDeleteCoachResponses, superuserCoachesListCoachesData, superuserCoachesListCoachesErrors, superuserCoachesListCoachesResponses, superuserCoachesRestoreCoachData, superuserCoachesRestoreCoachErrors, superuserCoachesRestoreCoachResponses, templatesApplyTemplateData, templatesApplyTemplateErrors, templatesApplyTemplateResponses, templatesCreateTemplateData, templatesCreateTemplateErrors, templatesCreateTemplateResponses, templatesListTemplatesData, templatesListTemplatesErrors, templatesListTemplatesResponses, templatesReadTemplateData, templatesReadTemplateErrors, templatesReadTemplateResponses, templatesUpdateTemplateData, templatesUpdateTemplateErrors, templatesUpdateTemplateResponses, usersReadUserMeData, usersReadUserMeResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, utilsHealthCheckData, utilsHealthCheckResponses } from './types.gen';
+import type { athletesArchiveAthleteData, athletesArchiveAthleteErrors, athletesArchiveAthleteResponses, athletesBulkImportAthletesData, athletesBulkImportAthletesErrors, athletesBulkImportAthletesResponses, athletesCreateAthleteData, athletesCreateAthleteErrors, athletesCreateAthleteResponses, athletesDeleteAthleteData, athletesDeleteAthleteErrors, athletesDeleteAthleteResponses, athletesDownloadAthleteImportTemplateData, athletesDownloadAthleteImportTemplateErrors, athletesDownloadAthleteImportTemplateResponses, athletesDownloadBodyFileData, athletesDownloadBodyFileErrors, athletesDownloadBodyFileResponses, athletesListAthletesData, athletesListAthletesErrors, athletesListAthletesResponses, athletesListBodyFilesData, athletesListBodyFilesErrors, athletesListBodyFilesResponses, athletesPreviewAthleteImportData, athletesPreviewAthleteImportErrors, athletesPreviewAthleteImportResponses, athletesReadAthleteData, athletesReadAthleteErrors, athletesReadAthleteResponses, athletesReadMyAthleteProfileData, athletesReadMyAthleteProfileErrors, athletesReadMyAthleteProfileResponses, athletesReassignCoachData, athletesReassignCoachErrors, athletesReassignCoachResponses, athletesRestoreAthleteData, athletesRestoreAthleteErrors, athletesRestoreAthleteResponses, athletesUpdateAthleteData, athletesUpdateAthleteErrors, athletesUpdateAthleteResponses, athletesUpdateMyAthleteProfileData, athletesUpdateMyAthleteProfileErrors, athletesUpdateMyAthleteProfileResponses, athletesUploadBodyFileData, athletesUploadBodyFileErrors, athletesUploadBodyFileResponses, exerciseCategoriesCreateExerciseCategoryData, exerciseCategoriesCreateExerciseCategoryErrors, exerciseCategoriesCreateExerciseCategoryResponses, exerciseCategoriesListExerciseCategoriesData, exerciseCategoriesListExerciseCategoriesErrors, exerciseCategoriesListExerciseCategoriesResponses, exercisesCreateExerciseData, exercisesCreateExerciseErrors, exercisesCreateExerciseResponses, exercisesListExercisesData, exercisesListExercisesErrors, exercisesListExercisesResponses, exercisesUpdateExerciseData, exercisesUpdateExerciseErrors, exercisesUpdateExerciseResponses, gymsCreateGymData, gymsCreateGymErrors, gymsCreateGymResponses, gymsCreateMemberData, gymsCreateMemberErrors, gymsCreateMemberResponses, gymsListCoachesData, gymsListCoachesErrors, gymsListCoachesResponses, gymsListGymsData, gymsListGymsResponses, gymsListMembersData, gymsListMembersErrors, gymsListMembersResponses, gymsReadGymData, gymsReadGymErrors, gymsReadGymResponses, gymsTransferOwnershipData, gymsTransferOwnershipErrors, gymsTransferOwnershipResponses, gymsUpdateGymData, gymsUpdateGymErrors, gymsUpdateGymResponses, gymsUpdateMemberData, gymsUpdateMemberErrors, gymsUpdateMemberResponses, loginAcceptInvitationData, loginAcceptInvitationErrors, loginAcceptInvitationResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginLogoutData, loginLogoutResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, programsArchiveProgramVersionData, programsArchiveProgramVersionErrors, programsArchiveProgramVersionResponses, programsCreateNewDraftData, programsCreateNewDraftErrors, programsCreateNewDraftResponses, programsCreateProgramData, programsCreateProgramErrors, programsCreateProgramResponses, programsDeleteProgramVersionData, programsDeleteProgramVersionErrors, programsDeleteProgramVersionResponses, programsListProgramsData, programsListProgramsErrors, programsListProgramsResponses, programsPublishProgramVersionData, programsPublishProgramVersionErrors, programsPublishProgramVersionResponses, programsReadProgramVersionData, programsReadProgramVersionErrors, programsReadProgramVersionResponses, programsSaveAsTemplateData, programsSaveAsTemplateErrors, programsSaveAsTemplateResponses, programsUpdateProgramVersionData, programsUpdateProgramVersionErrors, programsUpdateProgramVersionResponses, superuserAthletesArchiveAthleteData, superuserAthletesArchiveAthleteErrors, superuserAthletesArchiveAthleteResponses, superuserAthletesCreateAthleteData, superuserAthletesCreateAthleteErrors, superuserAthletesCreateAthleteResponses, superuserAthletesDeleteAthleteData, superuserAthletesDeleteAthleteErrors, superuserAthletesDeleteAthleteResponses, superuserAthletesListAthletesData, superuserAthletesListAthletesErrors, superuserAthletesListAthletesResponses, superuserAthletesRestoreAthleteData, superuserAthletesRestoreAthleteErrors, superuserAthletesRestoreAthleteResponses, superuserCoachesArchiveCoachData, superuserCoachesArchiveCoachErrors, superuserCoachesArchiveCoachResponses, superuserCoachesCreateCoachData, superuserCoachesCreateCoachErrors, superuserCoachesCreateCoachResponses, superuserCoachesDeleteCoachData, superuserCoachesDeleteCoachErrors, superuserCoachesDeleteCoachResponses, superuserCoachesListCoachesData, superuserCoachesListCoachesErrors, superuserCoachesListCoachesResponses, superuserCoachesRestoreCoachData, superuserCoachesRestoreCoachErrors, superuserCoachesRestoreCoachResponses, templatesApplyTemplateData, templatesApplyTemplateErrors, templatesApplyTemplateResponses, templatesCreateTemplateData, templatesCreateTemplateErrors, templatesCreateTemplateResponses, templatesListTemplatesData, templatesListTemplatesErrors, templatesListTemplatesResponses, templatesReadTemplateData, templatesReadTemplateErrors, templatesReadTemplateResponses, templatesUpdateTemplateData, templatesUpdateTemplateErrors, templatesUpdateTemplateResponses, usersReadUserMeData, usersReadUserMeResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsReadinessCheckData, utilsReadinessCheckResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -34,7 +34,19 @@ export class LoginService {
             }
         });
     }
-    
+
+    /**
+     * Logout
+     */
+    public static logout<ThrowOnError extends boolean = true>(options?: Options<loginLogoutData, ThrowOnError>) {
+        return (options?.client ?? client).post<loginLogoutResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/auth/logout',
+            ...options
+        });
+    }
+
     /**
      * Recover Password
      */
@@ -45,7 +57,7 @@ export class LoginService {
             ...options
         });
     }
-    
+
     /**
      * Reset Password
      */
@@ -60,7 +72,7 @@ export class LoginService {
             }
         });
     }
-    
+
     /**
      * Accept Invitation
      */
@@ -89,7 +101,7 @@ export class UsersService {
             ...options
         });
     }
-    
+
     /**
      * Update User Me
      */
@@ -105,7 +117,7 @@ export class UsersService {
             }
         });
     }
-    
+
     /**
      * Update Password Me
      */
@@ -135,7 +147,7 @@ export class GymsService {
             ...options
         });
     }
-    
+
     /**
      * Create Gym
      */
@@ -151,7 +163,7 @@ export class GymsService {
             }
         });
     }
-    
+
     /**
      * Read Gym
      */
@@ -163,7 +175,7 @@ export class GymsService {
             ...options
         });
     }
-    
+
     /**
      * Update Gym
      */
@@ -179,7 +191,7 @@ export class GymsService {
             }
         });
     }
-    
+
     /**
      * Transfer Ownership
      */
@@ -195,7 +207,7 @@ export class GymsService {
             }
         });
     }
-    
+
     /**
      * List Members
      */
@@ -207,7 +219,7 @@ export class GymsService {
             ...options
         });
     }
-    
+
     /**
      * Create Member
      */
@@ -223,7 +235,7 @@ export class GymsService {
             }
         });
     }
-    
+
     /**
      * Update Member
      */
@@ -239,7 +251,7 @@ export class GymsService {
             }
         });
     }
-    
+
     /**
      * List Coaches
      */
@@ -265,7 +277,7 @@ export class AthletesService {
             ...options
         });
     }
-    
+
     /**
      * Create Athlete
      */
@@ -281,7 +293,7 @@ export class AthletesService {
             }
         });
     }
-    
+
     /**
      * Read My Athlete Profile
      */
@@ -293,7 +305,7 @@ export class AthletesService {
             ...options
         });
     }
-    
+
     /**
      * Update My Athlete Profile
      */
@@ -309,7 +321,7 @@ export class AthletesService {
             }
         });
     }
-    
+
     /**
      * Download Athlete Import Template
      */
@@ -321,7 +333,7 @@ export class AthletesService {
             ...options
         });
     }
-    
+
     /**
      * Preview Athlete Import
      */
@@ -338,7 +350,7 @@ export class AthletesService {
             }
         });
     }
-    
+
     /**
      * Bulk Import Athletes
      */
@@ -355,7 +367,7 @@ export class AthletesService {
             }
         });
     }
-    
+
     /**
      * Delete Athlete
      */
@@ -367,7 +379,7 @@ export class AthletesService {
             ...options
         });
     }
-    
+
     /**
      * Read Athlete
      */
@@ -379,7 +391,7 @@ export class AthletesService {
             ...options
         });
     }
-    
+
     /**
      * Update Athlete
      */
@@ -395,7 +407,7 @@ export class AthletesService {
             }
         });
     }
-    
+
     /**
      * Reassign Coach
      */
@@ -411,7 +423,7 @@ export class AthletesService {
             }
         });
     }
-    
+
     /**
      * Archive Athlete
      */
@@ -423,7 +435,7 @@ export class AthletesService {
             ...options
         });
     }
-    
+
     /**
      * Restore Athlete
      */
@@ -439,7 +451,7 @@ export class AthletesService {
             }
         });
     }
-    
+
     /**
      * List Body Files
      */
@@ -451,7 +463,7 @@ export class AthletesService {
             ...options
         });
     }
-    
+
     /**
      * Upload Body File
      */
@@ -468,7 +480,7 @@ export class AthletesService {
             }
         });
     }
-    
+
     /**
      * Download Body File
      */
@@ -494,7 +506,7 @@ export class SuperuserCoachesService {
             ...options
         });
     }
-    
+
     /**
      * Create Coach
      */
@@ -510,7 +522,7 @@ export class SuperuserCoachesService {
             }
         });
     }
-    
+
     /**
      * Archive Coach
      */
@@ -522,7 +534,7 @@ export class SuperuserCoachesService {
             ...options
         });
     }
-    
+
     /**
      * Restore Coach
      */
@@ -534,7 +546,7 @@ export class SuperuserCoachesService {
             ...options
         });
     }
-    
+
     /**
      * Delete Coach
      */
@@ -560,7 +572,7 @@ export class SuperuserAthletesService {
             ...options
         });
     }
-    
+
     /**
      * Create Athlete
      */
@@ -576,7 +588,7 @@ export class SuperuserAthletesService {
             }
         });
     }
-    
+
     /**
      * Archive Athlete
      */
@@ -588,7 +600,7 @@ export class SuperuserAthletesService {
             ...options
         });
     }
-    
+
     /**
      * Restore Athlete
      */
@@ -604,7 +616,7 @@ export class SuperuserAthletesService {
             }
         });
     }
-    
+
     /**
      * Delete Athlete
      */
@@ -630,7 +642,7 @@ export class ExercisesService {
             ...options
         });
     }
-    
+
     /**
      * Create Exercise
      */
@@ -646,7 +658,7 @@ export class ExercisesService {
             }
         });
     }
-    
+
     /**
      * Update Exercise
      */
@@ -676,7 +688,7 @@ export class ExerciseCategoriesService {
             ...options
         });
     }
-    
+
     /**
      * Create Exercise Category
      */
@@ -706,7 +718,7 @@ export class ProgramsService {
             ...options
         });
     }
-    
+
     /**
      * Create Program
      */
@@ -722,7 +734,7 @@ export class ProgramsService {
             }
         });
     }
-    
+
     /**
      * Delete Program Version
      */
@@ -734,7 +746,7 @@ export class ProgramsService {
             ...options
         });
     }
-    
+
     /**
      * Read Program Version
      */
@@ -746,7 +758,7 @@ export class ProgramsService {
             ...options
         });
     }
-    
+
     /**
      * Update Program Version
      */
@@ -762,7 +774,7 @@ export class ProgramsService {
             }
         });
     }
-    
+
     /**
      * Create New Draft
      */
@@ -774,7 +786,7 @@ export class ProgramsService {
             ...options
         });
     }
-    
+
     /**
      * Publish Program Version
      */
@@ -786,7 +798,7 @@ export class ProgramsService {
             ...options
         });
     }
-    
+
     /**
      * Archive Program Version
      */
@@ -798,7 +810,7 @@ export class ProgramsService {
             ...options
         });
     }
-    
+
     /**
      * Save As Template
      */
@@ -828,7 +840,7 @@ export class TemplatesService {
             ...options
         });
     }
-    
+
     /**
      * Create Template
      */
@@ -844,7 +856,7 @@ export class TemplatesService {
             }
         });
     }
-    
+
     /**
      * Read Template
      */
@@ -856,7 +868,7 @@ export class TemplatesService {
             ...options
         });
     }
-    
+
     /**
      * Update Template
      */
@@ -872,7 +884,7 @@ export class TemplatesService {
             }
         });
     }
-    
+
     /**
      * Apply Template
      */
@@ -893,11 +905,26 @@ export class TemplatesService {
 export class UtilsService {
     /**
      * Health Check
+     *
+     * Liveness: the process is running and able to answer.
      */
     public static healthCheck<ThrowOnError extends boolean = true>(options?: Options<utilsHealthCheckData, ThrowOnError>) {
         return (options?.client ?? client).get<utilsHealthCheckResponses, unknown, ThrowOnError>({
             responseType: 'json',
             url: '/api/v1/utils/health-check/',
+            ...options
+        });
+    }
+
+    /**
+     * Readiness Check
+     *
+     * Readiness: the process can reach its database dependency.
+     */
+    public static readinessCheck<ThrowOnError extends boolean = true>(options?: Options<utilsReadinessCheckData, ThrowOnError>) {
+        return (options?.client ?? client).get<utilsReadinessCheckResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            url: '/api/v1/utils/ready/',
             ...options
         });
     }

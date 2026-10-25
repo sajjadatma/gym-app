@@ -4,15 +4,34 @@ import { client } from "./client/client.gen"
 import type { TranslationKey } from "./i18n"
 
 const baseURL = import.meta.env.VITE_API_URL ?? ""
+const CSRF_COOKIE = "gym_csrf_token"
+const SAFE_METHODS = ["get", "head", "options", "trace"]
+
+function cookie(name: string): string | null {
+  if (typeof document === "undefined") return null
+  const prefix = `${name}=`
+  for (const part of document.cookie.split(";")) {
+    const value = part.trim()
+    if (value.startsWith(prefix)) {
+      return decodeURIComponent(value.slice(prefix.length))
+    }
+  }
+  return null
+}
 
 client.setConfig({
   baseURL,
-  auth: () => localStorage.getItem("access_token") ?? "",
+  withCredentials: true,
 })
 
 client.instance.interceptors.request.use((config) => {
   const gymId = localStorage.getItem("gym.activeGymId")
   if (gymId) config.headers.set("X-Gym-ID", gymId)
+  const method = (config.method ?? "get").toLowerCase()
+  if (!SAFE_METHODS.includes(method)) {
+    const csrf = cookie(CSRF_COOKIE)
+    if (csrf) config.headers.set("X-CSRF-Token", csrf)
+  }
   return config
 })
 
@@ -20,9 +39,10 @@ client.instance.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     const detail = getApiErrorDetail(error)
+    const url = error.config?.url ?? ""
+    const isAuthProbe = url.includes("/users/me")
     if (error.response?.status === 401) {
-      localStorage.removeItem("access_token")
-      if (!window.location.pathname.startsWith("/login")) {
+      if (!isAuthProbe && !window.location.pathname.startsWith("/login")) {
         window.location.assign("/login")
       }
     }
@@ -34,9 +54,9 @@ client.instance.interceptors.response.use(
     }
     if (
       error.response?.status === 403 &&
-      ["invalid_credentials", "invalid_token"].includes(detail ?? "")
+      ["invalid_credentials", "invalid_token"].includes(detail ?? "") &&
+      !isAuthProbe
     ) {
-      localStorage.removeItem("access_token")
       if (!window.location.pathname.startsWith("/login")) {
         window.location.assign("/login")
       }
