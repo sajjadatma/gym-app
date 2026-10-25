@@ -5,10 +5,12 @@ import { useState } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import {
+  type AthleteSummary,
   AthletesService,
   type ProgramTemplateSummary,
   TemplatesService,
 } from "@/client"
+import { AsyncPickerField } from "@/components/AsyncPickerField"
 import {
   Button,
   Card,
@@ -16,11 +18,10 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
-  SearchableSelectField,
   Spinner,
 } from "@/components/M3"
 import { useI18n } from "@/i18n"
-import { fetchAllPages } from "@/lib/fetch-all-pages"
+import { useAsyncPicker } from "@/lib/use-async-picker"
 import { useSnackbar } from "@/snackbar"
 
 export function TemplatesPage() {
@@ -41,17 +42,21 @@ export function TemplatesPage() {
     enabled: Boolean(activeGymId),
   })
 
-  const athletesQuery = useQuery({
-    queryKey: ["athletes", activeGymId, "templates-apply", activeRole],
-    queryFn: async () =>
-      // The picker must offer every eligible athlete, not one page.
-      fetchAllPages(async (offset, limit) => {
-        const response = await AthletesService.listAthletes({
-          query: { q: "", is_archived: false, offset, limit },
-        })
-        return response.data
-      }),
+  const athletePicker = useAsyncPicker<AthleteSummary>({
+    queryKey: ["async-template-athletes", activeGymId, activeRole],
     enabled: Boolean(activeGymId && applyTemplate),
+    resetKey: applyTemplate?.id ?? "",
+    fetchPage: async (search, offset, limit) =>
+      (
+        await AthletesService.listAthletes({
+          query: {
+            q: search,
+            is_archived: false,
+            offset,
+            limit,
+          },
+        })
+      ).data,
   })
 
   if (!activeGym) {
@@ -67,7 +72,6 @@ export function TemplatesPage() {
   const templates = (templatesQuery.data ?? []).filter(
     (template) => activeRole !== "COACH" || template.created_by_id === me?.id,
   )
-  const athletes = athletesQuery.data ?? []
 
   async function apply() {
     if (!applyTemplate || !athleteId) {
@@ -234,21 +238,18 @@ export function TemplatesPage() {
         <div className="stack">
           {error ? <div className="m3-inline-alert">{error}</div> : null}
           <p className="muted">{applyTemplate?.name}</p>
-          {athletesQuery.isLoading ? (
-            <Spinner label={t("common.loading")} />
-          ) : (
-            <SearchableSelectField
-              label={t("templates.selectAthlete")}
-              value={athleteId}
-              onChange={setAthleteId}
-              options={athletes.map((athlete) => ({
-                value: athlete.user_id,
-                label: athlete.full_name ?? athlete.email,
-              }))}
-              placeholder={t("common.choose")}
-              required
-            />
-          )}
+          <AsyncPickerField
+            label={t("templates.selectAthlete")}
+            value={athleteId}
+            onChange={(value) => setAthleteId(value)}
+            picker={athletePicker}
+            getOption={(athlete) => ({
+              value: athlete.user_id,
+              label: athlete.full_name ?? athlete.email,
+            })}
+            placeholder={t("common.choose")}
+            required
+          />
         </div>
       </Dialog>
     </>

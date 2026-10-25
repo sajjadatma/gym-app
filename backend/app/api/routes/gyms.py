@@ -18,6 +18,7 @@ from app.core.security import get_password_hash
 from app.models import (
     AthleteProfile,
     CoachesPublic,
+    CoachPublic,
     Gym,
     GymCreate,
     GymCreated,
@@ -50,7 +51,6 @@ from app.services.pagination import (
     MAX_PAGE_SIZE,
     paginate,
 )
-from app.services.profiles import coach_members
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
 
@@ -476,9 +476,48 @@ def list_coaches(
     gym_id: uuid.UUID,
     session: SessionDep,
     ctx: GymContextDep,
+    q: str = "",
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
 ) -> Any:
     _require_path_gym(ctx.gym, gym_id)
     if not ctx.is_staff:
         raise HTTPException(status_code=403, detail="gym_staff_required")
-    data = coach_members(session, gym_id)
-    return CoachesPublic(data=data, count=len(data))
+    statement = (
+        select(User, GymMembership)
+        .join(GymMembership, col(GymMembership.user_id) == col(User.id))
+        .join(
+            GymMembershipRole,
+            col(GymMembershipRole.membership_id) == col(GymMembership.id),
+        )
+        .where(
+            GymMembership.gym_id == gym_id,
+            col(GymMembership.is_active).is_(True),
+            GymMembershipRole.role == "COACH",
+            col(User.is_active).is_(True),
+        )
+    )
+    term = q.strip()
+    if term:
+        pattern = f"%{term}%"
+        statement = statement.where(
+            or_(
+                col(User.email).ilike(pattern),
+                col(User.full_name).ilike(pattern),
+            )
+        )
+    statement = statement.order_by(
+        col(User.full_name), col(User.email), col(User.id)
+    )
+    rows, total = paginate(
+        session, statement, offset=offset, limit=limit
+    )
+    data = [
+        CoachPublic(
+            user_id=user.id,
+            email=user.email,
+            full_name=user.full_name,
+        )
+        for user, _membership in rows
+    ]
+    return CoachesPublic(data=data, count=total)

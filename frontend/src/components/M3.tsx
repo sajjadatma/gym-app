@@ -10,6 +10,7 @@ import {
   type ButtonHTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
+  type RefObject,
   type TextareaHTMLAttributes,
   useEffect,
   useId,
@@ -419,6 +420,13 @@ export function SearchableSelectField({
   id,
   disabled,
   containerClassName = "",
+  inputValue,
+  onInputChange,
+  defaultFilter,
+  emptyLabel,
+  footer,
+  footerRef,
+  loading = false,
 }: {
   label: string
   value: string
@@ -431,6 +439,13 @@ export function SearchableSelectField({
   id?: string
   disabled?: boolean
   containerClassName?: string
+  inputValue?: string
+  onInputChange?: (value: string) => void
+  defaultFilter?: (textValue: string, inputValue: string) => boolean
+  emptyLabel?: string
+  footer?: ReactNode
+  footerRef?: RefObject<HTMLDivElement | null>
+  loading?: boolean
 }) {
   const { t, direction, locale } = useI18n()
   const isMobile = useMobileViewport()
@@ -445,12 +460,16 @@ export function SearchableSelectField({
         value={selectedKey}
         onChange={(key) => onChange(keyToValue(key))}
         defaultItems={items}
+        inputValue={inputValue}
+        onInputChange={onInputChange}
+        defaultFilter={defaultFilter}
         isDisabled={disabled}
         isInvalid={Boolean(error)}
         isRequired={required}
         allowsEmptyCollection
         menuTrigger="focus"
         dir={direction}
+        aria-busy={loading}
         className={`m3-field m3-picker-field m3-combobox ${error ? "is-invalid" : ""} ${containerClassName}`}
       >
         <AriaLabel className="m3-field__label">
@@ -481,8 +500,12 @@ export function SearchableSelectField({
           containerPadding={12}
           placement={isMobile ? "top start" : "bottom start"}
           dir={direction}
+          shouldCloseOnInteractOutside={(element) =>
+            !footerRef?.current?.contains(element as Node)
+          }
         >
-          <ComboBoxListBox emptyLabel={t("common.noResults")} />
+          <ComboBoxListBox emptyLabel={emptyLabel ?? t("common.noResults")} />
+          {footer}
         </AriaPopover>
       </AriaComboBox>
     </I18nProvider>

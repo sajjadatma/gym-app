@@ -104,6 +104,9 @@ export function PaginationBar({
           }))}
         />
       </div>
+      <span className="sr-only" role="status">
+        {loading ? t("common.updating") : ""}
+      </span>
       <span className="m3-pagination__status" aria-live="polite">
         {t("common.pageStatus", {
           start: formatNumber(start),

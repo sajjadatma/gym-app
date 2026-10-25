@@ -34,7 +34,7 @@ test("athlete list switches to a selectable table and remembers the view", async
   await expect(firstRow.locator('input[type="checkbox"]')).not.toBeChecked()
 
   // Header checkbox selects every visible row.
-  const selectAll = page.getByRole("checkbox", { name: "انتخاب همه" })
+  const selectAll = page.getByRole("checkbox", { name: "انتخاب این صفحه" })
   await selectAll.check()
   await expect(firstRow.locator('input[type="checkbox"]')).toBeChecked()
 
@@ -48,4 +48,45 @@ test("athlete list switches to a selectable table and remembers the view", async
     .first()
     .click()
   await expect(page).toHaveURL(/\/gyms\/[^/]+\/athletes\/[^/]+$/)
+})
+
+test("coach picker searches on the server and loads more", async ({ page }) => {
+  const coaches = Array.from({ length: 25 }, (_, index) => ({
+    user_id: `coach-${index}`,
+    email: `coach-${index}@example.com`,
+    full_name: `مربی تست ${String(index).padStart(2, "0")}`,
+  }))
+  await page.route(/\/api\/v1\/gyms\/[^/]+\/coaches(\?.*)?$/, async (route) => {
+    const url = new URL(route.request().url())
+    const search = url.searchParams.get("q") ?? ""
+    const offset = Number(url.searchParams.get("offset") ?? 0)
+    const limit = Number(url.searchParams.get("limit") ?? 10)
+    const matching = coaches.filter(
+      (coach) =>
+        !search ||
+        coach.full_name.includes(search) ||
+        coach.email.includes(search),
+    )
+    await route.fulfill({
+      json: {
+        data: matching.slice(offset, offset + limit),
+        count: matching.length,
+      },
+    })
+  })
+
+  await page.goto("/athletes")
+  await expect(page).toHaveURL(/\/gyms\/[^/]+\/athletes$/)
+  await page.getByRole("button", { name: "افزودن ورزشکار" }).click()
+  const dialog = page.getByRole("dialog")
+  const picker = dialog.getByRole("combobox", { name: "مربی" })
+  await picker.click()
+  await expect(page.getByRole("option")).toHaveCount(20)
+
+  await page.getByRole("button", { name: "نمایش بیشتر" }).click()
+  await expect(page.getByRole("option")).toHaveCount(25)
+
+  await picker.fill("مربی تست 24")
+  await expect(page.getByRole("option")).toHaveCount(1)
+  await expect(page.getByRole("option", { name: "مربی تست 24" })).toBeVisible()
 })

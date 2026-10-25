@@ -37,9 +37,12 @@ test("admin creates catalog entries; coach selects them; day categories reach at
     page.locator(".m3-card-grid").getByText(exerciseName, { exact: true }),
   ).toBeVisible()
 
-  const coaches = await request.get(`${API_URL}/api/v1/gyms/${gymId}/coaches`, {
-    headers: admin,
-  })
+  const coaches = await request.get(
+    `${API_URL}/api/v1/gyms/${gymId}/coaches?q=reza%40example.com`,
+    {
+      headers: admin,
+    },
+  )
   const coach = (await coaches.json()).data.find(
     (item: { email: string }) => item.email === "reza@example.com",
   )

@@ -1,8 +1,5 @@
-import {
-  keepPreviousData,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useNavigate, useSearch } from "@tanstack/react-router"
 import {
   Copy,
   Mail,
@@ -12,7 +9,7 @@ import {
   UserRound,
   Users,
 } from "lucide-react"
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import { GymsService, type MemberCreated, type MemberPublic } from "@/client"
@@ -30,8 +27,10 @@ import {
   StatusBadge,
   TextField,
 } from "@/components/M3"
-import { PaginationBar, pageWindow, usePager } from "@/components/Pagination"
+import { PaginationBar } from "@/components/Pagination"
 import { useI18n } from "@/i18n"
+import type { ListSearch, PageSize } from "@/lib/list-search"
+import { useServerPage } from "@/lib/server-page"
 import { useSnackbar } from "@/snackbar"
 
 type StaffRole = "GYM_ADMIN" | "COACH"
@@ -55,29 +54,54 @@ export function MembersPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const pager = usePager(activeGymId ?? "")
+  const navigate = useNavigate({ from: "/gyms/$gymId/members" })
+  const searchParams = useSearch({ from: "/_app/gyms/$gymId/members" })
+  const page = searchParams.page ?? 1
+  const pageSize = searchParams.size ?? 10
+  const scope = activeGymId ?? ""
+
+  const updateListSearch = useCallback(
+    (patch: Partial<ListSearch>, replace = false) => {
+      void navigate({
+        search: (previous) => ({ ...previous, ...patch }),
+        replace,
+      })
+    },
+    [navigate],
+  )
 
   const membersQuery = useQuery({
-    queryKey: ["members", activeGymId, pager.offset, pager.limit],
+    queryKey: ["members", scope, page, pageSize],
     queryFn: async () =>
       (
         await GymsService.listMembers({
           path: { gym_id: activeGymId! },
           query: {
             staff_only: true,
-            offset: pager.offset,
-            limit: pager.limit,
+            offset: (page - 1) * pageSize,
+            limit: pageSize,
           },
         })
       ).data,
     enabled: Boolean(activeGymId && isAdmin),
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[1] === scope ? previousData : undefined,
   })
 
   const members = membersQuery.data?.data ?? []
   const total = membersQuery.data?.count ?? 0
-  const pageState = pageWindow(pager, total)
-  if (pager.page !== pageState.page) pager.setPage(pageState.page)
+  const setPage = useCallback(
+    (next: number, replace = false) =>
+      updateListSearch({ page: next }, replace),
+    [updateListSearch],
+  )
+  const { window: pageState, stale } = useServerPage({
+    page,
+    pageSize,
+    total,
+    isCurrent: membersQuery.isSuccess && !membersQuery.isPlaceholderData,
+    onPageChange: setPage,
+  })
 
   if (!activeGym) {
     return (
@@ -245,7 +269,10 @@ export function MembersPage() {
         />
       ) : (
         <Card className="m3-card--outlined">
-          <div className="m3-table-wrap">
+          <div
+            className={`m3-table-wrap ${stale ? "is-updating" : ""}`}
+            aria-busy={stale}
+          >
             <table className="m3-table">
               <thead>
                 <tr>
@@ -323,6 +350,7 @@ export function MembersPage() {
                             variant="text"
                             size="sm"
                             icon={<Pencil size={14} />}
+                            disabled={stale}
                             onClick={() => {
                               setError(null)
                               setEditMember(member)
@@ -341,7 +369,7 @@ export function MembersPage() {
                           <Button
                             variant="text"
                             size="sm"
-                            disabled={saving}
+                            disabled={saving || stale}
                             onClick={() => toggleActive(member)}
                           >
                             {member.is_active
@@ -363,13 +391,15 @@ export function MembersPage() {
         <PaginationBar
           page={pageState.page}
           pageCount={pageState.pageCount}
-          pageSize={pager.pageSize}
+          pageSize={pageSize}
           total={pageState.total}
           start={pageState.start}
           end={pageState.end}
-          loading={membersQuery.isFetching}
-          onPageChange={pager.setPage}
-          onPageSizeChange={pager.setPageSize}
+          loading={stale || membersQuery.isFetching}
+          onPageChange={setPage}
+          onPageSizeChange={(size) =>
+            updateListSearch({ size: size as PageSize, page: 1 })
+          }
         />
       ) : null}
 

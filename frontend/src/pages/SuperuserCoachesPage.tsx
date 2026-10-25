@@ -1,9 +1,5 @@
-import {
-  keepPreviousData,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query"
-import { Navigate } from "@tanstack/react-router"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Navigate, useNavigate, useSearch } from "@tanstack/react-router"
 import {
   Archive,
   Building2,
@@ -14,7 +10,7 @@ import {
   UserMinus,
   Users,
 } from "lucide-react"
-import { useDeferredValue, useEffect, useState } from "react"
+import { useCallback, useDeferredValue, useEffect, useState } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import {
@@ -36,13 +32,15 @@ import {
   StatusBadge,
   TextField,
 } from "@/components/M3"
-import { PaginationBar, pageWindow, usePager } from "@/components/Pagination"
+import { PaginationBar } from "@/components/Pagination"
 import {
   PeopleListToolbar,
   type PeopleTab,
   type PeopleView,
 } from "@/components/PeopleListToolbar"
 import { useI18n } from "@/i18n"
+import type { GlobalListSearch, PageSize } from "@/lib/list-search"
+import { useServerPage } from "@/lib/server-page"
 import { useSnackbar } from "@/snackbar"
 
 type Action = {
@@ -68,12 +66,16 @@ export function SuperuserCoachesPage() {
 function CoachesContent() {
   const { t, formatNumber, formatDate } = useI18n()
   const { gyms } = useAuth()
+  const navigate = useNavigate({ from: "/coaches" })
+  const searchParams = useSearch({ from: "/_app/coaches" })
+  const page = searchParams.page ?? 1
+  const pageSize = searchParams.size ?? 10
+  const searchTerm = searchParams.q ?? ""
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
-  const [search, setSearch] = useState("")
-  const deferredSearch = useDeferredValue(search)
-  const [gymFilter, setGymFilter] = useState("")
-  const [tab, setTab] = useState<PeopleTab>("active")
+  const deferredSearch = useDeferredValue(searchTerm)
+  const gymFilter = searchParams.club ?? ""
+  const tab: PeopleTab = searchParams.tab ?? "active"
   const [view, setView] = useState<PeopleView>(() => {
     try {
       return localStorage.getItem("superuser.coaches.view") === "table"
@@ -105,18 +107,20 @@ function CoachesContent() {
     }
   }, [view])
 
-  const resetKey = `${deferredSearch}|${gymFilter}|${tab}`
-  const pager = usePager(resetKey)
+  const scope = `${deferredSearch}|${gymFilter}|${tab}`
+
+  const updateListSearch = useCallback(
+    (patch: Partial<GlobalListSearch>, replace = false) => {
+      void navigate({
+        search: (previous) => ({ ...previous, ...patch }),
+        replace,
+      })
+    },
+    [navigate],
+  )
 
   const coachesQuery = useQuery({
-    queryKey: [
-      "superuser-coaches",
-      deferredSearch,
-      gymFilter,
-      tab,
-      pager.offset,
-      pager.limit,
-    ],
+    queryKey: ["superuser-coaches", scope, page, pageSize],
     queryFn: async () =>
       (
         await SuperuserCoachesService.coachesListCoaches({
@@ -124,19 +128,30 @@ function CoachesContent() {
             q: deferredSearch || undefined,
             gym_id: gymFilter || undefined,
             is_active: tab === "active",
-            offset: pager.offset,
-            limit: pager.limit,
+            offset: (page - 1) * pageSize,
+            limit: pageSize,
           },
         })
       ).data,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[1] === scope ? previousData : undefined,
   })
 
   const rows = coachesQuery.data?.data ?? []
   const total = coachesQuery.data?.count ?? 0
-  const pageState = pageWindow(pager, total)
-  if (pager.page !== pageState.page) pager.setPage(pageState.page)
-  const hasFilter = search.trim().length > 0 || Boolean(gymFilter)
+  const setPage = useCallback(
+    (next: number, replace = false) =>
+      updateListSearch({ page: next }, replace),
+    [updateListSearch],
+  )
+  const { window: pageState, stale } = useServerPage({
+    page,
+    pageSize,
+    total,
+    isCurrent: coachesQuery.isSuccess && !coachesQuery.isPlaceholderData,
+    onPageChange: setPage,
+  })
+  const hasFilter = searchTerm.trim().length > 0 || Boolean(gymFilter)
 
   async function createCoach() {
     setError(null)
@@ -254,6 +269,7 @@ function CoachesContent() {
             icon={
               row.is_active ? <Archive size={14} /> : <RotateCcw size={14} />
             }
+            disabled={stale}
             onClick={() =>
               setAction({
                 kind: row.is_active ? "archive" : "restore",
@@ -268,6 +284,7 @@ function CoachesContent() {
           variant="text"
           size="sm"
           icon={<UserMinus size={14} />}
+          disabled={stale}
           onClick={() => setAction({ kind: "delete", row })}
         >
           {t("superuser.removeCoach")}
@@ -293,8 +310,8 @@ function CoachesContent() {
       />
 
       <PeopleListToolbar
-        search={search}
-        onSearch={setSearch}
+        search={searchTerm}
+        onSearch={(value) => updateListSearch({ q: value, page: 1 }, true)}
         searchLabel={t("athletes.search")}
         clearSearchLabel={t("athletes.clearSearch")}
         countLabel={t("superuser.coachCountLabel", {
@@ -306,14 +323,14 @@ function CoachesContent() {
         gridLabel={t("athletes.gridView")}
         tableLabel={t("athletes.tableView")}
         clubValue={gymFilter}
-        onClubChange={setGymFilter}
+        onClubChange={(value) => updateListSearch({ club: value, page: 1 })}
         clubLabel={t("superuser.club")}
         clubOptions={[
           { value: "", label: t("superuser.allClubs") },
           ...gymOptions,
         ]}
         tab={tab}
-        onTabChange={setTab}
+        onTabChange={(value) => updateListSearch({ tab: value, page: 1 })}
         tabLabel={t("superuser.coaches")}
         activeLabel={t("status.active")}
         archivedLabel={t("status.archived")}
@@ -340,10 +357,9 @@ function CoachesContent() {
             hasFilter ? (
               <Button
                 variant="outlined"
-                onClick={() => {
-                  setSearch("")
-                  setGymFilter("")
-                }}
+                onClick={() =>
+                  updateListSearch({ q: "", club: "", page: 1 }, true)
+                }
               >
                 {t("athletes.clearSearch")}
               </Button>
@@ -358,7 +374,10 @@ function CoachesContent() {
           }
         />
       ) : view === "grid" ? (
-        <div className="m3-card-grid">
+        <div
+          className={`m3-card-grid ${stale ? "is-updating" : ""}`}
+          aria-busy={stale}
+        >
           {rows.map((row) => (
             <div
               key={row.membership_id}
@@ -404,7 +423,12 @@ function CoachesContent() {
         </div>
       ) : (
         <Card className="m3-data-card">
-          <div className="m3-table-wrap m3-data-table-wrap">
+          <div
+            className={`m3-table-wrap m3-data-table-wrap ${
+              stale ? "is-updating" : ""
+            }`}
+            aria-busy={stale}
+          >
             <table className="m3-table m3-data-table">
               <thead>
                 <tr>
@@ -454,13 +478,15 @@ function CoachesContent() {
         <PaginationBar
           page={pageState.page}
           pageCount={pageState.pageCount}
-          pageSize={pager.pageSize}
+          pageSize={pageSize}
           total={pageState.total}
           start={pageState.start}
           end={pageState.end}
-          loading={coachesQuery.isFetching}
-          onPageChange={pager.setPage}
-          onPageSizeChange={pager.setPageSize}
+          loading={stale || coachesQuery.isFetching}
+          onPageChange={setPage}
+          onPageSizeChange={(size) =>
+            updateListSearch({ size: size as PageSize, page: 1 })
+          }
         />
       ) : null}
 

@@ -116,7 +116,7 @@ test("archived athletes can be restored in bulk", async ({
   await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(marker)
   const rows = page.locator(".m3-archive-table tbody tr")
   await expect(rows).toHaveCount(2)
-  await page.getByRole("checkbox", { name: "انتخاب همه" }).check()
+  await page.getByRole("checkbox", { name: "انتخاب این صفحه" }).check()
   await expect(page.locator(".m3-selection-bar__count")).toHaveText(
     /۲ انتخاب‌شده/,
   )
@@ -159,7 +159,7 @@ test("archive is available on cards and as a table bulk action", async ({
   await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(marker)
   const rows = page.locator(".m3-data-table tbody tr")
   await expect(rows).toHaveCount(2)
-  await page.getByRole("checkbox", { name: "انتخاب همه" }).check()
+  await page.getByRole("checkbox", { name: "انتخاب این صفحه" }).check()
   await page.getByRole("button", { name: "آرشیو انتخاب‌شده‌ها" }).click()
   const bulkDialog = page.getByRole("dialog")
   await expect(bulkDialog).toContainText("آرشیو ۲ ورزشکار")

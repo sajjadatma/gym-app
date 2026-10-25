@@ -2,6 +2,10 @@ import { createFileRoute, Navigate } from "@tanstack/react-router"
 
 import { useAuth } from "@/auth"
 import { ClubRedirect } from "@/components/ClubRedirect"
+import {
+  parseGlobalListSearch,
+  stripGlobalListDefaults,
+} from "@/lib/list-search"
 import { SuperuserAthletesPage } from "@/pages/SuperuserAthletesPage"
 
 function Page() {
@@ -12,5 +16,7 @@ function Page() {
 }
 
 export const Route = createFileRoute("/_app/athletes/")({
+  validateSearch: parseGlobalListSearch,
+  search: { middlewares: [stripGlobalListDefaults] },
   component: Page,
 })

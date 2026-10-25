@@ -71,6 +71,9 @@ const fa = {
   "common.today": "امروز",
   "common.clear": "پاک‌کردن",
   "common.previous": "قبلی",
+  "common.loadMore": "نمایش بیشتر",
+  "common.allLoaded": "همه موارد نمایش داده شد",
+  "common.updating": "در حال به‌روزرسانی",
   "common.next": "بعدی",
   "common.pagination": "صفحه‌بندی",
   "common.rowsPerPage": "تعداد در صفحه",
@@ -272,6 +275,7 @@ const fa = {
   "athletes.countLabel": "ورزشکاران: {count}",
   "athletes.select": "انتخاب",
   "athletes.selectAll": "انتخاب همه",
+  "athletes.selectPage": "انتخاب این صفحه",
   "athletes.selectedCount": "{count} انتخاب‌شده",
   "athletes.clearSelection": "لغو انتخاب",
   "athletes.noResultsHint": "برای عبارت جستجو‌شده ورزشکاری پیدا نشد.",
@@ -296,6 +300,8 @@ const fa = {
   "athletes.importRemoveFile": "حذف فایل",
   "athletes.importSettings": "تنظیمات ورود",
   "athletes.importDefaultCoach": "مربی پیش‌فرض",
+  "athletes.importMoreCoaches":
+    "برای دیدن مربیان بیشتر، ایمیل مربی را در فایل وارد کنید.",
   "athletes.importDefaultCoachHint":
     "برای ردیف‌هایی که ستون ایمیل مربی خالی است.",
   "athletes.importNoDefaultCoach": "بدون مربی پیش‌فرض",
@@ -852,6 +858,9 @@ const en: Record<TranslationKey, string> = {
   "common.today": "Today",
   "common.clear": "Clear",
   "common.previous": "Previous",
+  "common.loadMore": "Load more",
+  "common.allLoaded": "All options shown",
+  "common.updating": "Updating",
   "common.next": "Next",
   "common.pagination": "Pagination",
   "common.rowsPerPage": "Rows per page",
@@ -1055,6 +1064,7 @@ const en: Record<TranslationKey, string> = {
   "athletes.countLabel": "Athletes: {count}",
   "athletes.select": "Select",
   "athletes.selectAll": "Select all",
+  "athletes.selectPage": "Select this page",
   "athletes.selectedCount": "{count} selected",
   "athletes.clearSelection": "Clear selection",
   "athletes.noResultsHint": "No athlete matches this search.",
@@ -1078,6 +1088,8 @@ const en: Record<TranslationKey, string> = {
   "athletes.importSettings": "Import settings",
   "athletes.importDefaultCoach": "Default coach",
   "athletes.importDefaultCoachHint": "Used for rows without a coach email.",
+  "athletes.importMoreCoaches":
+    "To use another coach, enter the coach email in the file.",
   "athletes.importNoDefaultCoach": "No default coach",
   "athletes.importActivationHint":
     "Every athlete in this file uses this activation method.",

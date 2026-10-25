@@ -97,7 +97,7 @@ for (const failure of ["500", "abort"] as const) {
     await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(marker)
     const rows = page.locator(".m3-archive-table tbody tr")
     await expect(rows).toHaveCount(2)
-    await page.getByRole("checkbox", { name: "انتخاب همه" }).check()
+    await page.getByRole("checkbox", { name: "انتخاب این صفحه" }).check()
     await page.getByRole("button", { name: "حذف انتخاب‌شده‌ها" }).click()
     const dialog = page.getByRole("dialog")
     const submit = dialog.getByRole("button", { name: "حذف دائمی" })

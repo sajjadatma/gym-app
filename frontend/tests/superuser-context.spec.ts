@@ -364,3 +364,63 @@ test("global athlete list paginates and changes page size", async ({
   await expect(pager.locator(".m3-pagination__page")).toHaveText("صفحه ۱ از ۱")
   await expect(page.locator(".m3-entity-card")).toHaveCount(23)
 })
+
+test("global list state is restored from the URL and Back works", async ({
+  page,
+}) => {
+  const rows = Array.from({ length: 30 }, (_, index) => ({
+    user_id: `url-athlete-${index}`,
+    gym_id: "gym-1",
+    gym_name: "باشگاه آرام",
+    email: `url-athlete-${index}@example.com`,
+    full_name: `ورزشکار آدرس ${index}`,
+    phone: "09120000000",
+    is_archived: false,
+    coach_user_id: null,
+    coach_name: "رضا مربی",
+    created_at: new Date().toISOString(),
+  }))
+  const requests: string[] = []
+  await page.route(/\/api\/v1\/superuser\/athletes(\?.*)?$/, async (route) => {
+    if (route.request().method() !== "GET") {
+      await route.continue()
+      return
+    }
+    const url = new URL(route.request().url())
+    requests.push(url.search)
+    const offset = Number(url.searchParams.get("offset") ?? 0)
+    const limit = Number(url.searchParams.get("limit") ?? 10)
+    const archived = url.searchParams.get("is_archived")
+    const matching = archived === "true" ? [] : rows
+    await route.fulfill({
+      json: {
+        data: matching.slice(offset, offset + limit),
+        count: matching.length,
+      },
+    })
+  })
+
+  await loginAsSuperuser(page)
+  await page.goto("/athletes")
+  const pager = page.locator(".m3-pagination")
+  await expect(pager.locator(".m3-pagination__page")).toHaveText("صفحه ۱ از ۳")
+
+  await pager.getByRole("button", { name: "بعدی" }).click()
+  await expect(pager.locator(".m3-pagination__page")).toHaveText("صفحه ۲ از ۳")
+  await expect(page.locator(".m3-entity-card")).toHaveCount(10)
+  expect(requests.at(-1)).toContain("offset=10")
+  expect(requests.at(-1)).toContain("limit=10")
+
+  await page.goBack()
+  await expect(pager.locator(".m3-pagination__page")).toHaveText("صفحه ۱ از ۳")
+  await page.goForward()
+  await expect(pager.locator(".m3-pagination__page")).toHaveText("صفحه ۲ از ۳")
+
+  await page.reload()
+  await expect(pager.locator(".m3-pagination__page")).toHaveText("صفحه ۲ از ۳")
+
+  await page.goto("/athletes?page=abc&size=999")
+  await expect(pager.locator(".m3-pagination__page")).toHaveText("صفحه ۱ از ۳")
+  expect(requests.at(-1)).toContain("offset=0")
+  expect(requests.at(-1)).toContain("limit=10")
+})

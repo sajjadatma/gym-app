@@ -1,9 +1,5 @@
-import {
-  keepPreviousData,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query"
-import { Navigate } from "@tanstack/react-router"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Navigate, useNavigate, useSearch } from "@tanstack/react-router"
 import {
   Archive,
   Building2,
@@ -15,7 +11,7 @@ import {
   UserRound,
   Users,
 } from "lucide-react"
-import { useDeferredValue, useEffect, useState } from "react"
+import { useCallback, useDeferredValue, useEffect, useState } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import {
@@ -23,7 +19,9 @@ import {
   type SuperuserAthleteRow,
   SuperuserAthletesService,
   SuperuserCoachesService,
+  type SuperuserCoachRow,
 } from "@/client"
+import { AsyncPickerField } from "@/components/AsyncPickerField"
 import {
   Avatar,
   Button,
@@ -38,14 +36,16 @@ import {
   StatusBadge,
   TextField,
 } from "@/components/M3"
-import { PaginationBar, pageWindow, usePager } from "@/components/Pagination"
+import { PaginationBar } from "@/components/Pagination"
 import {
   PeopleListToolbar,
   type PeopleTab,
   type PeopleView,
 } from "@/components/PeopleListToolbar"
 import { useI18n } from "@/i18n"
-import { fetchAllPages } from "@/lib/fetch-all-pages"
+import type { GlobalListSearch, PageSize } from "@/lib/list-search"
+import { useServerPage } from "@/lib/server-page"
+import { useAsyncPicker } from "@/lib/use-async-picker"
 import { useSnackbar } from "@/snackbar"
 
 type Action = {
@@ -71,12 +71,16 @@ export function SuperuserAthletesPage() {
 function AthletesContent() {
   const { t, formatNumber, formatDate } = useI18n()
   const { gyms } = useAuth()
+  const navigate = useNavigate({ from: "/athletes/" })
+  const searchParams = useSearch({ from: "/_app/athletes/" })
+  const page = searchParams.page ?? 1
+  const pageSize = searchParams.size ?? 10
+  const searchTerm = searchParams.q ?? ""
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
-  const [search, setSearch] = useState("")
-  const deferredSearch = useDeferredValue(search)
-  const [gymFilter, setGymFilter] = useState("")
-  const [tab, setTab] = useState<PeopleTab>("active")
+  const deferredSearch = useDeferredValue(searchTerm)
+  const gymFilter = searchParams.club ?? ""
+  const tab: PeopleTab = searchParams.tab ?? "active"
   const [view, setView] = useState<PeopleView>(() => {
     try {
       return localStorage.getItem("superuser.athletes.view") === "table"
@@ -109,18 +113,20 @@ function AthletesContent() {
     }
   }, [view])
 
-  const resetKey = `${deferredSearch}|${gymFilter}|${tab}`
-  const pager = usePager(resetKey)
+  const scope = `${deferredSearch}|${gymFilter}|${tab}`
+
+  const updateListSearch = useCallback(
+    (patch: Partial<GlobalListSearch>, replace = false) => {
+      void navigate({
+        search: (previous) => ({ ...previous, ...patch }),
+        replace,
+      })
+    },
+    [navigate],
+  )
 
   const athletesQuery = useQuery({
-    queryKey: [
-      "superuser-athletes",
-      deferredSearch,
-      gymFilter,
-      tab,
-      pager.offset,
-      pager.limit,
-    ],
+    queryKey: ["superuser-athletes", scope, page, pageSize],
     queryFn: async () =>
       (
         await SuperuserAthletesService.athletesListAthletes({
@@ -128,41 +134,48 @@ function AthletesContent() {
             q: deferredSearch || undefined,
             gym_id: gymFilter || undefined,
             is_archived: tab === "archived",
-            offset: pager.offset,
-            limit: pager.limit,
+            offset: (page - 1) * pageSize,
+            limit: pageSize,
           },
         })
       ).data,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[1] === scope ? previousData : undefined,
   })
 
-  const coachOptionsQuery = useQuery({
-    queryKey: ["superuser-coaches", form.gym_id, "athlete-options"],
-    queryFn: async () =>
-      // Every coach in the club must be reachable in the picker.
-      fetchAllPages(async (offset, limit) => {
-        const response = await SuperuserCoachesService.coachesListCoaches({
+  const coachPicker = useAsyncPicker<SuperuserCoachRow>({
+    queryKey: ["async-superuser-coaches", form.gym_id],
+    enabled: addOpen && Boolean(form.gym_id),
+    resetKey: form.gym_id,
+    fetchPage: async (search, offset, limit) =>
+      (
+        await SuperuserCoachesService.coachesListCoaches({
           query: {
             gym_id: form.gym_id,
             is_active: true,
+            q: search || undefined,
             offset,
             limit,
           },
         })
-        return response.data
-      }),
-    enabled: Boolean(form.gym_id),
+      ).data,
   })
-  const coachOptions = (coachOptionsQuery.data ?? []).map((coach) => ({
-    value: coach.user_id,
-    label: coach.full_name ?? coach.email,
-  }))
 
   const rows = athletesQuery.data?.data ?? []
   const total = athletesQuery.data?.count ?? 0
-  const pageState = pageWindow(pager, total)
-  if (pager.page !== pageState.page) pager.setPage(pageState.page)
-  const hasFilter = search.trim().length > 0 || Boolean(gymFilter)
+  const setPage = useCallback(
+    (next: number, replace = false) =>
+      updateListSearch({ page: next }, replace),
+    [updateListSearch],
+  )
+  const { window: pageState, stale } = useServerPage({
+    page,
+    pageSize,
+    total,
+    isCurrent: athletesQuery.isSuccess && !athletesQuery.isPlaceholderData,
+    onPageChange: setPage,
+  })
+  const hasFilter = searchTerm.trim().length > 0 || Boolean(gymFilter)
 
   async function invalidateAll() {
     await queryClient.invalidateQueries({ queryKey: ["superuser-athletes"] })
@@ -269,9 +282,7 @@ function AthletesContent() {
     label: gym.name,
   }))
   const noCoach =
-    Boolean(form.gym_id) &&
-    !coachOptionsQuery.isLoading &&
-    coachOptions.length === 0
+    Boolean(form.gym_id) && !coachPicker.isLoading && coachPicker.total === 0
 
   function rowActions(row: SuperuserAthleteRow) {
     return (
@@ -282,6 +293,7 @@ function AthletesContent() {
           icon={
             row.is_archived ? <RotateCcw size={14} /> : <Archive size={14} />
           }
+          disabled={stale}
           onClick={() =>
             setAction({
               kind: row.is_archived ? "restore" : "archive",
@@ -296,6 +308,7 @@ function AthletesContent() {
             variant="text"
             size="sm"
             icon={<Trash2 size={14} />}
+            disabled={stale}
             onClick={() => setAction({ kind: "delete", row })}
           >
             {t("common.delete")}
@@ -318,8 +331,8 @@ function AthletesContent() {
       />
 
       <PeopleListToolbar
-        search={search}
-        onSearch={setSearch}
+        search={searchTerm}
+        onSearch={(value) => updateListSearch({ q: value, page: 1 }, true)}
         searchLabel={t("athletes.search")}
         clearSearchLabel={t("athletes.clearSearch")}
         countLabel={t("athletes.countLabel", {
@@ -331,14 +344,14 @@ function AthletesContent() {
         gridLabel={t("athletes.gridView")}
         tableLabel={t("athletes.tableView")}
         clubValue={gymFilter}
-        onClubChange={setGymFilter}
+        onClubChange={(value) => updateListSearch({ club: value, page: 1 })}
         clubLabel={t("superuser.club")}
         clubOptions={[
           { value: "", label: t("superuser.allClubs") },
           ...gymOptions,
         ]}
         tab={tab}
-        onTabChange={setTab}
+        onTabChange={(value) => updateListSearch({ tab: value, page: 1 })}
         tabLabel={t("superuser.athletes")}
         activeLabel={t("status.active")}
         archivedLabel={t("status.archived")}
@@ -365,10 +378,9 @@ function AthletesContent() {
             hasFilter ? (
               <Button
                 variant="outlined"
-                onClick={() => {
-                  setSearch("")
-                  setGymFilter("")
-                }}
+                onClick={() =>
+                  updateListSearch({ q: "", club: "", page: 1 }, true)
+                }
               >
                 {t("athletes.clearSearch")}
               </Button>
@@ -383,7 +395,10 @@ function AthletesContent() {
           }
         />
       ) : view === "grid" ? (
-        <div className="m3-card-grid">
+        <div
+          className={`m3-card-grid ${stale ? "is-updating" : ""}`}
+          aria-busy={stale}
+        >
           {rows.map((row) => (
             <div
               key={`${row.gym_id}:${row.user_id}`}
@@ -437,7 +452,12 @@ function AthletesContent() {
         </div>
       ) : (
         <Card className="m3-data-card">
-          <div className="m3-table-wrap m3-data-table-wrap">
+          <div
+            className={`m3-table-wrap m3-data-table-wrap ${
+              stale ? "is-updating" : ""
+            }`}
+            aria-busy={stale}
+          >
             <table className="m3-table m3-data-table">
               <thead>
                 <tr>
@@ -491,13 +511,15 @@ function AthletesContent() {
         <PaginationBar
           page={pageState.page}
           pageCount={pageState.pageCount}
-          pageSize={pager.pageSize}
+          pageSize={pageSize}
           total={pageState.total}
           start={pageState.start}
           end={pageState.end}
-          loading={athletesQuery.isFetching}
-          onPageChange={pager.setPage}
-          onPageSizeChange={pager.setPageSize}
+          loading={stale || athletesQuery.isFetching}
+          onPageChange={setPage}
+          onPageSizeChange={(size) =>
+            updateListSearch({ size: size as PageSize, page: 1 })
+          }
         />
       ) : null}
 
@@ -536,13 +558,17 @@ function AthletesContent() {
             options={gymOptions}
             required
           />
-          <SelectField
+          <AsyncPickerField
             label={t("members.coach")}
             value={form.coach_user_id}
             onChange={(value) => setForm({ ...form, coach_user_id: value })}
-            options={coachOptions}
+            picker={coachPicker}
+            getOption={(coach) => ({
+              value: coach.user_id,
+              label: coach.full_name ?? coach.email,
+            })}
             helper={noCoach ? t("superuser.noCoachForGym") : undefined}
-            disabled={!form.gym_id || coachOptionsQuery.isLoading || noCoach}
+            placeholder={t("athletes.chooseCoach")}
             required
           />
           <TextField

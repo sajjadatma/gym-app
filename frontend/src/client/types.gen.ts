@@ -2663,7 +2663,20 @@ export type gymsListCoachesData = {
          */
         gym_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Q
+         */
+        q?: string;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
     url: '/api/v1/gyms/{gym_id}/coaches';
 };
 

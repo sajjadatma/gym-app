@@ -24,11 +24,13 @@ import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import {
   AthletesService,
+  type CoachPublic,
   GymsService,
   ProgramsService,
   type ProgramVersionSummary,
 } from "@/client"
 import { client } from "@/client/client.gen"
+import { AsyncPickerField } from "@/components/AsyncPickerField"
 import { DateField } from "@/components/DateField"
 import { DeleteAthletesDialog } from "@/components/DeleteAthletesDialog"
 import {
@@ -40,7 +42,6 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
-  SearchableSelectField,
   SelectField,
   Spinner,
   StatusBadge,
@@ -48,6 +49,7 @@ import {
   TextField,
 } from "@/components/M3"
 import { useI18n } from "@/i18n"
+import { useAsyncPicker } from "@/lib/use-async-picker"
 import { useSnackbar } from "@/snackbar"
 
 type Tab = "profile" | "programs" | "bodyFiles"
@@ -128,17 +130,17 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
     refetchOnWindowFocus: true,
   })
 
-  const coachesQuery = useQuery({
-    queryKey: ["coaches", activeGymId],
-    queryFn: async () =>
+  const coachPicker = useAsyncPicker<CoachPublic>({
+    queryKey: ["async-gym-coaches", activeGymId],
+    enabled: Boolean(reassignOpen && activeGymId && isAdmin),
+    resetKey: `${activeGymId ?? ""}|${reassignOpen}`,
+    fetchPage: async (search, offset, limit) =>
       (
         await GymsService.listCoaches({
           path: { gym_id: activeGymId! },
+          query: { q: search, offset, limit },
         })
-      ).data.data,
-    enabled: Boolean(activeGymId && isAdmin),
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+      ).data,
   })
 
   const athlete = athleteQuery.data
@@ -196,12 +198,6 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
   const activeProgram = programsQuery.data?.find(
     (item) => item.status === "ACTIVE",
   )
-  const coachOptions = (coachesQuery.data ?? [])
-    .filter((coach) => coach.user_id !== athlete.coach_user_id)
-    .map((coach) => ({
-      value: coach.user_id,
-      label: coach.full_name ?? coach.email,
-    }))
 
   function convert(value: string) {
     return value.trim() ? Number(value) : null
@@ -1114,11 +1110,16 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
             <span className="muted">{t("athletes.currentCoach")}:</span>
             <strong>{athlete.coach_name ?? t("athletes.noCoach")}</strong>
           </div>
-          <SearchableSelectField
+          <AsyncPickerField
             label={t("athletes.newCoach")}
             value={newCoachId}
-            onChange={setNewCoachId}
-            options={coachOptions}
+            onChange={(value) => setNewCoachId(value)}
+            picker={coachPicker}
+            getOption={(coach) => ({
+              value: coach.user_id,
+              label: coach.full_name ?? coach.email,
+            })}
+            filterOption={(coach) => coach.user_id !== athlete.coach_user_id}
             placeholder={t("common.choose")}
             required
           />

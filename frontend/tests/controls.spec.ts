@@ -35,7 +35,11 @@ test("searchable ComboBox filters long lists, handles no results and stays in th
   const coach = dialog.getByRole("combobox", { name: /مربی مسئول/ })
 
   await coach.click()
+  await coach.fill("zzz-no-match")
+  await expect(page.getByText("نتیجه‌ای یافت نشد")).toBeVisible()
+
   await coach.fill("رضا")
+  await expect(page.getByRole("option")).toHaveCount(1)
   await expect(page.getByRole("option", { name: /رضا/ })).toBeVisible()
   const popupBox = await page.getByRole("listbox").boundingBox()
   const viewport = page.viewportSize()
@@ -51,9 +55,6 @@ test("searchable ComboBox filters long lists, handles no results and stays in th
   await page.keyboard.press("ArrowDown")
   await page.keyboard.press("Enter")
   await expect(coach).toHaveValue(/رضا/)
-
-  await coach.fill("zzz-no-match")
-  await expect(page.getByText("نتیجه‌ای یافت نشد")).toBeVisible()
 })
 
 test("required ComboBox exposes required state and keeps the form open on validation", async ({
@@ -227,6 +228,7 @@ test("Select, ComboBox and DatePicker remain usable in a mobile-sized modal", as
   const coach = dialog.getByRole("combobox", { name: /مربی مسئول/ })
   await coach.click()
   await coach.fill("رضا")
+  await expect(page.getByRole("option")).toHaveCount(1)
   await expect(page.getByRole("option", { name: /رضا/ })).toBeVisible()
   const comboList = page.locator(".m3-combobox__popover [role=listbox]")
   let box = await comboList.boundingBox()

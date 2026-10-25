@@ -284,6 +284,39 @@ def test_superuser_lists_paginate_and_filter_status(
     )
 
 
+def test_gym_coach_picker_paginates_and_searches(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = _owner(client, superuser_headers, "Page Coach Picker")
+    coaches = [
+        _coach(client, owner, gym) for _index in range(3)
+    ]
+
+    first = client.get(
+        f"/api/v1/gyms/{gym['id']}/coaches",
+        headers=owner,
+        params={"limit": 2, "offset": 0},
+    )
+    second = client.get(
+        f"/api/v1/gyms/{gym['id']}/coaches",
+        headers=owner,
+        params={"limit": 2, "offset": 2},
+    )
+    assert first.status_code == 200, first.text
+    assert second.status_code == 200, second.text
+    assert first.json()["count"] == 3
+    assert len(first.json()["data"]) == 2
+    assert len(second.json()["data"]) == 1
+
+    searched = client.get(
+        f"/api/v1/gyms/{gym['id']}/coaches",
+        headers=owner,
+        params={"q": coaches[0]["email"], "limit": 20},
+    )
+    assert searched.json()["count"] == 1
+    assert searched.json()["data"][0]["user_id"] == coaches[0]["user_id"]
+
+
 def test_invalid_pagination_parameters_are_rejected(
     client: TestClient, superuser_headers: dict[str, str]
 ) -> None:

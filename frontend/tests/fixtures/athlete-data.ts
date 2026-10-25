@@ -51,7 +51,7 @@ export const test = base.extend<{ athleteData: AthleteData }>({
     })
 
     const coachesResponse = await request.get(
-      `${API_URL}/api/v1/gyms/${gymId}/coaches`,
+      `${API_URL}/api/v1/gyms/${gymId}/coaches?q=reza%40example.com`,
       { headers },
     )
     expect(coachesResponse.ok()).toBeTruthy()

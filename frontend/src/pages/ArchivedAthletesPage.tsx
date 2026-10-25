@@ -1,11 +1,13 @@
-import {
-  keepPreviousData,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useNavigate, useSearch } from "@tanstack/react-router"
 import { RotateCcw, Search, Trash2, Users, X } from "lucide-react"
-import { useDeferredValue, useEffect, useRef, useState } from "react"
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+} from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import { type AthleteSummary, AthletesService } from "@/client"
@@ -24,60 +26,81 @@ import {
   Spinner,
   TextField,
 } from "@/components/M3"
-import { PaginationBar, pageWindow, usePager } from "@/components/Pagination"
+import { PaginationBar } from "@/components/Pagination"
 import { useI18n } from "@/i18n"
+import type { ListSearch, PageSize } from "@/lib/list-search"
+import { useServerPage } from "@/lib/server-page"
 import { useSnackbar } from "@/snackbar"
 
 export function ArchivedAthletesPage() {
   const { t, formatNumber } = useI18n()
   const { activeGym, activeGymId, isAdmin } = useAuth()
-  const navigate = useNavigate()
+  const navigate = useNavigate({ from: "/gyms/$gymId/athletes/archived" })
+  const searchParams = useSearch({
+    from: "/_app/gyms/$gymId/athletes/archived",
+  })
+  const page = searchParams.page ?? 1
+  const pageSize = searchParams.size ?? 10
+  const searchTerm = searchParams.q ?? ""
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
-  const [search, setSearch] = useState("")
-  const deferredSearch = useDeferredValue(search)
+  const deferredSearch = useDeferredValue(searchTerm)
   const [selected, setSelected] = useState<Record<string, AthleteSummary>>({})
   const [deleteTargets, setDeleteTargets] = useState<DeleteAthleteTarget[]>([])
   const [busy, setBusy] = useState(false)
   const selectAllRef = useRef<HTMLInputElement>(null)
 
-  const pager = usePager(deferredSearch)
+  const scope = `${activeGymId ?? ""}|${deferredSearch}`
+
+  const updateListSearch = useCallback(
+    (patch: Partial<ListSearch>, replace = false) => {
+      void navigate({
+        search: (previous) => ({ ...previous, ...patch }),
+        replace,
+      })
+    },
+    [navigate],
+  )
 
   const archivedQuery = useQuery({
-    queryKey: [
-      "athletes",
-      activeGymId,
-      "archived",
-      deferredSearch,
-      pager.offset,
-      pager.limit,
-    ],
+    queryKey: ["athletes", "archived", scope, page, pageSize],
     queryFn: async () =>
       (
         await AthletesService.listAthletes({
           query: {
             q: deferredSearch,
             is_archived: true,
-            offset: pager.offset,
-            limit: pager.limit,
+            offset: (page - 1) * pageSize,
+            limit: pageSize,
           },
         })
       ).data,
     enabled: Boolean(activeGymId && isAdmin),
     staleTime: 0,
     refetchOnWindowFocus: true,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[2] === scope ? previousData : undefined,
   })
 
   const archived = archivedQuery.data?.data ?? []
   const total = archivedQuery.data?.count ?? 0
-  const pageState = pageWindow(pager, total)
-  if (pager.page !== pageState.page) pager.setPage(pageState.page)
+  const setPage = useCallback(
+    (next: number, replace = false) =>
+      updateListSearch({ page: next }, replace),
+    [updateListSearch],
+  )
+  const { window: pageState, stale } = useServerPage({
+    page,
+    pageSize,
+    total,
+    isCurrent: archivedQuery.isSuccess && !archivedQuery.isPlaceholderData,
+    onPageChange: setPage,
+  })
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: clear selection when the filter changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear selection when the list scope changes
   useEffect(() => {
     setSelected({})
-  }, [deferredSearch])
+  }, [scope])
 
   const selectedAthletes = Object.values(selected)
   const selectedOnPage = archived.filter((athlete) =>
@@ -199,16 +222,18 @@ export function ArchivedAthletesPage() {
             label={t("athletes.search")}
             type="search"
             name="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            value={searchTerm}
+            onChange={(event) =>
+              updateListSearch({ q: event.target.value, page: 1 }, true)
+            }
             leading={<Search size={18} aria-hidden />}
             trailing={
-              search ? (
+              searchTerm ? (
                 <button
                   type="button"
                   className="m3-search-clear"
                   aria-label={t("athletes.clearSearch")}
-                  onClick={() => setSearch("")}
+                  onClick={() => updateListSearch({ q: "", page: 1 }, true)}
                 >
                   <X size={15} aria-hidden />
                 </button>
@@ -268,6 +293,7 @@ export function ArchivedAthletesPage() {
                   size="sm"
                   icon={<RotateCcw size={15} />}
                   loading={busy}
+                  disabled={stale}
                   onClick={() => void restoreAthletes(selectedAthletes)}
                 >
                   {t("athletes.restoreSelected")}
@@ -277,6 +303,7 @@ export function ArchivedAthletesPage() {
                   size="sm"
                   icon={<Trash2 size={15} />}
                   className="m3-text-danger"
+                  disabled={stale}
                   onClick={() =>
                     setDeleteTargets(selectedAthletes.map(toDeleteTarget))
                   }
@@ -288,7 +315,10 @@ export function ArchivedAthletesPage() {
           ) : null}
 
           <Card className="m3-data-card">
-            <div className="m3-table-wrap">
+            <div
+              className={`m3-table-wrap ${stale ? "is-updating" : ""}`}
+              aria-busy={stale}
+            >
               <table className="m3-table m3-data-table m3-archive-table">
                 <thead>
                   <tr>
@@ -299,7 +329,8 @@ export function ArchivedAthletesPage() {
                           checked={allSelected}
                           ref={selectAllRef}
                           onChange={toggleSelectAll}
-                          aria-label={t("athletes.selectAll")}
+                          disabled={stale}
+                          aria-label={t("athletes.selectPage")}
                         />
                       </label>
                     </th>
@@ -327,6 +358,7 @@ export function ArchivedAthletesPage() {
                             type="checkbox"
                             checked={Boolean(selected[athlete.user_id])}
                             onChange={() => toggleSelected(athlete)}
+                            disabled={stale}
                             aria-label={`${t("athletes.select")} ${
                               athlete.full_name ?? athlete.email
                             }`}
@@ -367,7 +399,7 @@ export function ArchivedAthletesPage() {
                             icon={<RotateCcw size={15} />}
                             aria-label={t("athletes.restore")}
                             onClick={() => void restoreAthletes([athlete])}
-                            disabled={busy}
+                            disabled={busy || stale}
                           >
                             {t("athletes.restore")}
                           </Button>
@@ -377,6 +409,7 @@ export function ArchivedAthletesPage() {
                             icon={<Trash2 size={15} />}
                             aria-label={t("athletes.delete")}
                             className="m3-text-danger"
+                            disabled={stale}
                             onClick={() =>
                               setDeleteTargets([toDeleteTarget(athlete)])
                             }
@@ -398,13 +431,15 @@ export function ArchivedAthletesPage() {
         <PaginationBar
           page={pageState.page}
           pageCount={pageState.pageCount}
-          pageSize={pager.pageSize}
+          pageSize={pageSize}
           total={pageState.total}
           start={pageState.start}
           end={pageState.end}
-          loading={archivedQuery.isFetching}
-          onPageChange={pager.setPage}
-          onPageSizeChange={pager.setPageSize}
+          loading={stale || archivedQuery.isFetching}
+          onPageChange={setPage}
+          onPageSizeChange={(size) =>
+            updateListSearch({ size: size as PageSize, page: 1 })
+          }
         />
       ) : null}
 

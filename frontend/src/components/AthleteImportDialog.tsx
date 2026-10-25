@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   AlertTriangle,
   Check,
@@ -16,7 +16,7 @@ import {
   type AthleteImportPreviewRow,
   type AthleteImportResult,
   AthletesService,
-  type CoachPublic,
+  GymsService,
 } from "@/client"
 import { client } from "@/client/client.gen"
 import {
@@ -58,22 +58,21 @@ export function AthleteImportDialog({
   open,
   onClose,
   onImported,
-  coaches,
+  gymId,
 }: {
   open: boolean
   onClose: () => void
   onImported: () => void
-  coaches: CoachPublic[]
+  gymId: string
 }) {
   const { t, formatNumber } = useI18n()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const coachesRef = useRef(coaches)
-  coachesRef.current = coaches
   const fileId = useId()
   const [step, setStep] = useState<Step>("upload")
   const [file, setFile] = useState<File | null>(null)
   const [coachId, setCoachId] = useState("")
+  const [coachLabel, setCoachLabel] = useState("")
   const [activationMethod, setActivationMethod] = useState<
     "invite" | "password"
   >("invite")
@@ -85,23 +84,30 @@ export function AthleteImportDialog({
   const [busy, setBusy] = useState(false)
   const [downloading, setDownloading] = useState<"csv" | "xlsx" | null>(null)
 
-  const coachOptions = [
-    { value: "", label: t("athletes.importNoDefaultCoach") },
-    ...coaches.map((coach) => ({
-      value: coach.user_id,
-      label: coach.full_name ?? coach.email,
-    })),
-  ]
-  const coachLabel =
-    coachOptions.find((option) => option.value === coachId)?.label ??
-    t("athletes.importNoDefaultCoach")
+  const coachesQuery = useQuery({
+    queryKey: ["import-coaches", gymId],
+    queryFn: async () =>
+      (
+        await GymsService.listCoaches({
+          path: { gym_id: gymId },
+          query: { limit: 50 },
+        })
+      ).data,
+    enabled: open && Boolean(gymId),
+  })
+  const coaches = coachesQuery.data?.data ?? []
+  const hasMoreCoaches = (coachesQuery.data?.count ?? 0) > coaches.length
+  const coachOptions = coaches.map((coach) => ({
+    value: coach.user_id,
+    label: coach.full_name ?? coach.email,
+  }))
 
   useEffect(() => {
     if (!open) return
-    const coachList = coachesRef.current
     setStep("upload")
     setFile(null)
-    setCoachId(coachList.length === 1 ? coachList[0].user_id : "")
+    setCoachId("")
+    setCoachLabel("")
     setActivationMethod("invite")
     setInitialPassword("")
     setPreview(null)
@@ -148,8 +154,16 @@ export function AthleteImportDialog({
     setFile(next)
   }
 
-  function handleCoachChange(value: string) {
+  useEffect(() => {
+    if (!open || coachId || coaches.length !== 1) return
+    const onlyCoach = coaches[0]
+    setCoachId(onlyCoach.user_id)
+    setCoachLabel(onlyCoach.full_name ?? onlyCoach.email)
+  }, [open, coachId, coaches])
+
+  function handleCoachChange(value: string, label: string) {
     setCoachId(value)
+    setCoachLabel(label)
     if (preview) {
       setPreview(null)
       setStep("upload")
@@ -447,10 +461,20 @@ export function AthleteImportDialog({
                 <SearchableSelectField
                   label={t("athletes.importDefaultCoach")}
                   value={coachId}
-                  onChange={handleCoachChange}
+                  onChange={(value) =>
+                    handleCoachChange(
+                      value,
+                      coachOptions.find((option) => option.value === value)
+                        ?.label ?? "",
+                    )
+                  }
                   options={coachOptions}
                   placeholder={t("athletes.importNoDefaultCoach")}
-                  helper={t("athletes.importDefaultCoachHint")}
+                  helper={
+                    hasMoreCoaches
+                      ? t("athletes.importMoreCoaches")
+                      : t("athletes.importDefaultCoachHint")
+                  }
                 />
                 <SelectField
                   label={t("gyms.activationMethod")}
@@ -494,7 +518,6 @@ export function AthleteImportDialog({
                   onChange={(value) => void recoverWithCoach(value)}
                   options={coachOptions}
                   placeholder={t("athletes.chooseCoach")}
-                  disabled={busy}
                 />
               </div>
             ) : null}

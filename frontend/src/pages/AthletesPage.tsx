@@ -1,9 +1,5 @@
-import {
-  keepPreviousData,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useNavigate, useSearch } from "@tanstack/react-router"
 import {
   Archive,
   ArrowLeft,
@@ -22,6 +18,7 @@ import {
   X,
 } from "lucide-react"
 import {
+  useCallback,
   useDeferredValue,
   useEffect,
   useLayoutEffect,
@@ -34,8 +31,10 @@ import {
   type AthleteCreated,
   type AthleteSummary,
   AthletesService,
+  type CoachPublic,
   GymsService,
 } from "@/client"
+import { AsyncPickerField } from "@/components/AsyncPickerField"
 import { AthleteImportDialog } from "@/components/AthleteImportDialog"
 import { AthleteListTabs } from "@/components/AthleteListTabs"
 import {
@@ -47,24 +46,29 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
-  SearchableSelectField,
   SelectField,
   Spinner,
   StatusBadge,
   TextField,
 } from "@/components/M3"
-import { PaginationBar, pageWindow, usePager } from "@/components/Pagination"
+import { PaginationBar } from "@/components/Pagination"
 import { useI18n } from "@/i18n"
+import type { ListSearch, PageSize } from "@/lib/list-search"
+import { useServerPage } from "@/lib/server-page"
+import { useAsyncPicker } from "@/lib/use-async-picker"
 import { useSnackbar } from "@/snackbar"
 
 export function AthletesPage() {
   const { t, formatNumber, direction } = useI18n()
   const { activeGym, activeGymId, activeRole, isAdmin, me } = useAuth()
-  const navigate = useNavigate()
+  const navigate = useNavigate({ from: "/gyms/$gymId/athletes/" })
+  const searchParams = useSearch({ from: "/_app/gyms/$gymId/athletes/" })
+  const page = searchParams.page ?? 1
+  const pageSize = searchParams.size ?? 10
+  const searchTerm = searchParams.q ?? ""
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
-  const [search, setSearch] = useState("")
-  const deferredSearch = useDeferredValue(search)
+  const deferredSearch = useDeferredValue(searchTerm)
   const [view, setView] = useState<"grid" | "table">(() => {
     try {
       return localStorage.getItem("gym.athletes.view") === "table"
@@ -97,53 +101,64 @@ export function AthletesPage() {
   })
 
   const canCreate = activeRole === "GYM_ADMIN" || activeRole === "COACH"
-  const resetKey = `${deferredSearch}|${activeRole ?? ""}`
-  const pager = usePager(resetKey)
+  const scope = `${activeGymId ?? ""}|${activeRole ?? ""}|${deferredSearch}`
+
+  const updateListSearch = useCallback(
+    (patch: Partial<ListSearch>, replace = false) => {
+      void navigate({
+        to: ".",
+        search: { ...searchParams, ...patch },
+        replace,
+      })
+    },
+    [navigate, searchParams],
+  )
 
   const athletesQuery = useQuery({
-    queryKey: [
-      "athletes",
-      activeGymId,
-      deferredSearch,
-      activeRole,
-      pager.offset,
-      pager.limit,
-    ],
+    queryKey: ["athletes", scope, page, pageSize],
     queryFn: async () =>
       (
         await AthletesService.listAthletes({
           query: {
             q: deferredSearch,
             is_archived: false,
-            offset: pager.offset,
-            limit: pager.limit,
+            offset: (page - 1) * pageSize,
+            limit: pageSize,
           },
         })
       ).data,
     enabled: Boolean(activeGymId),
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[1] === scope ? previousData : undefined,
   })
 
-  const coachesQuery = useQuery({
-    queryKey: ["coaches", activeGymId],
-    queryFn: async () =>
+  const coachPicker = useAsyncPicker<CoachPublic>({
+    queryKey: ["async-gym-coaches", activeGymId],
+    enabled: Boolean(addOpen && activeGymId && isAdmin),
+    resetKey: activeGymId ?? "",
+    fetchPage: async (search, offset, limit) =>
       (
         await GymsService.listCoaches({
           path: { gym_id: activeGymId! },
+          query: { q: search, offset, limit },
         })
-      ).data.data,
-    enabled: Boolean(activeGymId && isAdmin),
+      ).data,
   })
 
   const athletes = athletesQuery.data?.data ?? []
   const total = athletesQuery.data?.count ?? 0
-  const pageState = pageWindow(pager, total)
-  if (pager.page !== pageState.page) pager.setPage(pageState.page)
-
-  const coachOptions = (coachesQuery.data ?? []).map((coach) => ({
-    value: coach.user_id,
-    label: coach.full_name ?? coach.email,
-  }))
+  const setPage = useCallback(
+    (next: number, replace = false) =>
+      updateListSearch({ page: next }, replace),
+    [updateListSearch],
+  )
+  const { window: pageState, stale } = useServerPage({
+    page,
+    pageSize,
+    total,
+    isCurrent: athletesQuery.isSuccess && !athletesQuery.isPlaceholderData,
+    onPageChange: setPage,
+  })
 
   const selectedAthletes = Object.values(selected)
   const selectedOnPage = athletes.filter((athlete) =>
@@ -153,7 +168,7 @@ export function AthletesPage() {
     athletes.length > 0 && selectedOnPage.length === athletes.length
   const someSelected = selectedOnPage.length > 0 && !allSelected
   const ForwardIcon = direction === "rtl" ? ArrowLeft : ArrowRight
-  const hasSearch = search.trim().length > 0
+  const hasSearch = searchTerm.trim().length > 0
 
   useEffect(() => {
     try {
@@ -169,10 +184,10 @@ export function AthletesPage() {
     }
   }, [someSelected])
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: clear selection when the filter or role changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: clear selection when the list scope changes
   useEffect(() => {
     setSelected({})
-  }, [resetKey])
+  }, [scope])
 
   useLayoutEffect(() => {
     if (view !== "table") return
@@ -354,16 +369,18 @@ export function AthletesPage() {
             label={t("athletes.search")}
             type="search"
             name="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            value={searchTerm}
+            onChange={(event) =>
+              updateListSearch({ q: event.target.value, page: 1 }, true)
+            }
             leading={<Search size={18} aria-hidden />}
             trailing={
-              search ? (
+              searchTerm ? (
                 <button
                   type="button"
                   className="m3-search-clear"
                   aria-label={t("athletes.clearSearch")}
-                  onClick={() => setSearch("")}
+                  onClick={() => updateListSearch({ q: "", page: 1 }, true)}
                 >
                   <X size={15} aria-hidden />
                 </button>
@@ -429,7 +446,7 @@ export function AthletesPage() {
               <Button
                 variant="outlined"
                 icon={<X size={16} />}
-                onClick={() => setSearch("")}
+                onClick={() => updateListSearch({ q: "", page: 1 }, true)}
               >
                 {t("athletes.clearSearch")}
               </Button>
@@ -444,7 +461,10 @@ export function AthletesPage() {
           }
         />
       ) : view === "grid" ? (
-        <div className="m3-card-grid">
+        <div
+          className={`m3-card-grid ${stale ? "is-updating" : ""}`}
+          aria-busy={stale}
+        >
           {athletes.map((athlete) => (
             <div
               key={athlete.user_id}
@@ -521,6 +541,7 @@ export function AthletesPage() {
                       variant="text"
                       size="sm"
                       icon={<Archive size={14} />}
+                      disabled={stale}
                       onClick={() => setArchiveTargets([athlete])}
                     >
                       {t("athletes.archive")}
@@ -555,6 +576,7 @@ export function AthletesPage() {
                     variant="text"
                     size="sm"
                     icon={<Archive size={15} />}
+                    disabled={stale}
                     onClick={() => setArchiveTargets(selectedAthletes)}
                   >
                     {t("athletes.archiveSelected")}
@@ -569,7 +591,10 @@ export function AthletesPage() {
           <Card className="m3-data-card">
             <div
               ref={tableWrapRef}
-              className="m3-table-wrap m3-data-table-wrap"
+              className={`m3-table-wrap m3-data-table-wrap ${
+                stale ? "is-updating" : ""
+              }`}
+              aria-busy={stale}
             >
               <table className="m3-table m3-data-table">
                 <thead>
@@ -581,7 +606,8 @@ export function AthletesPage() {
                           type="checkbox"
                           checked={allSelected}
                           onChange={toggleSelectAll}
-                          aria-label={t("athletes.selectAll")}
+                          disabled={stale}
+                          aria-label={t("athletes.selectPage")}
                         />
                       </label>
                     </th>
@@ -613,6 +639,7 @@ export function AthletesPage() {
                             type="checkbox"
                             checked={Boolean(selected[athlete.user_id])}
                             onChange={() => toggleSelected(athlete)}
+                            disabled={stale}
                             aria-label={`${t("athletes.select")} ${
                               athlete.full_name ?? athlete.email
                             }`}
@@ -678,6 +705,7 @@ export function AthletesPage() {
                               variant="text"
                               size="sm"
                               icon={<Archive size={15} />}
+                              disabled={stale}
                               onClick={() => setArchiveTargets([athlete])}
                             >
                               {t("athletes.archive")}
@@ -706,13 +734,15 @@ export function AthletesPage() {
         <PaginationBar
           page={pageState.page}
           pageCount={pageState.pageCount}
-          pageSize={pager.pageSize}
+          pageSize={pageSize}
           total={pageState.total}
           start={pageState.start}
           end={pageState.end}
-          loading={athletesQuery.isFetching}
-          onPageChange={pager.setPage}
-          onPageSizeChange={pager.setPageSize}
+          loading={stale || athletesQuery.isFetching}
+          onPageChange={setPage}
+          onPageSizeChange={(size) =>
+            updateListSearch({ size: size as PageSize, page: 1 })
+          }
         />
       ) : null}
 
@@ -743,7 +773,7 @@ export function AthletesPage() {
           })
           void queryClient.invalidateQueries({ queryKey: ["gyms"] })
         }}
-        coaches={coachesQuery.data ?? []}
+        gymId={activeGymId!}
       />
 
       <Dialog
@@ -793,11 +823,15 @@ export function AthletesPage() {
               }
             />
             {isAdmin ? (
-              <SearchableSelectField
+              <AsyncPickerField
                 label={t("athletes.coach")}
                 value={form.coach_user_id}
                 onChange={(value) => setForm({ ...form, coach_user_id: value })}
-                options={coachOptions}
+                picker={coachPicker}
+                getOption={(coach) => ({
+                  value: coach.user_id,
+                  label: coach.full_name ?? coach.email,
+                })}
                 placeholder={t("athletes.chooseCoach")}
                 required
               />
