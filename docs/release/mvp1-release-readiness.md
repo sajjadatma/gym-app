@@ -123,7 +123,7 @@ These are consistent with the approved local scope and are **not** release-block
 
 ## 7. Evidence appendix
 
-### Automated gates (release candidate `12ef88f`)
+### Automated gates (release candidate `12ef88f`; final CI run `40209730702`)
 
 | Command | Result |
 |---|---|

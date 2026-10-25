@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-25
 **Release candidate commit:** `12ef88fc805263966f32557b528d6b8ecfbf7a8c`
-**CI evidence:** [CI run 40209141865](https://github.com/sajjadatma/gym-app/actions/runs/40209141865) and [release run 40209148181](https://github.com/sajjadatma/gym-app/actions/runs/40209148181) — both success
+**CI evidence:** [CI run 40209730702](https://github.com/sajjadatma/gym-app/actions/runs/40209730702) and [release run 40209148181](https://github.com/sajjadatma/gym-app/actions/runs/40209148181) — both success
 **Scope:** deployment/security/release engineering only; MVP1 remains feature-frozen.
 
 ## 1. Environment architecture
@@ -66,7 +66,7 @@ Staging and production are isolated by Compose project name, networks, named vol
 
 ## 4. Verification evidence
 
-### CI run `40209141865` and release run `40209148181` (commit `12ef88f`)
+### CI run `40209730702` and release run `40209148181`
 
 - `backend`: Ruff clean; **120 passed**, 4 migration tests deselected by the marker filter; migration smoke **4 passed**.
 - `frontend`: Biome clean, TypeScript pass, production build pass.

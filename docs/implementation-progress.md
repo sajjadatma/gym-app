@@ -115,7 +115,7 @@ CONFIRM_RESET_GYM_APP=YES SEED_DEMO_DATA=YES bash scripts/reset_dev_db.sh
 
 Release hardening evidence, including the isolated backup/restore drill, is in `docs/release/production-hardening-results.md`.
 
-Playwright status: full desktop + emulated Pixel 5 suite is green locally (69 passed; 1 skipped — the production-only PWA service-worker test, covered by the separate `PWA_PROD=1` run). CI also runs 25 critical journeys and 2 PWA smoke tests against the built Docker image. Docker image build/startup, migrations, restart persistence, concurrent-start migration locking, config failure, runtime rate limiting and backup/restore are now **VERIFIED IN CI** (run `40207933344`). Traefik/ACME/public TLS and real SMTP delivery remain **NOT VERIFIED** until a real host/domain and provider credentials are supplied.
+Playwright status: full desktop + emulated Pixel 5 suite is green locally (69 passed; 1 skipped — the production-only PWA service-worker test, covered by the separate `PWA_PROD=1` run). CI also runs 25 critical journeys and 2 PWA smoke tests against the built Docker image. Docker image build/startup, migrations, restart persistence, concurrent-start migration locking, config failure, runtime rate limiting and backup/restore are now **VERIFIED IN CI** (run `40209730702`). Traefik/ACME/public TLS and real SMTP delivery remain **NOT VERIFIED** until a real host/domain and provider credentials are supplied.
 
 The real Super Admin password and invitation tokens are deliberately absent from this document and all tracked files.
 
