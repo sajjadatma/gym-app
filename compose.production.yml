@@ -1,0 +1,112 @@
+# Production-oriented Compose template. TLS/ACME requires a real public domain
+# and DNS pointed at the host; see docs/release/production-deployment-runbook.md.
+#
+# Usage:
+#   DOMAIN=gym.example.com ACME_EMAIL=ops@example.com \
+#   POSTGRES_PASSWORD=... SECRET_KEY=... FIRST_SUPERUSER=... \
+#   FIRST_SUPERUSER_PASSWORD=... docker compose -f compose.production.yml up -d --build
+services:
+  proxy:
+    image: traefik:v3.7
+    restart: unless-stopped
+    command:
+      - --providers.docker
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?Variable not set}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+      - --accesslog=true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - letsencrypt:/letsencrypt
+    networks:
+      - edge
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Variable not set}
+      POSTGRES_DB: app
+    volumes:
+      - app-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d app"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      FASTAPI_ENV: production
+      PROJECT_NAME: ${PROJECT_NAME:-Gym Management}
+      SECRET_KEY: ${SECRET_KEY:?Variable not set}
+      FIRST_SUPERUSER: ${FIRST_SUPERUSER:?Variable not set}
+      FIRST_SUPERUSER_PASSWORD: ${FIRST_SUPERUSER_PASSWORD:?Variable not set}
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Variable not set}@db:5432/app
+      FRONTEND_HOST: https://${DOMAIN:?Variable not set}
+      COOKIE_SECURE: "true"
+      HSTS_ENABLED: "true"
+      TRUST_PROXY_HEADERS: "true"
+      FORWARDED_ALLOW_IPS: "*"
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+      CSP_CONNECT_SRC: "'self'"
+      BODY_ANALYSIS_DIR: /app/backend/uploads/body-analysis
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_TLS: ${SMTP_TLS:-true}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    volumes:
+      - uploads:/app/backend/uploads
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/utils/ready/').read()",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.backend.rule=Host(`${DOMAIN:?Variable not set}`)
+      - traefik.http.routers.backend.entrypoints=websecure
+      - traefik.http.routers.backend.tls=true
+      - traefik.http.routers.backend.tls.certresolver=letsencrypt
+      - traefik.http.services.backend.loadbalancer.server.port=8000
+    networks:
+      - edge
+      - internal
+
+volumes:
+  app-db-data:
+  uploads:
+  letsencrypt:
+
+networks:
+  edge:
+  internal:
+    internal: true

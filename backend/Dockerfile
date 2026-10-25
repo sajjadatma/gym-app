@@ -46,6 +46,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-workspace --package app
 
 COPY ./backend/scripts /app/backend/scripts
+RUN chmod +x /app/backend/scripts/start.sh
 
 COPY ./backend/pyproject.toml ./backend/alembic.ini /app/backend/
 
@@ -62,4 +63,4 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 WORKDIR /app/backend/
 
-CMD ["fastapi", "run", "--workers", "4"]
+CMD ["/app/backend/scripts/start.sh"]
