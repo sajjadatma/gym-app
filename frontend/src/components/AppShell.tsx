@@ -18,7 +18,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react"
 import { type RoleMode, useAuth } from "../auth"
 import { type TranslationKey, useI18n } from "../i18n"
 import { useTheme } from "../theme"
-import { Avatar, IconButton, Spinner } from "./M3"
+import { Avatar, Button, IconButton, Spinner } from "./M3"
 
 type NavItem = {
   to: string
@@ -324,6 +324,21 @@ export function AppShell() {
           </div>
 
           <div className="m3-topbar__context">
+            {isSuperuser && activeGym ? (
+              <Button
+                variant="text"
+                size="sm"
+                className="m3-topbar__back"
+                icon={<LayoutDashboard size={16} aria-hidden />}
+                aria-label={t("dashboard.globalDashboard")}
+                onClick={() => {
+                  setActiveGym(null)
+                  navigate({ to: "/" as never })
+                }}
+              >
+                {t("dashboard.globalDashboard")}
+              </Button>
+            ) : null}
             {activeGym ? (
               gyms.length > 1 || isSuperuser ? (
                 <Dropdown

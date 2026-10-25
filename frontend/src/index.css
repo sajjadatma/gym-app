@@ -395,6 +395,21 @@ button:disabled {
   font-weight: 650;
 }
 
+.m3-topbar__back {
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .m3-topbar__back > span {
+    display: none;
+  }
+
+  .m3-topbar__back {
+    padding: 8px;
+    min-width: 40px;
+  }
+}
+
 .m3-topbar__spacer {
   flex: 1;
 }

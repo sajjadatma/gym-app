@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import {
   Activity,
-  ArrowRight,
   Bookmark,
   Building2,
   ClipboardList,
@@ -37,7 +36,6 @@ export function DashboardPage() {
     activeRole,
     isSuperuser,
     isAdmin,
-    setActiveGym,
     isCoach,
     isAthlete,
     gyms,
@@ -210,20 +208,6 @@ export function DashboardPage() {
                 ? "dashboard.coachSubtitle"
                 : "dashboard.adminSubtitle",
         )}
-        actions={
-          isSuperuser && activeGymId ? (
-            <Button
-              variant="text"
-              icon={<ArrowRight size={17} />}
-              onClick={() => {
-                setActiveGym(null)
-                navigate({ to: "/" })
-              }}
-            >
-              {t("dashboard.backToGlobal")}
-            </Button>
-          ) : undefined
-        }
       />
 
       <div className="m3-hero">

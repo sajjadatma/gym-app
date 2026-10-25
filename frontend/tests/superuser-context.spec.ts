@@ -166,9 +166,18 @@ test("superuser inside a club hides the clubs nav and can return to the global d
     page.locator(".m3-nav-rail").getByRole("button", { name: "باشگاه‌ها" }),
   ).toHaveCount(0)
 
-  const back = page.getByRole("button", { name: "بازگشت به داشبورد سراسری" })
-  await expect(back).toBeVisible()
-  await back.click()
+  const topbarBack = () =>
+    page.locator(".m3-topbar").getByRole("button", { name: "داشبورد سراسری" })
+
+  await expect(topbarBack()).toBeVisible()
+  await page
+    .locator(".m3-nav-rail")
+    .getByRole("button", { name: "ورزشکاران" })
+    .click()
+  await expect(page).toHaveURL(/\/gyms\/[^/]+\/athletes$/)
+  await expect(topbarBack()).toBeVisible()
+
+  await topbarBack().click()
   await expect(page).toHaveURL((url) => url.pathname === "/")
   await expect(page.locator(".m3-topbar__gym")).toHaveCount(0)
   await expect(
