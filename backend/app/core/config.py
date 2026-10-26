@@ -38,6 +38,13 @@ class Settings(BaseSettings):
         Path(__file__).resolve().parents[2] / "uploads" / "body-analysis"
     )
     BODY_ANALYSIS_MAX_BYTES: int = 10 * 1024 * 1024
+    # When set together with AWS_ENDPOINT_URL_S3, body-analysis files are stored
+    # in Neon Object Storage (S3-compatible) instead of the local directory.
+    BODY_ANALYSIS_BUCKET: str | None = None
+    AWS_ENDPOINT_URL_S3: str | None = None
+    AWS_REGION: str | None = None
+    AWS_ACCESS_KEY_ID: str | None = None
+    AWS_SECRET_ACCESS_KEY: str | None = None
 
     # Browser session cookies. Bearer tokens remain available for API clients.
     ACCESS_COOKIE_NAME: str = "gym_access_token"

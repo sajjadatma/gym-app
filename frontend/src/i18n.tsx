@@ -683,6 +683,23 @@ const fa = {
   "errors.coach_already_archived": "این مربی از قبل آرشیو شده است.",
   "errors.coach_not_archived": "این مربی آرشیو نشده است.",
   "errors.coach_not_found": "مربی پیدا نشد.",
+  "errors.gym_unchanged": "باشگاه مقصد با باشگاه فعلی یکسان است.",
+  "errors.coach_archived": "این مربی آرشیو شده و قابل انتقال نیست.",
+  "errors.coach_transfer_not_allowed":
+    "این عضویت مربی قابل انتقال نیست؛ مالک باشگاه است یا نقش مدیریتی دارد.",
+  "errors.coach_has_active_athletes":
+    "ابتدا ورزشکاران این مربی را به مربی دیگری در همین باشگاه بسپارید.",
+  "errors.coach_already_member": "این مربی از قبل در باشگاه مقصد عضویت دارد.",
+  "errors.coach_has_athlete_profile":
+    "این حساب در باشگاه فعلی پروفایل ورزشکار دارد و قابل انتقال نیست.",
+  "errors.athlete_already_member":
+    "این ورزشکار از قبل در باشگاه مقصد عضویت دارد.",
+  "errors.athlete_has_other_roles":
+    "این حساب در باشگاه فعلی نقش دیگری هم دارد و قابل انتقال نیست.",
+  "errors.athlete_transfer_not_allowed":
+    "این ورزشکار مالک باشگاه است و انتقال او مجاز نیست.",
+  "errors.storage_unavailable":
+    "ذخیره‌ساز فایل‌ها در دسترس نیست؛ کمی بعد دوباره تلاش کنید.",
   "errors.gym_staff_required": "این عملیات برای کادر باشگاه مجاز است.",
   "errors.athlete_membership_cannot_be_deactivated":
     "عضویت ورزشکار را نمی‌توان غیرفعال کرد؛ ورزشکار را آرشیو کنید.",
@@ -748,6 +765,29 @@ const fa = {
   "superuser.showArchived": "نمایش آرشیوشده‌ها",
   "superuser.addCoach": "افزودن مربی",
   "superuser.addAthlete": "افزودن ورزشکار",
+  "superuser.editCoach": "ویرایش مربی",
+  "superuser.editAthlete": "ویرایش ورزشکار",
+  "superuser.transferGym": "انتقال باشگاه",
+  "superuser.transferCoach": "انتقال مربی",
+  "superuser.transferAthlete": "انتقال ورزشکار",
+  "superuser.transferAction": "انتقال",
+  "superuser.destinationGym": "باشگاه مقصد",
+  "superuser.currentGym": "باشگاه فعلی: {gym}",
+  "superuser.destinationGymRequired": "باشگاه مقصد را انتخاب کنید.",
+  "superuser.transferCoachHint":
+    "با انتقال، دسترسی این مربی به باشگاه فعلی حذف می‌شود. اگر ورزشکاری به او سپرده شده باشد، ابتدا باید مربی دیگری در همان باشگاه انتخاب شود.",
+  "superuser.transferAthleteHint":
+    "پروفایل، برنامه‌های تمرینی و فایل‌های تحلیل بدن به باشگاه مقصد منتقل می‌شوند و دسترسی به باشگاه فعلی حذف می‌شود.",
+  "superuser.transferCoachHintShort":
+    "مربی مقصد باید در همان باشگاه فعال باشد.",
+  "superuser.coachTransferred": "مربی منتقل شد.",
+  "superuser.athleteTransferred": "ورزشکار منتقل شد.",
+  "superuser.sharedIdentityEditHint":
+    "نام و شماره تلفن حساب کاربری در همه باشگاه‌هایی که این فرد عضو آن‌هاست تغییر می‌کند.",
+  "superuser.athleteEditScopeHint":
+    "نام حساب در همه باشگاه‌ها مشترک است؛ شماره تلفن و مربی فقط برای باشگاه «{gym}» تغییر می‌کند.",
+  "superuser.coachUpdated": "اطلاعات مربی به‌روزرسانی شد.",
+  "superuser.athleteUpdated": "اطلاعات ورزشکار به‌روزرسانی شد.",
   "superuser.club": "باشگاه",
   "superuser.status": "وضعیت",
   "superuser.archive": "آرشیو",
@@ -1482,6 +1522,24 @@ const en: Record<TranslationKey, string> = {
   "errors.coach_already_archived": "This coach is already archived.",
   "errors.coach_not_archived": "This coach is not archived.",
   "errors.coach_not_found": "Coach not found.",
+  "errors.gym_unchanged": "The destination gym is the current gym.",
+  "errors.coach_archived": "This coach is archived and cannot be transferred.",
+  "errors.coach_transfer_not_allowed":
+    "This coach membership cannot be transferred because it owns the gym or holds an admin role.",
+  "errors.coach_has_active_athletes":
+    "Reassign this coach's athletes to another coach in the current gym first.",
+  "errors.coach_already_member":
+    "This coach already belongs to the destination gym.",
+  "errors.coach_has_athlete_profile":
+    "This account has an athlete profile in the current gym and cannot be transferred.",
+  "errors.athlete_already_member":
+    "This athlete already belongs to the destination gym.",
+  "errors.athlete_has_other_roles":
+    "This account holds another role in the current gym and cannot be transferred.",
+  "errors.athlete_transfer_not_allowed":
+    "This athlete owns the gym and cannot be transferred.",
+  "errors.storage_unavailable":
+    "File storage is unavailable; try again shortly.",
   "errors.gym_staff_required": "This action is limited to gym staff.",
   "errors.athlete_membership_cannot_be_deactivated":
     "An athlete membership cannot be deactivated; archive the athlete instead.",
@@ -1548,6 +1606,29 @@ const en: Record<TranslationKey, string> = {
   "superuser.showArchived": "Show archived",
   "superuser.addCoach": "Add coach",
   "superuser.addAthlete": "Add athlete",
+  "superuser.editCoach": "Edit coach",
+  "superuser.editAthlete": "Edit athlete",
+  "superuser.transferGym": "Transfer gym",
+  "superuser.transferCoach": "Transfer coach",
+  "superuser.transferAthlete": "Transfer athlete",
+  "superuser.transferAction": "Transfer",
+  "superuser.destinationGym": "Destination gym",
+  "superuser.currentGym": "Current gym: {gym}",
+  "superuser.destinationGymRequired": "Select a destination gym.",
+  "superuser.transferCoachHint":
+    "Transferring removes this coach's access to the current gym. If any athlete is assigned to them, reassign those athletes within the current gym first.",
+  "superuser.transferAthleteHint":
+    "The profile, training programs, and body-analysis files move to the destination gym, and access to the current gym is removed.",
+  "superuser.transferCoachHintShort":
+    "The destination coach must be active in that gym.",
+  "superuser.coachTransferred": "Coach transferred.",
+  "superuser.athleteTransferred": "Athlete transferred.",
+  "superuser.sharedIdentityEditHint":
+    "The account name and phone change across every club this person belongs to.",
+  "superuser.athleteEditScopeHint":
+    "The account name is shared across clubs; phone and coach change only for “{gym}”.",
+  "superuser.coachUpdated": "Coach details updated.",
+  "superuser.athleteUpdated": "Athlete details updated.",
   "superuser.club": "Club",
   "superuser.status": "Status",
   "superuser.archive": "Archive",

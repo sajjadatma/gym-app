@@ -38,3 +38,4 @@ frontend/.vite/
 .DS_Store
 .vscode/*
 !.vscode/extensions.json
+.neon

@@ -71,6 +71,10 @@ def _seed_global_data(session: Session) -> None:
 @pytest.fixture(scope="session", autouse=True)
 def prepare_database(tmp_path_factory: pytest.TempPathFactory) -> Generator[None]:
     settings.BODY_ANALYSIS_DIR = tmp_path_factory.mktemp("body-analysis")
+    # Tests must never write to external object storage, even when a developer
+    # .env is configured for Neon.
+    settings.BODY_ANALYSIS_BUCKET = None
+    settings.AWS_ENDPOINT_URL_S3 = None
     SQLModel.metadata.drop_all(test_engine)
     SQLModel.metadata.create_all(test_engine)
     with Session(test_engine) as session:

@@ -4,6 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
+from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
@@ -73,6 +74,8 @@ from app.services.profiles import (
 )
 from app.services.storage import (
     delete_stored_files,
+    object_storage_enabled,
+    read_stored_file,
     save_body_analysis_upload,
     stored_file_path,
 )
@@ -538,6 +541,17 @@ def download_body_file(
         or record.athlete_user_id != athlete_user_id
     ):
         raise HTTPException(status_code=404, detail="file_not_found")
+    if object_storage_enabled():
+        filename = Path(record.original_name).name
+        return Response(
+            content=read_stored_file(record.stored_name),
+            media_type=record.content_type,
+            headers={
+                "Content-Disposition": (
+                    "attachment; filename*=UTF-8''" + quote(filename)
+                )
+            },
+        )
     path = stored_file_path(record.stored_name)
     return FileResponse(
         path,

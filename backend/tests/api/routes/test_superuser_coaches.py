@@ -126,6 +126,293 @@ def test_superuser_coach_list_is_authorized_and_cross_gym(
     assert [row["email"] for row in by_gym.json()["data"]] == [coach_b_email]
 
 
+def test_superuser_can_edit_coach_shared_name_and_phone(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = _owner(client, superuser_headers, "Coach Edit Gym")
+    email = unique_email("editable-coach")
+    coach = _coach(client, owner, gym, email=email, phone="09121112222")
+    row = client.get(
+        "/api/v1/superuser/coaches",
+        headers=superuser_headers,
+        params={"q": email, "gym_id": gym["id"]},
+    ).json()["data"][0]
+
+    response = client.patch(
+        f"/api/v1/superuser/coaches/{row['membership_id']}",
+        headers=superuser_headers,
+        json={"full_name": "Updated Coach", "phone": "09123334444"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["user_id"] == coach["user_id"]
+    assert response.json()["full_name"] == "Updated Coach"
+    assert response.json()["phone"] == "09123334444"
+    assert response.json()["email"] == email
+
+
+def test_non_superuser_cannot_edit_coach(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = _owner(client, superuser_headers, "Coach Edit Auth Gym")
+    _coach(client, owner, gym)
+    row = client.get(
+        "/api/v1/superuser/coaches",
+        headers=superuser_headers,
+        params={"gym_id": gym["id"]},
+    ).json()["data"][0]
+
+    response = client.patch(
+        f"/api/v1/superuser/coaches/{row['membership_id']}",
+        headers=owner,
+        json={"full_name": "Unauthorized", "phone": "09120009999"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_superuser_coach_edit_rejects_blank_phone_without_partial_update(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = _owner(client, superuser_headers, "Coach Edit Validation Gym")
+    email = unique_email("coach-edit-validation")
+    _coach(client, owner, gym, email=email, phone="09121112222")
+    row = client.get(
+        "/api/v1/superuser/coaches",
+        headers=superuser_headers,
+        params={"q": email, "gym_id": gym["id"]},
+    ).json()["data"][0]
+
+    response = client.patch(
+        f"/api/v1/superuser/coaches/{row['membership_id']}",
+        headers=superuser_headers,
+        json={"full_name": "Must Not Persist", "phone": "  "},
+    )
+
+    assert response.status_code == 400
+    after = client.get(
+        "/api/v1/superuser/coaches",
+        headers=superuser_headers,
+        params={"q": email, "gym_id": gym["id"]},
+    ).json()["data"][0]
+    assert after["full_name"] == email
+    assert after["phone"] == "09121112222"
+
+
+def _coach_row(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    email: str,
+    gym_id: str,
+) -> dict:
+    return client.get(
+        "/api/v1/superuser/coaches",
+        headers=superuser_headers,
+        params={"q": email, "gym_id": gym_id},
+    ).json()["data"][0]
+
+
+def test_superuser_can_transfer_coach_to_another_gym(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    gym_a, owner_a = _owner(client, superuser_headers, "Coach Transfer A")
+    gym_b, _owner_b = _owner(client, superuser_headers, "Coach Transfer B")
+    email = unique_email("transfer-coach")
+    coach = _coach(client, owner_a, gym_a, email=email, phone="09121112222")
+    row = _coach_row(client, superuser_headers, email, gym_a["id"])
+
+    response = client.post(
+        f"/api/v1/superuser/coaches/{row['membership_id']}/transfer",
+        headers=superuser_headers,
+        json={"gym_id": gym_b["id"]},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["membership_id"] == row["membership_id"]
+    assert response.json()["gym_id"] == gym_b["id"]
+    assert response.json()["gym_name"] == "Coach Transfer B"
+    assert response.json()["phone"] == "09121112222"
+    assert response.json()["user_id"] == coach["user_id"]
+
+    membership = db_session.get(GymMembership, row["membership_id"])
+    assert membership is not None
+    assert str(membership.gym_id) == gym_b["id"]
+    assert membership.is_active is True
+    assert (
+        client.get(
+            "/api/v1/superuser/coaches",
+            headers=superuser_headers,
+            params={"gym_id": gym_a["id"], "q": email},
+        ).json()["count"]
+        == 0
+    )
+    assert (
+        client.get(
+            "/api/v1/superuser/coaches",
+            headers=superuser_headers,
+            params={"gym_id": gym_b["id"], "q": email},
+        ).json()["count"]
+        == 1
+    )
+
+
+def test_coach_transfer_rejects_active_assignments_without_state_change(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    gym_a, owner_a = _owner(client, superuser_headers, "Coach Transfer Assigned A")
+    gym_b, _owner_b = _owner(client, superuser_headers, "Coach Transfer Assigned B")
+    email = unique_email("assigned-coach")
+    coach = _coach(client, owner_a, gym_a, email=email)
+    athlete = create_athlete(
+        client,
+        owner_a,
+        email=unique_email("assigned-athlete"),
+        coach_user_id=coach["user_id"],
+    )["athlete"]["profile"]
+    row = _coach_row(client, superuser_headers, email, gym_a["id"])
+
+    response = client.post(
+        f"/api/v1/superuser/coaches/{row['membership_id']}/transfer",
+        headers=superuser_headers,
+        json={"gym_id": gym_b["id"]},
+    )
+
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"] == "coach_has_active_athletes"
+    membership = db_session.get(GymMembership, row["membership_id"])
+    assert membership is not None and str(membership.gym_id) == gym_a["id"]
+    assignment = db_session.exec(
+        select(CoachAssignment).where(
+            CoachAssignment.gym_id == gym_a["id"],
+            CoachAssignment.athlete_user_id == athlete["user_id"],
+        )
+    ).one()
+    assert assignment.ended_at is None
+    assert str(assignment.coach_user_id) == coach["user_id"]
+
+
+def test_coach_transfer_rejects_owner_roles_and_archived_membership(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    gym_a, owner_a = _owner(client, superuser_headers, "Coach Transfer Guards A")
+    gym_b, _owner_b = _owner(client, superuser_headers, "Coach Transfer Guards B")
+    members = client.get(
+        f"/api/v1/gyms/{gym_a['id']}/members", headers=owner_a
+    ).json()["data"]
+    owner_row = next(row for row in members if row["is_owner"])
+    add_member(
+        client,
+        owner_a,
+        gym_a["id"],
+        email=owner_row["email"],
+        roles=["COACH"],
+    )
+
+    owner_transfer = client.post(
+        f"/api/v1/superuser/coaches/{owner_row['membership_id']}/transfer",
+        headers=superuser_headers,
+        json={"gym_id": gym_b["id"]},
+    )
+    assert owner_transfer.status_code == 409, owner_transfer.text
+    assert owner_transfer.json()["detail"] == "coach_transfer_not_allowed"
+
+    admin_coach = _coach(
+        client,
+        owner_a,
+        gym_a,
+        email=unique_email("transfer-admin-coach"),
+        roles=["COACH", "GYM_ADMIN"],
+    )
+    admin_transfer = client.post(
+        f"/api/v1/superuser/coaches/{admin_coach['membership_id']}/transfer",
+        headers=superuser_headers,
+        json={"gym_id": gym_b["id"]},
+    )
+    assert admin_transfer.status_code == 409, admin_transfer.text
+    assert admin_transfer.json()["detail"] == "coach_transfer_not_allowed"
+
+    archived_email = unique_email("transfer-archived-coach")
+    archived_coach = _coach(client, owner_a, gym_a, email=archived_email)
+    archived = client.post(
+        f"/api/v1/superuser/coaches/{archived_coach['membership_id']}/archive",
+        headers=superuser_headers,
+    )
+    assert archived.status_code == 200, archived.text
+    archived_transfer = client.post(
+        f"/api/v1/superuser/coaches/{archived_coach['membership_id']}/transfer",
+        headers=superuser_headers,
+        json={"gym_id": gym_b["id"]},
+    )
+    assert archived_transfer.status_code == 409, archived_transfer.text
+    assert archived_transfer.json()["detail"] == "coach_archived"
+    db_session.expire_all()
+    still_here = db_session.get(GymMembership, archived_coach["membership_id"])
+    assert still_here is not None and str(still_here.gym_id) == gym_a["id"]
+
+
+def test_coach_transfer_rejects_destination_collision_and_same_gym(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym_a, owner_a = _owner(client, superuser_headers, "Coach Transfer Collision A")
+    gym_b, owner_b = _owner(client, superuser_headers, "Coach Transfer Collision B")
+    email = unique_email("multi-gym-transfer-coach")
+    coach_a = _coach(client, owner_a, gym_a, email=email)
+    _coach(client, owner_b, gym_b, email=email)
+    row = _coach_row(client, superuser_headers, email, gym_a["id"])
+
+    same_gym = client.post(
+        f"/api/v1/superuser/coaches/{row['membership_id']}/transfer",
+        headers=superuser_headers,
+        json={"gym_id": gym_a["id"]},
+    )
+    assert same_gym.status_code == 400, same_gym.text
+    assert same_gym.json()["detail"] == "gym_unchanged"
+
+    collision = client.post(
+        f"/api/v1/superuser/coaches/{row['membership_id']}/transfer",
+        headers=superuser_headers,
+        json={"gym_id": gym_b["id"]},
+    )
+    assert collision.status_code == 409, collision.text
+    assert collision.json()["detail"] == "coach_already_member"
+    assert (
+        client.get(
+            "/api/v1/superuser/coaches",
+            headers=superuser_headers,
+            params={"gym_id": gym_a["id"], "q": email},
+        ).json()["count"]
+        == 1
+    )
+    assert coach_a["email"] == email
+
+
+def test_coach_transfer_requires_superuser(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym_a, owner_a = _owner(client, superuser_headers, "Coach Transfer Auth A")
+    gym_b, _owner_b = _owner(client, superuser_headers, "Coach Transfer Auth B")
+    row = _coach_row(
+        client,
+        superuser_headers,
+        _coach(client, owner_a, gym_a)["email"],
+        gym_a["id"],
+    )
+
+    response = client.post(
+        f"/api/v1/superuser/coaches/{row['membership_id']}/transfer",
+        headers=owner_a,
+        json={"gym_id": gym_b["id"]},
+    )
+
+    assert response.status_code == 403
+
+
 def test_superuser_create_coach_requires_phone_and_reuses_account(
     client: TestClient,
     superuser_headers: dict[str, str],

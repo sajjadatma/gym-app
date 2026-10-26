@@ -296,6 +296,15 @@ class SuperuserCoachCreate(SQLModel):
     initial_password: str | None = Field(default=None, min_length=8, max_length=128)
 
 
+class SuperuserCoachUpdate(SQLModel):
+    full_name: str | None = Field(default=None, max_length=255)
+    phone: str | None = Field(default=None, max_length=50)
+
+
+class SuperuserCoachTransfer(SQLModel):
+    gym_id: uuid.UUID
+
+
 class SuperuserCoachCreated(SQLModel):
     coach: SuperuserCoachRow
     initial_password: str | None = None
@@ -491,6 +500,17 @@ class SuperuserAthletesPublic(SQLModel):
 
 class SuperuserAthleteCreate(AthleteCreate):
     gym_id: uuid.UUID
+
+
+class SuperuserAthleteUpdate(SQLModel):
+    full_name: str | None = Field(default=None, max_length=255)
+    phone: str | None = Field(default=None, max_length=50)
+    coach_user_id: uuid.UUID | None = None
+
+
+class SuperuserAthleteTransfer(SQLModel):
+    gym_id: uuid.UUID
+    coach_user_id: uuid.UUID
 
 
 class AthleteImportPreviewRow(SQLModel):

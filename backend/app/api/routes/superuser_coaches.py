@@ -11,6 +11,7 @@ from app.api.deps import CurrentSuperuser, SessionDep
 from app.core.audit import audit
 from app.models import (
     AthleteProfile,
+    CoachAssignment,
     Gym,
     GymMembership,
     GymMembershipRole,
@@ -20,6 +21,8 @@ from app.models import (
     SuperuserCoachCreated,
     SuperuserCoachesPublic,
     SuperuserCoachRow,
+    SuperuserCoachTransfer,
+    SuperuserCoachUpdate,
     User,
 )
 from app.services.access import get_membership_roles
@@ -250,6 +253,111 @@ def create_coach(
         ),
         initial_password=activation.initial_password,
         invitation_sent=activation.invitation_sent,
+    )
+
+
+@router.patch("/{membership_id}", response_model=SuperuserCoachRow)
+def update_coach(
+    *,
+    membership_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentSuperuser,
+    body: SuperuserCoachUpdate,
+) -> Any:
+    membership, gym, user, _roles = _load_coach(session, membership_id)
+    data = body.model_dump(exclude_unset=True)
+    if not data:
+        raise HTTPException(status_code=400, detail="empty_update")
+    if "phone" in data:
+        phone = (data["phone"] or "").strip()
+        if not phone:
+            raise HTTPException(status_code=400, detail="coach_phone_required")
+        user.phone = phone
+    if "full_name" in data:
+        full_name = data["full_name"]
+        user.full_name = full_name.strip() or None if full_name else None
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    roles = get_membership_roles(session, membership.id)
+    audit(
+        "coach.updated",
+        actor_id=current_user.id,
+        gym_id=gym.id,
+        target_id=membership.id,
+    )
+    return _coach_row(
+        user,
+        membership,
+        gym,
+        roles,
+        roles == {"COACH"}
+        and gym.owner_id != user.id
+        and user.id != current_user.id
+        and _profile_in_gym(session, gym.id, user.id) is None,
+    )
+
+
+@router.post("/{membership_id}/transfer", response_model=SuperuserCoachRow)
+def transfer_coach(
+    *,
+    membership_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentSuperuser,
+    body: SuperuserCoachTransfer,
+) -> Any:
+    membership, gym, user, roles = _load_coach(session, membership_id)
+    if not membership.is_active:
+        raise HTTPException(status_code=409, detail="coach_archived")
+    if body.gym_id == gym.id:
+        raise HTTPException(status_code=400, detail="gym_unchanged")
+    destination = session.get(Gym, body.gym_id)
+    if not destination:
+        raise HTTPException(status_code=404, detail="gym_not_found")
+    if roles != {"COACH"} or gym.owner_id == user.id:
+        raise HTTPException(status_code=409, detail="coach_transfer_not_allowed")
+    active_assignment = session.exec(
+        select(CoachAssignment).where(
+            CoachAssignment.gym_id == gym.id,
+            CoachAssignment.coach_user_id == user.id,
+            col(CoachAssignment.ended_at).is_(None),
+        )
+    ).first()
+    if active_assignment:
+        raise HTTPException(status_code=409, detail="coach_has_active_athletes")
+    destination_membership = session.exec(
+        select(GymMembership).where(
+            GymMembership.gym_id == destination.id,
+            GymMembership.user_id == user.id,
+        )
+    ).first()
+    if destination_membership:
+        raise HTTPException(status_code=409, detail="coach_already_member")
+    if _profile_in_gym(session, gym.id, user.id):
+        raise HTTPException(status_code=409, detail="coach_has_athlete_profile")
+
+    previous_gym_id = gym.id
+    membership.gym_id = destination.id
+    session.add(membership)
+    session.commit()
+    session.refresh(membership)
+    audit(
+        "coach.transferred",
+        actor_id=current_user.id,
+        gym_id=destination.id,
+        target_id=membership.id,
+        detail=str(previous_gym_id),
+    )
+    profile = _profile_in_gym(session, destination.id, user.id)
+    return _coach_row(
+        user,
+        membership,
+        destination,
+        roles,
+        roles == {"COACH"}
+        and destination.owner_id != user.id
+        and user.id != current_user.id
+        and profile is None,
     )
 
 

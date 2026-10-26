@@ -2,7 +2,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Navigate, useNavigate, useSearch } from "@tanstack/react-router"
 import {
   Archive,
+  ArrowRightLeft,
   Building2,
+  Pencil,
   Phone,
   Plus,
   RotateCcw,
@@ -86,10 +88,17 @@ function CoachesContent() {
     }
   })
   const [addOpen, setAddOpen] = useState(false)
+  const [editTarget, setEditTarget] = useState<SuperuserCoachRow | null>(null)
   const [created, setCreated] = useState<SuperuserCoachCreated | null>(null)
   const [action, setAction] = useState<Action | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ full_name: "", phone: "" })
+  const [transferTarget, setTransferTarget] =
+    useState<SuperuserCoachRow | null>(null)
+  const [transferGymId, setTransferGymId] = useState("")
+  const [transferError, setTransferError] = useState<string | null>(null)
   const [form, setForm] = useState({
     gym_id: "",
     email: "",
@@ -211,11 +220,77 @@ function CoachesContent() {
 
   async function invalidateAll() {
     await queryClient.invalidateQueries({ queryKey: ["superuser-coaches"] })
+    await queryClient.invalidateQueries({ queryKey: ["superuser-athletes"] })
     await queryClient.invalidateQueries({ queryKey: ["gyms"] })
     await queryClient.invalidateQueries({ queryKey: ["members"] })
     await queryClient.invalidateQueries({ queryKey: ["athletes"] })
     await queryClient.invalidateQueries({ queryKey: ["athlete"] })
+    await queryClient.invalidateQueries({ queryKey: ["coaches"] })
+    await queryClient.invalidateQueries({
+      queryKey: ["async-superuser-coaches"],
+    })
     await queryClient.invalidateQueries({ queryKey: ["gym"] })
+  }
+
+  function openTransfer(row: SuperuserCoachRow) {
+    setTransferTarget(row)
+    setTransferGymId("")
+    setTransferError(null)
+  }
+
+  async function saveTransfer() {
+    if (!transferTarget) return
+    setTransferError(null)
+    if (!transferGymId) {
+      setTransferError(t("superuser.destinationGymRequired"))
+      return
+    }
+    setBusy(true)
+    try {
+      await SuperuserCoachesService.coachesTransferCoach({
+        path: { membership_id: transferTarget.membership_id },
+        body: { gym_id: transferGymId },
+      })
+      await invalidateAll()
+      setTransferTarget(null)
+      show(t("superuser.coachTransferred"), "success")
+    } catch (err) {
+      setTransferError(translateApiError(err, t))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function openEdit(row: SuperuserCoachRow) {
+    setEditTarget(row)
+    setEditForm({ full_name: row.full_name ?? "", phone: row.phone ?? "" })
+    setEditError(null)
+  }
+
+  async function saveEdit() {
+    if (!editTarget) return
+    setEditError(null)
+    if (!editForm.phone.trim()) {
+      setEditError(t("validation.coachPhone"))
+      return
+    }
+    setBusy(true)
+    try {
+      await SuperuserCoachesService.coachesUpdateCoach({
+        path: { membership_id: editTarget.membership_id },
+        body: {
+          full_name: editForm.full_name.trim() || null,
+          phone: editForm.phone.trim(),
+        },
+      })
+      await invalidateAll()
+      setEditTarget(null)
+      show(t("superuser.coachUpdated"), "success")
+    } catch (err) {
+      setEditError(translateApiError(err, t))
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function runAction() {
@@ -262,6 +337,26 @@ function CoachesContent() {
   function rowActions(row: SuperuserCoachRow) {
     return (
       <>
+        <Button
+          variant="text"
+          size="sm"
+          icon={<Pencil size={14} />}
+          disabled={stale}
+          onClick={() => openEdit(row)}
+        >
+          {t("common.edit")}
+        </Button>
+        {row.is_active ? (
+          <Button
+            variant="text"
+            size="sm"
+            icon={<ArrowRightLeft size={14} />}
+            disabled={stale}
+            onClick={() => openTransfer(row)}
+          >
+            {t("superuser.transferGym")}
+          </Button>
+        ) : null}
         {row.can_archive ? (
           <Button
             variant="text"
@@ -576,6 +671,126 @@ function CoachesContent() {
               helper={t("gyms.initialPasswordHint")}
             />
           ) : null}
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(editTarget)}
+        title={t("superuser.editCoach")}
+        description={editTarget?.email}
+        onClose={() => {
+          if (busy) return
+          setEditTarget(null)
+          setEditError(null)
+        }}
+        footer={
+          <>
+            <Button
+              variant="text"
+              disabled={busy}
+              onClick={() => {
+                setEditTarget(null)
+                setEditError(null)
+              }}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={saveEdit} loading={busy}>
+              {t("common.save")}
+            </Button>
+          </>
+        }
+      >
+        <div className="stack">
+          <div className="m3-inline-alert m3-inline-alert--info">
+            {t("superuser.sharedIdentityEditHint")}
+          </div>
+          {editError ? (
+            <div className="m3-inline-alert" role="alert">
+              {editError}
+            </div>
+          ) : null}
+          <TextField
+            label={t("athletes.fullName")}
+            value={editForm.full_name}
+            onChange={(event) =>
+              setEditForm({ ...editForm, full_name: event.target.value })
+            }
+          />
+          <TextField
+            label={t("profile.phone")}
+            type="tel"
+            dir="ltr"
+            value={editForm.phone}
+            onChange={(event) =>
+              setEditForm({ ...editForm, phone: event.target.value })
+            }
+            required
+          />
+          <TextField
+            label={t("auth.email")}
+            value={editTarget?.email ?? ""}
+            dir="ltr"
+            readOnly
+          />
+          <p className="muted">{editTarget?.gym_name}</p>
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(transferTarget)}
+        title={t("superuser.transferCoach")}
+        description={transferTarget?.email}
+        onClose={() => {
+          if (busy) return
+          setTransferTarget(null)
+          setTransferError(null)
+        }}
+        footer={
+          <>
+            <Button
+              variant="text"
+              disabled={busy}
+              onClick={() => {
+                setTransferTarget(null)
+                setTransferError(null)
+              }}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={saveTransfer}
+              loading={busy}
+              disabled={!transferGymId}
+            >
+              {t("superuser.transferAction")}
+            </Button>
+          </>
+        }
+      >
+        <div className="stack">
+          <div className="m3-inline-alert m3-inline-alert--info">
+            {t("superuser.transferCoachHint")}
+          </div>
+          {transferError ? (
+            <div className="m3-inline-alert" role="alert">
+              {transferError}
+            </div>
+          ) : null}
+          <p className="muted">
+            {t("superuser.currentGym", {
+              gym: transferTarget?.gym_name ?? "",
+            })}
+          </p>
+          <SelectField
+            label={t("superuser.destinationGym")}
+            value={transferGymId}
+            onChange={setTransferGymId}
+            options={gymOptions.filter(
+              (option) => option.value !== transferTarget?.gym_id,
+            )}
+            required
+          />
         </div>
       </Dialog>
 

@@ -1972,6 +1972,38 @@ export type SuperuserAthleteRow = {
 };
 
 /**
+ * SuperuserAthleteTransfer
+ */
+export type SuperuserAthleteTransfer = {
+    /**
+     * Gym Id
+     */
+    gym_id: string;
+    /**
+     * Coach User Id
+     */
+    coach_user_id: string;
+};
+
+/**
+ * SuperuserAthleteUpdate
+ */
+export type SuperuserAthleteUpdate = {
+    /**
+     * Full Name
+     */
+    full_name?: string | null;
+    /**
+     * Phone
+     */
+    phone?: string | null;
+    /**
+     * Coach User Id
+     */
+    coach_user_id?: string | null;
+};
+
+/**
  * SuperuserAthletesPublic
  */
 export type SuperuserAthletesPublic = {
@@ -2078,6 +2110,30 @@ export type SuperuserCoachRow = {
      * Created At
      */
     created_at: string;
+};
+
+/**
+ * SuperuserCoachTransfer
+ */
+export type SuperuserCoachTransfer = {
+    /**
+     * Gym Id
+     */
+    gym_id: string;
+};
+
+/**
+ * SuperuserCoachUpdate
+ */
+export type SuperuserCoachUpdate = {
+    /**
+     * Full Name
+     */
+    full_name?: string | null;
+    /**
+     * Phone
+     */
+    phone?: string | null;
 };
 
 /**
@@ -3367,6 +3423,96 @@ export type superuserCoachesCreateCoachResponses = {
 
 export type superuserCoachesCreateCoachResponse = superuserCoachesCreateCoachResponses[keyof superuserCoachesCreateCoachResponses];
 
+export type superuserCoachesDeleteCoachData = {
+    body?: never;
+    path: {
+        /**
+         * Membership Id
+         */
+        membership_id: string;
+    };
+    query?: never;
+    url: '/api/v1/superuser/coaches/{membership_id}';
+};
+
+export type superuserCoachesDeleteCoachErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type superuserCoachesDeleteCoachError = superuserCoachesDeleteCoachErrors[keyof superuserCoachesDeleteCoachErrors];
+
+export type superuserCoachesDeleteCoachResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type superuserCoachesDeleteCoachResponse = superuserCoachesDeleteCoachResponses[keyof superuserCoachesDeleteCoachResponses];
+
+export type superuserCoachesUpdateCoachData = {
+    body: SuperuserCoachUpdate;
+    path: {
+        /**
+         * Membership Id
+         */
+        membership_id: string;
+    };
+    query?: never;
+    url: '/api/v1/superuser/coaches/{membership_id}';
+};
+
+export type superuserCoachesUpdateCoachErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type superuserCoachesUpdateCoachError = superuserCoachesUpdateCoachErrors[keyof superuserCoachesUpdateCoachErrors];
+
+export type superuserCoachesUpdateCoachResponses = {
+    /**
+     * Successful Response
+     */
+    200: SuperuserCoachRow;
+};
+
+export type superuserCoachesUpdateCoachResponse = superuserCoachesUpdateCoachResponses[keyof superuserCoachesUpdateCoachResponses];
+
+export type superuserCoachesTransferCoachData = {
+    body: SuperuserCoachTransfer;
+    path: {
+        /**
+         * Membership Id
+         */
+        membership_id: string;
+    };
+    query?: never;
+    url: '/api/v1/superuser/coaches/{membership_id}/transfer';
+};
+
+export type superuserCoachesTransferCoachErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type superuserCoachesTransferCoachError = superuserCoachesTransferCoachErrors[keyof superuserCoachesTransferCoachErrors];
+
+export type superuserCoachesTransferCoachResponses = {
+    /**
+     * Successful Response
+     */
+    200: SuperuserCoachRow;
+};
+
+export type superuserCoachesTransferCoachResponse = superuserCoachesTransferCoachResponses[keyof superuserCoachesTransferCoachResponses];
+
 export type superuserCoachesArchiveCoachData = {
     body?: never;
     path: {
@@ -3426,36 +3572,6 @@ export type superuserCoachesRestoreCoachResponses = {
 };
 
 export type superuserCoachesRestoreCoachResponse = superuserCoachesRestoreCoachResponses[keyof superuserCoachesRestoreCoachResponses];
-
-export type superuserCoachesDeleteCoachData = {
-    body?: never;
-    path: {
-        /**
-         * Membership Id
-         */
-        membership_id: string;
-    };
-    query?: never;
-    url: '/api/v1/superuser/coaches/{membership_id}';
-};
-
-export type superuserCoachesDeleteCoachErrors = {
-    /**
-     * Validation Error
-     */
-    422: HTTPValidationError;
-};
-
-export type superuserCoachesDeleteCoachError = superuserCoachesDeleteCoachErrors[keyof superuserCoachesDeleteCoachErrors];
-
-export type superuserCoachesDeleteCoachResponses = {
-    /**
-     * Successful Response
-     */
-    200: Message;
-};
-
-export type superuserCoachesDeleteCoachResponse = superuserCoachesDeleteCoachResponses[keyof superuserCoachesDeleteCoachResponses];
 
 export type superuserAthletesListAthletesData = {
     body?: never;
@@ -3532,6 +3648,108 @@ export type superuserAthletesCreateAthleteResponses = {
 
 export type superuserAthletesCreateAthleteResponse = superuserAthletesCreateAthleteResponses[keyof superuserAthletesCreateAthleteResponses];
 
+export type superuserAthletesDeleteAthleteData = {
+    body?: never;
+    path: {
+        /**
+         * Gym Id
+         */
+        gym_id: string;
+        /**
+         * Athlete User Id
+         */
+        athlete_user_id: string;
+    };
+    query?: never;
+    url: '/api/v1/superuser/athletes/{gym_id}/{athlete_user_id}';
+};
+
+export type superuserAthletesDeleteAthleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type superuserAthletesDeleteAthleteError = superuserAthletesDeleteAthleteErrors[keyof superuserAthletesDeleteAthleteErrors];
+
+export type superuserAthletesDeleteAthleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type superuserAthletesDeleteAthleteResponse = superuserAthletesDeleteAthleteResponses[keyof superuserAthletesDeleteAthleteResponses];
+
+export type superuserAthletesUpdateAthleteData = {
+    body: SuperuserAthleteUpdate;
+    path: {
+        /**
+         * Gym Id
+         */
+        gym_id: string;
+        /**
+         * Athlete User Id
+         */
+        athlete_user_id: string;
+    };
+    query?: never;
+    url: '/api/v1/superuser/athletes/{gym_id}/{athlete_user_id}';
+};
+
+export type superuserAthletesUpdateAthleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type superuserAthletesUpdateAthleteError = superuserAthletesUpdateAthleteErrors[keyof superuserAthletesUpdateAthleteErrors];
+
+export type superuserAthletesUpdateAthleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: SuperuserAthleteRow;
+};
+
+export type superuserAthletesUpdateAthleteResponse = superuserAthletesUpdateAthleteResponses[keyof superuserAthletesUpdateAthleteResponses];
+
+export type superuserAthletesTransferAthleteData = {
+    body: SuperuserAthleteTransfer;
+    path: {
+        /**
+         * Gym Id
+         */
+        gym_id: string;
+        /**
+         * Athlete User Id
+         */
+        athlete_user_id: string;
+    };
+    query?: never;
+    url: '/api/v1/superuser/athletes/{gym_id}/{athlete_user_id}/transfer';
+};
+
+export type superuserAthletesTransferAthleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type superuserAthletesTransferAthleteError = superuserAthletesTransferAthleteErrors[keyof superuserAthletesTransferAthleteErrors];
+
+export type superuserAthletesTransferAthleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: SuperuserAthleteRow;
+};
+
+export type superuserAthletesTransferAthleteResponse = superuserAthletesTransferAthleteResponses[keyof superuserAthletesTransferAthleteResponses];
+
 export type superuserAthletesArchiveAthleteData = {
     body?: never;
     path: {
@@ -3602,40 +3820,6 @@ export type superuserAthletesRestoreAthleteResponses = {
 };
 
 export type superuserAthletesRestoreAthleteResponse = superuserAthletesRestoreAthleteResponses[keyof superuserAthletesRestoreAthleteResponses];
-
-export type superuserAthletesDeleteAthleteData = {
-    body?: never;
-    path: {
-        /**
-         * Gym Id
-         */
-        gym_id: string;
-        /**
-         * Athlete User Id
-         */
-        athlete_user_id: string;
-    };
-    query?: never;
-    url: '/api/v1/superuser/athletes/{gym_id}/{athlete_user_id}';
-};
-
-export type superuserAthletesDeleteAthleteErrors = {
-    /**
-     * Validation Error
-     */
-    422: HTTPValidationError;
-};
-
-export type superuserAthletesDeleteAthleteError = superuserAthletesDeleteAthleteErrors[keyof superuserAthletesDeleteAthleteErrors];
-
-export type superuserAthletesDeleteAthleteResponses = {
-    /**
-     * Successful Response
-     */
-    200: Message;
-};
-
-export type superuserAthletesDeleteAthleteResponse = superuserAthletesDeleteAthleteResponses[keyof superuserAthletesDeleteAthleteResponses];
 
 export type exercisesListExercisesData = {
     body?: never;

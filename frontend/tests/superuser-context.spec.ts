@@ -193,9 +193,15 @@ test("global coaches and athletes pages manage people across clubs", async ({
   const coachName = `مربی سراسری ${stamp}`
   const coachEmail = `global-coach-${stamp}@example.com`
   const coachPhone = "09125554433"
+  const editedCoachName = `${coachName} ویرایش‌شده`
+  const editedCoachPhone = "09125550011"
+  const secondCoachName = `مربی دوم سراسری ${stamp}`
+  const secondCoachEmail = `global-coach-two-${stamp}@example.com`
   const athleteName = `ورزشکار سراسری ${stamp}`
   const athleteEmail = `global-athlete-${stamp}@example.com`
   const athletePhone = "09127778899"
+  const editedAthleteName = `${athleteName} ویرایش‌شده`
+  const editedAthletePhone = "09127770011"
 
   await loginAsSuperuser(page)
   await expect(
@@ -229,6 +235,30 @@ test("global coaches and athletes pages manage people across clubs", async ({
   )
 
   const coachRow = page.locator("tr", { hasText: coachEmail })
+  await coachRow.getByRole("button", { name: "ویرایش", exact: true }).click()
+  dialog = page.getByRole("dialog")
+  await dialog.getByLabel("نام و نام خانوادگی").fill(editedCoachName)
+  await dialog.getByLabel("شماره تلفن").fill(editedCoachPhone)
+  await dialog.getByRole("button", { name: "ذخیره", exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(coachRow).toContainText(editedCoachName)
+  await expect(coachRow).toContainText(editedCoachPhone)
+
+  await page.getByRole("button", { name: "افزودن مربی" }).click()
+  dialog = page.getByRole("dialog")
+  await dialog.getByRole("button", { name: /باشگاه/ }).click()
+  await page.getByRole("option", { name: "باشگاه آرام" }).click()
+  await dialog.getByLabel("نام و نام خانوادگی").fill(secondCoachName)
+  await dialog.getByLabel("ایمیل").fill(secondCoachEmail)
+  await dialog.getByLabel("شماره تلفن").fill("09125550022")
+  await dialog.getByRole("button", { name: "ایجاد" }).click()
+  const secondCoachResult = page.getByRole("dialog", {
+    name: "مربی ساخته شد.",
+  })
+  await expect(secondCoachResult).toBeVisible()
+  await secondCoachResult.getByRole("button", { name: "بستن" }).last().click()
+  await page.waitForTimeout(300)
+
   await coachRow.getByRole("button", { name: "آرشیو" }).click()
   await page.getByRole("dialog").getByRole("button", { name: "آرشیو" }).click()
   await expect(page.getByRole("dialog")).toHaveCount(0)
@@ -257,7 +287,7 @@ test("global coaches and athletes pages manage people across clubs", async ({
   await dialog.getByRole("button", { name: /باشگاه/ }).click()
   await page.getByRole("option", { name: "باشگاه آرام" }).click()
   await dialog.getByRole("button", { name: /مربی/ }).click()
-  await page.getByRole("option", { name: coachName }).click()
+  await page.getByRole("option", { name: editedCoachName }).click()
   await dialog.getByLabel("نام و نام خانوادگی").fill(athleteName)
   await dialog.getByLabel("ایمیل").fill(athleteEmail)
   await dialog.getByLabel("شماره تلفن").fill(athletePhone)
@@ -274,6 +304,17 @@ test("global coaches and athletes pages manage people across clubs", async ({
   const athleteRow = page.locator("tr", { hasText: athleteEmail })
   await expect(athleteRow).toContainText("باشگاه آرام")
   await expect(athleteRow).toContainText(athletePhone)
+  await athleteRow.getByRole("button", { name: "ویرایش", exact: true }).click()
+  dialog = page.getByRole("dialog")
+  await dialog.getByLabel("نام و نام خانوادگی").fill(editedAthleteName)
+  await dialog.getByLabel("شماره تلفن").fill(editedAthletePhone)
+  await dialog.getByRole("button", { name: /مربی/ }).click()
+  await page.getByRole("option", { name: secondCoachName }).click()
+  await dialog.getByRole("button", { name: "ذخیره", exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(athleteRow).toContainText(editedAthleteName)
+  await expect(athleteRow).toContainText(editedAthletePhone)
+  await expect(athleteRow).toContainText(secondCoachName)
   await athleteRow.getByRole("button", { name: "آرشیو" }).click()
   await page.getByRole("dialog").getByRole("button", { name: "آرشیو" }).click()
   await expect(page.getByRole("dialog")).toHaveCount(0)
@@ -300,6 +341,109 @@ test("global coaches and athletes pages manage people across clubs", async ({
   await expect(page.getByRole("dialog")).toHaveCount(0)
   await expect(page.locator(".m3-scrim")).toHaveCount(0)
   await expect(page.getByText(coachEmail)).toHaveCount(0)
+})
+
+test("superuser transfers a coach and athlete between clubs", async ({
+  page,
+}) => {
+  const stamp = Date.now()
+  const coachName = `مربی انتقالی ${stamp}`
+  const coachEmail = `transfer-coach-${stamp}@example.com`
+  const athleteName = `ورزشکار انتقالی ${stamp}`
+  const athleteEmail = `transfer-athlete-${stamp}@example.com`
+  const destinationClub = "باشگاه پویا"
+  const destinationCoach = "سارا مربی"
+
+  await loginAsSuperuser(page)
+  await page
+    .locator(".m3-nav-rail")
+    .getByRole("button", { name: "مربیان" })
+    .click()
+  await page.getByRole("button", { name: "جدول" }).click()
+
+  await page.getByRole("button", { name: "افزودن مربی" }).click()
+  let dialog = page.getByRole("dialog")
+  await dialog.getByRole("button", { name: /باشگاه/ }).click()
+  await page.getByRole("option", { name: "باشگاه آرام" }).click()
+  await dialog.getByLabel("نام و نام خانوادگی").fill(coachName)
+  await dialog.getByLabel("ایمیل").fill(coachEmail)
+  await dialog.getByLabel("شماره تلفن").fill("09125557711")
+  await dialog.getByRole("button", { name: "ایجاد" }).click()
+  const coachResult = page.getByRole("dialog", { name: "مربی ساخته شد." })
+  await expect(coachResult).toBeVisible()
+  await coachResult.getByRole("button", { name: "بستن" }).last().click()
+  await expect(page.locator(".m3-scrim")).toHaveCount(0)
+
+  await page
+    .locator(".m3-nav-rail")
+    .getByRole("button", { name: "ورزشکاران" })
+    .click()
+  await page.getByRole("button", { name: "جدول" }).click()
+  await page.getByRole("button", { name: "افزودن ورزشکار" }).click()
+  dialog = page.getByRole("dialog")
+  await dialog.getByRole("button", { name: /باشگاه/ }).click()
+  await page.getByRole("option", { name: "باشگاه آرام" }).click()
+  await dialog.getByRole("button", { name: /مربی/ }).click()
+  await page.getByRole("option", { name: coachName }).click()
+  await dialog.getByLabel("نام و نام خانوادگی").fill(athleteName)
+  await dialog.getByLabel("ایمیل").fill(athleteEmail)
+  await dialog.getByLabel("شماره تلفن").fill("09125557722")
+  await dialog.getByRole("button", { name: "ایجاد" }).click()
+  const athleteResult = page.getByRole("dialog", {
+    name: "ورزشکار ساخته شد.",
+  })
+  await expect(athleteResult).toBeVisible()
+  await athleteResult.getByRole("button", { name: "بستن" }).last().click()
+  await expect(page.locator(".m3-scrim")).toHaveCount(0)
+
+  await page
+    .locator(".m3-nav-rail")
+    .getByRole("button", { name: "مربیان" })
+    .click()
+  await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(coachEmail)
+  const coachRow = page.locator("tr", { hasText: coachEmail })
+  await coachRow.getByRole("button", { name: "انتقال باشگاه" }).click()
+  dialog = page.getByRole("dialog")
+  await dialog.getByRole("button", { name: /باشگاه/ }).click()
+  await page.getByRole("option", { name: destinationClub }).click()
+  await dialog.getByRole("button", { name: "انتقال", exact: true }).click()
+  await expect(dialog.getByText(/ابتدا ورزشکاران این مربی/)).toBeVisible()
+  await dialog.getByRole("button", { name: "انصراف" }).click()
+  await expect(dialog).toHaveCount(0)
+
+  await page
+    .locator(".m3-nav-rail")
+    .getByRole("button", { name: "ورزشکاران" })
+    .click()
+  await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(athleteEmail)
+  const athleteRow = page.locator("tr", { hasText: athleteEmail })
+  await expect(athleteRow).toContainText("باشگاه آرام")
+  await athleteRow.getByRole("button", { name: "انتقال باشگاه" }).click()
+  dialog = page.getByRole("dialog")
+  await dialog.getByRole("button", { name: /باشگاه/ }).click()
+  await page.getByRole("option", { name: destinationClub }).click()
+  await dialog.getByRole("button", { name: /مربی/ }).click()
+  await page.getByRole("option", { name: destinationCoach }).click()
+  await dialog.getByRole("button", { name: "انتقال", exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(athleteRow).toContainText(destinationClub)
+  await expect(athleteRow).toContainText(destinationCoach)
+
+  await page
+    .locator(".m3-nav-rail")
+    .getByRole("button", { name: "مربیان" })
+    .click()
+  await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(coachEmail)
+  const transferredCoachRow = page.locator("tr", { hasText: coachEmail })
+  await transferredCoachRow
+    .getByRole("button", { name: "انتقال باشگاه" })
+    .click()
+  dialog = page.getByRole("dialog")
+  await dialog.getByRole("button", { name: /باشگاه/ }).click()
+  await page.getByRole("option", { name: destinationClub }).click()
+  await dialog.getByRole("button", { name: "انتقال", exact: true }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(transferredCoachRow).toContainText(destinationClub)
 })
 
 test("global people navigation disappears inside a club", async ({ page }) => {
