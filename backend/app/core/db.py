@@ -8,7 +8,15 @@ from app.models import Exercise, User
 from app.seed_data import GLOBAL_EXERCISES
 from app.services.exercises import ensure_global_categories
 
-engine = create_engine(str(settings.DATABASE_URL), pool_pre_ping=True)
+engine = create_engine(
+    str(settings.DATABASE_URL),
+    pool_pre_ping=True,
+    # Serverless instances are short-lived but reused; keep the pool small so
+    # many concurrent instances cannot exhaust Neon's connection pooler.
+    pool_size=2,
+    max_overflow=2,
+    pool_recycle=300,
+)
 
 
 def init_db(session: Session) -> None:

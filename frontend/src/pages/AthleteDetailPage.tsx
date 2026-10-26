@@ -50,6 +50,7 @@ import {
   TextField,
 } from "@/components/M3"
 import { useI18n } from "@/i18n"
+import { MAX_UPLOAD_BYTES } from "@/lib/upload"
 import { useAsyncPicker } from "@/lib/use-async-picker"
 import { useSnackbar } from "@/snackbar"
 
@@ -394,7 +395,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
   }
 
   async function uploadFile(file: File) {
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > MAX_UPLOAD_BYTES) {
       show(t("validation.fileSize"), "error")
       return
     }

@@ -18,6 +18,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlmodel import Session, col, select
 
+from app.core.config import settings
 from app.models import (
     ActivationMethod,
     AthleteImportFailure,
@@ -34,7 +35,7 @@ from app.models import (
 from app.services.membership import activate_user, add_roles, ensure_membership
 from app.services.profiles import coach_members
 
-MAX_IMPORT_BYTES = 5 * 1024 * 1024
+MAX_IMPORT_BYTES = settings.ATHLETE_IMPORT_MAX_BYTES
 MAX_IMPORT_ROWS = 500
 MAX_READ_ROWS = 2000
 

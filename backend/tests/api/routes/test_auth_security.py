@@ -255,6 +255,21 @@ def test_client_ip_uses_only_proxy_appended_address(
     assert client_ip(request) == "203.0.113.7"
 
 
+def test_client_ip_prefers_vercel_real_ip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.core.rate_limit import client_ip
+
+    monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", True)
+    request = _request_with(
+        [
+            ("x-real-ip", "198.51.100.9"),
+            ("x-forwarded-for", "9.9.9.9, 203.0.113.7"),
+        ]
+    )
+    assert client_ip(request) == "198.51.100.9"
+
+
 def test_client_ip_falls_back_on_malformed_forwarded_value(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -13,7 +13,11 @@ from app.api.deps import CurrentUser, SessionDep
 from app.core import security
 from app.core.audit import audit
 from app.core.config import settings
-from app.core.rate_limit import client_ip, consume_or_429, limiter
+from app.core.rate_limit import (
+    client_ip,
+    consume_or_429,
+    reset_rate_limit,
+)
 from app.core.security import get_password_hash
 from app.core.session import clear_auth_cookies, set_auth_cookies
 from app.models import (
@@ -52,6 +56,7 @@ def login_access_token(
     _require_trusted_origin(request)
     email = form_data.username.strip().lower()
     consume_or_429(
+        session=session,
         request=request,
         scope="login_ip",
         identity="all",
@@ -59,6 +64,7 @@ def login_access_token(
         window_seconds=settings.LOGIN_RATE_WINDOW_SECONDS,
     )
     consume_or_429(
+        session=session,
         request=request,
         scope="login",
         identity=email,
@@ -72,7 +78,7 @@ def login_access_token(
         raise HTTPException(status_code=400, detail="invalid_credentials")
     if not user.is_active:
         raise HTTPException(status_code=400, detail="inactive_user")
-    limiter.reset(f"login:{client_ip(request)}:{email}")
+    reset_rate_limit(session, f"login:{client_ip(request)}:{email}")
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     token = security.create_access_token(
         user.id,
@@ -106,6 +112,7 @@ def recover_password(
 ) -> Message:
     _require_trusted_origin(request)
     consume_or_429(
+        session=session,
         request=request,
         scope="recovery_ip",
         identity="all",
@@ -113,6 +120,7 @@ def recover_password(
         window_seconds=settings.RECOVERY_RATE_WINDOW_SECONDS,
     )
     consume_or_429(
+        session=session,
         request=request,
         scope="recovery",
         identity=email.strip().lower(),
@@ -143,6 +151,7 @@ def reset_password(
     request: Request, session: SessionDep, body: NewPassword
 ) -> Message:
     consume_or_429(
+        session=session,
         request=request,
         scope="reset",
         identity="endpoint",
@@ -176,6 +185,7 @@ def accept_invitation(
     request: Request, session: SessionDep, body: AcceptInvitation
 ) -> Message:
     consume_or_429(
+        session=session,
         request=request,
         scope="invitation",
         identity="endpoint",

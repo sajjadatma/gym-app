@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "bun run build",
+  "regions": ["cle1"],
+  "functions": {
+    "server.py": {
+      "maxDuration": 60,
+      "excludeFiles": "{node_modules/**,frontend/**,backend/tests/**,backend/coverage/**,backend/htmlcov/**,docs/**,.git/**,playwright-report/**,test-results/**,backend/uploads/**,.venv/**,**/__pycache__/**,**/*.pyc,**/*.md,package.json,bun.lock,uv.lock,neon.ts,.env*,**/.env*}"
+    }
+  }
+}

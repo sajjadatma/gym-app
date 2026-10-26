@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import ipaddress
 import math
 import threading
@@ -7,6 +8,8 @@ import time
 from collections import defaultdict, deque
 
 from fastapi import Request
+from sqlalchemy import text
+from sqlmodel import Session
 
 from app.core.config import settings
 
@@ -71,6 +74,64 @@ class RateLimiter:
 limiter = RateLimiter()
 
 
+def _key_hash(key: str) -> str:
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()
+
+
+def _consume_database(
+    session: Session, key: str, limit: int, window_seconds: int
+) -> tuple[bool, int]:
+    """Atomic fixed-window increment shared across serverless instances."""
+    now = time.time()
+    cutoff = now - window_seconds
+    key_hash = _key_hash(key)
+    session.execute(
+        text(
+            "DELETE FROM rate_limit_counter "
+            "WHERE window_start < :retention"
+        ),
+        {"retention": now - _MAX_RETENTION_SECONDS},
+    )
+    row = session.execute(
+        text(
+            """
+            INSERT INTO rate_limit_counter (key_hash, window_start, count)
+            VALUES (:key_hash, :now, 1)
+            ON CONFLICT (key_hash) DO UPDATE SET
+                count = CASE
+                    WHEN rate_limit_counter.window_start <= :cutoff
+                    THEN 1 ELSE rate_limit_counter.count + 1
+                END,
+                window_start = CASE
+                    WHEN rate_limit_counter.window_start <= :cutoff
+                    THEN :now ELSE rate_limit_counter.window_start
+                END
+            RETURNING count, window_start
+            """
+        ),
+        {"key_hash": key_hash, "now": now, "cutoff": cutoff},
+    ).one()
+    session.commit()
+    count, window_start = row
+    if count > limit:
+        retry_after = max(1, math.ceil(window_start + window_seconds - now))
+        return False, retry_after
+    return True, 0
+
+
+def reset_rate_limit(session: Session, key: str) -> None:
+    if not settings.RATE_LIMIT_ENABLED:
+        return
+    if settings.RATE_LIMIT_BACKEND == "database":
+        session.execute(
+            text("DELETE FROM rate_limit_counter WHERE key_hash = :key_hash"),
+            {"key_hash": _key_hash(key)},
+        )
+        session.commit()
+        return
+    limiter.reset(key)
+
+
 def reset_rate_limits() -> None:
     limiter.clear()
 
@@ -84,6 +145,10 @@ def _parse_ip(value: str) -> str | None:
 
 def client_ip(request: Request) -> str:
     if settings.TRUST_PROXY_HEADERS:
+        # Vercel sets X-Real-IP to the client address.
+        real_ip = _parse_ip(request.headers.get("x-real-ip", ""))
+        if real_ip:
+            return real_ip
         forwarded = request.headers.get("x-forwarded-for")
         if forwarded:
             # Traefik appends the peer address to X-Forwarded-For. Use the
@@ -97,15 +162,22 @@ def client_ip(request: Request) -> str:
 
 def consume_or_429(
     *,
+    session: Session,
     request: Request,
     scope: str,
     identity: str,
     limit: int,
     window_seconds: int,
 ) -> None:
-    allowed, retry_after = limiter.consume(
-        f"{scope}:{client_ip(request)}:{identity}", limit, window_seconds
-    )
+    if not settings.RATE_LIMIT_ENABLED:
+        return
+    key = f"{scope}:{client_ip(request)}:{identity}"
+    if settings.RATE_LIMIT_BACKEND == "database":
+        allowed, retry_after = _consume_database(
+            session, key, limit, window_seconds
+        )
+    else:
+        allowed, retry_after = limiter.consume(key, limit, window_seconds)
     if not allowed:
         from fastapi import HTTPException
 

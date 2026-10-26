@@ -20,6 +20,7 @@ import {
 } from "@/components/M3"
 import { useI18n } from "@/i18n"
 import { formatBytes } from "@/lib/format"
+import { MAX_UPLOAD_BYTES } from "@/lib/upload"
 import { useSnackbar } from "@/snackbar"
 
 export function MyProfilePage() {
@@ -147,7 +148,7 @@ export function MyProfilePage() {
   }
 
   async function uploadFile(file: File) {
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > MAX_UPLOAD_BYTES) {
       show(t("validation.fileSize"), "error")
       return
     }

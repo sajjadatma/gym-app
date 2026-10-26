@@ -36,7 +36,8 @@ if settings.SENTRY_DSN and settings.FASTAPI_ENV != "development":
         traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
     )
 
-settings.BODY_ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
+if not (settings.BODY_ANALYSIS_BUCKET and settings.AWS_ENDPOINT_URL_S3):
+    settings.BODY_ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -69,7 +70,9 @@ async def hardening_middleware(request: Request, call_next: Any) -> Response:
         # established 400/import_file_too_large contract.
         limit = None
     elif method == "POST" and path.endswith("/body-files"):
-        limit = settings.BODY_ANALYSIS_MAX_BYTES
+        # Allow multipart headers/boundaries around a file at the configured
+        # per-file limit.
+        limit = settings.BODY_ANALYSIS_MAX_BYTES + 128 * 1024
     else:
         limit = settings.MAX_JSON_BODY_BYTES
     try:

@@ -41,6 +41,23 @@ class User(UserBase, table=True):
     created_at: datetime = Field(default_factory=get_datetime_utc)
 
 
+class RateLimitCounter(SQLModel, table=True):
+    """Shared fixed-window counter used by the database rate-limit backend.
+
+    Key hashes avoid storing emails/IPs, and the window is an epoch float so
+    the upsert stays timezone-independent.
+    """
+
+    __tablename__ = "rate_limit_counter"
+    __table_args__ = (
+        Index("ix_rate_limit_counter_window_start", "window_start"),
+    )
+
+    key_hash: str = Field(primary_key=True, max_length=64)
+    window_start: float
+    count: int = Field(default=0)
+
+
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=128)
 

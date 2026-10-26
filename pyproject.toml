@@ -1,3 +1,15 @@
+[project]
+name = "gym-app-vercel"
+version = "0.1.0"
+requires-python = ">=3.14,<4.0"
+dependencies = ["app"]
+
+[tool.uv.sources]
+app = { workspace = true }
+
+[tool.vercel]
+entrypoint = "server:app"
+
 [dependency-groups]
 dev = [
     "prek>=0.5.3,<1.0.0",

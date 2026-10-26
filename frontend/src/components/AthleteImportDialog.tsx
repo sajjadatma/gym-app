@@ -27,8 +27,8 @@ import {
   TextField,
 } from "@/components/M3"
 import { type TranslationKey, useI18n } from "@/i18n"
+import { MAX_IMPORT_BYTES } from "@/lib/upload"
 
-const MAX_FILE_BYTES = 5 * 1024 * 1024
 const ALLOWED_EXTENSIONS = [".csv", ".xlsx"] as const
 
 type Step = "upload" | "preview" | "result"
@@ -146,7 +146,7 @@ export function AthleteImportDialog({
       setError(t("errors.invalid_file_type"))
       return
     }
-    if (next.size > MAX_FILE_BYTES) {
+    if (next.size > MAX_IMPORT_BYTES) {
       setFile(null)
       setError(t("errors.file_too_large"))
       return

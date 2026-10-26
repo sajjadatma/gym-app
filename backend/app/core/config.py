@@ -1,3 +1,4 @@
+import os
 import warnings
 from pathlib import Path
 from typing import Literal, Self
@@ -25,6 +26,9 @@ class Settings(BaseSettings):
     # Short-lived enough to limit stolen-token impact; refresh is by re-login.
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 12
     FRONTEND_HOST: str = "http://localhost:5173"
+    VERCEL: bool = False
+    VERCEL_PROJECT_PRODUCTION_URL: str | None = None
+    VERCEL_URL: str | None = None
     FASTAPI_ENV: Literal["development", "staging", "production"] | None = None
 
     PROJECT_NAME: str = "Gym Management"
@@ -38,6 +42,7 @@ class Settings(BaseSettings):
         Path(__file__).resolve().parents[2] / "uploads" / "body-analysis"
     )
     BODY_ANALYSIS_MAX_BYTES: int = 10 * 1024 * 1024
+    ATHLETE_IMPORT_MAX_BYTES: int = 5 * 1024 * 1024
     # When set together with AWS_ENDPOINT_URL_S3, body-analysis files are stored
     # in Neon Object Storage (S3-compatible) instead of the local directory.
     BODY_ANALYSIS_BUCKET: str | None = None
@@ -58,6 +63,9 @@ class Settings(BaseSettings):
     # Request/abuse limits.
     MAX_JSON_BODY_BYTES: int = 1024 * 1024
     RATE_LIMIT_ENABLED: bool = True
+    # "memory" is correct for a single long-lived process. Use "database" on
+    # horizontally scaled/serverless deployments so limits are shared.
+    RATE_LIMIT_BACKEND: Literal["memory", "database"] = "memory"
     LOGIN_RATE_LIMIT: int = 5
     LOGIN_RATE_WINDOW_SECONDS: int = 15 * 60
     LOGIN_IP_RATE_LIMIT: int = 50
@@ -93,6 +101,35 @@ class Settings(BaseSettings):
     def _set_default_emails_from(self) -> Self:
         if not self.EMAILS_FROM_NAME:
             self.EMAILS_FROM_NAME = self.PROJECT_NAME
+        if self.VERCEL:
+            # Respect an explicit FRONTEND_HOST; otherwise follow the current
+            # deployment so preview URLs keep working. The canonical production
+            # domain is set explicitly in project environment variables.
+            if not os.getenv("FRONTEND_HOST"):
+                host = (
+                    self.VERCEL_PROJECT_PRODUCTION_URL or self.VERCEL_URL
+                )
+                if host:
+                    self.FRONTEND_HOST = f"https://{host}"
+            # Vercel rejects payloads over 4.5 MB before the app runs.
+            self.BODY_ANALYSIS_MAX_BYTES = min(
+                self.BODY_ANALYSIS_MAX_BYTES, 3_500_000
+            )
+            self.ATHLETE_IMPORT_MAX_BYTES = min(
+                self.ATHLETE_IMPORT_MAX_BYTES, 3_500_000
+            )
+            # A per-instance limiter cannot enforce a shared login policy.
+            self.RATE_LIMIT_BACKEND = "database"
+        if bool(self.BODY_ANALYSIS_BUCKET) != bool(
+            self.AWS_ENDPOINT_URL_S3
+        ):
+            raise ValueError(
+                "BODY_ANALYSIS_BUCKET and AWS_ENDPOINT_URL_S3 must be set together"
+            )
+        if self.VERCEL and not self.BODY_ANALYSIS_BUCKET:
+            raise ValueError(
+                "Vercel deployment requires object storage for uploads"
+            )
         return self
 
     EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
