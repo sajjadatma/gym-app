@@ -39,3 +39,5 @@ frontend/.vite/
 .vscode/*
 !.vscode/extensions.json
 .neon
+.vercel
+.env*

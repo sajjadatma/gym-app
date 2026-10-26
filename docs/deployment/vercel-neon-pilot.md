@@ -95,11 +95,54 @@ uv run uvicorn server:app --host 127.0.0.1 --port 8003
 
 ## Deployment
 
+Project: `sajjadnaserizadehs-projects/gym-v1` (Hobby)  
+Production URL: **https://gym-v1-flame.vercel.app**
+
+`vercel.json` installs Bun, installs the frontend workspace from `bun.lock`,
+and installs Python dependencies into Vercel's generated virtualenv
+(`.vercel/python/.venv`). The Python function bundle excludes `pyproject.toml`
+and `uv.lock`, so `requirements.txt` is the single runtime dependency source.
+
 ```bash
 vercel link --project gym-v1
-vercel env add ...   # production scope
+vercel env add <NAME> production
 vercel deploy --prod
 ```
 
-Record the production URL and verify login, gym context, athlete access,
-program authoring, persistence, and upload/download against the live domain.
+## Live verification (2026-10-26)
+
+Verified against the production URL with fictional pilot data:
+
+| Check | Result |
+| --- | --- |
+| HTTPS app, Persian UI, RTL | pass |
+| Superuser login and global dashboard | pass |
+| Coach login, gym context, assigned athletes | pass |
+| Coach program creation, structure save, publish | pass |
+| Athlete login and active program view | pass |
+| Data persists in Neon after a new request | pass |
+| Route refresh (`/athletes`) | pass |
+| PWA manifest + service worker on mobile viewport | pass |
+| Upload 3.4 MB PDF, download identical bytes | pass |
+| Upload 3.6 MB PDF | rejected with 413 |
+| Private bucket read without credentials | 403 |
+| Deleting an athlete removes the stored object | pass |
+| Shared login limiter (5 allowed, 6th 429) | pass |
+| Cross-gym and unassigned-coach access | 404 |
+
+Pilot accounts created for testing (fictional):
+
+- `coach1@example.com`, `coach2@example.com`
+- `athlete1@example.com` … `athlete3@example.com`
+- Shared pilot password is intentionally not stored in this repository.
+
+## Known pilot limitations
+
+- SMTP is not configured; accounts are provisioned by the superuser with
+  password activation and their first-login password change is disabled for the
+  pilot accounts.
+- CSV/XLSX import is capped at 3.5 MB on Vercel (platform request limit).
+- PDF/response bodies above 4.5 MB are not supported by Vercel Functions.
+- Deployment protection must remain disabled for tester access; only the
+  production domain is intended to be public.
+
