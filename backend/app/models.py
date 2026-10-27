@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import UTC, date, datetime
 from typing import Any, Literal
@@ -129,6 +130,11 @@ class Gym(SQLModel, table=True):
     description: str | None = Field(default=None, max_length=1000)
     address: str | None = Field(default=None, max_length=500)
     phone: str | None = Field(default=None, max_length=50)
+    brand_primary_color: str | None = Field(default=None, max_length=7)
+    brand_accent_color: str | None = Field(default=None, max_length=7)
+    logo_key: str | None = Field(default=None, max_length=255)
+    logo_content_type: str | None = Field(default=None, max_length=100)
+    logo_updated_at: datetime | None = Field(default=None)
     owner_id: uuid.UUID = Field(foreign_key="user.id", ondelete="RESTRICT", index=True)
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=get_datetime_utc)
@@ -150,7 +156,18 @@ class GymUpdate(SQLModel):
     description: str | None = Field(default=None, max_length=1000)
     address: str | None = Field(default=None, max_length=500)
     phone: str | None = Field(default=None, max_length=50)
+    brand_primary_color: str | None = Field(default=None, max_length=7)
+    brand_accent_color: str | None = Field(default=None, max_length=7)
     is_active: bool | None = None
+
+    @field_validator("brand_primary_color", "brand_accent_color")
+    @classmethod
+    def _normalize_color(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}", value):
+            raise ValueError("invalid_color")
+        return value.lower()
 
 
 class GymStaffCounts(SQLModel):
@@ -168,6 +185,9 @@ class GymPublic(SQLModel):
     description: str | None = None
     address: str | None = None
     phone: str | None = None
+    brand_primary_color: str | None = None
+    brand_accent_color: str | None = None
+    logo_url: str | None = None
     owner_id: uuid.UUID
     owner_name: str | None = None
     is_active: bool

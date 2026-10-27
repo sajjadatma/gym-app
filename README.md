@@ -1,4 +1,4 @@
-# FormYar — Gym Management MVP1
+# ASCORA — Gym Management MVP1
 
 A local-first, multi-gym management PWA for managing gyms, staff, coaches, athletes and **manually authored workout programs**, with Persian-first RTL UI, Material Design 3, Jalali dates and A4 print/PDF output.
 

@@ -670,6 +670,16 @@ export type Body_athletes_upload_body_file = {
 };
 
 /**
+ * Body_gyms-upload_branding_logo
+ */
+export type Body_gyms_upload_branding_logo = {
+    /**
+     * File
+     */
+    file: Blob | File;
+};
+
+/**
  * Body_login-login_access_token
  */
 export type Body_login_login_access_token = {
@@ -1105,6 +1115,18 @@ export type GymPublic = {
      */
     phone?: string | null;
     /**
+     * Brand Primary Color
+     */
+    brand_primary_color?: string | null;
+    /**
+     * Brand Accent Color
+     */
+    brand_accent_color?: string | null;
+    /**
+     * Logo Url
+     */
+    logo_url?: string | null;
+    /**
      * Owner Id
      */
     owner_id: string;
@@ -1181,6 +1203,14 @@ export type GymUpdate = {
      * Phone
      */
     phone?: string | null;
+    /**
+     * Brand Primary Color
+     */
+    brand_primary_color?: string | null;
+    /**
+     * Brand Accent Color
+     */
+    brand_accent_color?: string | null;
     /**
      * Is Active
      */
@@ -2559,6 +2589,78 @@ export type gymsUpdateGymResponses = {
 };
 
 export type gymsUpdateGymResponse = gymsUpdateGymResponses[keyof gymsUpdateGymResponses];
+
+export type gymsDeleteGymBrandingLogoData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Gym Id
+         */
+        gym_id: string;
+    };
+    query?: never;
+    url: '/api/v1/gyms/{gym_id}/branding/logo';
+};
+
+export type gymsDeleteGymBrandingLogoErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type gymsDeleteGymBrandingLogoError = gymsDeleteGymBrandingLogoErrors[keyof gymsDeleteGymBrandingLogoErrors];
+
+export type gymsDeleteGymBrandingLogoResponses = {
+    /**
+     * Successful Response
+     */
+    200: GymPublic;
+};
+
+export type gymsDeleteGymBrandingLogoResponse = gymsDeleteGymBrandingLogoResponses[keyof gymsDeleteGymBrandingLogoResponses];
+
+export type gymsUploadBrandingLogoData = {
+    body: Body_gyms_upload_branding_logo;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Gym Id
+         */
+        gym_id: string;
+    };
+    query?: never;
+    url: '/api/v1/gyms/{gym_id}/branding/logo';
+};
+
+export type gymsUploadBrandingLogoErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type gymsUploadBrandingLogoError = gymsUploadBrandingLogoErrors[keyof gymsUploadBrandingLogoErrors];
+
+export type gymsUploadBrandingLogoResponses = {
+    /**
+     * Successful Response
+     */
+    200: GymPublic;
+};
+
+export type gymsUploadBrandingLogoResponse = gymsUploadBrandingLogoResponses[keyof gymsUploadBrandingLogoResponses];
 
 export type gymsTransferOwnershipData = {
     body: OwnershipTransfer;

@@ -297,6 +297,14 @@ def to_gym_public(
         description=gym.description,
         address=gym.address,
         phone=gym.phone,
+        brand_primary_color=gym.brand_primary_color,
+        brand_accent_color=gym.brand_accent_color,
+        logo_url=(
+            f"/api/v1/gyms/{gym.id}/branding/logo"
+            f"?v={int(gym.logo_updated_at.timestamp())}"
+            if gym.logo_key and gym.logo_updated_at
+            else None
+        ),
         owner_id=gym.owner_id,
         owner_name=owner.full_name if owner else None,
         is_active=gym.is_active,

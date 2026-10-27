@@ -80,7 +80,7 @@ services:
         condition: service_healthy
         restart: true
     environment:
-      PROJECT_NAME: ${PROJECT_NAME:-Gym Management}
+      PROJECT_NAME: ${PROJECT_NAME:-ASCORA}
       SECRET_KEY: ${SECRET_KEY:?Variable not set}
       FIRST_SUPERUSER: ${FIRST_SUPERUSER:?Variable not set}
       FIRST_SUPERUSER_PASSWORD: ${FIRST_SUPERUSER_PASSWORD:?Variable not set}

@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import secrets
 import uuid
+from datetime import UTC, datetime
 from typing import Any, cast
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, File, HTTPException, Query, Response, UploadFile
 from sqlalchemy import or_
 from sqlmodel import Session, col, select
 
@@ -51,6 +52,11 @@ from app.services.pagination import (
     DEFAULT_PAGE_SIZE,
     MAX_PAGE_SIZE,
     paginate,
+)
+from app.services.storage import (
+    delete_branding_logo,
+    read_branding_logo,
+    save_branding_logo,
 )
 
 router = APIRouter(prefix="/gyms", tags=["gyms"])
@@ -252,6 +258,120 @@ def update_gym(
     session.add(ctx.gym)
     session.commit()
     session.refresh(ctx.gym)
+    if {"brand_primary_color", "brand_accent_color"} & set(data):
+        audit(
+            "gym.branding_updated",
+            actor_id=current_user.id,
+            gym_id=ctx.gym.id,
+            target_id=ctx.gym.id,
+        )
+    return to_gym_public(
+        session,
+        ctx.gym,
+        current_user=current_user,
+        membership=ctx.membership,
+        include_stats=True,
+    )
+
+
+@router.get("/{gym_id}/branding/logo", include_in_schema=False)
+def serve_gym_branding_logo(
+    gym_id: uuid.UUID, session: SessionDep, current_user: CurrentUser
+) -> Response:
+    gym = session.get(Gym, gym_id)
+    if not gym:
+        raise HTTPException(status_code=404, detail="gym_not_found")
+    membership = session.exec(
+        select(GymMembership).where(
+            GymMembership.gym_id == gym_id,
+            GymMembership.user_id == current_user.id,
+            col(GymMembership.is_active).is_(True),
+        )
+    ).first()
+    if not current_user.is_superuser and not membership:
+        raise HTTPException(status_code=404, detail="gym_not_found")
+    if not gym.is_active and not current_user.is_superuser:
+        raise HTTPException(status_code=404, detail="gym_not_found")
+    if not gym.logo_key or not gym.logo_content_type:
+        raise HTTPException(status_code=404, detail="logo_not_found")
+    return Response(
+        content=read_branding_logo(gym.logo_key),
+        media_type=gym.logo_content_type,
+        headers={
+            "Cache-Control": "private, max-age=300",
+            "ETag": f'"{gym.logo_key}"',
+        },
+    )
+
+
+@router.post("/{gym_id}/branding/logo", response_model=GymPublic)
+async def upload_branding_logo(
+    *,
+    gym_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUser,
+    ctx: GymContextDep,
+    file: UploadFile = File(...),
+) -> Any:
+    _require_path_gym(ctx.gym, gym_id)
+    if not ctx.is_admin:
+        raise HTTPException(status_code=403, detail="gym_admin_required")
+    key, content_type = await save_branding_logo(file, ctx.gym.id)
+    previous_key = ctx.gym.logo_key
+    ctx.gym.logo_key = key
+    ctx.gym.logo_content_type = content_type
+    ctx.gym.logo_updated_at = datetime.now(UTC)
+    session.add(ctx.gym)
+    try:
+        session.commit()
+    except Exception:
+        session.rollback()
+        delete_branding_logo(key)
+        raise
+    session.refresh(ctx.gym)
+    if previous_key:
+        delete_branding_logo(previous_key)
+    audit(
+        "gym.branding_logo_updated",
+        actor_id=current_user.id,
+        gym_id=ctx.gym.id,
+        target_id=ctx.gym.id,
+    )
+    return to_gym_public(
+        session,
+        ctx.gym,
+        current_user=current_user,
+        membership=ctx.membership,
+        include_stats=True,
+    )
+
+
+@router.delete("/{gym_id}/branding/logo", response_model=GymPublic)
+def delete_gym_branding_logo(
+    *,
+    gym_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentUser,
+    ctx: GymContextDep,
+) -> Any:
+    _require_path_gym(ctx.gym, gym_id)
+    if not ctx.is_admin:
+        raise HTTPException(status_code=403, detail="gym_admin_required")
+    key = ctx.gym.logo_key
+    if key:
+        ctx.gym.logo_key = None
+        ctx.gym.logo_content_type = None
+        ctx.gym.logo_updated_at = None
+        session.add(ctx.gym)
+        session.commit()
+        session.refresh(ctx.gym)
+        delete_branding_logo(key)
+        audit(
+            "gym.branding_logo_removed",
+            actor_id=current_user.id,
+            gym_id=ctx.gym.id,
+            target_id=ctx.gym.id,
+        )
     return to_gym_public(
         session,
         ctx.gym,

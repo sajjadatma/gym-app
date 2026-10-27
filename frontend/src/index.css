@@ -283,6 +283,41 @@ button:disabled {
   box-shadow: var(--m3-shadow-1);
 }
 
+.m3-nav-rail__brand:has(.m3-nav-rail__logo) {
+  background: #ffffff;
+  padding: 4px;
+}
+
+.m3-nav-rail__logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 14px;
+}
+
+.m3-app-shell[data-club-branded="true"] .m3-nav-rail__brand {
+  background: var(--club-primary);
+  color: var(--club-on-primary);
+}
+
+.m3-app-shell[data-club-branded="true"]
+  .m3-nav-rail__brand:has(.m3-nav-rail__logo) {
+  background: #ffffff;
+}
+
+.m3-app-shell[data-club-branded="true"]
+  .m3-nav-rail__item.is-active
+  .m3-nav-rail__icon {
+  background: color-mix(
+    in srgb,
+    var(--club-primary) 22%,
+    var(--m3-secondary-container)
+  );
+  color: var(--m3-on-secondary-container);
+  box-shadow: inset 0 0 0 1.5px
+    color-mix(in srgb, var(--club-accent) 65%, transparent);
+}
+
 .m3-nav-rail__item {
   display: flex;
   flex-direction: column;
@@ -2681,6 +2716,86 @@ a.m3-contact-chip:focus-visible {
 /* Print                                                             */
 /* ------------------------------------------------------------------ */
 
+.club-brand-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: var(--m3-radius-m);
+  background: var(--m3-surface-container-low);
+}
+
+.club-brand-preview__mark {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--club-primary, var(--m3-primary));
+  color: var(--club-on-primary, var(--m3-on-primary));
+  font-weight: 800;
+  overflow: hidden;
+  flex: none;
+}
+
+.club-brand-preview__logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #ffffff;
+}
+
+.club-brand-preview__name {
+  font-weight: 700;
+}
+
+.club-brand-preview__colors {
+  display: flex;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.club-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid var(--m3-outline-variant);
+}
+
+.brand-color-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.brand-color-row {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+}
+
+.brand-color-row .m3-field {
+  flex: 1;
+}
+
+.brand-color-row input[type="color"] {
+  width: 44px;
+  height: 44px;
+  padding: 3px;
+  border: 1px solid var(--m3-outline);
+  border-radius: var(--m3-radius-s);
+  background: var(--m3-surface-container-lowest);
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .brand-color-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .m3-print-page {
   min-height: 100vh;
   background: var(--m3-surface-container);
@@ -2711,6 +2826,29 @@ a.m3-contact-chip:focus-visible {
   color: #191c1a;
   box-shadow: var(--m3-shadow-2);
   direction: rtl;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.m3-print-club {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.m3-print-club__logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.m3-print-header__app {
+  margin-top: 1px;
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  color: #707973;
 }
 
 .m3-print-header {
@@ -2718,13 +2856,14 @@ a.m3-contact-chip:focus-visible {
   justify-content: space-between;
   gap: 20px;
   padding-bottom: 12px;
-  border-bottom: 2px solid #006c51;
+  border-bottom: 2px solid
+    color-mix(in srgb, var(--print-brand, #006c51) 70%, #191c1a);
 }
 
 .m3-print-header__brand {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
-  color: #006c51;
+  color: #191c1a;
 }
 
 .m3-print-header h1 {
@@ -2756,10 +2895,13 @@ a.m3-contact-chip:focus-visible {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background: #eff1ec;
-  border-inline-start: 4px solid #006c51;
+  background: color-mix(in srgb, var(--print-brand, #006c51) 10%, #ffffff);
+  border-inline-start: 4px solid
+    color-mix(in srgb, var(--print-brand, #006c51) 70%, #191c1a);
   font-size: 13px;
   font-weight: 700;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 .m3-print-exercise {
@@ -2808,7 +2950,8 @@ a.m3-contact-chip:focus-visible {
 .m3-print-footer {
   margin-top: 24px;
   padding-top: 8px;
-  border-top: 1px solid #dbe5dd;
+  border-top: 1px solid
+    color-mix(in srgb, var(--print-accent, #006c51) 50%, #dbe5dd);
   font-size: 9px;
   color: #707973;
   text-align: center;

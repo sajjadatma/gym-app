@@ -42,7 +42,7 @@ dependencies.
 | `COOKIE_SECURE=true`, `COOKIE_SAMESITE=lax`, `HSTS_ENABLED=true` | Cookie/transport security |
 | `RATE_LIMIT_ENABLED=true`, `RATE_LIMIT_BACKEND=database` | Shared login/recovery limits |
 | `TRUST_PROXY_HEADERS=true` | Use Vercel's `x-real-ip` / `x-forwarded-for` |
-| `PROJECT_NAME=Gym Management` | Branding |
+| `PROJECT_NAME=ASCORA` | Branding |
 
 `FRONTEND_HOST` is derived from `VERCEL_PROJECT_PRODUCTION_URL` when running on
 Vercel, keeping invitation links and origin checks on the stable production

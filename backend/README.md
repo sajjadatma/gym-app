@@ -1,4 +1,4 @@
-# FormYar backend
+# ASCORA backend
 
 FastAPI + SQLModel + PostgreSQL backend for the Gym Management MVP1.
 

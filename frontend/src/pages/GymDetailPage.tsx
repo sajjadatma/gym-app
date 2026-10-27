@@ -5,16 +5,19 @@ import {
   Building2,
   Copy,
   Crown,
+  ImagePlus,
   Mail,
   MapPin,
+  Palette,
   Pencil,
   Phone,
   ShieldCheck,
+  Trash2,
   UserRound,
   Users,
 } from "lucide-react"
-import { useEffect, useState } from "react"
-import { translateApiError } from "@/api"
+import { type CSSProperties, useEffect, useRef, useState } from "react"
+import { apiAssetUrl, translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import { GymsService, type OwnershipTransferred } from "@/client"
 import {
@@ -28,6 +31,7 @@ import {
   TextField,
 } from "@/components/M3"
 import { useI18n } from "@/i18n"
+import { readableOnColor } from "@/lib/brand"
 import { useSnackbar } from "@/snackbar"
 
 export function GymDetailPage({ gymId }: { gymId: string }) {
@@ -61,6 +65,20 @@ export function GymDetailPage({ gymId }: { gymId: string }) {
     activation_method: "invite" as "invite" | "password",
     initial_password: "",
   })
+  const [brandingOpen, setBrandingOpen] = useState(false)
+  const [brandSaving, setBrandSaving] = useState(false)
+  const [brandError, setBrandError] = useState<string | null>(null)
+  const [brandForm, setBrandForm] = useState({ primary: "", accent: "" })
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [removeLogo, setRemoveLogo] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    return () => {
+      if (logoPreview) URL.revokeObjectURL(logoPreview)
+    }
+  }, [logoPreview])
 
   const gym = gymQuery.data
 
@@ -116,6 +134,83 @@ export function GymDetailPage({ gymId }: { gymId: string }) {
       setError(translateApiError(err, t))
     } finally {
       setSaving(false)
+    }
+  }
+
+  function openBranding() {
+    if (!gym) return
+    if (logoInputRef.current) logoInputRef.current.value = ""
+    setBrandForm({
+      primary: gym.brand_primary_color ?? "",
+      accent: gym.brand_accent_color ?? "",
+    })
+    setLogoFile(null)
+    setLogoPreview(null)
+    setRemoveLogo(false)
+    setBrandError(null)
+    setBrandingOpen(true)
+  }
+
+  function selectLogo(file: File | null) {
+    setBrandError(null)
+    if (!file) return
+    if (!["image/png", "image/jpeg"].includes(file.type)) {
+      setBrandError(t("branding.logoType"))
+      if (logoInputRef.current) logoInputRef.current.value = ""
+      return
+    }
+    if (file.size > 512 * 1024) {
+      setBrandError(t("branding.logoSize"))
+      if (logoInputRef.current) logoInputRef.current.value = ""
+      return
+    }
+    if (logoPreview) URL.revokeObjectURL(logoPreview)
+    setLogoFile(file)
+    setLogoPreview(URL.createObjectURL(file))
+    setRemoveLogo(false)
+    if (logoInputRef.current) logoInputRef.current.value = ""
+  }
+
+  async function saveBranding() {
+    setBrandSaving(true)
+    setBrandError(null)
+    const colorPattern = /^#[0-9a-f]{6}$/i
+    if (
+      (brandForm.primary && !colorPattern.test(brandForm.primary)) ||
+      (brandForm.accent && !colorPattern.test(brandForm.accent))
+    ) {
+      setBrandError(t("branding.invalidColor"))
+      setBrandSaving(false)
+      return
+    }
+    try {
+      await GymsService.updateGym({
+        path: { gym_id: gymId },
+        body: {
+          brand_primary_color: brandForm.primary || null,
+          brand_accent_color: brandForm.accent || null,
+        },
+      })
+      if (removeLogo) {
+        await GymsService.deleteGymBrandingLogo({
+          path: { gym_id: gymId },
+        })
+      } else if (logoFile) {
+        await GymsService.uploadBrandingLogo({
+          path: { gym_id: gymId },
+          body: { file: logoFile },
+        })
+      }
+      setBrandingOpen(false)
+      setLogoFile(null)
+      setLogoPreview(null)
+      show(t("branding.updated"), "success")
+    } catch (err) {
+      setBrandError(translateApiError(err, t))
+    } finally {
+      await queryClient.invalidateQueries({ queryKey: ["gyms"] })
+      await queryClient.invalidateQueries({ queryKey: ["gym", gymId] })
+      setBrandSaving(false)
     }
   }
 
@@ -287,7 +382,222 @@ export function GymDetailPage({ gymId }: { gymId: string }) {
             </div>
           </Card>
         ) : null}
+
+        {canManage ? (
+          <Card>
+            <div className="m3-section__header">
+              <div>
+                <h2 className="m3-section__title">{t("branding.title")}</h2>
+                <p className="m3-section__subtitle">{t("branding.subtitle")}</p>
+              </div>
+              <Palette size={22} className="muted" />
+            </div>
+            <div
+              className="club-brand-preview"
+              style={
+                {
+                  "--club-primary":
+                    gym.brand_primary_color ?? "var(--m3-primary)",
+                  "--club-on-primary": gym.brand_primary_color
+                    ? readableOnColor(gym.brand_primary_color)
+                    : "var(--m3-on-primary)",
+                } as CSSProperties
+              }
+            >
+              <div className="club-brand-preview__mark">
+                {gym.logo_url ? (
+                  <img
+                    className="club-brand-preview__logo"
+                    src={apiAssetUrl(gym.logo_url)}
+                    alt={t("branding.logo")}
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none"
+                    }}
+                  />
+                ) : (
+                  "A"
+                )}
+              </div>
+              <div>
+                <div className="club-brand-preview__name">{gym.name}</div>
+                <div className="club-brand-preview__colors">
+                  {gym.brand_primary_color ? (
+                    <span
+                      className="club-swatch"
+                      style={{ background: gym.brand_primary_color }}
+                      title={t("branding.primary")}
+                    />
+                  ) : null}
+                  {gym.brand_accent_color ? (
+                    <span
+                      className="club-swatch"
+                      style={{ background: gym.brand_accent_color }}
+                      title={t("branding.accent")}
+                    />
+                  ) : null}
+                  {!gym.brand_primary_color && !gym.brand_accent_color ? (
+                    <span className="muted">{t("branding.defaultColors")}</span>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+            <div className="row" style={{ marginTop: 14 }}>
+              <Button
+                variant="outlined"
+                icon={<Palette size={16} />}
+                onClick={openBranding}
+              >
+                {t("branding.edit")}
+              </Button>
+            </div>
+          </Card>
+        ) : null}
       </div>
+
+      <Dialog
+        open={brandingOpen}
+        title={t("branding.edit")}
+        description={t("branding.scopeHint")}
+        onClose={() => {
+          if (brandSaving) return
+          setBrandingOpen(false)
+          setBrandError(null)
+        }}
+        footer={
+          <>
+            <Button
+              variant="text"
+              disabled={brandSaving}
+              onClick={() => setBrandingOpen(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={saveBranding} loading={brandSaving}>
+              {t("common.save")}
+            </Button>
+          </>
+        }
+      >
+        <div className="stack">
+          {brandError ? (
+            <div className="m3-inline-alert" role="alert">
+              {brandError}
+            </div>
+          ) : null}
+          <input
+            ref={logoInputRef}
+            type="file"
+            accept="image/png,image/jpeg"
+            hidden
+            onChange={(event) => selectLogo(event.target.files?.[0] ?? null)}
+          />
+          <div>
+            <div className="m3-field__label">{t("branding.logo")}</div>
+            <div className="club-brand-preview" style={{ marginTop: 6 }}>
+              <div
+                className="club-brand-preview__mark"
+                style={{
+                  background: brandForm.primary || undefined,
+                  color: brandForm.primary
+                    ? readableOnColor(brandForm.primary)
+                    : undefined,
+                }}
+              >
+                {logoPreview || (!removeLogo && gym.logo_url) ? (
+                  <img
+                    className="club-brand-preview__logo"
+                    src={
+                      logoPreview ??
+                      (!removeLogo ? apiAssetUrl(gym.logo_url) : undefined)
+                    }
+                    alt={t("branding.logoPreview")}
+                  />
+                ) : (
+                  "A"
+                )}
+              </div>
+              <div className="row">
+                <Button
+                  variant="outlined"
+                  size="sm"
+                  icon={<ImagePlus size={15} />}
+                  onClick={() => logoInputRef.current?.click()}
+                >
+                  {t("branding.chooseLogo")}
+                </Button>
+                {gym.logo_url || logoFile ? (
+                  <Button
+                    variant="text"
+                    size="sm"
+                    icon={<Trash2 size={15} />}
+                    onClick={() => {
+                      setLogoFile(null)
+                      if (logoPreview) URL.revokeObjectURL(logoPreview)
+                      setLogoPreview(null)
+                      setRemoveLogo(true)
+                    }}
+                  >
+                    {t("branding.removeLogo")}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+            <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+              {t("branding.logoHint")}
+            </p>
+          </div>
+
+          <div className="brand-color-grid">
+            <div className="brand-color-row">
+              <input
+                type="color"
+                aria-label={t("branding.primary")}
+                value={brandForm.primary || "#006c51"}
+                onChange={(event) =>
+                  setBrandForm({ ...brandForm, primary: event.target.value })
+                }
+              />
+              <TextField
+                label={t("branding.primary")}
+                value={brandForm.primary}
+                dir="ltr"
+                placeholder="#006c51"
+                onChange={(event) =>
+                  setBrandForm({ ...brandForm, primary: event.target.value })
+                }
+              />
+            </div>
+            <div className="brand-color-row">
+              <input
+                type="color"
+                aria-label={t("branding.accent")}
+                value={brandForm.accent || "#006c51"}
+                onChange={(event) =>
+                  setBrandForm({ ...brandForm, accent: event.target.value })
+                }
+              />
+              <TextField
+                label={t("branding.accent")}
+                value={brandForm.accent}
+                dir="ltr"
+                placeholder="#006c51"
+                onChange={(event) =>
+                  setBrandForm({ ...brandForm, accent: event.target.value })
+                }
+              />
+            </div>
+          </div>
+          <div className="row">
+            <Button
+              variant="text"
+              size="sm"
+              onClick={() => setBrandForm({ primary: "", accent: "" })}
+            >
+              {t("branding.resetColors")}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
 
       <Dialog
         open={editOpen}

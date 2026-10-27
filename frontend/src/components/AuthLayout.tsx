@@ -20,7 +20,7 @@ export function AuthLayout({
     <div className="m3-auth-page">
       <aside className="m3-auth-brand" aria-hidden>
         <div className="m3-auth-brand__logo">
-          <span className="m3-auth-brand__mark">ف</span>
+          <span className="m3-auth-brand__mark">A</span>
           <span>{t("app.name")}</span>
         </div>
         <div className="m3-auth-brand__body">

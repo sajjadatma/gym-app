@@ -7,6 +7,14 @@ const baseURL = import.meta.env.VITE_API_URL ?? ""
 const CSRF_COOKIE = "gym_csrf_token"
 const SAFE_METHODS = ["get", "head", "options", "trace"]
 
+export function apiAssetUrl(
+  path: string | null | undefined,
+): string | undefined {
+  if (!path) return undefined
+  if (/^https?:\/\//i.test(path)) return path
+  return `${baseURL.replace(/\/$/, "")}${path}`
+}
+
 function cookie(name: string): string | null {
   if (typeof document === "undefined") return null
   const prefix = `${name}=`

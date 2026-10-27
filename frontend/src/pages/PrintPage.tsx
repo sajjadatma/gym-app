@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { ArrowRight, Printer } from "lucide-react"
-import { useEffect } from "react"
-import { translateApiError } from "@/api"
+import { type CSSProperties, useEffect } from "react"
+import { apiAssetUrl, translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import { ProgramsService } from "@/client"
 import { Button, ErrorState, Spinner } from "@/components/M3"
@@ -56,6 +56,12 @@ export function PrintPage({ versionId }: { versionId: string }) {
   }
 
   const version = versionQuery.data
+  const brandPrimary = activeGym?.brand_primary_color ?? "#006c51"
+  const brandAccent = activeGym?.brand_accent_color ?? brandPrimary
+  const sheetStyle = {
+    "--print-brand": brandPrimary,
+    "--print-accent": brandAccent,
+  } as CSSProperties
   const back = () => {
     if (activeRole === "ATHLETE") {
       navigate({
@@ -82,10 +88,27 @@ export function PrintPage({ versionId }: { versionId: string }) {
         </Button>
       </div>
 
-      <div className="m3-print-sheet" dir={direction}>
+      <div className="m3-print-sheet" dir={direction} style={sheetStyle}>
         <header className="m3-print-header">
           <div>
-            <div className="m3-print-header__brand">{t("app.name")}</div>
+            <div className="m3-print-club">
+              {activeGym?.logo_url ? (
+                <img
+                  className="m3-print-club__logo"
+                  src={apiAssetUrl(activeGym.logo_url)}
+                  alt=""
+                  onError={(event) => {
+                    event.currentTarget.style.display = "none"
+                  }}
+                />
+              ) : null}
+              <div>
+                <div className="m3-print-header__brand">
+                  {activeGym?.name ?? t("app.name")}
+                </div>
+                <div className="m3-print-header__app">ASCORA</div>
+              </div>
+            </div>
             <h1>{version.title}</h1>
             <div style={{ fontSize: 11, marginTop: 4 }}>
               {t("print.preparedFor")}:{" "}
@@ -214,9 +237,7 @@ export function PrintPage({ versionId }: { versionId: string }) {
           </section>
         ))}
 
-        <footer className="m3-print-footer">
-          {t("app.name")} · {t("app.tagline")}
-        </footer>
+        <footer className="m3-print-footer">ASCORA · {t("app.tagline")}</footer>
       </div>
     </div>
   )

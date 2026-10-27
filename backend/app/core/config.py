@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     VERCEL_URL: str | None = None
     FASTAPI_ENV: Literal["development", "staging", "production"] | None = None
 
-    PROJECT_NAME: str = "Gym Management"
+    PROJECT_NAME: str = "ASCORA"
     SENTRY_DSN: HttpUrl | None = None
     SENTRY_TRACES_SAMPLE_RATE: float = 0.0
     SENTRY_ENVIRONMENT: str | None = None

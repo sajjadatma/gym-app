@@ -1,4 +1,4 @@
-# FormYar frontend
+# ASCORA frontend
 
 React + TypeScript + Vite frontend for the Gym Management MVP1.
 

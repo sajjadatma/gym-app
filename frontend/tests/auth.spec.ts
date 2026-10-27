@@ -23,7 +23,7 @@ test("unauthenticated users are redirected to login", async ({ page }) => {
   await page.goto("/athletes")
   await expect(page).toHaveURL(/\/login$/)
   await expect(
-    page.getByRole("heading", { name: "ورود به فرم‌یار" }),
+    page.getByRole("heading", { name: "ورود به آسکورا" }),
   ).toBeVisible()
 })
 

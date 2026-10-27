@@ -18,10 +18,17 @@ import {
   UserRound,
   Users,
 } from "lucide-react"
-import { type ReactNode, useEffect, useRef, useState } from "react"
-
+import {
+  type CSSProperties,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react"
+import { apiAssetUrl } from "../api"
 import { type RoleMode, useAuth } from "../auth"
 import { type TranslationKey, useI18n } from "../i18n"
+import { readableOnColor } from "../lib/brand"
 import { useTheme } from "../theme"
 import { Avatar, Button, IconButton, Spinner } from "./M3"
 
@@ -275,12 +282,36 @@ export function AppShell() {
     navigate({ to: item.to as never, params: item.params as never })
 
   const roleLabel = (role: RoleMode) => t(ROLE_MODE_LABELS[role])
+  const clubPrimary = activeGym?.brand_primary_color ?? undefined
+  const brandStyle = clubPrimary
+    ? ({
+        "--club-primary": clubPrimary,
+        "--club-on-primary": readableOnColor(clubPrimary),
+        "--club-accent": activeGym?.brand_accent_color ?? clubPrimary,
+      } as CSSProperties)
+    : undefined
+  const brandMark = activeGym?.logo_url ? (
+    <img
+      className="m3-nav-rail__logo"
+      src={apiAssetUrl(activeGym.logo_url)}
+      alt=""
+      onError={(event) => {
+        event.currentTarget.style.display = "none"
+      }}
+    />
+  ) : (
+    <span>A</span>
+  )
 
   return (
-    <div className="m3-app-shell">
+    <div
+      className="m3-app-shell"
+      data-club-branded={clubPrimary ? "true" : undefined}
+      style={brandStyle}
+    >
       <nav className="m3-nav-rail" aria-label={t("shell.menu")}>
         <div className="m3-nav-rail__brand" aria-hidden>
-          ف
+          {brandMark}
         </div>
         {navItems.map((item) => {
           const Icon = item.icon
@@ -325,7 +356,7 @@ export function AppShell() {
                 borderRadius: 13,
               }}
             >
-              ف
+              {brandMark}
             </div>
             <span>{t("app.name")}</span>
           </div>

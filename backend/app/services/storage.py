@@ -21,6 +21,15 @@ ALLOWED_TYPES = {
 }
 ALLOWED_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png"}
 OBJECT_KEY_PREFIX = "body-analysis"
+BRAND_LOGO_MAX_BYTES = 512 * 1024
+_BRAND_TYPES = {
+    "image/png": (".png", b"\x89PNG\r\n\x1a\n"),
+    "image/jpeg": (".jpg", b"\xff\xd8\xff"),
+}
+
+
+def _branding_dir() -> Path:
+    return settings.BODY_ANALYSIS_DIR.parent / "branding"
 
 
 def object_storage_enabled() -> bool:
@@ -162,3 +171,79 @@ def stored_file_path(stored_name: str) -> Path:
     if path.parent != settings.BODY_ANALYSIS_DIR or not path.exists():
         raise HTTPException(status_code=404, detail="file_not_found")
     return path
+
+
+async def save_branding_logo(
+    upload: UploadFile, gym_id: uuid.UUID
+) -> tuple[str, str]:
+    content_type = (upload.content_type or "").lower()
+    type_info = _BRAND_TYPES.get(content_type)
+    if not type_info:
+        raise HTTPException(status_code=400, detail="unsupported_image_type")
+    extension, magic = type_info
+    data = await upload.read(BRAND_LOGO_MAX_BYTES + 1)
+    if len(data) > BRAND_LOGO_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="logo_too_large")
+    if not data or not data.startswith(magic):
+        raise HTTPException(status_code=400, detail="file_content_mismatch")
+
+    key = f"branding/{gym_id}/{uuid.uuid4().hex}{extension}"
+    if object_storage_enabled():
+        try:
+            await run_in_threadpool(
+                _s3_client().put_object,
+                Bucket=settings.BODY_ANALYSIS_BUCKET,
+                Key=key,
+                Body=data,
+                ContentType=content_type,
+            )
+        except Exception as exc:  # noqa: BLE001 - surface storage outages as 502
+            logger.exception("branding logo upload failed")
+            raise HTTPException(
+                status_code=502, detail="storage_unavailable"
+            ) from exc
+        return key, content_type
+
+    destination = _branding_dir() / key
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(data)
+    return key, content_type
+
+
+def read_branding_logo(key: str) -> bytes:
+    if object_storage_enabled():
+        from botocore.exceptions import ClientError
+
+        try:
+            response = _s3_client().get_object(
+                Bucket=settings.BODY_ANALYSIS_BUCKET, Key=key
+            )
+            return bytes(response["Body"].read())
+        except ClientError as exc:
+            status = exc.response.get("ResponseMetadata", {}).get(
+                "HTTPStatusCode"
+            )
+            if status == 404:
+                raise HTTPException(
+                    status_code=404, detail="logo_not_found"
+                ) from exc
+            raise HTTPException(
+                status_code=502, detail="storage_unavailable"
+            ) from exc
+    path = _branding_dir() / key
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="logo_not_found")
+    return path.read_bytes()
+
+
+def delete_branding_logo(key: str) -> None:
+    try:
+        if object_storage_enabled():
+            _s3_client().delete_object(
+                Bucket=settings.BODY_ANALYSIS_BUCKET, Key=key
+            )
+            return
+        path = _branding_dir() / key
+        path.unlink(missing_ok=True)
+    except Exception:  # noqa: BLE001 - best-effort cleanup
+        logger.warning("could not delete branding logo %s", key)
