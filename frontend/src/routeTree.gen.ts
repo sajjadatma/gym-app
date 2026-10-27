@@ -32,6 +32,7 @@ import { Route as AppGymsIndexRouteImport } from './routes/_app.gyms.index'
 import { Route as AppGymsGymIdRouteImport } from './routes/_app.gyms.$gymId'
 import { Route as AppMyIndexRouteImport } from './routes/_app.my.index'
 import { Route as AppMyProfileRouteImport } from './routes/_app.my.profile'
+import { Route as AppPeopleUserIdRouteImport } from './routes/_app.people.$userId'
 import { Route as AppTemplatesIndexRouteImport } from './routes/_app.templates.index'
 import { Route as AppTemplatesNewRouteImport } from './routes/_app.templates.new'
 import { Route as AppGymsGymIdIndexRouteImport } from './routes/_app.gyms.$gymId.index'
@@ -168,6 +169,11 @@ const AppMyProfileRoute = AppMyProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
   getParentRoute: () => AppMyRoute,
+} as any)
+const AppPeopleUserIdRoute = AppPeopleUserIdRouteImport.update({
+  id: '/people/$userId',
+  path: '/people/$userId',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppTemplatesIndexRoute = AppTemplatesIndexRouteImport.update({
   id: '/',
@@ -310,6 +316,7 @@ export interface FileRoutesByFullPath {
   '/athletes/archived': typeof AppAthletesArchivedRoute
   '/gyms/$gymId': typeof AppGymsGymIdRouteWithChildren
   '/my/profile': typeof AppMyProfileRoute
+  '/people/$userId': typeof AppPeopleUserIdRoute
   '/templates/new': typeof AppTemplatesNewRoute
   '/athletes/': typeof AppAthletesIndexRoute
   '/gyms/': typeof AppGymsIndexRoute
@@ -351,6 +358,7 @@ export interface FileRoutesByTo {
   '/athletes/$athleteId': typeof AppAthletesAthleteIdRoute
   '/athletes/archived': typeof AppAthletesArchivedRoute
   '/my/profile': typeof AppMyProfileRoute
+  '/people/$userId': typeof AppPeopleUserIdRoute
   '/templates/new': typeof AppTemplatesNewRoute
   '/athletes': typeof AppAthletesIndexRoute
   '/gyms': typeof AppGymsIndexRoute
@@ -396,6 +404,7 @@ export interface FileRoutesById {
   '/_app/athletes/archived': typeof AppAthletesArchivedRoute
   '/_app/gyms/$gymId': typeof AppGymsGymIdRouteWithChildren
   '/_app/my/profile': typeof AppMyProfileRoute
+  '/_app/people/$userId': typeof AppPeopleUserIdRoute
   '/_app/templates/new': typeof AppTemplatesNewRoute
   '/_app/athletes/': typeof AppAthletesIndexRoute
   '/_app/gyms/': typeof AppGymsIndexRoute
@@ -444,6 +453,7 @@ export interface FileRouteTypes {
     | '/athletes/archived'
     | '/gyms/$gymId'
     | '/my/profile'
+    | '/people/$userId'
     | '/templates/new'
     | '/athletes/'
     | '/gyms/'
@@ -485,6 +495,7 @@ export interface FileRouteTypes {
     | '/athletes/$athleteId'
     | '/athletes/archived'
     | '/my/profile'
+    | '/people/$userId'
     | '/templates/new'
     | '/athletes'
     | '/gyms'
@@ -529,6 +540,7 @@ export interface FileRouteTypes {
     | '/_app/athletes/archived'
     | '/_app/gyms/$gymId'
     | '/_app/my/profile'
+    | '/_app/people/$userId'
     | '/_app/templates/new'
     | '/_app/athletes/'
     | '/_app/gyms/'
@@ -728,6 +740,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/my/profile'
       preLoaderRoute: typeof AppMyProfileRouteImport
       parentRoute: typeof AppMyRoute
+    }
+    '/_app/people/$userId': {
+      id: '/_app/people/$userId'
+      path: '/people/$userId'
+      fullPath: '/people/$userId'
+      preLoaderRoute: typeof AppPeopleUserIdRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/templates/': {
       id: '/_app/templates/'
@@ -1031,6 +1050,7 @@ interface AppRouteChildren {
   AppProfileRoute: typeof AppProfileRoute
   AppTemplatesRoute: typeof AppTemplatesRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
+  AppPeopleUserIdRoute: typeof AppPeopleUserIdRoute
   AppProgramsVersionIdEditRoute: typeof AppProgramsVersionIdEditRoute
 }
 
@@ -1044,6 +1064,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppProfileRoute: AppProfileRoute,
   AppTemplatesRoute: AppTemplatesRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
+  AppPeopleUserIdRoute: AppPeopleUserIdRoute,
   AppProgramsVersionIdEditRoute: AppProgramsVersionIdEditRoute,
 }
 

@@ -247,6 +247,34 @@ export type AthleteImportResult = {
 };
 
 /**
+ * AthleteOverviewPublic
+ */
+export type AthleteOverviewPublic = {
+    profile: AthleteProfileSelf;
+    /**
+     * Measurements Updated At
+     */
+    measurements_updated_at?: string | null;
+    /**
+     * Internal Coach Note
+     */
+    internal_coach_note?: string | null;
+    current_coach?: PersonRefPublic | null;
+    /**
+     * Assignments
+     */
+    assignments: Array<PersonAssignmentPublic>;
+    /**
+     * Programs
+     */
+    programs: Array<PersonProgramPublic>;
+    /**
+     * Body Files
+     */
+    body_files: Array<PersonBodyFilePublic>;
+};
+
+/**
  * AthleteProfileSelf
  */
 export type AthleteProfileSelf = {
@@ -707,6 +735,32 @@ export type Body_login_login_access_token = {
      * Client Secret
      */
     client_secret?: string | null;
+};
+
+/**
+ * CoachOverviewPublic
+ */
+export type CoachOverviewPublic = {
+    /**
+     * Roles
+     */
+    roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE'>;
+    /**
+     * Is Active
+     */
+    is_active: boolean;
+    /**
+     * Is Owner
+     */
+    is_owner: boolean;
+    /**
+     * Assignments
+     */
+    assignments: Array<PersonAssignmentPublic>;
+    /**
+     * Authored Programs
+     */
+    authored_programs: Array<PersonProgramPublic>;
 };
 
 /**
@@ -1415,6 +1469,370 @@ export type OwnershipTransferred = {
      * Invitation Sent
      */
     invitation_sent?: boolean;
+};
+
+/**
+ * PersonAccountPublic
+ */
+export type PersonAccountPublic = {
+    /**
+     * User Id
+     */
+    user_id: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Full Name
+     */
+    full_name?: string | null;
+    /**
+     * Phone
+     */
+    phone?: string | null;
+    /**
+     * Is Active
+     */
+    is_active: boolean;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * PersonAssignmentPublic
+ */
+export type PersonAssignmentPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Gym Id
+     */
+    gym_id: string;
+    /**
+     * Gym Name
+     */
+    gym_name: string;
+    /**
+     * Athlete User Id
+     */
+    athlete_user_id: string;
+    /**
+     * Athlete Name
+     */
+    athlete_name?: string | null;
+    /**
+     * Coach User Id
+     */
+    coach_user_id: string;
+    /**
+     * Coach Name
+     */
+    coach_name?: string | null;
+    /**
+     * Assigned By Id
+     */
+    assigned_by_id?: string | null;
+    /**
+     * Assigned By Name
+     */
+    assigned_by_name?: string | null;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Ended At
+     */
+    ended_at?: string | null;
+};
+
+/**
+ * PersonBodyFilePublic
+ */
+export type PersonBodyFilePublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Original Name
+     */
+    original_name: string;
+    /**
+     * Content Type
+     */
+    content_type: string;
+    /**
+     * Size Bytes
+     */
+    size_bytes: number;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Gym Id
+     */
+    gym_id: string;
+    /**
+     * Gym Name
+     */
+    gym_name: string;
+    /**
+     * Uploaded By Name
+     */
+    uploaded_by_name?: string | null;
+};
+
+/**
+ * PersonHistoryEvent
+ */
+export type PersonHistoryEvent = {
+    /**
+     * Event
+     */
+    event: string;
+    /**
+     * Occurred At
+     */
+    occurred_at: string;
+    /**
+     * Gym Id
+     */
+    gym_id?: string | null;
+    /**
+     * Gym Name
+     */
+    gym_name?: string | null;
+    /**
+     * Actor Name
+     */
+    actor_name?: string | null;
+    /**
+     * Related Type
+     */
+    related_type?: string | null;
+    /**
+     * Related Id
+     */
+    related_id?: string | null;
+    /**
+     * Data
+     */
+    data?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * PersonMembershipPublic
+ */
+export type PersonMembershipPublic = {
+    /**
+     * Membership Id
+     */
+    membership_id: string;
+    /**
+     * Gym Id
+     */
+    gym_id: string;
+    /**
+     * Gym Name
+     */
+    gym_name: string;
+    /**
+     * Roles
+     */
+    roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE'>;
+    /**
+     * Is Active
+     */
+    is_active: boolean;
+    /**
+     * Is Owner
+     */
+    is_owner: boolean;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * PersonOverview
+ */
+export type PersonOverview = {
+    /**
+     * Kind
+     */
+    kind: 'ATHLETE' | 'COACH';
+    /**
+     * Focus Gym Id
+     */
+    focus_gym_id: string;
+    /**
+     * Focus Gym Name
+     */
+    focus_gym_name: string;
+    account: PersonAccountPublic;
+    /**
+     * Memberships
+     */
+    memberships: Array<PersonMembershipPublic>;
+    athlete?: AthleteOverviewPublic | null;
+    coach?: CoachOverviewPublic | null;
+    stats: PersonStatsPublic;
+    /**
+     * History
+     */
+    history: Array<PersonHistoryEvent>;
+    /**
+     * Generated At
+     */
+    generated_at: string;
+};
+
+/**
+ * PersonProgramPublic
+ */
+export type PersonProgramPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Program Id
+     */
+    program_id: string;
+    /**
+     * Athlete User Id
+     */
+    athlete_user_id: string;
+    /**
+     * Athlete Name
+     */
+    athlete_name?: string | null;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Goal
+     */
+    goal?: string | null;
+    /**
+     * Version Number
+     */
+    version_number: number;
+    /**
+     * Revision
+     */
+    revision: number;
+    /**
+     * Status
+     */
+    status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
+    /**
+     * Coach Id
+     */
+    coach_id?: string | null;
+    /**
+     * Coach Name
+     */
+    coach_name?: string | null;
+    /**
+     * Start Date
+     */
+    start_date?: string | null;
+    /**
+     * End Date
+     */
+    end_date?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Published At
+     */
+    published_at?: string | null;
+    /**
+     * Archived At
+     */
+    archived_at?: string | null;
+    /**
+     * Day Count
+     */
+    day_count?: number;
+    /**
+     * Notes
+     */
+    notes?: string | null;
+    /**
+     * Days
+     */
+    days: Array<DayPublic>;
+    /**
+     * Gym Id
+     */
+    gym_id: string;
+    /**
+     * Gym Name
+     */
+    gym_name: string;
+};
+
+/**
+ * PersonRefPublic
+ */
+export type PersonRefPublic = {
+    /**
+     * User Id
+     */
+    user_id: string;
+    /**
+     * Full Name
+     */
+    full_name?: string | null;
+    /**
+     * Email
+     */
+    email: string;
+};
+
+/**
+ * PersonStatsPublic
+ */
+export type PersonStatsPublic = {
+    /**
+     * Memberships
+     */
+    memberships?: number;
+    /**
+     * Assignments
+     */
+    assignments?: number;
+    /**
+     * Active Assignments
+     */
+    active_assignments?: number;
+    /**
+     * Program Versions
+     */
+    program_versions?: number;
+    /**
+     * Active Program Versions
+     */
+    active_program_versions?: number;
+    /**
+     * Body Files
+     */
+    body_files?: number;
 };
 
 /**
@@ -3922,6 +4340,84 @@ export type superuserAthletesRestoreAthleteResponses = {
 };
 
 export type superuserAthletesRestoreAthleteResponse = superuserAthletesRestoreAthleteResponses[keyof superuserAthletesRestoreAthleteResponses];
+
+export type peopleReadPersonOverviewData = {
+    body?: never;
+    path: {
+        /**
+         * User Id
+         */
+        user_id: string;
+    };
+    query: {
+        /**
+         * Gym Id
+         */
+        gym_id: string;
+        /**
+         * Kind
+         */
+        kind: 'ATHLETE' | 'COACH';
+    };
+    url: '/api/v1/people/{user_id}/overview';
+};
+
+export type peopleReadPersonOverviewErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type peopleReadPersonOverviewError = peopleReadPersonOverviewErrors[keyof peopleReadPersonOverviewErrors];
+
+export type peopleReadPersonOverviewResponses = {
+    /**
+     * Successful Response
+     */
+    200: PersonOverview;
+};
+
+export type peopleReadPersonOverviewResponse = peopleReadPersonOverviewResponses[keyof peopleReadPersonOverviewResponses];
+
+export type peopleDownloadPersonBodyFileData = {
+    body?: never;
+    path: {
+        /**
+         * User Id
+         */
+        user_id: string;
+        /**
+         * File Id
+         */
+        file_id: string;
+    };
+    query: {
+        /**
+         * Gym Id
+         */
+        gym_id: string;
+    };
+    url: '/api/v1/people/{user_id}/body-files/{file_id}';
+};
+
+export type peopleDownloadPersonBodyFileErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type peopleDownloadPersonBodyFileError = peopleDownloadPersonBodyFileErrors[keyof peopleDownloadPersonBodyFileErrors];
+
+export type peopleDownloadPersonBodyFileResponses = {
+    /**
+     * Response People-Download Person Body File
+     *
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type exercisesListExercisesData = {
     body?: never;

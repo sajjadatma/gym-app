@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
-import { RotateCcw, Search, Trash2, Users, X } from "lucide-react"
+import { Eye, RotateCcw, Search, Trash2, Users, X } from "lucide-react"
 import {
   useCallback,
   useDeferredValue,
@@ -145,6 +145,14 @@ export function ArchivedAthletesPage() {
     navigate({
       to: "/gyms/$gymId/athletes/$athleteId",
       params: { gymId: activeGymId!, athleteId: userId },
+    })
+  }
+
+  function openOverview(userId: string) {
+    navigate({
+      to: "/people/$userId",
+      params: { userId },
+      search: { gym: activeGymId!, kind: "ATHLETE" },
     })
   }
 
@@ -393,6 +401,14 @@ export function ArchivedAthletesPage() {
                       </td>
                       <td className="m3-archive-table__actions">
                         <div className="row" style={{ gap: 2 }}>
+                          <Button
+                            variant="text"
+                            size="sm"
+                            icon={<Eye size={15} />}
+                            onClick={() => openOverview(athlete.user_id)}
+                          >
+                            {t("common.details")}
+                          </Button>
                           <Button
                             variant="text"
                             size="sm"

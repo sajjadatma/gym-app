@@ -4,6 +4,7 @@ import {
   Archive,
   ArrowRightLeft,
   Building2,
+  Eye,
   Pencil,
   Phone,
   Plus,
@@ -337,6 +338,20 @@ function CoachesContent() {
   function rowActions(row: SuperuserCoachRow) {
     return (
       <>
+        <Button
+          variant="text"
+          size="sm"
+          icon={<Eye size={14} />}
+          onClick={() =>
+            navigate({
+              to: "/people/$userId",
+              params: { userId: row.user_id },
+              search: { gym: row.gym_id, kind: "COACH" },
+            })
+          }
+        >
+          {t("common.details")}
+        </Button>
         <Button
           variant="text"
           size="sm"

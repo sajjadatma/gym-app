@@ -1123,6 +1123,108 @@ class SaveAsTemplate(SQLModel):
     notes: str | None = Field(default=None, max_length=4000)
 
 
+class PersonAccountPublic(SQLModel):
+    user_id: uuid.UUID
+    email: EmailStr
+    full_name: str | None = None
+    phone: str | None = None
+    is_active: bool
+    created_at: datetime
+
+
+class PersonMembershipPublic(SQLModel):
+    membership_id: uuid.UUID
+    gym_id: uuid.UUID
+    gym_name: str
+    roles: list[GymRole]
+    is_active: bool
+    is_owner: bool
+    created_at: datetime
+
+
+class PersonRefPublic(SQLModel):
+    user_id: uuid.UUID
+    full_name: str | None = None
+    email: EmailStr
+
+
+class PersonAssignmentPublic(SQLModel):
+    id: uuid.UUID
+    gym_id: uuid.UUID
+    gym_name: str
+    athlete_user_id: uuid.UUID
+    athlete_name: str | None = None
+    coach_user_id: uuid.UUID
+    coach_name: str | None = None
+    assigned_by_id: uuid.UUID | None = None
+    assigned_by_name: str | None = None
+    started_at: datetime
+    ended_at: datetime | None = None
+
+
+class PersonProgramPublic(ProgramVersionDetail):
+    gym_id: uuid.UUID
+    gym_name: str
+    athlete_name: str | None = None
+
+
+class PersonBodyFilePublic(BodyAnalysisFilePublic):
+    gym_id: uuid.UUID
+    gym_name: str
+    uploaded_by_name: str | None = None
+
+
+class PersonHistoryEvent(SQLModel):
+    event: str
+    occurred_at: datetime
+    gym_id: uuid.UUID | None = None
+    gym_name: str | None = None
+    actor_name: str | None = None
+    related_type: str | None = None
+    related_id: uuid.UUID | None = None
+    data: dict[str, Any] = Field(default_factory=dict)
+
+
+class PersonStatsPublic(SQLModel):
+    memberships: int = 0
+    assignments: int = 0
+    active_assignments: int = 0
+    program_versions: int = 0
+    active_program_versions: int = 0
+    body_files: int = 0
+
+
+class AthleteOverviewPublic(SQLModel):
+    profile: AthleteProfileSelf
+    measurements_updated_at: datetime | None = None
+    internal_coach_note: str | None = None
+    current_coach: PersonRefPublic | None = None
+    assignments: list[PersonAssignmentPublic]
+    programs: list[PersonProgramPublic]
+    body_files: list[PersonBodyFilePublic]
+
+
+class CoachOverviewPublic(SQLModel):
+    roles: list[GymRole]
+    is_active: bool
+    is_owner: bool
+    assignments: list[PersonAssignmentPublic]
+    authored_programs: list[PersonProgramPublic]
+
+
+class PersonOverview(SQLModel):
+    kind: Literal["ATHLETE", "COACH"]
+    focus_gym_id: uuid.UUID
+    focus_gym_name: str
+    account: PersonAccountPublic
+    memberships: list[PersonMembershipPublic]
+    athlete: AthleteOverviewPublic | None = None
+    coach: CoachOverviewPublic | None = None
+    stats: PersonStatsPublic
+    history: list[PersonHistoryEvent]
+    generated_at: datetime
+
+
 # Resolve forward references used by athlete response models.
 for _model in (AthleteDetail, AthleteSelfDetail, AthleteCreated):
     _model.model_rebuild()

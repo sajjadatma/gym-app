@@ -103,13 +103,15 @@ export function Card({
   children,
   className = "",
   variant = "filled",
+  id,
 }: {
   children: ReactNode
   className?: string
   variant?: "filled" | "outlined" | "plain"
+  id?: string
 }) {
   return (
-    <section className={`m3-card m3-card--${variant} ${className}`}>
+    <section id={id} className={`m3-card m3-card--${variant} ${className}`}>
       {children}
     </section>
   )

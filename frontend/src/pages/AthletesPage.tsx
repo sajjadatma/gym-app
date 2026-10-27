@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Copy,
+  Eye,
   LayoutGrid,
   ListChecks,
   Mail,
@@ -260,6 +261,14 @@ export function AthletesPage() {
     navigate({
       to: "/gyms/$gymId/athletes/$athleteId",
       params: { gymId: activeGymId!, athleteId: userId },
+    })
+  }
+
+  function openOverview(userId: string) {
+    navigate({
+      to: "/people/$userId",
+      params: { userId },
+      search: { gym: activeGymId!, kind: "ATHLETE" },
     })
   }
 
@@ -536,6 +545,14 @@ export function AthletesPage() {
                   </span>
                 )}
                 <div className="m3-entity-card__actions">
+                  <Button
+                    variant="text"
+                    size="sm"
+                    icon={<Eye size={14} />}
+                    onClick={() => openOverview(athlete.user_id)}
+                  >
+                    {t("common.details")}
+                  </Button>
                   {isAdmin ? (
                     <Button
                       variant="text"
@@ -700,6 +717,14 @@ export function AthletesPage() {
                       </td>
                       <td className="m3-data-table__actions">
                         <div className="row" style={{ gap: 2 }}>
+                          <Button
+                            variant="text"
+                            size="sm"
+                            icon={<Eye size={15} />}
+                            onClick={() => openOverview(athlete.user_id)}
+                          >
+                            {t("common.details")}
+                          </Button>
                           {isAdmin ? (
                             <Button
                               variant="text"

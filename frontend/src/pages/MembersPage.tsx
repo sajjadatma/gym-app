@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate, useSearch } from "@tanstack/react-router"
 import {
   Copy,
+  Eye,
   Mail,
   Pencil,
   Plus,
@@ -345,6 +346,25 @@ export function MembersPage() {
                         className="row"
                         style={{ gap: 4, flexWrap: "nowrap" }}
                       >
+                        {member.roles.includes("COACH") ? (
+                          <Button
+                            variant="text"
+                            size="sm"
+                            icon={<Eye size={14} />}
+                            onClick={() =>
+                              navigate({
+                                to: "/people/$userId",
+                                params: { userId: member.user_id },
+                                search: {
+                                  gym: activeGymId!,
+                                  kind: "COACH",
+                                },
+                              })
+                            }
+                          >
+                            {t("common.details")}
+                          </Button>
+                        ) : null}
                         {!member.is_owner ? (
                           <Button
                             variant="text"

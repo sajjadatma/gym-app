@@ -4,6 +4,7 @@ import {
   Archive,
   ArrowRightLeft,
   Building2,
+  Eye,
   Pencil,
   Phone,
   Plus,
@@ -429,6 +430,20 @@ function AthletesContent() {
   function rowActions(row: SuperuserAthleteRow) {
     return (
       <>
+        <Button
+          variant="text"
+          size="sm"
+          icon={<Eye size={14} />}
+          onClick={() =>
+            navigate({
+              to: "/people/$userId",
+              params: { userId: row.user_id },
+              search: { gym: row.gym_id, kind: "ATHLETE" },
+            })
+          }
+        >
+          {t("common.details")}
+        </Button>
         {!row.is_archived ? (
           <Button
             variant="text"

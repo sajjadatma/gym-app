@@ -6,6 +6,7 @@ from app.api.routes import (
     exercises,
     gyms,
     login,
+    people,
     programs,
     superuser_athletes,
     superuser_coaches,
@@ -21,6 +22,7 @@ api_router.include_router(gyms.router)
 api_router.include_router(athletes.router)
 api_router.include_router(superuser_coaches.router)
 api_router.include_router(superuser_athletes.router)
+api_router.include_router(people.router)
 api_router.include_router(exercises.router)
 api_router.include_router(exercise_categories.router)
 api_router.include_router(programs.router)
