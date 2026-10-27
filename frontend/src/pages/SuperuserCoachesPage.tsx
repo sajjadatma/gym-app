@@ -41,6 +41,7 @@ import {
   type PeopleTab,
   type PeopleView,
 } from "@/components/PeopleListToolbar"
+import { type RowActionItem, RowActionMenu } from "@/components/RowActionMenu"
 import { useI18n } from "@/i18n"
 import type { GlobalListSearch, PageSize } from "@/lib/list-search"
 import { useServerPage } from "@/lib/server-page"
@@ -403,6 +404,68 @@ function CoachesContent() {
     )
   }
 
+  function compactRowActions(row: SuperuserCoachRow) {
+    const items: RowActionItem[] = [
+      {
+        key: "edit",
+        label: t("common.edit"),
+        icon: <Pencil size={15} />,
+        onSelect: () => openEdit(row),
+      },
+    ]
+    if (row.is_active) {
+      items.push({
+        key: "transfer",
+        label: t("superuser.transferGym"),
+        icon: <ArrowRightLeft size={15} />,
+        onSelect: () => openTransfer(row),
+      })
+    }
+    if (row.can_archive) {
+      items.push({
+        key: "archive",
+        label: t(row.is_active ? "superuser.archive" : "superuser.restore"),
+        icon: row.is_active ? <Archive size={15} /> : <RotateCcw size={15} />,
+        onSelect: () =>
+          setAction({
+            kind: row.is_active ? "archive" : "restore",
+            row,
+          }),
+      })
+    }
+    items.push({
+      key: "remove",
+      label: t("superuser.removeCoach"),
+      icon: <UserMinus size={15} />,
+      destructive: true,
+      separatorBefore: true,
+      onSelect: () => setAction({ kind: "delete", row }),
+    })
+    return (
+      <div className="m3-row-actions">
+        <Button
+          variant="text"
+          size="sm"
+          icon={<Eye size={14} />}
+          onClick={() =>
+            navigate({
+              to: "/people/$userId",
+              params: { userId: row.user_id },
+              search: { gym: row.gym_id, kind: "COACH" },
+            })
+          }
+        >
+          {t("common.details")}
+        </Button>
+        <RowActionMenu
+          items={items}
+          label={t("common.moreActions")}
+          disabled={stale}
+        />
+      </div>
+    )
+  }
+
   function statusOf(row: SuperuserCoachRow) {
     return row.is_active ? "active" : "archived"
   }
@@ -539,14 +602,24 @@ function CoachesContent() {
             }`}
             aria-busy={stale}
           >
-            <table className="m3-table m3-data-table">
+            <table className="m3-table m3-data-table m3-people-table m3-people-table--coaches">
               <thead>
                 <tr>
-                  <th scope="col">{t("athletes.fullName")}</th>
-                  <th scope="col">{t("profile.phone")}</th>
-                  <th scope="col">{t("superuser.club")}</th>
-                  <th scope="col">{t("superuser.status")}</th>
-                  <th scope="col">{t("common.actions")}</th>
+                  <th scope="col" className="m3-people-table__person">
+                    {t("athletes.fullName")}
+                  </th>
+                  <th scope="col" className="m3-people-table__phone">
+                    {t("profile.phone")}
+                  </th>
+                  <th scope="col" className="m3-people-table__club">
+                    {t("superuser.club")}
+                  </th>
+                  <th scope="col" className="m3-people-table__status">
+                    {t("superuser.status")}
+                  </th>
+                  <th scope="col" className="m3-people-table__actions">
+                    {t("common.actions")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -556,25 +629,33 @@ function CoachesContent() {
                       <div className="row" style={{ gap: 10 }}>
                         <Avatar name={row.full_name ?? row.email} />
                         <div className="m3-data-table__person">
-                          <strong>{row.full_name ?? row.email}</strong>
-                          <span dir="ltr">{row.email}</span>
+                          <strong
+                            className="truncate"
+                            title={row.full_name ?? row.email}
+                          >
+                            {row.full_name ?? row.email}
+                          </strong>
+                          <span
+                            dir="ltr"
+                            className="m3-data-table__email truncate"
+                            title={row.email}
+                          >
+                            {row.email}
+                          </span>
                         </div>
                       </div>
                     </td>
-                    <td dir="ltr" className="m3-data-table__num">
+                    <td dir="ltr" className="m3-people-table__phone">
                       {row.phone || "—"}
                     </td>
-                    <td>{row.gym_name}</td>
-                    <td>
+                    <td className="m3-people-table__club">
+                      <span title={row.gym_name}>{row.gym_name}</span>
+                    </td>
+                    <td className="m3-people-table__status">
                       <StatusBadge status={statusOf(row)} />
                     </td>
-                    <td>
-                      <div
-                        className="row"
-                        style={{ gap: 4, flexWrap: "nowrap" }}
-                      >
-                        {rowActions(row)}
-                      </div>
+                    <td className="m3-people-table__actions">
+                      {compactRowActions(row)}
                     </td>
                   </tr>
                 ))}

@@ -53,6 +53,7 @@ import {
   TextField,
 } from "@/components/M3"
 import { PaginationBar } from "@/components/Pagination"
+import { type RowActionItem, RowActionMenu } from "@/components/RowActionMenu"
 import { useI18n } from "@/i18n"
 import type { ListSearch, PageSize } from "@/lib/list-search"
 import { useServerPage } from "@/lib/server-page"
@@ -270,6 +271,42 @@ export function AthletesPage() {
       params: { userId },
       search: { gym: activeGymId!, kind: "ATHLETE" },
     })
+  }
+
+  function tableActions(athlete: AthleteSummary) {
+    const items: RowActionItem[] = [
+      {
+        key: "open",
+        label: t("common.open"),
+        icon: <ForwardIcon size={15} />,
+        onSelect: () => openAthlete(athlete.user_id),
+      },
+    ]
+    if (isAdmin) {
+      items.push({
+        key: "archive",
+        label: t("athletes.archive"),
+        icon: <Archive size={15} />,
+        onSelect: () => setArchiveTargets([athlete]),
+      })
+    }
+    return (
+      <div className="m3-row-actions">
+        <Button
+          variant="text"
+          size="sm"
+          icon={<Eye size={15} />}
+          onClick={() => openOverview(athlete.user_id)}
+        >
+          {t("common.details")}
+        </Button>
+        <RowActionMenu
+          items={items}
+          label={t("common.moreActions")}
+          disabled={stale}
+        />
+      </div>
+    )
   }
 
   if (!activeGym) {
@@ -613,7 +650,7 @@ export function AthletesPage() {
               }`}
               aria-busy={stale}
             >
-              <table className="m3-table m3-data-table">
+              <table className="m3-table m3-data-table m3-people-table m3-people-table--athletes">
                 <thead>
                   <tr>
                     <th scope="col" className="m3-data-table__check">
@@ -628,19 +665,23 @@ export function AthletesPage() {
                         />
                       </label>
                     </th>
-                    <th scope="col">{t("athletes.athlete")}</th>
-                    <th scope="col" className="m3-data-table__coach">
+                    <th scope="col" className="m3-people-table__person">
+                      {t("athletes.athlete")}
+                    </th>
+                    <th scope="col" className="m3-people-table__coach">
                       {t("athletes.coach")}
                     </th>
-                    <th scope="col" className="m3-data-table__phone">
+                    <th scope="col" className="m3-people-table__phone">
                       {t("athletes.phone")}
                     </th>
-                    <th scope="col">{t("athletes.status")}</th>
-                    <th scope="col" className="m3-data-table__program">
+                    <th scope="col" className="m3-people-table__status">
+                      {t("athletes.status")}
+                    </th>
+                    <th scope="col" className="m3-people-table__program">
                       {t("athletes.activeProgram")}
                     </th>
-                    <th scope="col" className="m3-data-table__actions">
-                      <span className="sr-only">{t("common.actions")}</span>
+                    <th scope="col" className="m3-people-table__actions">
+                      {t("common.actions")}
                     </th>
                   </tr>
                 </thead>
@@ -663,7 +704,7 @@ export function AthletesPage() {
                           />
                         </label>
                       </td>
-                      <td>
+                      <td className="m3-people-table__person">
                         <button
                           type="button"
                           className="m3-data-table__identity"
@@ -684,13 +725,17 @@ export function AthletesPage() {
                           </span>
                         </button>
                       </td>
-                      <td className="m3-data-table__coach">
-                        {athlete.coach_name ?? t("athletes.noCoach")}
+                      <td className="m3-people-table__coach">
+                        <span
+                          title={athlete.coach_name ?? t("athletes.noCoach")}
+                        >
+                          {athlete.coach_name ?? t("athletes.noCoach")}
+                        </span>
                       </td>
-                      <td dir="ltr" className="m3-data-table__phone">
+                      <td dir="ltr" className="m3-people-table__phone">
                         {athlete.phone ?? "—"}
                       </td>
-                      <td>
+                      <td className="m3-people-table__status">
                         {athlete.is_archived ? (
                           <StatusBadge status="archived" />
                         ) : (
@@ -699,9 +744,12 @@ export function AthletesPage() {
                           />
                         )}
                       </td>
-                      <td className="m3-data-table__program">
+                      <td className="m3-people-table__program">
                         {athlete.active_program_title ? (
-                          <span className="m3-status m3-status--active">
+                          <span
+                            className="m3-status m3-status--active"
+                            title={athlete.active_program_title}
+                          >
                             {athlete.active_program_title}
                             {athlete.active_program_version
                               ? ` · ${formatNumber(
@@ -715,36 +763,8 @@ export function AthletesPage() {
                           </span>
                         )}
                       </td>
-                      <td className="m3-data-table__actions">
-                        <div className="row" style={{ gap: 2 }}>
-                          <Button
-                            variant="text"
-                            size="sm"
-                            icon={<Eye size={15} />}
-                            onClick={() => openOverview(athlete.user_id)}
-                          >
-                            {t("common.details")}
-                          </Button>
-                          {isAdmin ? (
-                            <Button
-                              variant="text"
-                              size="sm"
-                              icon={<Archive size={15} />}
-                              disabled={stale}
-                              onClick={() => setArchiveTargets([athlete])}
-                            >
-                              {t("athletes.archive")}
-                            </Button>
-                          ) : null}
-                          <Button
-                            variant="text"
-                            size="sm"
-                            icon={<ForwardIcon size={15} />}
-                            onClick={() => openAthlete(athlete.user_id)}
-                          >
-                            {t("common.open")}
-                          </Button>
-                        </div>
+                      <td className="m3-people-table__actions">
+                        {tableActions(athlete)}
                       </td>
                     </tr>
                   ))}

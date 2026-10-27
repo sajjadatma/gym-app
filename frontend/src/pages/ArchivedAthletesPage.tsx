@@ -27,6 +27,7 @@ import {
   TextField,
 } from "@/components/M3"
 import { PaginationBar } from "@/components/Pagination"
+import { type RowActionItem, RowActionMenu } from "@/components/RowActionMenu"
 import { useI18n } from "@/i18n"
 import type { ListSearch, PageSize } from "@/lib/list-search"
 import { useServerPage } from "@/lib/server-page"
@@ -154,6 +155,42 @@ export function ArchivedAthletesPage() {
       params: { userId },
       search: { gym: activeGymId!, kind: "ATHLETE" },
     })
+  }
+
+  function compactRowActions(athlete: AthleteSummary) {
+    const items: RowActionItem[] = [
+      {
+        key: "restore",
+        label: t("athletes.restore"),
+        icon: <RotateCcw size={15} />,
+        onSelect: () => void restoreAthletes([athlete]),
+      },
+      {
+        key: "delete",
+        label: t("athletes.delete"),
+        icon: <Trash2 size={15} />,
+        destructive: true,
+        separatorBefore: true,
+        onSelect: () => setDeleteTargets([toDeleteTarget(athlete)]),
+      },
+    ]
+    return (
+      <div className="m3-row-actions">
+        <Button
+          variant="text"
+          size="sm"
+          icon={<Eye size={15} />}
+          onClick={() => openOverview(athlete.user_id)}
+        >
+          {t("common.details")}
+        </Button>
+        <RowActionMenu
+          items={items}
+          label={t("common.moreActions")}
+          disabled={busy || stale}
+        />
+      </div>
+    )
   }
 
   async function restoreAthletes(athletesToRestore: AthleteSummary[]) {
@@ -327,7 +364,7 @@ export function ArchivedAthletesPage() {
               className={`m3-table-wrap ${stale ? "is-updating" : ""}`}
               aria-busy={stale}
             >
-              <table className="m3-table m3-data-table m3-archive-table">
+              <table className="m3-table m3-data-table m3-archive-table m3-people-table">
                 <thead>
                   <tr>
                     <th scope="col" className="m3-data-table__check">
@@ -342,15 +379,17 @@ export function ArchivedAthletesPage() {
                         />
                       </label>
                     </th>
-                    <th scope="col">{t("athletes.athlete")}</th>
-                    <th scope="col" className="m3-data-table__coach">
+                    <th scope="col" className="m3-people-table__person">
+                      {t("athletes.athlete")}
+                    </th>
+                    <th scope="col" className="m3-people-table__coach">
                       {t("athletes.coach")}
                     </th>
-                    <th scope="col" className="m3-data-table__phone">
+                    <th scope="col" className="m3-people-table__phone">
                       {t("athletes.phone")}
                     </th>
-                    <th scope="col" className="m3-archive-table__actions">
-                      <span className="sr-only">{t("common.actions")}</span>
+                    <th scope="col" className="m3-people-table__actions">
+                      {t("common.actions")}
                     </th>
                   </tr>
                 </thead>
@@ -393,46 +432,18 @@ export function ArchivedAthletesPage() {
                           </span>
                         </button>
                       </td>
-                      <td className="m3-data-table__coach">
-                        {athlete.coach_name ?? t("athletes.noCoach")}
+                      <td className="m3-people-table__coach">
+                        <span
+                          title={athlete.coach_name ?? t("athletes.noCoach")}
+                        >
+                          {athlete.coach_name ?? t("athletes.noCoach")}
+                        </span>
                       </td>
-                      <td dir="ltr" className="m3-data-table__phone">
+                      <td dir="ltr" className="m3-people-table__phone">
                         {athlete.phone ?? "—"}
                       </td>
-                      <td className="m3-archive-table__actions">
-                        <div className="row" style={{ gap: 2 }}>
-                          <Button
-                            variant="text"
-                            size="sm"
-                            icon={<Eye size={15} />}
-                            onClick={() => openOverview(athlete.user_id)}
-                          >
-                            {t("common.details")}
-                          </Button>
-                          <Button
-                            variant="text"
-                            size="sm"
-                            icon={<RotateCcw size={15} />}
-                            aria-label={t("athletes.restore")}
-                            onClick={() => void restoreAthletes([athlete])}
-                            disabled={busy || stale}
-                          >
-                            {t("athletes.restore")}
-                          </Button>
-                          <Button
-                            variant="text"
-                            size="sm"
-                            icon={<Trash2 size={15} />}
-                            aria-label={t("athletes.delete")}
-                            className="m3-text-danger"
-                            disabled={stale}
-                            onClick={() =>
-                              setDeleteTargets([toDeleteTarget(athlete)])
-                            }
-                          >
-                            {t("athletes.delete")}
-                          </Button>
-                        </div>
+                      <td className="m3-people-table__actions">
+                        {compactRowActions(athlete)}
                       </td>
                     </tr>
                   ))}

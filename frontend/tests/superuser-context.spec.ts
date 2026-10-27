@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test"
+import { expect, type Locator, type Page, test } from "@playwright/test"
 
 const SUPERUSER_EMAIL = process.env.PLAYWRIGHT_SUPERUSER_EMAIL
 const SUPERUSER_PASSWORD = process.env.PLAYWRIGHT_SUPERUSER_PASSWORD
@@ -14,6 +14,11 @@ export async function loginAsSuperuser(page: Page) {
   await page.getByLabel(/رمز عبور/).fill(SUPERUSER_PASSWORD!)
   await page.getByRole("button", { name: "ورود" }).click()
   await page.waitForURL("**/")
+}
+
+async function chooseRowAction(page: Page, row: Locator, name: string) {
+  await row.getByRole("button", { name: "اقدام‌های بیشتر" }).click()
+  await page.getByRole("menu").getByRole("menuitem", { name }).click()
 }
 
 test("superuser lands globally without a club context", async ({ page }) => {
@@ -235,7 +240,7 @@ test("global coaches and athletes pages manage people across clubs", async ({
   )
 
   const coachRow = page.locator("tr", { hasText: coachEmail })
-  await coachRow.getByRole("button", { name: "ویرایش", exact: true }).click()
+  await chooseRowAction(page, coachRow, "ویرایش")
   dialog = page.getByRole("dialog")
   await dialog.getByLabel("نام و نام خانوادگی").fill(editedCoachName)
   await dialog.getByLabel("شماره تلفن").fill(editedCoachPhone)
@@ -259,13 +264,13 @@ test("global coaches and athletes pages manage people across clubs", async ({
   await secondCoachResult.getByRole("button", { name: "بستن" }).last().click()
   await page.waitForTimeout(300)
 
-  await coachRow.getByRole("button", { name: "آرشیو" }).click()
+  await chooseRowAction(page, coachRow, "آرشیو")
   await page.getByRole("dialog").getByRole("button", { name: "آرشیو" }).click()
   await expect(page.getByRole("dialog")).toHaveCount(0)
   await page.locator(".m3-tabs").getByRole("button", { name: "آرشیو" }).click()
   const archivedCoach = page.locator("tr", { hasText: coachEmail })
   await expect(archivedCoach.locator(".m3-status")).toHaveText("آرشیو")
-  await archivedCoach.getByRole("button", { name: "بازیابی" }).click()
+  await chooseRowAction(page, archivedCoach, "بازیابی")
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "بازیابی" })
@@ -304,7 +309,7 @@ test("global coaches and athletes pages manage people across clubs", async ({
   const athleteRow = page.locator("tr", { hasText: athleteEmail })
   await expect(athleteRow).toContainText("باشگاه آرام")
   await expect(athleteRow).toContainText(athletePhone)
-  await athleteRow.getByRole("button", { name: "ویرایش", exact: true }).click()
+  await chooseRowAction(page, athleteRow, "ویرایش")
   dialog = page.getByRole("dialog")
   await dialog.getByLabel("نام و نام خانوادگی").fill(editedAthleteName)
   await dialog.getByLabel("شماره تلفن").fill(editedAthletePhone)
@@ -315,14 +320,14 @@ test("global coaches and athletes pages manage people across clubs", async ({
   await expect(athleteRow).toContainText(editedAthleteName)
   await expect(athleteRow).toContainText(editedAthletePhone)
   await expect(athleteRow).toContainText(secondCoachName)
-  await athleteRow.getByRole("button", { name: "آرشیو" }).click()
+  await chooseRowAction(page, athleteRow, "آرشیو")
   await page.getByRole("dialog").getByRole("button", { name: "آرشیو" }).click()
   await expect(page.getByRole("dialog")).toHaveCount(0)
   await expect(page.locator(".m3-scrim")).toHaveCount(0)
   await page.locator(".m3-tabs").getByRole("button", { name: "آرشیو" }).click()
   const archivedRow = page.locator("tr", { hasText: athleteEmail })
   await expect(archivedRow.locator(".m3-status")).toHaveText("آرشیو")
-  await archivedRow.getByRole("button", { name: "حذف" }).click()
+  await chooseRowAction(page, archivedRow, "حذف")
   await page.getByRole("dialog").getByRole("button", { name: "حذف" }).click()
   await expect(page.getByRole("dialog")).toHaveCount(0)
   await expect(page.locator(".m3-scrim")).toHaveCount(0)
@@ -333,7 +338,7 @@ test("global coaches and athletes pages manage people across clubs", async ({
     .getByRole("button", { name: "مربیان" })
     .click()
   await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(coachEmail)
-  await coachRow.getByRole("button", { name: "حذف از باشگاه" }).click()
+  await chooseRowAction(page, coachRow, "حذف از باشگاه")
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "حذف از باشگاه" })
@@ -402,7 +407,7 @@ test("superuser transfers a coach and athlete between clubs", async ({
     .click()
   await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(coachEmail)
   const coachRow = page.locator("tr", { hasText: coachEmail })
-  await coachRow.getByRole("button", { name: "انتقال باشگاه" }).click()
+  await chooseRowAction(page, coachRow, "انتقال باشگاه")
   dialog = page.getByRole("dialog")
   await dialog.getByRole("button", { name: /باشگاه/ }).click()
   await page.getByRole("option", { name: destinationClub }).click()
@@ -418,7 +423,7 @@ test("superuser transfers a coach and athlete between clubs", async ({
   await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(athleteEmail)
   const athleteRow = page.locator("tr", { hasText: athleteEmail })
   await expect(athleteRow).toContainText("باشگاه آرام")
-  await athleteRow.getByRole("button", { name: "انتقال باشگاه" }).click()
+  await chooseRowAction(page, athleteRow, "انتقال باشگاه")
   dialog = page.getByRole("dialog")
   await dialog.getByRole("button", { name: /باشگاه/ }).click()
   await page.getByRole("option", { name: destinationClub }).click()

@@ -29,9 +29,11 @@ import {
   TextField,
 } from "@/components/M3"
 import { PaginationBar } from "@/components/Pagination"
+import { type RowActionItem, RowActionMenu } from "@/components/RowActionMenu"
 import { useI18n } from "@/i18n"
 import type { ListSearch, PageSize } from "@/lib/list-search"
 import { useServerPage } from "@/lib/server-page"
+import { useMobileViewport } from "@/lib/useMobileViewport"
 import { useSnackbar } from "@/snackbar"
 
 type StaffRole = "GYM_ADMIN" | "COACH"
@@ -56,6 +58,7 @@ export function MembersPage() {
   const [error, setError] = useState<string | null>(null)
 
   const navigate = useNavigate({ from: "/gyms/$gymId/members" })
+  const isMobile = useMobileViewport()
   const searchParams = useSearch({ from: "/_app/gyms/$gymId/members" })
   const page = searchParams.page ?? 1
   const pageSize = searchParams.size ?? 10
@@ -103,6 +106,116 @@ export function MembersPage() {
     isCurrent: membersQuery.isSuccess && !membersQuery.isPlaceholderData,
     onPageChange: setPage,
   })
+
+  function startEdit(member: MemberPublic) {
+    setError(null)
+    setEditMember(member)
+    setRoles(
+      member.roles.filter((role): role is StaffRole => role !== "ATHLETE"),
+    )
+  }
+
+  function memberRoles(member: MemberPublic) {
+    return (
+      <div className="row" style={{ gap: 4 }}>
+        {member.is_owner ? (
+          <span className="m3-status m3-status--active">
+            <ShieldCheck size={12} /> {t("members.owner")}
+          </span>
+        ) : null}
+        {member.roles
+          .filter((role) => role !== "ATHLETE")
+          .map((role) => (
+            <span key={role} className="m3-chip">
+              {role === "GYM_ADMIN" ? t("members.admin") : t("members.coach")}
+            </span>
+          ))}
+        {!member.is_owner &&
+        member.roles.every((role) => role === "ATHLETE") ? (
+          <span className="m3-chip">{t("context.athlete")}</span>
+        ) : null}
+      </div>
+    )
+  }
+
+  function memberIdentity(member: MemberPublic) {
+    return (
+      <div className="row" style={{ gap: 10, flexWrap: "nowrap" }}>
+        <Avatar name={member.full_name ?? member.email} />
+        <div className="m3-data-table__person">
+          <strong className="truncate" title={member.full_name ?? member.email}>
+            {member.full_name ?? member.email}
+            {member.user_id === me?.id ? (
+              <span className="muted" style={{ fontSize: 10 }}>
+                {" "}
+                ({t("members.self")})
+              </span>
+            ) : null}
+          </strong>
+          <span
+            dir="ltr"
+            className="m3-data-table__email truncate"
+            title={member.email}
+          >
+            {member.email}
+          </span>
+          <span className="muted" style={{ fontSize: 10.5 }}>
+            {formatDate(member.created_at)}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  function memberActions(member: MemberPublic) {
+    const items: RowActionItem[] = []
+    if (!member.is_owner) {
+      items.push({
+        key: "edit",
+        label: t("common.edit"),
+        icon: <Pencil size={15} />,
+        disabled: stale,
+        onSelect: () => startEdit(member),
+      })
+    }
+    if (!member.is_owner && member.user_id !== me?.id) {
+      items.push({
+        key: "toggle",
+        label: member.is_active
+          ? t("members.deactivate")
+          : t("members.reactivate"),
+        disabled: saving || stale,
+        onSelect: () => toggleActive(member),
+      })
+    }
+    return (
+      <div className="m3-row-actions">
+        {member.roles.includes("COACH") ? (
+          <Button
+            variant="text"
+            size="sm"
+            icon={<Eye size={14} />}
+            onClick={() =>
+              navigate({
+                to: "/people/$userId",
+                params: { userId: member.user_id },
+                search: { gym: activeGymId!, kind: "COACH" },
+              })
+            }
+          >
+            {t("common.details")}
+          </Button>
+        ) : null}
+        {items.length ? (
+          <RowActionMenu
+            items={items}
+            label={t("common.moreActions")}
+            disabled={saving || stale}
+          />
+        ) : null}
+      </div>
+    )
+  }
 
   if (!activeGym) {
     return (
@@ -268,136 +381,73 @@ export function MembersPage() {
             </Button>
           }
         />
+      ) : isMobile ? (
+        <div
+          className={`m3-card-grid ${stale ? "is-updating" : ""}`}
+          aria-busy={stale}
+        >
+          {members.map((member) => (
+            <div key={member.membership_id} className="m3-entity-card">
+              <div className="m3-entity-card__body">
+                <div className="m3-entity-card__head">
+                  <div className="m3-entity-card__identity">
+                    {memberIdentity(member)}
+                  </div>
+                  <StatusBadge
+                    status={member.is_active ? "active" : "inactive"}
+                  />
+                </div>
+                <div className="m3-entity-card__meta">
+                  {memberRoles(member)}
+                </div>
+              </div>
+              <div className="m3-entity-card__footer">
+                <div className="m3-entity-card__actions">
+                  {memberActions(member)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <Card className="m3-card--outlined">
           <div
             className={`m3-table-wrap ${stale ? "is-updating" : ""}`}
             aria-busy={stale}
           >
-            <table className="m3-table">
+            <table className="m3-table m3-data-table m3-people-table">
               <thead>
                 <tr>
-                  <th>{t("athletes.fullName")}</th>
-                  <th>{t("auth.email")}</th>
-                  <th>{t("members.roles")}</th>
-                  <th>{t("status.active")}</th>
-                  <th>{t("common.actions")}</th>
+                  <th className="m3-people-table__person">
+                    {t("athletes.fullName")}
+                  </th>
+                  <th className="m3-people-table__roles">
+                    {t("members.roles")}
+                  </th>
+                  <th className="m3-people-table__status">
+                    {t("status.active")}
+                  </th>
+                  <th className="m3-people-table__actions">
+                    {t("common.actions")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {members.map((member) => (
                   <tr key={member.membership_id}>
-                    <td>
-                      <div
-                        className="row"
-                        style={{ gap: 10, flexWrap: "nowrap" }}
-                      >
-                        <Avatar name={member.full_name ?? member.email} />
-                        <div>
-                          <div style={{ fontWeight: 650 }}>
-                            {member.full_name ?? member.email}
-                            {member.user_id === me?.id ? (
-                              <span className="muted" style={{ fontSize: 10 }}>
-                                {" "}
-                                ({t("members.self")})
-                              </span>
-                            ) : null}
-                          </div>
-                          <div className="muted" style={{ fontSize: 10.5 }}>
-                            {formatDate(member.created_at)}
-                          </div>
-                        </div>
-                      </div>
+                    <td className="m3-people-table__person">
+                      {memberIdentity(member)}
                     </td>
-                    <td dir="ltr" style={{ textAlign: "start" }}>
-                      {member.email}
+                    <td className="m3-people-table__roles">
+                      {memberRoles(member)}
                     </td>
-                    <td>
-                      <div className="row" style={{ gap: 4 }}>
-                        {member.is_owner ? (
-                          <span className="m3-status m3-status--active">
-                            <ShieldCheck size={12} /> {t("members.owner")}
-                          </span>
-                        ) : null}
-                        {member.roles
-                          .filter((role) => role !== "ATHLETE")
-                          .map((role) => (
-                            <span key={role} className="m3-chip">
-                              {role === "GYM_ADMIN"
-                                ? t("members.admin")
-                                : t("members.coach")}
-                            </span>
-                          ))}
-                        {!member.is_owner &&
-                        member.roles.every((role) => role === "ATHLETE") ? (
-                          <span className="m3-chip">
-                            {t("context.athlete")}
-                          </span>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td>
+                    <td className="m3-people-table__status">
                       <StatusBadge
                         status={member.is_active ? "active" : "inactive"}
                       />
                     </td>
-                    <td>
-                      <div
-                        className="row"
-                        style={{ gap: 4, flexWrap: "nowrap" }}
-                      >
-                        {member.roles.includes("COACH") ? (
-                          <Button
-                            variant="text"
-                            size="sm"
-                            icon={<Eye size={14} />}
-                            onClick={() =>
-                              navigate({
-                                to: "/people/$userId",
-                                params: { userId: member.user_id },
-                                search: {
-                                  gym: activeGymId!,
-                                  kind: "COACH",
-                                },
-                              })
-                            }
-                          >
-                            {t("common.details")}
-                          </Button>
-                        ) : null}
-                        {!member.is_owner ? (
-                          <Button
-                            variant="text"
-                            size="sm"
-                            icon={<Pencil size={14} />}
-                            disabled={stale}
-                            onClick={() => {
-                              setError(null)
-                              setEditMember(member)
-                              setRoles(
-                                member.roles.filter(
-                                  (role): role is StaffRole =>
-                                    role !== "ATHLETE",
-                                ),
-                              )
-                            }}
-                          >
-                            {t("common.edit")}
-                          </Button>
-                        ) : null}
-                        {!member.is_owner && member.user_id !== me?.id ? (
-                          <Button
-                            variant="text"
-                            size="sm"
-                            disabled={saving || stale}
-                            onClick={() => toggleActive(member)}
-                          >
-                            {member.is_active
-                              ? t("members.deactivate")
-                              : t("members.reactivate")}
-                          </Button>
-                        ) : null}
-                      </div>
+                    <td className="m3-people-table__actions">
+                      {memberActions(member)}
                     </td>
                   </tr>
                 ))}

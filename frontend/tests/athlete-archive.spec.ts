@@ -1,7 +1,14 @@
+import type { Locator, Page } from "@playwright/test"
+
 import { API_URL } from "./credentials"
 import { expect, test } from "./fixtures/athlete-data"
 
-async function expectPageFits(page: import("@playwright/test").Page) {
+async function chooseRowAction(page: Page, row: Locator, name: string) {
+  await row.getByRole("button", { name: "اقدام‌های بیشتر" }).click()
+  await page.getByRole("menu").getByRole("menuitem", { name }).click()
+}
+
+async function expectPageFits(page: Page) {
   const fits = await page.evaluate(
     () => document.documentElement.scrollWidth <= window.innerWidth + 1,
   )
@@ -34,7 +41,7 @@ test("archived athletes can be restored or permanently deleted", async ({
   const restoreRow = page
     .locator(".m3-archive-table tbody tr")
     .filter({ hasText: restoreTarget.email })
-  await restoreRow.getByRole("button", { name: "بازیابی", exact: true }).click()
+  await chooseRowAction(page, restoreRow, "بازیابی")
   await expect(page.getByText("ورزشکار بازیابی شد.")).toBeVisible()
   await expect(restoreRow).toHaveCount(0)
 
@@ -47,12 +54,11 @@ test("archived athletes can be restored or permanently deleted", async ({
   const deleteRow = page
     .locator(".m3-archive-table tbody tr")
     .filter({ hasText: deleteTarget.email })
-  const deleteButton = deleteRow.getByRole("button", {
-    name: "حذف",
-    exact: true,
+  const moreButton = deleteRow.getByRole("button", {
+    name: "اقدام‌های بیشتر",
   })
-  await deleteRow.locator(".m3-archive-table__actions").scrollIntoViewIfNeeded()
-  await expect(deleteButton).toBeVisible()
+  await moreButton.scrollIntoViewIfNeeded()
+  await expect(moreButton).toBeVisible()
 
   let deleteCalls = 0
   await page.route("**/api/v1/athletes/*", async (route) => {
@@ -67,7 +73,7 @@ test("archived athletes can be restored or permanently deleted", async ({
     await route.continue()
   })
 
-  await deleteButton.click()
+  await chooseRowAction(page, deleteRow, "حذف")
   const dialog = page.getByRole("dialog")
   await expect(dialog).toContainText("حذف دائمی ورزشکار")
   await expectPageFits(page)
@@ -78,7 +84,7 @@ test("archived athletes can be restored or permanently deleted", async ({
   await expect(dialog).toHaveCount(0)
   expect(deleteCalls).toBe(0)
 
-  await deleteButton.click()
+  await chooseRowAction(page, deleteRow, "حذف")
   await expect(dialog).toBeVisible()
   await expect(submit).toBeDisabled()
   const confirmation = dialog.getByLabel(/برای تأیید، ایمیل/)
