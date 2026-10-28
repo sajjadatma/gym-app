@@ -16,6 +16,57 @@ permissions:
   contents: read
 
 jobs:
+  env-contract:
+    name: env-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Validate local environment examples
+        run: python3 scripts/check-env-examples.py
+
+  local-environments:
+    name: local-environments
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv sync --frozen
+      - name: Prepare isolated dev and stage databases
+        run: |
+          cp .env.dev.example .env.dev
+          cp .env.stage.example .env.stage
+          uv run --project backend python scripts/bootstrap-local.py --env dev --no-seed
+          uv run --project backend python scripts/bootstrap-local.py --env stage --no-seed
+      - name: Prove both databases exist
+        run: |
+          psql "postgresql://postgres:postgres@localhost:5432/postgres" -tAc             "select count(*) from pg_database where datname in ('gym_dev','gym_stage')"             | grep -qx 2
+
   backend:
     name: backend
     runs-on: ubuntu-latest

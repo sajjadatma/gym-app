@@ -4,6 +4,8 @@
 !.env.example
 !.env.staging.example
 !.env.production.example
+!.env.dev.example
+!.env.stage.example
 *.pem
 *.key
 *secrets/*
@@ -41,3 +43,10 @@ frontend/.vite/
 .neon
 .vercel
 .env*
+
+# Commit only the environment templates.
+!.env.example
+!.env.dev.example
+!.env.stage.example
+!.env.staging.example
+!.env.production.example

@@ -1,0 +1,63 @@
+name: Production deploy
+
+# Manual, approval-gated production promotion. Configure the repository
+# secrets VERCEL_TOKEN, VERCEL_ORG_ID and VERCEL_PROJECT_ID, and require a
+# reviewer on the "production" GitHub environment before using this workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type production to deploy main"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy-production
+    if: inputs.confirm == 'production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Install Vercel CLI
+        # zizmor: ignore[adhoc-packages] pinned CLI; no official Vercel action
+        run: npm install --global vercel@65.2.0
+      - name: Pull production settings
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Build production artifact
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+      - name: Deploy production artifact
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          url="$(vercel deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "### Production deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "$url" >> "$GITHUB_STEP_SUMMARY"
+      - name: Smoke test production
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        run: bash scripts/smoke-production.sh "${PRODUCTION_URL:-https://gym-v1-flame.vercel.app}"

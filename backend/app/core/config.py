@@ -2,6 +2,7 @@ import os
 import warnings
 from pathlib import Path
 from typing import Literal, Self
+from urllib.parse import urlparse
 
 from pydantic import (
     EmailStr,
@@ -13,11 +14,30 @@ from pydantic import (
 )
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_ROOT = Path(__file__).resolve().parents[3]
+_LOCAL_DATABASE_HOSTS = {"localhost", "127.0.0.1", "::1", "db"}
+
+
+def _selected_env_files() -> tuple[str, ...]:
+    """Load exactly one environment file.
+
+    Local entry points set ENV_FILE to .env.dev / .env.stage. Hosted production
+    keeps the legacy root .env and Vercel environment variables. Loading only
+    the selected file prevents a local command from accidentally inheriting
+    production values from .env.
+    """
+    selected = os.getenv("ENV_FILE")
+    if not selected:
+        return (str(_ROOT / ".env"),)
+    path = Path(selected)
+    if not path.is_absolute():
+        path = _ROOT / path
+    return (str(path),)
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        # Always use the repository-level .env, regardless of the command CWD.
-        env_file=str(Path(__file__).resolve().parents[3] / ".env"),
+        env_file=_selected_env_files(),
         env_ignore_empty=True,
         extra="ignore",
     )
@@ -99,6 +119,19 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _set_default_emails_from(self) -> Self:
+        if not self.BODY_ANALYSIS_DIR.is_absolute():
+            self.BODY_ANALYSIS_DIR = _ROOT / self.BODY_ANALYSIS_DIR
+        if self.FASTAPI_ENV in {"development", "staging"}:
+            hosts = {
+                str(host["host"])
+                for host in self.DATABASE_URL.hosts()
+                if host.get("host")
+            }
+            if not hosts.issubset(_LOCAL_DATABASE_HOSTS):
+                raise ValueError(
+                    f"FASTAPI_ENV={self.FASTAPI_ENV} requires a local database; "
+                    f"got hosts {sorted(hosts)}"
+                )
         if not self.EMAILS_FROM_NAME:
             self.EMAILS_FROM_NAME = self.PROJECT_NAME
         if self.VERCEL:
@@ -106,30 +139,22 @@ class Settings(BaseSettings):
             # deployment so preview URLs keep working. The canonical production
             # domain is set explicitly in project environment variables.
             if not os.getenv("FRONTEND_HOST"):
-                host = (
-                    self.VERCEL_PROJECT_PRODUCTION_URL or self.VERCEL_URL
-                )
+                host = self.VERCEL_PROJECT_PRODUCTION_URL or self.VERCEL_URL
                 if host:
                     self.FRONTEND_HOST = f"https://{host}"
             # Vercel rejects payloads over 4.5 MB before the app runs.
-            self.BODY_ANALYSIS_MAX_BYTES = min(
-                self.BODY_ANALYSIS_MAX_BYTES, 3_500_000
-            )
+            self.BODY_ANALYSIS_MAX_BYTES = min(self.BODY_ANALYSIS_MAX_BYTES, 3_500_000)
             self.ATHLETE_IMPORT_MAX_BYTES = min(
                 self.ATHLETE_IMPORT_MAX_BYTES, 3_500_000
             )
             # A per-instance limiter cannot enforce a shared login policy.
             self.RATE_LIMIT_BACKEND = "database"
-        if bool(self.BODY_ANALYSIS_BUCKET) != bool(
-            self.AWS_ENDPOINT_URL_S3
-        ):
+        if bool(self.BODY_ANALYSIS_BUCKET) != bool(self.AWS_ENDPOINT_URL_S3):
             raise ValueError(
                 "BODY_ANALYSIS_BUCKET and AWS_ENDPOINT_URL_S3 must be set together"
             )
         if self.VERCEL and not self.BODY_ANALYSIS_BUCKET:
-            raise ValueError(
-                "Vercel deployment requires object storage for uploads"
-            )
+            raise ValueError("Vercel deployment requires object storage for uploads")
         return self
 
     EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
@@ -170,8 +195,21 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "SECRET_KEY must be at least 32 characters in production"
                 )
-            if not self.COOKIE_SECURE:
-                raise ValueError("COOKIE_SECURE must be true in staging/production")
+            local_frontend = urlparse(self.FRONTEND_HOST).hostname in {
+                "localhost",
+                "127.0.0.1",
+                "::1",
+            }
+            if self.FASTAPI_ENV == "production" and not self.COOKIE_SECURE:
+                raise ValueError("COOKIE_SECURE must be true in production")
+            if (
+                self.FASTAPI_ENV == "staging"
+                and not self.COOKIE_SECURE
+                and not local_frontend
+            ):
+                raise ValueError(
+                    "COOKIE_SECURE must be true for a hosted staging environment"
+                )
         if self.FASTAPI_ENV == "staging" and self.SMTP_HOST:
             if not self.EMAIL_REDIRECT_TO:
                 raise ValueError(

@@ -1,16 +1,98 @@
 #!/usr/bin/env node
 /**
- * Starts the backend (FastAPI/uv) and frontend (Vite/bun) dev servers
- * together with labelled output. `npm run dev` from the repo root.
+ * Run a fully isolated local environment.
  *
- * Exit codes follow the first child that exits, and Ctrl+C stops both.
+ *   npm run dev            # development: http://localhost:5173
+ *   npm run stage          # staging-like: http://localhost:5174
+ *
+ * Both use local PostgreSQL databases and local uploads. Remote databases are
+ * rejected before migrations or servers start.
  */
 import { spawn, spawnSync } from "node:child_process"
-import { existsSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
+const envArgIndex = process.argv.indexOf("--env")
+const envName =
+  envArgIndex >= 0 ? process.argv[envArgIndex + 1] : "dev"
+if (!["dev", "stage"].includes(envName)) {
+  console.error(`[env] unknown environment "${envName}" (expected dev or stage)`)
+  process.exit(1)
+}
+
+const envFile = path.join(rootDir, `.env.${envName}`)
+if (!existsSync(envFile)) {
+  console.error(
+    `[env] ${path.basename(envFile)} is missing. Copy ${path.basename(envFile)}.example and fill it in.`,
+  )
+  process.exit(1)
+}
+
+function readEnv(file) {
+  const values = {}
+  for (const raw of readFileSync(file, "utf8").split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line || line.startsWith("#") || !line.includes("=")) continue
+    const index = line.indexOf("=")
+    const key = line.slice(0, index).trim()
+    let value = line.slice(index + 1).trim()
+    if (
+      value.length >= 2 &&
+      value[0] === value[value.length - 1] &&
+      (value[0] === '"' || value[0] === "'")
+    ) {
+      value = value.slice(1, -1)
+    }
+    values[key] = value
+  }
+  return values
+}
+
+const values = readEnv(envFile)
+const expectedEnvironment = envName === "dev" ? "development" : "staging"
+if (values.FASTAPI_ENV !== expectedEnvironment) {
+  console.error(
+    `[env] ${path.basename(envFile)} must set FASTAPI_ENV=${expectedEnvironment}`,
+  )
+  process.exit(1)
+}
+
+const databaseUrl = values.DATABASE_URL || ""
+let databaseHost = ""
+try {
+  databaseHost = new URL(databaseUrl.replace(/^postgresql\+psycopg:/, "postgresql:")).hostname
+} catch {
+  console.error("[env] DATABASE_URL is missing or invalid")
+  process.exit(1)
+}
+if (!["localhost", "127.0.0.1", "::1", "db"].includes(databaseHost)) {
+  console.error(
+    `[env] refusing to run locally against remote database host "${databaseHost}"`,
+  )
+  process.exit(1)
+}
+
+const frontendPort = values.FRONTEND_PORT || (envName === "dev" ? "5173" : "5174")
+const backendPort = values.BACKEND_PORT || (envName === "dev" ? "8000" : "8001")
+const childEnv = {
+  ...process.env,
+  ...values,
+  ENV_FILE: envFile,
+}
+
+console.log(`[env] ${envName} → ${path.basename(envFile)}`)
+console.log("[setup] preparing local database and demo data…")
+const bootstrap = spawnSync(
+  "uv",
+  ["run", "--project", "backend", "python", "scripts/bootstrap-local.py", "--env", envName],
+  { cwd: rootDir, env: childEnv, stdio: "inherit" },
+)
+if (bootstrap.status !== 0) {
+  console.error("[setup] local database preparation failed")
+  process.exit(bootstrap.status ?? 1)
+}
 
 const label = (name, chunk) =>
   chunk
@@ -19,19 +101,27 @@ const label = (name, chunk) =>
     .map((line) => (/\n/.test(line) ? line : `[${name}] ${line}`))
     .join("")
 
-function start(name, command, args, cwd) {
+const children = []
+let shuttingDown = false
+function shutdown() {
+  if (shuttingDown) return
+  shuttingDown = true
+  for (const child of children) {
+    if (child.exitCode === null && !child.killed) child.kill("SIGTERM")
+  }
+}
+
+function start(name, command, args, cwd, env) {
   const child = spawn(command, args, {
     cwd,
-    env: { ...process.env, PYTHONUNBUFFERED: "1" },
+    env: { ...childEnv, ...env, PYTHONUNBUFFERED: "1" },
     stdio: ["inherit", "pipe", "pipe"],
   })
   child.stdout.on("data", (chunk) => process.stdout.write(label(name, chunk)))
   child.stderr.on("data", (chunk) => process.stderr.write(label(name, chunk)))
   child.on("error", (error) => {
     if (error.code === "ENOENT") {
-      console.error(
-        `\n[${name}] Required command "${command}" was not found in PATH. Install ${command} and retry.`,
-      )
+      console.error(`[${name}] command "${command}" was not found in PATH`)
     } else {
       console.error(`[${name}] ${error}`)
     }
@@ -46,70 +136,36 @@ function start(name, command, args, cwd) {
   return child
 }
 
-let shuttingDown = false
-function shutdown() {
-  if (shuttingDown) return
-  shuttingDown = true
-  for (const child of children) {
-    if (child.exitCode === null && !child.killed) child.kill("SIGTERM")
-  }
-}
-
-const children = []
 process.on("SIGINT", () => {
-  console.log("\nStopping dev servers…")
+  console.log("\nStopping local servers…")
   shutdown()
 })
 process.on("SIGTERM", shutdown)
 
-// Postgres must be reachable before FastAPI boots; start the Homebrew
-// service best-effort on macOS so a fresh shell just works.
-if (process.platform === "darwin") {
-  const ready = spawnSync("pg_isready", ["-h", "localhost", "-p", "5432"], {
-    encoding: "utf8",
-  })
-  if (ready.status !== 0) {
-    console.log("[postgres] not reachable — trying brew services start…")
-    const started = spawnSync(
-      "brew",
-      ["services", "start", "postgresql@17"],
-      { encoding: "utf8" },
-    )
-    console.log(started.stdout?.trim() || started.stderr?.trim() || "done")
-  }
-}
-
-console.log("[setup] applying database migrations…")
-const migrate = spawnSync(
-  "uv",
-  ["run", "alembic", "upgrade", "head"],
-  { cwd: path.join(rootDir, "backend"), encoding: "utf8" },
-)
-if (migrate.status !== 0) {
-  console.error(
-    `[setup] alembic upgrade failed:\n${migrate.stderr || migrate.stdout || "no output"}`,
-  )
-  process.exit(1)
-}
-console.log("[setup] database schema up to date.")
-
-const backendDir = path.join(rootDir, "backend")
-const frontendDir = path.join(rootDir, "frontend")
+const backendCommand =
+  envName === "dev"
+    ? ["uv", ["run", "fastapi", "dev", "--host", "127.0.0.1", "--port", backendPort]]
+    : ["uv", ["run", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", backendPort]]
 
 children.push(
-  start("backend", "uv", ["run", "fastapi", "dev", "--host", "127.0.0.1", "--port", "8000"], backendDir),
+  start("backend", backendCommand[0], backendCommand[1], path.join(rootDir, "backend")),
 )
 
-if (existsSync(path.join(frontendDir, "node_modules"))) {
-  children.push(
-    start("frontend", "bun", ["run", "dev", "--host", "localhost", "--port", "5173"], frontendDir),
-  )
-} else {
-  console.log("[setup] installing frontend dependencies (bun)…")
-  spawnSync("bun", ["install"], { cwd: frontendDir, stdio: "inherit" })
-  children.push(
-    start("frontend", "bun", ["run", "dev", "--host", "localhost", "--port", "5173"], frontendDir),
-  )
+const frontendEnv = {
+  VITE_API_URL: values.VITE_API_URL || `http://localhost:${backendPort}`,
+  VITE_MAX_UPLOAD_BYTES: values.VITE_MAX_UPLOAD_BYTES || "10485760",
+  VITE_MAX_IMPORT_BYTES: values.VITE_MAX_IMPORT_BYTES || "5242880",
 }
+children.push(
+  start(
+    "frontend",
+    "bun",
+    ["run", "dev", "--host", "localhost", "--port", frontendPort, "--strictPort"],
+    path.join(rootDir, "frontend"),
+    frontendEnv,
+  ),
+)
 
-console.log("\n[dev] backend → http://127.0.0.1:8000  frontend → http://localhost:5173\n")
+console.log(
+  `\n[${envName}] frontend → http://localhost:${frontendPort}  backend → http://127.0.0.1:${backendPort}\n`,
+)

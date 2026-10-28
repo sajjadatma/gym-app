@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlmodel import Session, select  # noqa: E402
 
+from app.core.config import settings  # noqa: E402
 from app.core.db import engine  # noqa: E402
 from app.core.security import get_password_hash  # noqa: E402
 from app.models import (  # noqa: E402
@@ -321,6 +322,12 @@ def ensure_template(
 
 
 def main() -> None:
+    if settings.FASTAPI_ENV == "production":
+        raise SystemExit("Refusing to seed demo data with FASTAPI_ENV=production")
+    hosts = {host["host"] for host in settings.DATABASE_URL.hosts() if host.get("host")}
+    if not hosts.issubset({"localhost", "127.0.0.1", "::1", "db"}):
+        raise SystemExit(f"Refusing to seed a non-local database: {sorted(hosts)}")
+
     with Session(engine) as session:
         ali = ensure_user(session, "ali@example.com", "علی")
         bob = ensure_user(session, "bob@example.com", "بابک")

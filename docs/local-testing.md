@@ -4,28 +4,27 @@ Everything here is **local-only**. Demo credentials are deliberately fake and mu
 
 ## Running services
 
+Development and staging are isolated local environments; neither can connect
+to the production Neon database.
+
 ```sh
-brew services start postgresql@17   # if not already running
-brew services start mailpit
-cd backend && uv run fastapi dev --host 127.0.0.1 --port 8000
-cd frontend && bun run dev --host localhost --port 5173
+npm run dev     # development: 5173 + 8000
+npm run stage   # staging:     5174 + 8001
 ```
 
-- App: <http://localhost:5173>
-- API docs: <http://localhost:8000/docs>
-- Mailpit: <http://localhost:8025>
-- Private uploads: `backend/uploads/body-analysis/` (Git-ignored)
+- Development: <http://localhost:5173> · API <http://127.0.0.1:8000/docs>
+- Staging: <http://localhost:5174> · API <http://127.0.0.1:8001/docs>
+- Private uploads: `backend/uploads/development-body-analysis/` and
+  `backend/uploads/staging-body-analysis/` (Git-ignored)
+
+Each command creates its database if needed, applies migrations, bootstraps
+the local superuser and seeds demo data. See
+[`environments.md`](environments.md) for the full environment contract.
 
 ## Demo accounts
 
-Seed with:
-
-```sh
-cd backend
-uv run python scripts/seed_demo.py
-```
-
-The seed is idempotent. Shared demo password: `DemoPass123!` (fake, local only).
+Demo data is seeded automatically by `npm run dev` / `npm run stage`. The seed
+is idempotent. Shared demo password: `DemoPass123!` (fake, local only).
 
 | Account | Password | Access |
 |---|---|---|
@@ -38,14 +37,10 @@ The seed is idempotent. Shared demo password: `DemoPass123!` (fake, local only).
 | `mina@example.com` | `DemoPass123!` | Athlete in **باشگاه پویا**, coach: Sara |
 | `multi.athlete@example.com` | `DemoPass123!` | Athlete in both **آرام** and **پویا**, independent profiles/programs and coach assignments |
 
-The **real global Super Admin** is `sajjadnaserizadeh@gmail.com` (`Sajjad Naseri`). Its password is supplied only through the Git-ignored local `.env` (`FIRST_SUPERUSER_PASSWORD`). Do not add it to this document, tests or fixtures.
-
-Verify its login without printing the secret:
-
-```sh
-cd backend
-uv run python scripts/verify_superadmin_login.py
-```
+The local superusers are `development-admin@example.com` in development and
+`staging-admin@example.com` in staging. Their passwords are stored only in the
+Git-ignored `.env.dev` / `.env.stage` files. Production credentials are never
+used locally.
 
 ## Walkthroughs
 
@@ -134,16 +129,18 @@ The backend tests use `gym_app_test` and fake credentials. Playwright uses demo 
 ## Reset
 
 ```sh
-cd backend
-CONFIRM_RESET_GYM_APP=YES SEED_DEMO_DATA=YES bash scripts/reset_dev_db.sh
+npm run db:reset:dev -- --yes
+npm run db:reset:stage -- --yes
 ```
 
-The script refuses to run without confirmation and only resets the database named exactly `gym_app`; it also clears the local body-analysis upload directory so the reset is predictable. It never touches `gym_app_test`, unknown databases or production data.
+The script refuses non-local hosts and only resets names ending `_dev` or
+`_stage`. It never touches `gym_test`, unknown databases or production Neon
+data.
 
 ## Known limits (approved MVP1 scope)
 
-- Local development and manual acceptance only; no public hosting.
+- Development and staging are local; production runs on Vercel with Neon.
 - PDF is produced through the browser's print-to-PDF dialog, not a server-side PDF renderer.
-- Mailpit is the only email transport; no real SMTP/email provider.
-- Body-analysis files are local; no cloud object storage or media processing.
+- Local email uses Mailpit; production SMTP is configured separately.
+- Local body-analysis files use disk; production uses Neon Object Storage.
 - No attendance, actual workout logging, progress analytics, chat, nutrition, payments, AI generation or native apps.

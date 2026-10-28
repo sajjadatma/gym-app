@@ -4,7 +4,7 @@ A local-first, multi-gym management PWA for managing gyms, staff, coaches, athle
 
 This repository implements the approved Gym Management MVP1 specification. It started from the approved [`fastapi/full-stack-fastapi-template`](https://github.com/fastapi/full-stack-fastapi-template) and keeps its FastAPI + SQLModel + PostgreSQL + React + Vite + TanStack Router + Alembic + Pytest + Playwright foundation.
 
-The product is **local development/manual acceptance only**. There is no deployment, public hosting, real email provider or cloud storage in scope.
+Development and staging run locally. Production runs on **Vercel with Neon Postgres and Neon Object Storage**. See [`docs/environments.md`](docs/environments.md) for the environment contract, safety guards and promotion process.
 
 ## Stack
 
@@ -25,60 +25,34 @@ The product is **local development/manual acceptance only**. There is no deploym
 
 ## First-time local setup
 
-1. Create the local environment files and set a private Super Admin password:
+1. Create the local environment files:
 
    ```sh
-   cp .env.example .env
-   cp frontend/.env.example frontend/.env
-   # Edit .env and set FIRST_SUPERUSER_PASSWORD privately.
+   cp .env.dev.example .env.dev
+   cp .env.stage.example .env.stage
    ```
 
-   Never commit `.env`. The real password must not be written to source, docs, tests, logs, screenshots or Git history.
+   Set private local passwords in both files. Both are git-ignored.
 
-2. Create the dedicated databases:
+2. Bootstrap the isolated local databases and demo data:
 
    ```sh
-   createdb gym_app
-   createdb gym_app_test
+   npm run db:bootstrap:dev
+   npm run db:bootstrap:stage
    ```
 
-3. Install backend dependencies, migrate and bootstrap:
+3. Start an environment:
 
    ```sh
-   cd backend
-   uv sync
-   uv run alembic upgrade head
-   uv run python -m app.initial_data
+   npm run dev     # development: 5173 + 8000
+   npm run stage   # staging:     5174 + 8001
    ```
 
-   The bootstrap is idempotent. It creates the global Super Admin `sajjadnaserizadeh@gmail.com` / `Sajjad Naseri` if missing and seeds 54 global exercises. It does not reset an existing password.
+   - Development: <http://localhost:5173> · API <http://127.0.0.1:8000/docs>
+   - Staging: <http://localhost:5174> · API <http://127.0.0.1:8001/docs>
 
-4. Optional demo data (fake local accounts, see [`docs/local-testing.md`](docs/local-testing.md)):
-
-   ```sh
-   uv run python scripts/seed_demo.py
-   ```
-
-5. Start Mailpit and the dev servers
-
-   — in one command from the repo root (Postgres included when missing):
-
-   ```sh
-   npm run dev
-   ```
-
-   or, manually:
-
-   ```sh
-   brew services start mailpit
-   cd backend && uv run fastapi dev --host 127.0.0.1 --port 8000
-   # another terminal
-   cd frontend && bun install && bun run dev --host localhost --port 5173
-   ```
-
-   - App: <http://localhost:5173>
-   - API docs: <http://localhost:8000/docs>
-   - Mailpit: <http://localhost:8025>
+Demo accounts are documented in [`docs/local-testing.md`](docs/local-testing.md).
+Local superuser credentials are in `.env.dev` / `.env.stage`.
 
 ## PWA / production local build
 
@@ -89,7 +63,7 @@ cd frontend
 bun run build
 # FastAPI now serves the built SPA and PWA at http://localhost:8000
 cd ../backend
-uv run fastapi dev --host 127.0.0.1 --port 8000
+ENV_FILE=../.env.dev uv run fastapi dev --host 127.0.0.1 --port 8000
 ```
 
 Open <http://localhost:8000>. Deep links work through the SPA fallback. In Chrome, use the install icon in the address bar to check installability. Service worker registration and manifest/icons are covered by Playwright (`PWA_PROD=1`).
@@ -164,16 +138,17 @@ Drop `gym_app_superuser_test` when finished. Never reset, seed or migrate `gym_a
 
 The backend test suite refuses to run unless `TEST_DATABASE_URL` ends in `_test`. It uses a fake test Super Admin password, never the real local secret.
 
-## Local reset (destructive, dedicated dev DB only)
+## Local reset (destructive, dedicated dev/stage DB only)
 
-The reset script only operates on a database named exactly `gym_app`, and requires explicit confirmation:
+Reset the selected local database and reseed demo data:
 
 ```sh
-cd backend
-CONFIRM_RESET_GYM_APP=YES SEED_DEMO_DATA=YES bash scripts/reset_dev_db.sh
+npm run db:reset:dev -- --yes
+npm run db:reset:stage -- --yes
 ```
 
-It refuses to run without `CONFIRM_RESET_GYM_APP=YES`; it never targets `gym_app_test` or an unknown database. The Super Admin account is recreated from the private `.env` password after migrations.
+The script refuses non-local hosts and only resets names ending `_dev` or
+`_stage`. It never touches the test database or production Neon data.
 
 ## Super Admin verification without printing the secret
 
