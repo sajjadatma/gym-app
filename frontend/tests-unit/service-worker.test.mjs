@@ -12,6 +12,7 @@ const workerPath = path.resolve(import.meta.dirname, "../public/sw.js")
 class FakeCache {
   entries = new Map()
   putCalls = 0
+  deleteCalls = 0
   addAllCalls = []
   async put(request, response) {
     this.putCalls += 1
@@ -25,6 +26,10 @@ class FakeCache {
       typeof request === "string" ? request : request.url,
     )
     return response?.clone()
+  }
+  async delete(request) {
+    this.deleteCalls += 1
+    this.entries.delete(typeof request === "string" ? request : request.url)
   }
   async addAll(requests) {
     this.addAllCalls.push([...requests])
@@ -54,6 +59,7 @@ class FakeCacheStorage {
 async function loadWorker({
   storage = new FakeCacheStorage(),
   replies = [],
+  fetchImpl,
 } = {}) {
   const source = (await readFile(workerPath, "utf8"))
     .split(TOKEN)
@@ -78,10 +84,21 @@ async function loadWorker({
       },
     },
   }
-  const fetch = async () => {
-    const reply = fetches.shift()
-    if (reply instanceof Error) throw reply
-    return reply
+  const fetch = async (input) => {
+    if (fetchImpl) return fetchImpl(input)
+    if (fetches.length) {
+      const reply = fetches.shift()
+      if (reply instanceof Error) throw reply
+      return reply
+    }
+    const url = typeof input === "string" ? input : input.url
+    const isAsset = url.includes("/assets/")
+    return new Response(isAsset ? "asset" : "<!doctype html>", {
+      status: 200,
+      headers: {
+        "content-type": isAsset ? "text/javascript" : "text/html",
+      },
+    })
   }
   const context = vm.createContext({
     self,
@@ -129,11 +146,27 @@ test("install precaches the complete build without taking over open tabs", async
   worker.listeners.install(event)
   await event.drain()
   const cache = await storage.open(CACHE_NAME)
-  assert.equal(cache.addAllCalls.length, 1)
-  assert.ok(cache.addAllCalls[0].includes("/"))
-  assert.ok(cache.addAllCalls[0].includes("/assets/app.js"))
-  assert.ok(cache.addAllCalls[0].includes("/assets/app.css"))
+  assert.ok(cache.entries.has("/"))
+  assert.ok(cache.entries.has("/assets/app.js"))
+  assert.ok(cache.entries.has("/assets/app.css"))
+  assert.equal(cache.putCalls, 6)
   assert.equal(worker.skipWaitingCalls, 0)
+})
+
+test("install fails instead of caching an HTML fallback as a build asset", async () => {
+  const worker = await loadWorker({
+    fetchImpl: async (input) => {
+      const url = typeof input === "string" ? input : input.url
+      const isAsset = url.includes("/assets/")
+      return new Response(isAsset ? "<!doctype html>" : "shell", {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      })
+    },
+  })
+  const event = eventFor({})
+  worker.listeners.install(event)
+  await assert.rejects(() => event.drain(), /Precache returned HTML/)
 })
 
 test("activation removes only obsolete FormYar caches", async () => {
@@ -151,7 +184,7 @@ test("activation removes only obsolete FormYar caches", async () => {
   assert.equal(worker.skipWaitingCalls, 0)
 })
 
-test("navigation caches only successful HTML shells and keeps the last good shell offline", async () => {
+test("navigation keeps the installed shell and never replaces it with a newer build", async () => {
   const storage = new FakeCacheStorage({ [CACHE_NAME]: new FakeCache() })
   const cache = await storage.open(CACHE_NAME)
   await cache.put("/", new Response("old shell"))
@@ -178,7 +211,7 @@ test("navigation caches only successful HTML shells and keeps the last good shel
   worker.listeners.fetch(event)
   assert.equal(await (await event.response()).text(), "new shell")
   await event.drain()
-  assert.equal(await (await cache.match("/")).text(), "new shell")
+  assert.equal(await (await cache.match("/")).text(), "old shell")
 
   event = eventFor({
     method: "GET",
@@ -188,7 +221,7 @@ test("navigation caches only successful HTML shells and keeps the last good shel
   worker.listeners.fetch(event)
   assert.equal(await (await event.response()).text(), "server error")
   await event.drain()
-  assert.equal(await (await cache.match("/")).text(), "new shell")
+  assert.equal(await (await cache.match("/")).text(), "old shell")
 
   event = eventFor({
     method: "GET",
@@ -196,7 +229,63 @@ test("navigation caches only successful HTML shells and keeps the last good shel
     mode: "navigate",
   })
   worker.listeners.fetch(event)
-  assert.equal(await (await event.response()).text(), "new shell")
+  assert.equal(await (await event.response()).text(), "old shell")
+})
+
+test("HTML fallbacks are never cached or served for asset URLs", async () => {
+  const storage = new FakeCacheStorage({ [CACHE_NAME]: new FakeCache() })
+  const worker = await loadWorker({
+    storage,
+    replies: [
+      new Response("<!doctype html>", {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      }),
+    ],
+  })
+  const event = eventFor({
+    method: "GET",
+    url: "http://localhost/assets/index.css",
+  })
+  worker.listeners.fetch(event)
+  const response = await event.response()
+  assert.equal(response.status, 404)
+  assert.equal(
+    response.headers.get("content-type"),
+    "text/plain; charset=utf-8",
+  )
+  await event.drain()
+  const cache = await storage.open(CACHE_NAME)
+  assert.equal(cache.putCalls, 0)
+})
+
+test("a cached HTML fallback is evicted before fetching the real asset", async () => {
+  const storage = new FakeCacheStorage({ [CACHE_NAME]: new FakeCache() })
+  const cache = await storage.open(CACHE_NAME)
+  const url = "http://localhost/assets/index.css"
+  await cache.put(
+    url,
+    new Response("<!doctype html>", {
+      status: 200,
+      headers: { "content-type": "text/html" },
+    }),
+  )
+  const worker = await loadWorker({
+    storage,
+    replies: [
+      new Response("real css", {
+        status: 200,
+        headers: { "content-type": "text/css" },
+      }),
+    ],
+  })
+  const event = eventFor({ method: "GET", url })
+  worker.listeners.fetch(event)
+  assert.equal(await (await event.response()).text(), "real css")
+  await event.drain()
+  assert.equal(cache.deleteCalls, 1)
+  const cached = await cache.match(url)
+  assert.equal(cached.headers.get("content-type"), "text/css")
 })
 
 test("only successful static responses enter this build cache and APIs are untouched", async () => {

@@ -9,10 +9,28 @@ const PRECACHE = [
   __FORMYAR_PRECACHE_ASSETS__,
 ]
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE)),
+function isHtml(response) {
+  return (response.headers.get("content-type") ?? "")
+    .toLowerCase()
+    .includes("text/html")
+}
+
+async function precache() {
+  const cache = await caches.open(CACHE_NAME)
+  await Promise.all(
+    PRECACHE.map(async (path) => {
+      const response = await fetch(path, { cache: "reload" })
+      if (!response.ok) throw new Error(`Precache failed for ${path}`)
+      if (path.startsWith("/assets/") && isHtml(response)) {
+        throw new Error(`Precache returned HTML for ${path}`)
+      }
+      await cache.put(path, response)
+    }),
   )
+}
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(precache())
 })
 
 self.addEventListener("activate", (event) => {
@@ -43,20 +61,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       (async () => {
         try {
-          const response = await fetch(request)
-          if (
-            response.ok &&
-            response.headers
-              .get("content-type")
-              ?.toLowerCase()
-              .includes("text/html")
-          ) {
-            const copy = response.clone()
-            event.waitUntil(
-              caches.open(CACHE_NAME).then((cache) => cache.put("/", copy)),
-            )
-          }
-          return response
+          return await fetch(request)
         } catch {
           const cache = await caches.open(CACHE_NAME)
           return (await cache.match("/")) ?? Response.error()
@@ -74,13 +79,19 @@ self.addEventListener("fetch", (event) => {
       (async () => {
         const cache = await caches.open(CACHE_NAME)
         const cached = await cache.match(request)
-        if (cached) return cached
+        if (cached && !isHtml(cached)) return cached
+        if (cached) await cache.delete(request)
         try {
           const response = await fetch(request)
-          if (response.ok) {
-            const copy = response.clone()
-            event.waitUntil(cache.put(request, copy))
+          if (!response.ok) return response
+          if (isHtml(response)) {
+            return new Response("Asset not found", {
+              status: 404,
+              headers: { "content-type": "text/plain; charset=utf-8" },
+            })
           }
+          const copy = response.clone()
+          event.waitUntil(cache.put(request, copy))
           return response
         } catch {
           return Response.error()

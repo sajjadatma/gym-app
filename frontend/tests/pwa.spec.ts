@@ -114,3 +114,12 @@ test("production worker controls a warmed shell without caching private API data
     await context.close()
   }
 })
+
+test("missing hashed assets never fall back to the HTML shell", async ({
+  request,
+}) => {
+  test.skip(process.env.PWA_PROD !== "1", "production build only")
+  const response = await request.get("/assets/definitely-missing.js")
+  expect(response.status()).toBe(404)
+  expect(response.headers()["content-type"] ?? "").not.toContain("text/html")
+})

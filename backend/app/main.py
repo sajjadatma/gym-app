@@ -53,6 +53,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.middleware("http")
 async def hardening_middleware(request: Request, call_next: Any) -> Response:
     request_id = uuid.uuid4().hex[:12]
@@ -63,9 +64,7 @@ async def hardening_middleware(request: Request, call_next: Any) -> Response:
         r"/password-recovery/[^/]+", "/password-recovery/[redacted]", path
     )
     content_length = request.headers.get("content-length")
-    if path.endswith("/athletes/import") or path.endswith(
-        "/athletes/import/preview"
-    ):
+    if path.endswith("/athletes/import") or path.endswith("/athletes/import/preview"):
         # The import route enforces its own bounded read and returns the
         # established 400/import_file_too_large contract.
         limit = None
@@ -120,9 +119,7 @@ async def hardening_middleware(request: Request, call_next: Any) -> Response:
     response.headers.setdefault("X-Request-ID", request_id)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
-    response.headers.setdefault(
-        "Referrer-Policy", "strict-origin-when-cross-origin"
-    )
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault(
         "Permissions-Policy", "camera=(), microphone=(), geolocation=()"
     )
@@ -141,6 +138,8 @@ async def hardening_middleware(request: Request, call_next: Any) -> Response:
             "Strict-Transport-Security",
             "max-age=31536000; includeSubDomains",
         )
+    if response.headers.get("content-type", "").lower().startswith("text/html"):
+        response.headers["Cache-Control"] = "no-store"
     return response
 
 
@@ -155,4 +154,11 @@ if FRONTEND_DIR.exists():
         candidate = (FRONTEND_DIR / full_path).resolve()
         if FRONTEND_DIR.resolve() in candidate.parents and candidate.is_file():
             return FileResponse(candidate)
+        # A missing hashed asset must be a real 404. Returning index.html here
+        # lets service workers cache HTML under .js/.css URLs and breaks the app.
+        if full_path.startswith(("assets/", "icons/")) or full_path in {
+            "sw.js",
+            "manifest.webmanifest",
+        }:
+            raise HTTPException(status_code=404, detail="Not Found")
         return FileResponse(FRONTEND_DIR / "index.html")
