@@ -524,6 +524,12 @@ test("tables follow the active locale direction", async ({ page }) => {
   const table = page.locator(".m3-data-table").first()
   await expect(table).toBeVisible()
   await expect(table).toHaveCSS("direction", "ltr")
+  const checkCell = table.locator("tbody tr td").first()
+  const checkFit = await checkCell.evaluate((element) => ({
+    client: element.clientWidth,
+    scroll: element.scrollWidth,
+  }))
+  expect(checkFit.scroll).toBeLessThanOrEqual(checkFit.client + 1)
 
   await page.goto(`/print/${VERSION_ID}`)
   await expect(page.locator(".m3-print-sheet")).toHaveCSS("direction", "ltr")
