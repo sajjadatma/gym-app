@@ -3699,6 +3699,10 @@ a.m3-contact-chip:focus-visible {
     width: 44px;
     height: 44px;
   }
+
+  .m3-view-toggle [data-view="table"] {
+    display: none;
+  }
 }
 
 @media (max-width: 760px) {

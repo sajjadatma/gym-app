@@ -150,7 +150,7 @@ test("archive is available on cards and as a table bulk action", async ({
   await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(cardTarget.email)
   const card = page.locator(".m3-entity-card").first()
   await expect(card).toBeVisible()
-  await card.getByRole("button", { name: "آرشیو ورزشکار", exact: true }).click()
+  await chooseRowAction(page, card, "آرشیو ورزشکار")
   const cardDialog = page.getByRole("dialog")
   await expect(cardDialog).toContainText("آرشیو ورزشکار")
   await cardDialog.getByRole("button", { name: "آرشیو", exact: true }).click()

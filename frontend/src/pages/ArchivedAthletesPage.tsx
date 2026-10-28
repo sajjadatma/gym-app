@@ -24,6 +24,7 @@ import {
   ErrorState,
   PageHeader,
   Spinner,
+  StatusBadge,
   TextField,
 } from "@/components/M3"
 import { PaginationBar } from "@/components/Pagination"
@@ -31,11 +32,13 @@ import { type RowActionItem, RowActionMenu } from "@/components/RowActionMenu"
 import { useI18n } from "@/i18n"
 import type { ListSearch, PageSize } from "@/lib/list-search"
 import { useServerPage } from "@/lib/server-page"
+import { useMobileViewport } from "@/lib/useMobileViewport"
 import { useSnackbar } from "@/snackbar"
 
 export function ArchivedAthletesPage() {
   const { t, formatNumber } = useI18n()
   const { activeGym, activeGymId, isAdmin } = useAuth()
+  const isMobile = useMobileViewport()
   const navigate = useNavigate({ from: "/gyms/$gymId/athletes/archived" })
   const searchParams = useSearch({
     from: "/_app/gyms/$gymId/athletes/archived",
@@ -323,6 +326,46 @@ export function ArchivedAthletesPage() {
             </Button>
           }
         />
+      ) : isMobile ? (
+        <div
+          className={`m3-card-grid ${stale ? "is-updating" : ""}`}
+          aria-busy={stale}
+        >
+          {archived.map((athlete) => (
+            <div key={athlete.user_id} className="m3-entity-card">
+              <div className="m3-entity-card__body">
+                <div className="m3-entity-card__head">
+                  <div className="m3-entity-card__identity">
+                    <Avatar name={athlete.full_name ?? athlete.email} />
+                    <div className="m3-entity-card__person">
+                      <div className="m3-entity-card__title">
+                        {athlete.full_name ?? athlete.email}
+                      </div>
+                      <div className="m3-entity-card__email truncate" dir="ltr">
+                        {athlete.email}
+                      </div>
+                    </div>
+                  </div>
+                  <StatusBadge status="archived" />
+                </div>
+                <div className="m3-entity-card__meta">
+                  <span>
+                    {t("athletes.coach")}:{" "}
+                    {athlete.coach_name ?? t("athletes.noCoach")}
+                  </span>
+                  {athlete.phone ? (
+                    <span dir="ltr">{athlete.phone}</span>
+                  ) : null}
+                </div>
+              </div>
+              <div className="m3-entity-card__footer">
+                <div className="m3-entity-card__actions">
+                  {compactRowActions(athlete)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <>
           {selectedAthletes.length > 0 ? (

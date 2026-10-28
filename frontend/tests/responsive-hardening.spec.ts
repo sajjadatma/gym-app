@@ -538,7 +538,7 @@ test("tables follow the active locale direction", async ({ page }) => {
   )
 })
 
-test("mobile table cells keep status content inside their column", async ({
+test("people lists use cards instead of wide tables on phones", async ({
   page,
 }) => {
   await prepare(page, {
@@ -549,23 +549,17 @@ test("mobile table cells keep status content inside their column", async ({
   await page.setViewportSize({ width: 320, height: 568 })
   await page.goto(`/gyms/${GYM_ID}/athletes`)
 
-  const cell = page
-    .locator(".m3-data-table tbody tr")
-    .first()
-    .locator(".m3-people-table__status")
-  await expect(cell).toBeVisible()
-  const fit = await cell.evaluate((element) => ({
-    client: element.clientWidth,
-    scroll: element.scrollWidth,
-  }))
-  expect(fit.scroll).toBeLessThanOrEqual(fit.client + 1)
+  await expect(page.locator(".m3-data-table")).toHaveCount(0)
+  const card = page.locator(".m3-entity-card").first()
+  await expect(card).toBeVisible()
+  await expect(card.locator(".m3-status--active")).toBeVisible()
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - window.innerWidth,
   )
   expect(overflow).toBeLessThanOrEqual(1)
 })
 
-test("global athlete tables keep the club visible on phones", async ({
+test("global athlete cards keep the club visible on phones", async ({
   page,
 }) => {
   await prepare(page, {
@@ -578,12 +572,10 @@ test("global athlete tables keep the club visible on phones", async ({
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/athletes")
 
-  const club = page
-    .locator(".m3-data-table tbody tr")
-    .first()
-    .locator(".m3-people-table__club")
-  await expect(club).toBeVisible()
-  await expect(club).toContainText(gym.name)
+  await expect(page.locator(".m3-data-table")).toHaveCount(0)
+  const card = page.locator(".m3-entity-card").first()
+  await expect(card).toBeVisible()
+  await expect(card).toContainText(gym.name)
 })
 
 test("mobile action controls meet the minimum touch size", async ({ page }) => {
@@ -591,18 +583,13 @@ test("mobile action controls meet the minimum touch size", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`/gyms/${GYM_ID}/athletes`)
 
-  const details = page
-    .locator(".m3-data-table tbody tr")
-    .first()
-    .getByRole("button", { name: "جزئیات" })
+  const card = page.locator(".m3-entity-card").first()
+  const details = card.getByRole("button", { name: "جزئیات" })
   await expect(details).toBeVisible()
   for (const target of [
     details,
     page.locator(".m3-topbar__actions button").first(),
-    page
-      .locator(".m3-data-table tbody tr")
-      .first()
-      .getByRole("button", { name: "اقدام‌های بیشتر" }),
+    card.getByRole("button", { name: "اقدام‌های بیشتر" }),
   ]) {
     const box = await target.boundingBox()
     expect(box).not.toBeNull()
@@ -802,4 +789,21 @@ test("coach overviews do not show an athlete coach chip", async ({ page }) => {
   await expect(
     page.locator(".m3-contact-chip").filter({ hasText: "بدون مربی" }),
   ).toHaveCount(0)
+})
+
+test("archived athletes use cards with restore and delete on phones", async ({
+  page,
+}) => {
+  await prepare(page, { role: "GYM_ADMIN", athletes: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`/gyms/${GYM_ID}/athletes/archived`)
+
+  await expect(page.locator(".m3-data-table")).toHaveCount(0)
+  const card = page.locator(".m3-entity-card").first()
+  await expect(card).toBeVisible()
+  const more = card.getByRole("button", { name: "اقدام‌های بیشتر" })
+  await more.click()
+  const menu = page.getByRole("menu")
+  await expect(menu.getByRole("menuitem", { name: "بازیابی" })).toBeVisible()
+  await expect(menu.getByRole("menuitem", { name: "حذف" })).toBeVisible()
 })

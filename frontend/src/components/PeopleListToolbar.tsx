@@ -121,6 +121,7 @@ export function PeopleListToolbar({
             </button>
             <button
               type="button"
+              data-view="table"
               className={`m3-view-toggle__option ${
                 view === "table" ? "is-active" : ""
               }`}

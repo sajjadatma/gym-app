@@ -58,11 +58,13 @@ import { useI18n } from "@/i18n"
 import type { ListSearch, PageSize } from "@/lib/list-search"
 import { useServerPage } from "@/lib/server-page"
 import { useAsyncPicker } from "@/lib/use-async-picker"
+import { useMobileViewport } from "@/lib/useMobileViewport"
 import { useSnackbar } from "@/snackbar"
 
 export function AthletesPage() {
   const { t, formatNumber, direction } = useI18n()
   const { activeGym, activeGymId, activeRole, isAdmin, me } = useAuth()
+  const isMobile = useMobileViewport()
   const navigate = useNavigate({ from: "/gyms/$gymId/athletes/" })
   const searchParams = useSearch({ from: "/_app/gyms/$gymId/athletes/" })
   const page = searchParams.page ?? 1
@@ -80,6 +82,7 @@ export function AthletesPage() {
       return "grid"
     }
   })
+  const activeView = isMobile ? "grid" : view
   const [selected, setSelected] = useState<Record<string, AthleteSummary>>({})
   const selectAllRef = useRef<HTMLInputElement>(null)
   const tableWrapRef = useRef<HTMLDivElement>(null)
@@ -447,9 +450,9 @@ export function AthletesPage() {
             <button
               type="button"
               className={`m3-view-toggle__option ${
-                view === "grid" ? "is-active" : ""
+                activeView === "grid" ? "is-active" : ""
               }`}
-              aria-pressed={view === "grid"}
+              aria-pressed={activeView === "grid"}
               aria-label={t("athletes.gridView")}
               title={t("athletes.gridView")}
               onClick={() => setView("grid")}
@@ -459,10 +462,11 @@ export function AthletesPage() {
             </button>
             <button
               type="button"
+              data-view="table"
               className={`m3-view-toggle__option ${
-                view === "table" ? "is-active" : ""
+                activeView === "table" ? "is-active" : ""
               }`}
-              aria-pressed={view === "table"}
+              aria-pressed={activeView === "table"}
               aria-label={t("athletes.tableView")}
               title={t("athletes.tableView")}
               onClick={() => setView("table")}
@@ -508,7 +512,7 @@ export function AthletesPage() {
             ) : undefined
           }
         />
-      ) : view === "grid" ? (
+      ) : activeView === "grid" ? (
         <div
           className={`m3-card-grid ${stale ? "is-updating" : ""}`}
           aria-busy={stale}

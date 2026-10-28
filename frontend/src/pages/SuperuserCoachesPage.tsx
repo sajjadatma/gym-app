@@ -45,6 +45,7 @@ import { type RowActionItem, RowActionMenu } from "@/components/RowActionMenu"
 import { useI18n } from "@/i18n"
 import type { GlobalListSearch, PageSize } from "@/lib/list-search"
 import { useServerPage } from "@/lib/server-page"
+import { useMobileViewport } from "@/lib/useMobileViewport"
 import { useSnackbar } from "@/snackbar"
 
 type Action = {
@@ -89,6 +90,8 @@ function CoachesContent() {
       return "grid"
     }
   })
+  const isMobile = useMobileViewport()
+  const activeView = isMobile ? "grid" : view
   const [addOpen, setAddOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<SuperuserCoachRow | null>(null)
   const [created, setCreated] = useState<SuperuserCoachCreated | null>(null)
@@ -422,7 +425,7 @@ function CoachesContent() {
         countLabel={t("superuser.coachCountLabel", {
           count: formatNumber(total),
         })}
-        view={view}
+        view={activeView}
         onViewChange={setView}
         viewLabel={t("athletes.view")}
         gridLabel={t("athletes.gridView")}
@@ -478,7 +481,7 @@ function CoachesContent() {
             )
           }
         />
-      ) : view === "grid" ? (
+      ) : activeView === "grid" ? (
         <div
           className={`m3-card-grid ${stale ? "is-updating" : ""}`}
           aria-busy={stale}

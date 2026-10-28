@@ -50,6 +50,7 @@ import { useI18n } from "@/i18n"
 import type { GlobalListSearch, PageSize } from "@/lib/list-search"
 import { useServerPage } from "@/lib/server-page"
 import { useAsyncPicker } from "@/lib/use-async-picker"
+import { useMobileViewport } from "@/lib/useMobileViewport"
 import { useSnackbar } from "@/snackbar"
 
 type Action = {
@@ -94,6 +95,8 @@ function AthletesContent() {
       return "grid"
     }
   })
+  const isMobile = useMobileViewport()
+  const activeView = isMobile ? "grid" : view
   const [addOpen, setAddOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<SuperuserAthleteRow | null>(null)
   const [created, setCreated] = useState<AthleteCreated | null>(null)
@@ -509,7 +512,7 @@ function AthletesContent() {
         countLabel={t("athletes.countLabel", {
           count: formatNumber(total),
         })}
-        view={view}
+        view={activeView}
         onViewChange={setView}
         viewLabel={t("athletes.view")}
         gridLabel={t("athletes.gridView")}
@@ -565,7 +568,7 @@ function AthletesContent() {
             )
           }
         />
-      ) : view === "grid" ? (
+      ) : activeView === "grid" ? (
         <div
           className={`m3-card-grid ${stale ? "is-updating" : ""}`}
           aria-busy={stale}

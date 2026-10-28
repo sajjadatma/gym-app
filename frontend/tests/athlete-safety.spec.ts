@@ -1,8 +1,15 @@
+import type { Locator, Page } from "@playwright/test"
+
 import { API_URL } from "./credentials"
 import { expect, test } from "./fixtures/athlete-data"
 
 function deletePath(url: string) {
   return new URL(url).pathname
+}
+
+async function chooseRowAction(page: Page, row: Locator, name: string) {
+  await row.getByRole("button", { name: "اقدام‌های بیشتر" }).click()
+  await page.getByRole("menu").getByRole("menuitem", { name }).click()
 }
 
 test("archive confirmation cannot close while the mutation is pending", async ({
@@ -26,7 +33,7 @@ test("archive confirmation cannot close while the mutation is pending", async ({
   await page.goto("/athletes")
   await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(target.email)
   const card = page.locator(".m3-entity-card").first()
-  await card.getByRole("button", { name: "آرشیو ورزشکار", exact: true }).click()
+  await chooseRowAction(page, card, "آرشیو ورزشکار")
   const dialog = page.getByRole("dialog")
   await dialog.getByRole("button", { name: "آرشیو", exact: true }).click()
   await expect.poll(() => archiveCalls).toBe(1)
