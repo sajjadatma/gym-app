@@ -488,26 +488,97 @@ test("coaches only see actions the overview API authorizes", async ({
   ).toBeVisible()
 })
 
-test("account menu stays inside a landscape viewport and closes on Escape", async ({
+test("account sheet stays inside a landscape viewport and closes on Escape", async ({
   page,
 }) => {
   await prepare(page, { role: "GYM_ADMIN", activeGym: false })
   await page.setViewportSize({ width: 844, height: 390 })
   await page.goto("/profile")
 
-  const trigger = page.locator(".m3-topbar__actions button").first()
+  const trigger = page.locator(".m3-account-trigger")
   await trigger.click()
-  const menu = page.locator(".m3-menu")
-  await expect(menu).toBeVisible()
+  const sheet = page.locator(".m3-account-sheet")
+  await expect(sheet).toBeVisible()
+  await sheet.evaluate(async (element) => {
+    await Promise.all(
+      element.getAnimations().map((animation) => animation.finished),
+    )
+  })
 
-  const box = await menu.boundingBox()
+  const box = await sheet.boundingBox()
   expect(box).not.toBeNull()
   expect(box!.y).toBeGreaterThanOrEqual(0)
   expect(box!.y + box!.height).toBeLessThanOrEqual(390)
 
   await page.keyboard.press("Escape")
-  await expect(menu).toHaveCount(0)
+  await expect(sheet).toHaveCount(0)
   await expect(trigger).toHaveAttribute("aria-expanded", "false")
+  await expect(trigger).toBeFocused()
+})
+
+test("header is a single row and the account panel shows only the current role", async ({
+  page,
+}) => {
+  await prepare(page, { role: "GYM_ADMIN", athletes: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`/gyms/${GYM_ID}/athletes`)
+
+  const topbar = page.locator(".m3-topbar")
+  const topbarBox = await topbar.boundingBox()
+  expect(topbarBox).not.toBeNull()
+  expect(topbarBox!.height).toBeLessThanOrEqual(80)
+  await expect(page.locator(".m3-topbar__role")).toHaveCount(0)
+  await expect(page.locator(".m3-topbar__gym")).toContainText(gym.name)
+  await expect(page.locator(".m3-account-trigger")).toBeVisible()
+
+  const trigger = page.locator(".m3-account-trigger")
+  await trigger.click()
+  const sheet = page.locator(".m3-account-sheet")
+  await expect(sheet).toBeVisible()
+  await expect(sheet).toContainText("حالت مدیریت")
+  await expect(sheet).toContainText("review@example.com")
+  await expect(sheet.locator(".m3-account__role")).toHaveCount(1)
+  await expect(sheet.getByRole("button", { name: "حالت مربیگری" })).toHaveCount(
+    0,
+  )
+
+  await sheet.evaluate(async (element) => {
+    await Promise.all(
+      element.getAnimations().map((animation) => animation.finished),
+    )
+  })
+  const sheetBox = await sheet.boundingBox()
+  expect(sheetBox).not.toBeNull()
+  expect(sheetBox!.y).toBeGreaterThan(0)
+  expect(sheetBox!.y + sheetBox!.height).toBeLessThanOrEqual(845)
+  expect(sheetBox!.width).toBeGreaterThanOrEqual(320)
+
+  await sheet.getByRole("button", { name: "بستن" }).click()
+  await expect(sheet).toHaveCount(0)
+  await expect(trigger).toBeFocused()
+})
+
+test("desktop header and account popover stay anchored", async ({ page }) => {
+  await prepare(page, { role: "GYM_ADMIN", athletes: true })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto(`/gyms/${GYM_ID}/athletes`)
+
+  await expect(page.locator(".m3-topbar__role")).toHaveCount(0)
+  await expect(page.locator(".m3-topbar__gym")).toContainText(gym.name)
+  const trigger = page.locator(".m3-account-trigger")
+  await trigger.click()
+
+  const popover = page.locator(".m3-account-popover")
+  await expect(popover).toBeVisible()
+  await expect(popover).toContainText("حالت مدیریت")
+  const box = await popover.boundingBox()
+  expect(box).not.toBeNull()
+  expect(box!.x).toBeGreaterThanOrEqual(0)
+  expect(box!.x + box!.width).toBeLessThanOrEqual(1281)
+
+  await page.keyboard.press("Escape")
+  await expect(popover).toHaveCount(0)
+  await expect(trigger).toBeFocused()
 })
 
 test("tables follow the active locale direction", async ({ page }) => {
@@ -594,7 +665,7 @@ test("mobile action controls meet the minimum touch size", async ({ page }) => {
   await expect(details).toBeVisible()
   for (const target of [
     details,
-    page.locator(".m3-topbar__actions button").first(),
+    page.locator(".m3-account-trigger"),
     card.getByRole("button", { name: "اقدام‌های بیشتر" }),
   ]) {
     const box = await target.boundingBox()

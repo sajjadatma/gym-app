@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test"
 
 import { openAthlete } from "./utils/athletes"
 
-test("admin dashboard, gym switching and coach mode", async ({ page }) => {
+test("admin dashboard and gym switching", async ({ page }) => {
   await page.goto("/")
   await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible()
   await expect(page.getByText("باشگاه آرام").first()).toBeVisible()
@@ -15,11 +15,7 @@ test("admin dashboard, gym switching and coach mode", async ({ page }) => {
   await page.getByRole("menuitem", { name: /باشگاه آرام/ }).click()
   await expect(page.getByText("باشگاه آرام").first()).toBeVisible()
 
-  await page.getByRole("button", { name: "تغییر نقش" }).click()
-  await page.getByRole("menuitem", { name: "حالت مربیگری" }).click()
-  await expect(page.getByRole("button", { name: "تیم باشگاه" })).toHaveCount(0)
-  await page.getByRole("button", { name: "تغییر نقش" }).click()
-  await page.getByRole("menuitem", { name: "حالت مدیریت" }).click()
+  await expect(page.locator(".m3-account-trigger")).toBeVisible()
   await expect(page.getByRole("button", { name: "تیم باشگاه" })).toBeVisible()
 })
 
@@ -147,23 +143,24 @@ test("club users keep their club context on the clubs page", async ({
   await expect(page.getByRole("button", { name: "تغییر باشگاه" })).toBeVisible()
 })
 
-test("mobile admin keeps gym and role context available", async ({ page }) => {
+test("mobile admin keeps gym context and current role available", async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto("/")
   await expect(page.getByRole("button", { name: "تغییر باشگاه" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "تغییر نقش" })).toBeVisible()
+  await expect(page.locator(".m3-account-trigger")).toBeVisible()
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - window.innerWidth,
   )
   expect(overflow).toBeLessThanOrEqual(1)
-  await page.getByRole("button", { name: "تغییر نقش" }).click()
-  await page.getByRole("menuitem", { name: "حالت مربیگری" }).click()
-  await expect(page.locator(".m3-mobile-nav")).toBeVisible()
-  await expect(
-    page.locator(".m3-mobile-nav").getByRole("button", { name: "تیم باشگاه" }),
-  ).toHaveCount(0)
-  await page.getByRole("button", { name: "تغییر نقش" }).click()
-  await page.getByRole("menuitem", { name: "حالت مدیریت" }).click()
+  await page.locator(".m3-account-trigger").click()
+  const sheet = page.locator(".m3-account-sheet")
+  await expect(sheet).toBeVisible()
+  await expect(sheet.locator(".m3-account__role")).toHaveText("حالت مدیریت")
+  await expect(sheet.getByRole("button", { name: "حالت مربیگری" })).toHaveCount(
+    0,
+  )
   await expect(
     page.locator(".m3-mobile-nav").getByRole("button", { name: "تیم باشگاه" }),
   ).toBeVisible()

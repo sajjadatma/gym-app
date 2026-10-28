@@ -51,10 +51,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [activeGymId, setActiveGymIdState] = useState<string | null>(() =>
     localStorage.getItem("gym.activeGymId"),
   )
-  const [activeRole, setActiveRoleState] = useState<RoleMode | null>(() => {
-    const stored = localStorage.getItem("gym.activeRole")
-    return ROLE_ORDER.includes(stored as RoleMode) ? (stored as RoleMode) : null
-  })
+  // The header no longer exposes role switching. Derive the workspace role
+  // from the member's highest assigned role instead of a stale stored value,
+  // so a previous coach-mode selection cannot strand an admin.
+  const [activeRole, setActiveRoleState] = useState<RoleMode | null>(null)
 
   const meQuery = useQuery({
     queryKey: ["me"],

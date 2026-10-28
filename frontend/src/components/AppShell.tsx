@@ -8,6 +8,7 @@ import {
   Bookmark,
   Building2,
   Check,
+  ChevronDown,
   ClipboardList,
   Dumbbell,
   Globe2,
@@ -17,10 +18,13 @@ import {
   Sun,
   UserRound,
   Users,
+  X,
 } from "lucide-react"
 import {
   type CSSProperties,
   type ReactNode,
+  type RefObject,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -29,6 +33,7 @@ import { apiAssetUrl } from "../api"
 import { type RoleMode, useAuth } from "../auth"
 import { type TranslationKey, useI18n } from "../i18n"
 import { readableOnColor } from "../lib/brand"
+import { useMobileViewport } from "../lib/useMobileViewport"
 import { useTheme } from "../theme"
 import { Avatar, Button, IconButton, Spinner } from "./M3"
 import { OfflineBanner, OfflineState, useOnlineStatus } from "./OnlineStatus"
@@ -46,7 +51,11 @@ const ROLE_MODE_LABELS: Record<RoleMode, TranslationKey> = {
   ATHLETE: "context.athleteMode",
 }
 
-function useOutsideClose(open: boolean, close: () => void) {
+function useOutsideClose(
+  open: boolean,
+  close: () => void,
+  returnFocus?: RefObject<HTMLButtonElement | null>,
+) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
@@ -57,7 +66,10 @@ function useOutsideClose(open: boolean, close: () => void) {
       if (event.key !== "Escape") return
       event.preventDefault()
       close()
-      ref.current?.querySelector<HTMLElement>("button")?.focus()
+      ;(
+        returnFocus?.current ??
+        ref.current?.querySelector<HTMLElement>("button")
+      )?.focus()
     }
     document.addEventListener("mousedown", handlePointer)
     document.addEventListener("keydown", handleKey)
@@ -65,7 +77,7 @@ function useOutsideClose(open: boolean, close: () => void) {
       document.removeEventListener("mousedown", handlePointer)
       document.removeEventListener("keydown", handleKey)
     }
-  }, [open, close])
+  }, [open, close, returnFocus?.current])
   return ref
 }
 
@@ -126,24 +138,73 @@ export function AppShell() {
     activeGym,
     activeGymId,
     activeRole,
-    availableRoles,
     isLoading,
     isSuperuser,
-    isOwner,
     setActiveGym,
-    setActiveRole,
     logout,
     refresh,
   } = useAuth()
   const { t, locale, setLocale } = useI18n()
   const { theme, setTheme } = useTheme()
   const online = useOnlineStatus()
+  const isMobile = useMobileViewport()
   const navigate = useNavigate()
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   })
   const [profileOpen, setProfileOpen] = useState(false)
-  const profileRef = useOutsideClose(profileOpen, () => setProfileOpen(false))
+  const accountTriggerRef = useRef<HTMLButtonElement>(null)
+  const closeProfile = useCallback(() => setProfileOpen(false), [])
+  const closeAccount = useCallback(() => {
+    setProfileOpen(false)
+    window.requestAnimationFrame(() => accountTriggerRef.current?.focus())
+  }, [])
+  const profileRef = useOutsideClose(
+    profileOpen && !isMobile,
+    closeProfile,
+    accountTriggerRef,
+  )
+  const sheetRef = useOutsideClose(
+    profileOpen && isMobile,
+    closeProfile,
+    accountTriggerRef,
+  )
+
+  useEffect(() => {
+    if (!profileOpen || !isMobile) return
+    sheetRef.current?.querySelector<HTMLElement>("button")?.focus()
+    const previous = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [isMobile, profileOpen, sheetRef])
+
+  useEffect(() => {
+    if (!profileOpen || !isMobile) return
+    const handleTab = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return
+      const root = sheetRef.current
+      if (!root) return
+      const items = Array.from(
+        root.querySelectorAll<HTMLElement>(
+          "button:not([disabled]), a[href], input:not([disabled])",
+        ),
+      )
+      if (!items.length) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener("keydown", handleTab, true)
+    return () => document.removeEventListener("keydown", handleTab, true)
+  }, [isMobile, profileOpen, sheetRef])
 
   useEffect(() => {
     const handler = () => navigate({ to: "/change-password" as never })
@@ -317,6 +378,120 @@ export function AppShell() {
     <span>A</span>
   )
 
+  const currentRoleLabel = activeRole
+    ? roleLabel(activeRole)
+    : isSuperuser
+      ? t("context.superAdmin")
+      : null
+
+  const accountPanel = (
+    <div className="m3-account">
+      <header className="m3-account__header">
+        <Avatar name={me.full_name ?? me.email} />
+        <div className="m3-account__identity">
+          <strong>{me.full_name ?? me.email}</strong>
+          <span dir="ltr">{me.email}</span>
+        </div>
+        {isMobile ? (
+          <IconButton label={t("common.close")} onClick={closeAccount}>
+            <X size={18} aria-hidden />
+          </IconButton>
+        ) : null}
+      </header>
+
+      <div className="m3-account__role-row">
+        <span className="m3-account__label">{t("context.activeRole")}</span>
+        <span className="m3-account__role">{currentRoleLabel}</span>
+      </div>
+
+      <fieldset className="m3-account__section">
+        <legend className="m3-account__label">{t("shell.language")}</legend>
+        <div className="m3-account__segmented">
+          <button
+            type="button"
+            className={`m3-account__segment ${locale === "fa" ? "is-active" : ""}`}
+            aria-pressed={locale === "fa"}
+            onClick={() => {
+              setLocale("fa")
+              closeAccount()
+            }}
+          >
+            {t("shell.languageFa")}
+          </button>
+          <button
+            type="button"
+            className={`m3-account__segment ${locale === "en" ? "is-active" : ""}`}
+            aria-pressed={locale === "en"}
+            onClick={() => {
+              setLocale("en")
+              closeAccount()
+            }}
+          >
+            {t("shell.languageEn")}
+          </button>
+        </div>
+      </fieldset>
+
+      <fieldset className="m3-account__section">
+        <legend className="m3-account__label">{t("shell.theme")}</legend>
+        <div className="m3-account__segmented">
+          <button
+            type="button"
+            className={`m3-account__segment ${theme === "light" ? "is-active" : ""}`}
+            aria-pressed={theme === "light"}
+            onClick={() => {
+              setTheme("light")
+              closeAccount()
+            }}
+          >
+            <Sun size={15} aria-hidden />
+            {t("shell.themeLight")}
+          </button>
+          <button
+            type="button"
+            className={`m3-account__segment ${theme === "dark" ? "is-active" : ""}`}
+            aria-pressed={theme === "dark"}
+            onClick={() => {
+              setTheme("dark")
+              closeAccount()
+            }}
+          >
+            <Moon size={15} aria-hidden />
+            {t("shell.themeDark")}
+          </button>
+        </div>
+      </fieldset>
+
+      <div className="m3-account__separator" />
+
+      <button
+        type="button"
+        className="m3-account__item"
+        onClick={() => {
+          closeAccount()
+          navigate({ to: "/profile" as never })
+        }}
+      >
+        <UserRound size={17} aria-hidden />
+        <span>{t("shell.profile")}</span>
+      </button>
+
+      <div className="m3-account__separator" />
+
+      <button
+        type="button"
+        className="m3-account__item m3-account__item--danger"
+        onClick={() => {
+          closeProfile()
+          void logout()
+        }}
+      >
+        <LogOut size={17} aria-hidden />
+        <span>{t("shell.logout")}</span>
+      </button>
+    </div>
+  )
+
   return (
     <div
       className="m3-app-shell"
@@ -382,7 +557,13 @@ export function AppShell() {
                 variant="text"
                 size="sm"
                 className="m3-topbar__back"
-                icon={<LayoutDashboard size={16} aria-hidden />}
+                icon={
+                  isMobile ? (
+                    <Globe2 size={18} aria-hidden />
+                  ) : (
+                    <LayoutDashboard size={16} aria-hidden />
+                  )
+                }
                 aria-label={t("dashboard.globalDashboard")}
                 onClick={() => {
                   setActiveGym(null)
@@ -397,9 +578,14 @@ export function AppShell() {
                 <Dropdown
                   label={t("context.switchGym")}
                   trigger={
-                    <span className="m3-topbar__gym">
+                    <span className="m3-topbar__gym m3-topbar__gym--switch">
                       <Building2 size={15} />
                       <span>{activeGym.name}</span>
+                      <ChevronDown
+                        size={14}
+                        className="m3-topbar__chevron"
+                        aria-hidden
+                      />
                     </span>
                   }
                 >
@@ -453,150 +639,41 @@ export function AppShell() {
                 </span>
               )
             ) : null}
-
-            {activeGym && availableRoles.length > 1 ? (
-              <Dropdown
-                label={t("context.switchRole")}
-                trigger={
-                  <span className="m3-topbar__role">
-                    {activeRole ? roleLabel(activeRole) : ""}
-                  </span>
-                }
-              >
-                <div className="m3-menu__label">{t("context.activeRole")}</div>
-                {availableRoles.map((role) => (
-                  <button
-                    key={role}
-                    type="button"
-                    role="menuitem"
-                    className={`m3-menu__item ${activeRole === role ? "is-active" : ""}`}
-                    onClick={() => {
-                      setActiveRole(role)
-                      navigate({
-                        to:
-                          role === "ATHLETE"
-                            ? ("/gyms/$gymId/my" as never)
-                            : ("/gyms/$gymId" as never),
-                        params: { gymId: activeGymId! } as never,
-                      })
-                    }}
-                  >
-                    {roleLabel(role)}
-                    {activeRole === role ? (
-                      <Check size={15} style={{ marginInlineStart: "auto" }} />
-                    ) : null}
-                  </button>
-                ))}
-              </Dropdown>
-            ) : activeGym && activeRole ? (
-              <span className="m3-topbar__role">
-                {roleLabel(activeRole)}
-                {isOwner ? ` · ${t("context.owner")}` : ""}
-              </span>
-            ) : null}
           </div>
 
           <div className="m3-topbar__spacer" />
 
           <div className="m3-topbar__actions" ref={profileRef}>
-            <div className="m3-menu-anchor">
-              <IconButton
-                label={t("nav.account")}
-                onClick={() => setProfileOpen((value) => !value)}
-                aria-expanded={profileOpen}
+            <button
+              ref={accountTriggerRef}
+              type="button"
+              className="m3-account-trigger"
+              aria-haspopup="dialog"
+              aria-expanded={profileOpen}
+              aria-controls={profileOpen ? "account-panel" : undefined}
+              aria-label={t("nav.account")}
+              onClick={() => setProfileOpen((value) => !value)}
+            >
+              <Avatar name={me.full_name ?? me.email} />
+              <span className="m3-account-trigger__text">
+                <strong>{me.full_name ?? me.email}</strong>
+              </span>
+              <ChevronDown
+                size={15}
+                className="m3-account-trigger__chevron"
+                aria-hidden
+              />
+            </button>
+            {profileOpen && !isMobile ? (
+              <div
+                id="account-panel"
+                className="m3-menu m3-account-popover"
+                role="dialog"
+                aria-label={t("nav.account")}
               >
-                <Avatar name={me.full_name ?? me.email} />
-              </IconButton>
-              {profileOpen ? (
-                <div className="m3-menu" role="menu">
-                  <div style={{ padding: "10px 12px 6px" }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>
-                      {me.full_name ?? me.email}
-                    </div>
-                    <div className="muted" style={{ fontSize: 11 }}>
-                      {me.email}
-                      {isSuperuser ? ` · ${t("context.superAdmin")}` : ""}
-                    </div>
-                  </div>
-                  <div className="m3-menu__separator" />
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="m3-menu__item"
-                    onClick={() => {
-                      setProfileOpen(false)
-                      navigate({ to: "/profile" as never })
-                    }}
-                  >
-                    <UserRound size={16} />
-                    {t("shell.profile")}
-                  </button>
-                  <div className="m3-menu__separator" />
-                  <div className="m3-menu__label">{t("shell.language")}</div>
-                  <button
-                    type="button"
-                    className={`m3-menu__item ${locale === "fa" ? "is-active" : ""}`}
-                    onClick={() => {
-                      setLocale("fa")
-                      setProfileOpen(false)
-                    }}
-                  >
-                    <Globe2 size={16} />
-                    {t("shell.languageFa")}
-                    {locale === "fa" ? (
-                      <Check size={15} style={{ marginInlineStart: "auto" }} />
-                    ) : null}
-                  </button>
-                  <button
-                    type="button"
-                    className={`m3-menu__item ${locale === "en" ? "is-active" : ""}`}
-                    onClick={() => {
-                      setLocale("en")
-                      setProfileOpen(false)
-                    }}
-                  >
-                    <Globe2 size={16} />
-                    {t("shell.languageEn")}
-                    {locale === "en" ? (
-                      <Check size={15} style={{ marginInlineStart: "auto" }} />
-                    ) : null}
-                  </button>
-                  <div className="m3-menu__separator" />
-                  <div className="m3-menu__label">{t("shell.theme")}</div>
-                  <button
-                    type="button"
-                    className={`m3-menu__item ${theme === "light" ? "is-active" : ""}`}
-                    onClick={() => {
-                      setTheme("light")
-                      setProfileOpen(false)
-                    }}
-                  >
-                    <Sun size={16} />
-                    {t("shell.themeLight")}
-                  </button>
-                  <button
-                    type="button"
-                    className={`m3-menu__item ${theme === "dark" ? "is-active" : ""}`}
-                    onClick={() => {
-                      setTheme("dark")
-                      setProfileOpen(false)
-                    }}
-                  >
-                    <Moon size={16} />
-                    {t("shell.themeDark")}
-                  </button>
-                  <div className="m3-menu__separator" />
-                  <button
-                    type="button"
-                    className="m3-menu__item"
-                    onClick={logout}
-                  >
-                    <LogOut size={16} />
-                    {t("shell.logout")}
-                  </button>
-                </div>
-              ) : null}
-            </div>
+                {accountPanel}
+              </div>
+            ) : null}
           </div>
         </header>
 
@@ -622,6 +699,23 @@ export function AppShell() {
           )
         })}
       </nav>
+
+      {profileOpen && isMobile ? (
+        <>
+          <div className="m3-account-scrim" aria-hidden />
+          <div
+            ref={sheetRef}
+            id="account-panel"
+            className="m3-account-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("nav.account")}
+            tabIndex={-1}
+          >
+            {accountPanel}
+          </div>
+        </>
+      ) : null}
     </div>
   )
 }

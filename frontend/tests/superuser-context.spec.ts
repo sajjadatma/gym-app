@@ -56,7 +56,7 @@ test("entering a club opens its workspace and keeps the club on reload", async (
   await page.getByRole("button", { name: "ورود به باشگاه" }).first().click()
   await expect(page).toHaveURL(/\/gyms\/[^/]+$/)
   await expect(page.locator(".m3-topbar__gym")).toContainText("باشگاه آرام")
-  await expect(page.locator(".m3-topbar__role").first()).toBeVisible()
+  await expect(page.locator(".m3-account-trigger")).toBeVisible()
   await expect(page.getByRole("heading", { name: "داشبورد" })).toBeVisible()
   await expect(
     page.locator(".m3-nav-rail").getByRole("button", { name: "ورزشکاران" }),
