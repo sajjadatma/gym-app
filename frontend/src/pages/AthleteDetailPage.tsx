@@ -4,6 +4,7 @@ import {
   Archive,
   ArrowLeft,
   CalendarDays,
+  ChevronDown,
   ClipboardList,
   Download,
   FileUp,
@@ -30,6 +31,7 @@ import {
   type CoachPublic,
   GymsService,
   ProgramsService,
+  type ProgramVersionDetail,
   type ProgramVersionSummary,
 } from "@/client"
 import { client } from "@/client/client.gen"
@@ -52,7 +54,7 @@ import {
   TextField,
 } from "@/components/M3"
 import { type RowActionItem, RowActionMenu } from "@/components/RowActionMenu"
-import { useI18n } from "@/i18n"
+import { type TranslationKey, useI18n } from "@/i18n"
 import { MAX_UPLOAD_BYTES } from "@/lib/upload"
 import { useAsyncPicker } from "@/lib/use-async-picker"
 import { useSnackbar } from "@/snackbar"
@@ -105,6 +107,285 @@ function ReadOnlyField({
       <span className="m3-readonly-field__label">{label}</span>
       <span className="m3-readonly-field__value">{value}</span>
     </div>
+  )
+}
+
+function ProgramReviewDetail({ version }: { version: ProgramVersionDetail }) {
+  const { t, formatDate, formatNumber } = useI18n()
+  return (
+    <div className="program-review">
+      {version.goal || version.notes ? (
+        <div className="program-review__meta">
+          {version.goal ? (
+            <span>
+              <strong>{t("program.goal")}:</strong> {version.goal}
+            </span>
+          ) : null}
+          {version.notes ? (
+            <span>
+              <strong>{t("program.notes")}:</strong> {version.notes}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {version.days.length === 0 ? (
+        <p className="muted">{t("program.noDays")}</p>
+      ) : (
+        version.days.map((day, dayIndex) => (
+          <section
+            key={day.id ?? `${day.day_number}-${dayIndex}`}
+            className="program-review__day"
+          >
+            <div className="program-review__day-head">
+              <h4>
+                {t("program.day")}{" "}
+                {formatNumber(day.day_number || dayIndex + 1)}
+                {" · "}
+                {day.title}
+              </h4>
+              {day.weekday ? (
+                <span className="muted">
+                  {t(`weekday.${day.weekday}` as TranslationKey)}
+                </span>
+              ) : null}
+            </div>
+            {day.category_names?.length ? (
+              <div className="row" style={{ gap: 4 }}>
+                {day.category_names.map((name) => (
+                  <span key={name} className="m3-chip">
+                    {name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            {day.notes ? (
+              <p className="program-review__note">{day.notes}</p>
+            ) : null}
+            {day.exercises.length === 0 ? (
+              <p className="muted">{t("program.noExercises")}</p>
+            ) : (
+              day.exercises.map((exercise, exerciseIndex) => (
+                <article
+                  key={
+                    exercise.id ?? `${exercise.exercise_id}-${exerciseIndex}`
+                  }
+                  className="program-review__exercise"
+                >
+                  <div className="program-review__exercise-head">
+                    <strong>
+                      {formatNumber(exerciseIndex + 1)}.{" "}
+                      {exercise.exercise_name}
+                    </strong>
+                    <span className="muted">{exercise.muscle_group}</span>
+                  </div>
+                  {exercise.notes ? (
+                    <p className="program-review__note">{exercise.notes}</p>
+                  ) : null}
+                  {exercise.sets.length === 0 ? (
+                    <p className="muted">{t("program.noSets")}</p>
+                  ) : (
+                    <div className="program-review__sets-wrap">
+                      <table className="program-review__sets">
+                        <thead>
+                          <tr>
+                            <th>{t("print.set")}</th>
+                            <th>{t("print.reps")}</th>
+                            <th>{t("print.weight")}</th>
+                            <th>{t("print.rest")}</th>
+                            <th>{t("program.duration")}</th>
+                            <th>{t("program.intensity")}</th>
+                            <th>{t("print.notes")}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {exercise.sets.map((set, setIndex) => (
+                            <tr key={set.id ?? setIndex}>
+                              <td>{formatNumber(set.set_number)}</td>
+                              <td>
+                                {set.reps_min == null && set.reps_max == null
+                                  ? "—"
+                                  : set.reps_min === set.reps_max
+                                    ? formatNumber(set.reps_min)
+                                    : `${formatNumber(
+                                        set.reps_min ?? 0,
+                                      )}–${formatNumber(set.reps_max ?? 0)}`}
+                              </td>
+                              <td>
+                                {set.weight_kg == null
+                                  ? "—"
+                                  : `${formatNumber(set.weight_kg)} ${t(
+                                      "common.units.kg",
+                                    )}`}
+                              </td>
+                              <td>
+                                {set.rest_seconds == null
+                                  ? "—"
+                                  : `${formatNumber(
+                                      set.rest_seconds,
+                                    )} ${t("common.units.seconds")}`}
+                              </td>
+                              <td>
+                                {set.duration_seconds == null
+                                  ? "—"
+                                  : `${formatNumber(
+                                      set.duration_seconds,
+                                    )} ${t("common.units.seconds")}`}
+                              </td>
+                              <td>{set.intensity || "—"}</td>
+                              <td>{set.note || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </article>
+              ))
+            )}
+          </section>
+        ))
+      )}
+      {version.end_date ? (
+        <p className="muted program-review__footer">
+          {t("program.endDate")}: {formatDate(version.end_date)}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
+function ProgramReviewCard({
+  version,
+  defaultOpen,
+  canEdit,
+  onEdit,
+  onPrint,
+  onDelete,
+}: {
+  version: ProgramVersionSummary
+  defaultOpen: boolean
+  canEdit: boolean
+  onEdit: () => void
+  onPrint: () => void
+  onDelete: () => void
+}) {
+  const { t, formatDate, formatNumber } = useI18n()
+  const { activeGymId } = useAuth()
+  const [open, setOpen] = useState(defaultOpen)
+  const panelId = `program-review-${version.id}`
+
+  useEffect(() => {
+    if (defaultOpen) setOpen(true)
+  }, [defaultOpen])
+
+  const detailQuery = useQuery({
+    queryKey: ["program-review", activeGymId, version.id],
+    queryFn: async () =>
+      (
+        await ProgramsService.readProgramVersion({
+          path: { version_id: version.id },
+        })
+      ).data,
+    enabled: Boolean(activeGymId && open),
+    staleTime: 30_000,
+  })
+
+  return (
+    <article
+      className={`m3-version-row program-review-card ${open ? "is-open" : ""}`}
+    >
+      <div className="program-review-card__summary">
+        <button
+          type="button"
+          className="program-review-card__toggle"
+          aria-expanded={open}
+          aria-controls={panelId}
+          aria-label={`${version.title} — ${
+            open ? t("athletes.collapseProgram") : t("athletes.expandProgram")
+          }`}
+          onClick={() => setOpen((value) => !value)}
+        >
+          <span className="program-review-card__chevron" aria-hidden>
+            <ChevronDown size={18} />
+          </span>
+          <ClipboardList size={19} className="muted" aria-hidden />
+          <span className="program-review-card__text">
+            <span className="program-review-card__title">
+              {version.title}{" "}
+              <span className="muted">
+                ·{" "}
+                {t("program.versionLabel", {
+                  version: formatNumber(version.version_number),
+                })}
+              </span>
+            </span>
+            <span className="program-review-card__meta">
+              <span>
+                {t("program.days")}: {formatNumber(version.day_count ?? 0)}
+              </span>
+              {version.coach_name ? <span>{version.coach_name}</span> : null}
+              <span>
+                {version.start_date
+                  ? t("program.startDate") +
+                    ": " +
+                    formatDate(version.start_date)
+                  : t("program.versionHistory") +
+                    ": " +
+                    formatDate(version.created_at)}
+              </span>
+            </span>
+          </span>
+        </button>
+        <div className="program-review-card__actions">
+          <StatusBadge status={version.status.toLowerCase()} />
+          <Button variant="text" size="sm" onClick={onEdit}>
+            {version.status !== "ARCHIVED" && canEdit
+              ? t("common.edit")
+              : t("common.open")}
+          </Button>
+          {version.status !== "DRAFT" ? (
+            <Button
+              variant="text"
+              size="sm"
+              icon={<Printer size={14} />}
+              onClick={onPrint}
+            >
+              {t("common.print")}
+            </Button>
+          ) : null}
+          {canEdit ? (
+            <Button
+              variant="text"
+              size="sm"
+              icon={<Trash2 size={14} />}
+              onClick={onDelete}
+            >
+              {t("common.delete")}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+      {open ? (
+        <section
+          id={panelId}
+          className="program-review-card__body"
+          aria-label={t("athletes.programReview")}
+        >
+          {detailQuery.isLoading ? (
+            <Spinner label={t("common.loading")} />
+          ) : detailQuery.isError || !detailQuery.data ? (
+            <ErrorState
+              message={translateApiError(detailQuery.error, t)}
+              onRetry={() => detailQuery.refetch()}
+              retryLabel={t("common.retry")}
+            />
+          ) : (
+            <ProgramReviewDetail version={detailQuery.data} />
+          )}
+        </section>
+      ) : null}
+    </article>
   )
 }
 
@@ -1164,107 +1445,28 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
           ) : programsQuery.data?.length ? (
             <div className="stack-sm">
               {programsQuery.data.map((version) => (
-                <div key={version.id} className="m3-version-row">
-                  <div className="m3-version-row__main">
-                    <ClipboardList size={20} className="muted" />
-                    <div>
-                      <div className="m3-version-row__title">
-                        {version.title}{" "}
-                        <span className="muted">
-                          ·{" "}
-                          {t("program.versionLabel", {
-                            version: formatNumber(version.version_number),
-                          })}
-                        </span>
-                      </div>
-                      <div className="m3-version-row__meta">
-                        <div>
-                          {t("program.days")}: {formatNumber(version.day_count)}{" "}
-                          · {version.coach_name ?? ""}
-                        </div>
-                        <div>
-                          {version.start_date ? (
-                            <>
-                              {t("program.startDate")}:{" "}
-                              {formatDate(version.start_date)}
-                              {version.end_date
-                                ? ` · ${t("program.endDate")}: ${formatDate(
-                                    version.end_date,
-                                  )}`
-                                : ""}
-                            </>
-                          ) : (
-                            <>
-                              {t("program.versionHistory")}:{" "}
-                              {formatDate(version.created_at)}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="row" style={{ gap: 4 }}>
-                    <StatusBadge status={version.status.toLowerCase()} />
-                    {version.status !== "ARCHIVED" && canEdit ? (
-                      <Button
-                        variant="text"
-                        size="sm"
-                        onClick={() =>
-                          navigate({
-                            to: "/gyms/$gymId/programs/$versionId/edit",
-                            params: {
-                              gymId: activeGymId!,
-                              versionId: version.id,
-                            },
-                          })
-                        }
-                      >
-                        {t("common.edit")}
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="text"
-                        size="sm"
-                        onClick={() =>
-                          navigate({
-                            to: "/gyms/$gymId/programs/$versionId/edit",
-                            params: {
-                              gymId: activeGymId!,
-                              versionId: version.id,
-                            },
-                          })
-                        }
-                      >
-                        {t("common.open")}
-                      </Button>
-                    )}
-                    {version.status !== "DRAFT" ? (
-                      <Button
-                        variant="text"
-                        size="sm"
-                        icon={<Printer size={14} />}
-                        onClick={() =>
-                          window.open(
-                            `/print/${version.id}?gym=${activeGymId}`,
-                            "_blank",
-                          )
-                        }
-                      >
-                        {t("common.print")}
-                      </Button>
-                    ) : null}
-                    {canEdit ? (
-                      <Button
-                        variant="text"
-                        size="sm"
-                        icon={<Trash2 size={14} />}
-                        onClick={() => setDeleteTarget(version)}
-                      >
-                        {t("common.delete")}
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
+                <ProgramReviewCard
+                  key={version.id}
+                  version={version}
+                  defaultOpen={version.status === "ACTIVE"}
+                  canEdit={canEdit}
+                  onEdit={() =>
+                    navigate({
+                      to: "/gyms/$gymId/programs/$versionId/edit",
+                      params: {
+                        gymId: activeGymId!,
+                        versionId: version.id,
+                      },
+                    })
+                  }
+                  onPrint={() =>
+                    window.open(
+                      `/print/${version.id}?gym=${activeGymId}`,
+                      "_blank",
+                    )
+                  }
+                  onDelete={() => setDeleteTarget(version)}
+                />
               ))}
             </div>
           ) : (
