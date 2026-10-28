@@ -31,6 +31,7 @@ import { type TranslationKey, useI18n } from "../i18n"
 import { readableOnColor } from "../lib/brand"
 import { useTheme } from "../theme"
 import { Avatar, Button, IconButton, Spinner } from "./M3"
+import { OfflineBanner, OfflineState, useOnlineStatus } from "./OnlineStatus"
 
 type NavItem = {
   to: string
@@ -132,9 +133,11 @@ export function AppShell() {
     setActiveGym,
     setActiveRole,
     logout,
+    refresh,
   } = useAuth()
   const { t, locale, setLocale } = useI18n()
   const { theme, setTheme } = useTheme()
+  const online = useOnlineStatus()
   const navigate = useNavigate()
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
@@ -166,6 +169,7 @@ export function AppShell() {
   }
 
   if (!me) {
+    if (!online) return <OfflineState onRetry={() => void refresh()} />
     return <Navigate to="/login" replace />
   }
 
@@ -354,6 +358,7 @@ export function AppShell() {
       </nav>
 
       <div className="m3-app-body">
+        <OfflineBanner />
         <header className="m3-topbar">
           <div className="m3-topbar__brand">
             <div

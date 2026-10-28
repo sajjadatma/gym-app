@@ -63,6 +63,25 @@ test("build id changes with shell, assets or worker but is stable for identical 
   }
 })
 
+test("build injects every emitted asset into the precache list", async () => {
+  const fixtureRoot = await fixture({
+    template: `const PRECACHE = ["/", __FORMYAR_PRECACHE_ASSETS__]\nconst CACHE = "formyar-shell-${TOKEN}"\n`,
+    assets: ["index-abc.js", "index-def.css"],
+  })
+  try {
+    await buildServiceWorker(fixtureRoot.output, fixtureRoot.templatePath)
+    const output = await readFile(
+      path.join(fixtureRoot.output, "sw.js"),
+      "utf8",
+    )
+    assert.ok(output.includes('"/assets/index-abc.js"'))
+    assert.ok(output.includes('"/assets/index-def.css"'))
+    assert.equal(output.includes("__FORMYAR_PRECACHE_ASSETS__"), false)
+  } finally {
+    await rm(fixtureRoot.root, { recursive: true, force: true })
+  }
+})
+
 test("build fails when emitted index is missing", async () => {
   const empty = await mkdtemp(path.join(tmpdir(), "formyar-sw-empty-"))
   try {

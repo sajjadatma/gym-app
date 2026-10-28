@@ -47,9 +47,19 @@ export async function buildServiceWorker(
     hash.update(name)
   }
   const buildId = hash.digest("hex").slice(0, 16)
-  const output = template.split("__FORMYAR_BUILD_ID__").join(buildId)
+  const precache = assetNames
+    .map((name) => JSON.stringify(`/${name}`))
+    .join(",\n  ")
+  const output = template
+    .split("__FORMYAR_BUILD_ID__")
+    .join(buildId)
+    .split("__FORMYAR_PRECACHE_ASSETS__")
+    .join(precache)
   if (output.includes("__FORMYAR_BUILD_ID__")) {
     throw new Error("Service worker template still contains the build token")
+  }
+  if (output.includes("__FORMYAR_PRECACHE_ASSETS__")) {
+    throw new Error("Service worker template still contains the asset token")
   }
   await writeFile(path.join(outputDir, "sw.js"), output)
   return buildId

@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react"
 import type { ReactNode } from "react"
 
 import { useI18n } from "../i18n"
+import { OfflineBanner } from "./OnlineStatus"
 
 export function AuthLayout({
   title,
@@ -30,6 +31,7 @@ export function AuthLayout({
         <div className="m3-auth-brand__footer">{t("app.tagline")}</div>
       </aside>
       <main className="m3-auth-panel">
+        <OfflineBanner />
         <div className="m3-auth-card">
           <div className="m3-auth-card__head">
             <h1>{title}</h1>

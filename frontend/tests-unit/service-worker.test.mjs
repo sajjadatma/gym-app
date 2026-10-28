@@ -12,6 +12,7 @@ const workerPath = path.resolve(import.meta.dirname, "../public/sw.js")
 class FakeCache {
   entries = new Map()
   putCalls = 0
+  addAllCalls = []
   async put(request, response) {
     this.putCalls += 1
     this.entries.set(
@@ -25,7 +26,9 @@ class FakeCache {
     )
     return response?.clone()
   }
-  async addAll() {}
+  async addAll(requests) {
+    this.addAllCalls.push([...requests])
+  }
 }
 
 class FakeCacheStorage {
@@ -55,6 +58,8 @@ async function loadWorker({
   const source = (await readFile(workerPath, "utf8"))
     .split(TOKEN)
     .join(BUILD_ID)
+    .split("__FORMYAR_PRECACHE_ASSETS__")
+    .join('"/assets/app.js",\n  "/assets/app.css",')
   const listeners = {}
   let claimCalls = 0
   let skipWaitingCalls = 0
@@ -116,6 +121,20 @@ function eventFor(request) {
     },
   }
 }
+
+test("install precaches the complete build without taking over open tabs", async () => {
+  const storage = new FakeCacheStorage()
+  const worker = await loadWorker({ storage })
+  const event = eventFor({})
+  worker.listeners.install(event)
+  await event.drain()
+  const cache = await storage.open(CACHE_NAME)
+  assert.equal(cache.addAllCalls.length, 1)
+  assert.ok(cache.addAllCalls[0].includes("/"))
+  assert.ok(cache.addAllCalls[0].includes("/assets/app.js"))
+  assert.ok(cache.addAllCalls[0].includes("/assets/app.css"))
+  assert.equal(worker.skipWaitingCalls, 0)
+})
 
 test("activation removes only obsolete FormYar caches", async () => {
   const storage = new FakeCacheStorage({

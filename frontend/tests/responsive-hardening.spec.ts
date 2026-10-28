@@ -259,6 +259,7 @@ async function prepare(
     superuser = false,
     locale = "fa",
     globalAthletes = false,
+    offlineIdentity = false,
   }: {
     role: Role
     activeGym?: boolean
@@ -271,10 +272,11 @@ async function prepare(
     superuser?: boolean
     locale?: "fa" | "en"
     globalAthletes?: boolean
+    offlineIdentity?: boolean
   },
 ) {
   await page.addInitScript(
-    ({ gymId, active, athleteView, activeRole, language }) => {
+    ({ gymId, active, athleteView, activeRole, language, offline }) => {
       if (active) {
         localStorage.setItem("gym.activeGymId", gymId)
         localStorage.setItem("gym.activeRole", activeRole)
@@ -285,6 +287,12 @@ async function prepare(
       localStorage.setItem("superuser.athletes.view", athleteView)
       localStorage.setItem("gym.locale", language)
       localStorage.setItem("gym.theme", "light")
+      if (offline) {
+        Object.defineProperty(navigator, "onLine", {
+          configurable: true,
+          get: () => false,
+        })
+      }
     },
     {
       gymId: GYM_ID,
@@ -292,6 +300,7 @@ async function prepare(
       athleteView: view,
       activeRole: role,
       language: locale,
+      offline: offlineIdentity,
     },
   )
 
@@ -305,7 +314,10 @@ async function prepare(
         body: JSON.stringify(body),
       })
 
-    if (path === "/api/v1/users/me") return json(me(role, superuser))
+    if (path === "/api/v1/users/me") {
+      if (offlineIdentity) return route.abort("internetdisconnected")
+      return json(me(role, superuser))
+    }
     if (path === "/api/v1/gyms/" || path === "/api/v1/gyms") {
       return json({ data: [gymFor(role)], count: 1 })
     }
@@ -605,4 +617,43 @@ test("athlete record tabs support arrow keys and expose a panel", async ({
   await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true")
   await expect(tabs.nth(1)).toBeFocused()
   await expect(page.getByRole("tabpanel")).toBeVisible()
+})
+
+test("offline notice appears and clears when the connection returns", async ({
+  page,
+}) => {
+  await prepare(page, { role: "GYM_ADMIN", athletes: true })
+  await page.goto(`/gyms/${GYM_ID}/athletes`)
+  const notice = page.locator(".m3-offline-banner")
+  await expect(notice).toHaveCount(0)
+
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "onLine", {
+      configurable: true,
+      get: () => false,
+    })
+    window.dispatchEvent(new Event("offline"))
+  })
+  await expect(notice).toBeVisible()
+  await expect(notice).toContainText("اتصال اینترنت قطع است")
+
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, "onLine", {
+      configurable: true,
+      get: () => true,
+    })
+    window.dispatchEvent(new Event("online"))
+  })
+  await expect(notice).toHaveCount(0)
+})
+
+test("offline identity failure shows recovery instead of the login form", async ({
+  page,
+}) => {
+  await prepare(page, { role: "GYM_ADMIN", offlineIdentity: true })
+  await page.goto("/profile")
+
+  await expect(page.getByRole("heading", { name: "بدون اتصال" })).toBeVisible()
+  await expect(page.getByLabel(/ایمیل/)).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "تلاش دوباره" })).toBeVisible()
 })

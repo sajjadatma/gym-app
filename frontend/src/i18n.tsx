@@ -37,6 +37,10 @@ const fa = {
   "app.name": "آسکورا",
   "app.tagline": "مدیریت باشگاه و برنامه تمرینی",
   "common.loading": "در حال بارگذاری…",
+  "common.offline": "اتصال اینترنت قطع است. نمایش داده‌ها ممکن است قدیمی باشد.",
+  "common.offlineTitle": "بدون اتصال",
+  "common.offlineHint":
+    "برای ادامه، اتصال اینترنت را بررسی کنید. داده‌های ذخیره‌شده ممکن است قدیمی باشند.",
   "common.saving": "در حال ذخیره…",
   "common.save": "ذخیره",
   "common.cancel": "انصراف",
@@ -987,6 +991,10 @@ const en: Record<TranslationKey, string> = {
   "app.name": "ASCORA",
   "app.tagline": "Gym management and workout programs",
   "common.loading": "Loading…",
+  "common.offline": "You are offline. Data may be out of date.",
+  "common.offlineTitle": "You're offline",
+  "common.offlineHint":
+    "Check your internet connection to continue. Cached data may be out of date.",
   "common.saving": "Saving…",
   "common.save": "Save",
   "common.cancel": "Cancel",
