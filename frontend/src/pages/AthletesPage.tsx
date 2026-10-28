@@ -292,14 +292,16 @@ export function AthletesPage() {
     }
     return (
       <div className="m3-row-actions">
-        <Button
-          variant="text"
-          size="sm"
-          icon={<Eye size={15} />}
-          onClick={() => openOverview(athlete.user_id)}
-        >
-          {t("common.details")}
-        </Button>
+        {isAdmin ? (
+          <Button
+            variant="text"
+            size="sm"
+            icon={<Eye size={15} />}
+            onClick={() => openOverview(athlete.user_id)}
+          >
+            {t("common.details")}
+          </Button>
+        ) : null}
         <RowActionMenu
           items={items}
           label={t("common.moreActions")}
@@ -582,14 +584,16 @@ export function AthletesPage() {
                   </span>
                 )}
                 <div className="m3-entity-card__actions">
-                  <Button
-                    variant="text"
-                    size="sm"
-                    icon={<Eye size={14} />}
-                    onClick={() => openOverview(athlete.user_id)}
-                  >
-                    {t("common.details")}
-                  </Button>
+                  {isAdmin ? (
+                    <Button
+                      variant="text"
+                      size="sm"
+                      icon={<Eye size={14} />}
+                      onClick={() => openOverview(athlete.user_id)}
+                    >
+                      {t("common.details")}
+                    </Button>
+                  ) : null}
                   {isAdmin ? (
                     <Button
                       variant="text"

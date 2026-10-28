@@ -33,6 +33,11 @@ export default defineConfig({
       testMatch: /superuser-context\.spec\.ts/,
     },
     {
+      name: "responsive",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /responsive-hardening\.spec\.ts/,
+    },
+    {
       name: "mobile-admin",
       use: {
         ...devices["Pixel 5"],

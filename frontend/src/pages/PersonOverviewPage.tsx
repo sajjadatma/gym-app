@@ -431,6 +431,13 @@ export function PersonOverviewPage({
                                                 set.rest_seconds,
                                               )} ${t("common.units.seconds")}`}
                                         </td>
+                                        <td>
+                                          {set.duration_seconds == null
+                                            ? "—"
+                                            : `${formatNumber(
+                                                set.duration_seconds,
+                                              )} ${t("common.units.seconds")}`}
+                                        </td>
                                         <td>{set.intensity || "—"}</td>
                                         <td>{set.note || "—"}</td>
                                       </tr>

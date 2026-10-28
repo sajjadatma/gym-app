@@ -464,6 +464,9 @@ button:disabled {
   top: calc(100% + 8px);
   inset-inline-end: 0;
   min-width: 220px;
+  max-height: min(70dvh, 560px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 6px;
   border-radius: 14px;
   background: var(--m3-surface-container-high);
@@ -3715,10 +3718,11 @@ a.m3-contact-chip:focus-visible {
 
   .m3-set-row {
     grid-template-columns: 30px repeat(2, minmax(0, 1fr));
+    align-items: start;
   }
 
-  .m3-set-row > :nth-child(n + 5) {
-    display: none;
+  .m3-set-row__number {
+    grid-row: span 2;
   }
 
   .m3-topbar__brand span {

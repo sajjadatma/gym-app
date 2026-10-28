@@ -49,11 +49,21 @@ function useOutsideClose(open: boolean, close: () => void) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
-    const handler = (event: MouseEvent) => {
+    const handlePointer = (event: MouseEvent) => {
       if (!ref.current?.contains(event.target as Node)) close()
     }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      event.preventDefault()
+      close()
+      ref.current?.querySelector<HTMLElement>("button")?.focus()
+    }
+    document.addEventListener("mousedown", handlePointer)
+    document.addEventListener("keydown", handleKey)
+    return () => {
+      document.removeEventListener("mousedown", handlePointer)
+      document.removeEventListener("keydown", handleKey)
+    }
   }, [open, close])
   return ref
 }
