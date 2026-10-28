@@ -336,74 +336,6 @@ function CoachesContent() {
     label: gym.name,
   }))
 
-  function rowActions(row: SuperuserCoachRow) {
-    return (
-      <>
-        <Button
-          variant="text"
-          size="sm"
-          icon={<Eye size={14} />}
-          onClick={() =>
-            navigate({
-              to: "/people/$userId",
-              params: { userId: row.user_id },
-              search: { gym: row.gym_id, kind: "COACH" },
-            })
-          }
-        >
-          {t("common.details")}
-        </Button>
-        <Button
-          variant="text"
-          size="sm"
-          icon={<Pencil size={14} />}
-          disabled={stale}
-          onClick={() => openEdit(row)}
-        >
-          {t("common.edit")}
-        </Button>
-        {row.is_active ? (
-          <Button
-            variant="text"
-            size="sm"
-            icon={<ArrowRightLeft size={14} />}
-            disabled={stale}
-            onClick={() => openTransfer(row)}
-          >
-            {t("superuser.transferGym")}
-          </Button>
-        ) : null}
-        {row.can_archive ? (
-          <Button
-            variant="text"
-            size="sm"
-            icon={
-              row.is_active ? <Archive size={14} /> : <RotateCcw size={14} />
-            }
-            disabled={stale}
-            onClick={() =>
-              setAction({
-                kind: row.is_active ? "archive" : "restore",
-                row,
-              })
-            }
-          >
-            {t(row.is_active ? "superuser.archive" : "superuser.restore")}
-          </Button>
-        ) : null}
-        <Button
-          variant="text"
-          size="sm"
-          icon={<UserMinus size={14} />}
-          disabled={stale}
-          onClick={() => setAction({ kind: "delete", row })}
-        >
-          {t("superuser.removeCoach")}
-        </Button>
-      </>
-    )
-  }
-
   function compactRowActions(row: SuperuserCoachRow) {
     const items: RowActionItem[] = [
       {
@@ -589,7 +521,9 @@ function CoachesContent() {
                 </div>
               </div>
               <div className="m3-entity-card__footer">
-                <div className="m3-entity-card__actions">{rowActions(row)}</div>
+                <div className="m3-entity-card__actions">
+                  {compactRowActions(row)}
+                </div>
               </div>
             </div>
           ))}

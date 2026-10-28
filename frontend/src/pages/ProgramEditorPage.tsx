@@ -382,7 +382,12 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
                 variant="text"
                 icon={<Printer size={16} />}
                 className="program-studio__secondary-action"
-                onClick={() => window.open(`/print/${version.id}`, "_blank")}
+                onClick={() =>
+                  window.open(
+                    `/print/${version.id}?gym=${activeGymId}`,
+                    "_blank",
+                  )
+                }
               >
                 {t("common.print")}
               </Button>
@@ -680,7 +685,10 @@ export function ProgramEditorPage({ versionId }: { versionId: string }) {
                     variant="outlined"
                     icon={<Printer size={16} />}
                     onClick={() =>
-                      window.open(`/print/${version.id}`, "_blank")
+                      window.open(
+                        `/print/${version.id}?gym=${activeGymId}`,
+                        "_blank",
+                      )
                     }
                   >
                     {t("common.print")}

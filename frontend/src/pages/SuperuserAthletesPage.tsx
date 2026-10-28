@@ -489,76 +489,6 @@ function AthletesContent() {
     )
   }
 
-  function rowActions(row: SuperuserAthleteRow) {
-    return (
-      <>
-        <Button
-          variant="text"
-          size="sm"
-          icon={<Eye size={14} />}
-          onClick={() =>
-            navigate({
-              to: "/people/$userId",
-              params: { userId: row.user_id },
-              search: { gym: row.gym_id, kind: "ATHLETE" },
-            })
-          }
-        >
-          {t("common.details")}
-        </Button>
-        {!row.is_archived ? (
-          <Button
-            variant="text"
-            size="sm"
-            icon={<Pencil size={14} />}
-            disabled={stale}
-            onClick={() => openEdit(row)}
-          >
-            {t("common.edit")}
-          </Button>
-        ) : null}
-        {!row.is_archived ? (
-          <Button
-            variant="text"
-            size="sm"
-            icon={<ArrowRightLeft size={14} />}
-            disabled={stale}
-            onClick={() => openTransfer(row)}
-          >
-            {t("superuser.transferGym")}
-          </Button>
-        ) : null}
-        <Button
-          variant="text"
-          size="sm"
-          icon={
-            row.is_archived ? <RotateCcw size={14} /> : <Archive size={14} />
-          }
-          disabled={stale}
-          onClick={() =>
-            setAction({
-              kind: row.is_archived ? "restore" : "archive",
-              row,
-            })
-          }
-        >
-          {t(row.is_archived ? "superuser.restore" : "superuser.archive")}
-        </Button>
-        {row.is_archived ? (
-          <Button
-            variant="text"
-            size="sm"
-            icon={<Trash2 size={14} />}
-            disabled={stale}
-            onClick={() => setAction({ kind: "delete", row })}
-          >
-            {t("common.delete")}
-          </Button>
-        ) : null}
-      </>
-    )
-  }
-
   return (
     <>
       <PageHeader
@@ -686,7 +616,9 @@ function AthletesContent() {
                 </div>
               </div>
               <div className="m3-entity-card__footer">
-                <div className="m3-entity-card__actions">{rowActions(row)}</div>
+                <div className="m3-entity-card__actions">
+                  {compactRowActions(row)}
+                </div>
               </div>
             </div>
           ))}

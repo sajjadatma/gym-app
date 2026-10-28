@@ -709,6 +709,8 @@ const fa = {
   "my.upload": "بارگذاری آنالیز بدن",
   "print.title": "نسخه چاپی برنامه",
   "print.printButton": "چاپ یا ذخیره PDF",
+  "print.missingContext":
+    "این برنامه به باشگاه مشخصی وابسته است. آن را از پرونده ورزشکار یا ویرایشگر برنامه باز کنید.",
   "print.hint": "در پنجره چاپ، گزینه «ذخیره به‌عنوان PDF» را انتخاب کنید.",
   "print.preparedFor": "برنامه ورزشکار",
   "print.preparedBy": "مربی",
@@ -1664,6 +1666,8 @@ const en: Record<TranslationKey, string> = {
   "my.upload": "Upload body analysis",
   "print.title": "Program print view",
   "print.printButton": "Print or save PDF",
+  "print.missingContext":
+    "This program belongs to a specific club. Open it from the athlete record or the program editor.",
   "print.hint": "Choose “Save as PDF” in the print dialog.",
   "print.preparedFor": "Athlete program",
   "print.preparedBy": "Coach",

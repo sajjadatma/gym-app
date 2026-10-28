@@ -192,6 +192,51 @@ const athleteSummary = {
   created_at: "2025-01-01T08:00:00Z",
 }
 
+function coachOverview() {
+  return {
+    kind: "COACH",
+    focus_gym_id: GYM_ID,
+    focus_gym_name: gym.name,
+    account: {
+      user_id: USER_ID,
+      email: "coach@example.com",
+      full_name: "مربی آزمایشی",
+      phone: null,
+      is_active: true,
+      created_at: "2025-01-01T08:00:00Z",
+    },
+    memberships: [
+      {
+        membership_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+        gym_id: GYM_ID,
+        gym_name: gym.name,
+        roles: ["COACH"],
+        is_active: true,
+        is_owner: false,
+        created_at: "2025-01-01T08:00:00Z",
+      },
+    ],
+    athlete: null,
+    coach: {
+      roles: ["COACH"],
+      is_active: true,
+      is_owner: false,
+      assignments: [],
+      authored_programs: [],
+    },
+    stats: {
+      memberships: 1,
+      assignments: 0,
+      active_assignments: 0,
+      program_versions: 0,
+      active_program_versions: 0,
+      body_files: 0,
+    },
+    history: [],
+    generated_at: "2025-01-01T08:00:00Z",
+  }
+}
+
 function overview() {
   const profile = athleteProfile()
   return {
@@ -351,11 +396,10 @@ async function prepare(
     ) {
       return json({ data: [], count: 0 })
     }
-    if (
-      personOverview &&
-      path === `/api/v1/people/${athleteSummary.user_id}/overview`
-    ) {
-      return json(overview())
+    if (personOverview && path.endsWith("/overview")) {
+      return json(
+        url.searchParams.get("kind") === "COACH" ? coachOverview() : overview(),
+      )
     }
     if (program && path === `/api/v1/program-versions/${VERSION_ID}`) {
       return json(version)
@@ -405,9 +449,13 @@ test("coaches only see actions the overview API authorizes", async ({
   const card = page.locator(".m3-entity-card").first()
   await expect(card).toBeVisible()
   await expect(card.getByRole("button", { name: "جزئیات" })).toHaveCount(0)
+  const more = card.getByRole("button", { name: "اقدام‌های بیشتر" })
+  await expect(more).toBeVisible()
+  await more.click()
   await expect(
-    card.getByRole("button", { name: "باز کردن", exact: true }),
+    page.getByRole("menu").getByRole("menuitem", { name: "باز کردن" }),
   ).toBeVisible()
+  await page.keyboard.press("Escape")
 
   await page.getByRole("button", { name: "جدول", exact: true }).click()
   const row = page.locator(".m3-data-table tbody tr").first()
@@ -656,4 +704,71 @@ test("offline identity failure shows recovery instead of the login form", async 
   await expect(page.getByRole("heading", { name: "بدون اتصال" })).toBeVisible()
   await expect(page.getByLabel(/ایمیل/)).toHaveCount(0)
   await expect(page.getByRole("button", { name: "تلاش دوباره" })).toBeVisible()
+})
+
+test("print deep links work when the club is supplied in the URL", async ({
+  page,
+}) => {
+  await prepare(page, {
+    role: "GYM_ADMIN",
+    activeGym: false,
+    superuser: true,
+    program: true,
+  })
+  await page.goto(`/print/${VERSION_ID}?gym=${GYM_ID}`)
+
+  await expect(page.locator(".m3-print-sheet")).toBeVisible()
+  await expect(page.getByText("برنامه آزمون").first()).toBeVisible()
+  expect(
+    await page.evaluate(() => localStorage.getItem("gym.activeGymId")),
+  ).toBe(GYM_ID)
+})
+
+test("print without club context explains how to reopen it", async ({
+  page,
+}) => {
+  await prepare(page, {
+    role: "GYM_ADMIN",
+    activeGym: false,
+    superuser: true,
+    program: true,
+  })
+  await page.goto(`/print/${VERSION_ID}`)
+
+  await expect(
+    page.getByText(/از پرونده ورزشکار یا ویرایشگر برنامه باز کنید/),
+  ).toBeVisible()
+  await expect(page.getByText("عملیات انجام نشد")).toHaveCount(0)
+})
+
+test("athlete cards use Details plus a secondary action menu", async ({
+  page,
+}) => {
+  await prepare(page, { role: "GYM_ADMIN", athletes: true, view: "grid" })
+  await page.goto(`/gyms/${GYM_ID}/athletes`)
+
+  const card = page.locator(".m3-entity-card").first()
+  await expect(card.getByRole("button", { name: "جزئیات" })).toBeVisible()
+  const more = card.getByRole("button", { name: "اقدام‌های بیشتر" })
+  await expect(more).toBeVisible()
+  await expect(card.getByRole("button", { name: "آرشیو ورزشکار" })).toHaveCount(
+    0,
+  )
+  await more.click()
+  await expect(
+    page.getByRole("menu").getByRole("menuitem", { name: "آرشیو ورزشکار" }),
+  ).toBeVisible()
+})
+
+test("coach overviews do not show an athlete coach chip", async ({ page }) => {
+  await prepare(page, { role: "GYM_ADMIN", personOverview: true })
+  await page.goto(`/people/${USER_ID}?gym=${GYM_ID}&kind=COACH`)
+
+  await expect(
+    page.getByRole("heading", { name: "مربی آزمایشی" }),
+  ).toBeVisible()
+  await expect(page.locator(".m3-profile-hero__contacts")).toBeVisible()
+  await expect(
+    page.locator(".m3-contact-chip").filter({ hasText: "بدون مربی" }),
+  ).toHaveCount(0)
 })

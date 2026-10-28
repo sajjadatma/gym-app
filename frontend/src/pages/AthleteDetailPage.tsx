@@ -986,7 +986,10 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                         size="sm"
                         icon={<Printer size={14} />}
                         onClick={() =>
-                          window.open(`/print/${version.id}`, "_blank")
+                          window.open(
+                            `/print/${version.id}?gym=${activeGymId}`,
+                            "_blank",
+                          )
                         }
                       >
                         {t("common.print")}

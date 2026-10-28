@@ -584,35 +584,7 @@ export function AthletesPage() {
                   </span>
                 )}
                 <div className="m3-entity-card__actions">
-                  {isAdmin ? (
-                    <Button
-                      variant="text"
-                      size="sm"
-                      icon={<Eye size={14} />}
-                      onClick={() => openOverview(athlete.user_id)}
-                    >
-                      {t("common.details")}
-                    </Button>
-                  ) : null}
-                  {isAdmin ? (
-                    <Button
-                      variant="text"
-                      size="sm"
-                      icon={<Archive size={14} />}
-                      disabled={stale}
-                      onClick={() => setArchiveTargets([athlete])}
-                    >
-                      {t("athletes.archive")}
-                    </Button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="m3-entity-card__open"
-                    onClick={() => openAthlete(athlete.user_id)}
-                  >
-                    {t("common.open")}
-                    <ForwardIcon size={14} aria-hidden />
-                  </button>
+                  {tableActions(athlete)}
                 </div>
               </div>
             </div>

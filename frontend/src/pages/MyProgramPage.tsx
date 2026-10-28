@@ -136,7 +136,9 @@ export function MyProgramPage() {
             <Button
               variant="outlined"
               icon={<Printer size={16} />}
-              onClick={() => window.open(`/print/${active.id}`, "_blank")}
+              onClick={() =>
+                window.open(`/print/${active.id}?gym=${activeGymId}`, "_blank")
+              }
             >
               {t("common.print")}
             </Button>

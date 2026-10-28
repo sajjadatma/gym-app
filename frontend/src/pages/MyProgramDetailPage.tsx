@@ -80,7 +80,9 @@ export function MyProgramDetailPage({ versionId }: { versionId: string }) {
             <Button
               variant="outlined"
               icon={<Printer size={16} />}
-              onClick={() => window.open(`/print/${version.id}`, "_blank")}
+              onClick={() =>
+                window.open(`/print/${version.id}?gym=${activeGymId}`, "_blank")
+              }
             >
               {t("common.print")}
             </Button>

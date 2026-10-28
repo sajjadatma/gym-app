@@ -568,15 +568,17 @@ export function PersonOverviewPage({
                   <span>{data.account.phone}</span>
                 </a>
               ) : null}
-              <span className="m3-contact-chip">
-                <UserRound size={14} aria-hidden />
-                <span>
-                  {t("context.coach")}:{" "}
-                  {athlete?.current_coach?.full_name ??
-                    athlete?.current_coach?.email ??
-                    t("athletes.noCoach")}
+              {athlete ? (
+                <span className="m3-contact-chip">
+                  <UserRound size={14} aria-hidden />
+                  <span>
+                    {t("context.coach")}:{" "}
+                    {athlete.current_coach?.full_name ??
+                      athlete.current_coach?.email ??
+                      t("athletes.noCoach")}
+                  </span>
                 </span>
-              </span>
+              ) : null}
             </div>
           </div>
         </div>

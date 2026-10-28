@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { ArrowRight, Printer } from "lucide-react"
+import { ArrowLeft, ArrowRight, Printer } from "lucide-react"
 import { type CSSProperties, useEffect } from "react"
 import { apiAssetUrl, translateApiError } from "@/api"
 import { useAuth } from "@/auth"
@@ -9,10 +9,22 @@ import { Button, ErrorState, Spinner } from "@/components/M3"
 import { useI18n } from "@/i18n"
 import { workoutDayLabel } from "@/lib/workoutDayLabel"
 
-export function PrintPage({ versionId }: { versionId: string }) {
+export function PrintPage({
+  versionId,
+  gymId,
+}: {
+  versionId: string
+  gymId?: string
+}) {
   const { t, direction, formatDate, formatNumber } = useI18n()
-  const { activeGym, activeGymId, activeRole } = useAuth()
+  const { activeGym, activeGymId, activeRole, setActiveGym } = useAuth()
   const navigate = useNavigate()
+  const contextGymId = gymId ?? activeGymId ?? null
+  const contextReady = Boolean(contextGymId) && activeGymId === contextGymId
+
+  useEffect(() => {
+    if (gymId && activeGymId !== gymId) setActiveGym(gymId)
+  }, [activeGymId, gymId, setActiveGym])
 
   const versionQuery = useQuery({
     queryKey: ["print-version", activeGymId, versionId],
@@ -22,7 +34,7 @@ export function PrintPage({ versionId }: { versionId: string }) {
           path: { version_id: versionId },
         })
       ).data,
-    enabled: Boolean(activeGymId),
+    enabled: contextReady,
   })
 
   useEffect(() => {
@@ -33,6 +45,24 @@ export function PrintPage({ versionId }: { versionId: string }) {
       document.title = previous
     }
   }, [versionQuery.data, t])
+
+  if (!contextGymId) {
+    return (
+      <div className="m3-print-page">
+        <ErrorState message={t("print.missingContext")} />
+      </div>
+    )
+  }
+
+  if (!contextReady) {
+    return (
+      <div
+        style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}
+      >
+        <Spinner label={t("common.loading")} />
+      </div>
+    )
+  }
 
   if (versionQuery.isLoading) {
     return (
@@ -62,6 +92,7 @@ export function PrintPage({ versionId }: { versionId: string }) {
     "--print-brand": brandPrimary,
     "--print-accent": brandAccent,
   } as CSSProperties
+  const BackIcon = direction === "rtl" ? ArrowRight : ArrowLeft
   const back = () => {
     if (activeRole === "ATHLETE") {
       navigate({
@@ -79,7 +110,7 @@ export function PrintPage({ versionId }: { versionId: string }) {
   return (
     <div className="m3-print-page">
       <div className="m3-print-toolbar">
-        <Button variant="text" icon={<ArrowRight size={16} />} onClick={back}>
+        <Button variant="text" icon={<BackIcon size={16} />} onClick={back}>
           {t("print.back")}
         </Button>
         <span className="m3-print-toolbar__hint">{t("print.hint")}</span>
