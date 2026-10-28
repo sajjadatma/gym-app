@@ -84,8 +84,8 @@ async function loadWorker({
       },
     },
   }
-  const fetch = async (input) => {
-    if (fetchImpl) return fetchImpl(input)
+  const fetch = async (input, init) => {
+    if (fetchImpl) return fetchImpl(input, init)
     if (fetches.length) {
       const reply = fetches.shift()
       if (reply instanceof Error) throw reply
@@ -182,6 +182,27 @@ test("activation removes only obsolete FormYar caches", async () => {
   assert.deepEqual(storage.deleted, ["formyar-shell-v1"])
   assert.equal(worker.claimCalls, 1)
   assert.equal(worker.skipWaitingCalls, 0)
+})
+
+test("navigation bypasses the HTTP cache instead of trusting stale HTML", async () => {
+  let navigationInit
+  const worker = await loadWorker({
+    fetchImpl: async (_input, init) => {
+      navigationInit = init
+      return new Response("fresh shell", {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      })
+    },
+  })
+  const event = eventFor({
+    method: "GET",
+    url: "http://localhost/login",
+    mode: "navigate",
+  })
+  worker.listeners.fetch(event)
+  assert.equal(await (await event.response()).text(), "fresh shell")
+  assert.equal(navigationInit.cache, "no-store")
 })
 
 test("navigation keeps the installed shell and never replaces it with a newer build", async () => {

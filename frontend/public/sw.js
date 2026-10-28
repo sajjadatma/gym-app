@@ -61,7 +61,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       (async () => {
         try {
-          return await fetch(request)
+          return await fetch(request, { cache: "no-store" })
         } catch {
           const cache = await caches.open(CACHE_NAME)
           return (await cache.match("/")) ?? Response.error()
