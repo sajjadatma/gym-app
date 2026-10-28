@@ -594,20 +594,52 @@ export function Tabs({
   tabs,
   value,
   onChange,
+  idPrefix = "m3-tabs",
 }: {
   tabs: { value: string; label: string; count?: number }[]
   value: string
   onChange: (value: string) => void
+  idPrefix?: string
 }) {
-  const { formatNumber } = useI18n()
+  const { formatNumber, direction } = useI18n()
   return (
-    <div className="m3-tabs" role="tablist">
+    <div
+      className="m3-tabs"
+      role="tablist"
+      onKeyDown={(event) => {
+        const keys = ["ArrowLeft", "ArrowRight", "Home", "End"]
+        if (!keys.includes(event.key)) return
+        const buttons = Array.from(
+          event.currentTarget.querySelectorAll<HTMLButtonElement>(
+            '[role="tab"]',
+          ),
+        )
+        const current = buttons.indexOf(
+          document.activeElement as HTMLButtonElement,
+        )
+        let next = current
+        if (event.key === "Home") next = 0
+        else if (event.key === "End") next = buttons.length - 1
+        else if (event.key === "ArrowLeft") {
+          next = direction === "rtl" ? current + 1 : current - 1
+        } else {
+          next = direction === "rtl" ? current - 1 : current + 1
+        }
+        if (next < 0 || next >= buttons.length) return
+        event.preventDefault()
+        buttons[next].focus()
+        onChange(tabs[next].value)
+      }}
+    >
       {tabs.map((tab) => (
         <button
           key={tab.value}
           type="button"
+          id={`${idPrefix}-tab-${tab.value}`}
           role="tab"
           aria-selected={value === tab.value}
+          aria-controls={`${idPrefix}-panel-${tab.value}`}
+          tabIndex={value === tab.value ? 0 : -1}
           className={`m3-tabs__tab ${value === tab.value ? "is-active" : ""}`}
           onClick={() => onChange(tab.value)}
         >

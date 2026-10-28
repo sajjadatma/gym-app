@@ -642,6 +642,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
         tabs={tabItems}
         value={tab}
         onChange={(value) => setTab(value as Tab)}
+        idPrefix="athlete-record"
       />
 
       {error ? (
@@ -651,7 +652,12 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
       ) : null}
 
       {tab === "profile" ? (
-        <div className="stack">
+        <div
+          className="stack"
+          role="tabpanel"
+          id="athlete-record-panel-profile"
+          aria-labelledby="athlete-record-tab-profile"
+        >
           <Card>
             <div className="m3-section__header">
               <div>
@@ -881,7 +887,12 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
       ) : null}
 
       {tab === "programs" ? (
-        <div className="stack">
+        <div
+          className="stack"
+          role="tabpanel"
+          id="athlete-record-panel-programs"
+          aria-labelledby="athlete-record-tab-programs"
+        >
           <div className="row row--between">
             <div>
               <h2>{t("athletes.programs")}</h2>
@@ -1006,85 +1017,91 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
       ) : null}
 
       {tab === "bodyFiles" ? (
-        <Card>
-          <div className="m3-section__header">
-            <div>
-              <h2 className="m3-section__title">{t("athletes.bodyFiles")}</h2>
-              <p className="m3-section__subtitle">
-                {t("athletes.filePrivacy")}
-              </p>
+        <div
+          role="tabpanel"
+          id="athlete-record-panel-bodyFiles"
+          aria-labelledby="athlete-record-tab-bodyFiles"
+        >
+          <Card>
+            <div className="m3-section__header">
+              <div>
+                <h2 className="m3-section__title">{t("athletes.bodyFiles")}</h2>
+                <p className="m3-section__subtitle">
+                  {t("athletes.filePrivacy")}
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="m3-upload">
-            <p
-              id={`${uploadId}-hint`}
-              className="muted"
-              style={{ fontSize: 12 }}
-            >
-              {t("athletes.uploadHint")}
-            </p>
-            <label className="m3-field__label" htmlFor={uploadId}>
-              {t("athletes.uploadBodyFile")}
-            </label>
-            <div className="m3-upload__row">
-              <input
-                ref={fileInput}
-                id={uploadId}
-                aria-describedby={`${uploadId}-hint`}
-                disabled={uploading || archived}
-                type="file"
-                accept="application/pdf,image/jpeg,image/png"
-                className="sr-only"
-                aria-label={t("athletes.uploadBodyFile")}
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  if (file) void uploadFile(file)
-                }}
-              />
-              <Button
-                variant="outlined"
-                icon={<FileUp size={16} />}
-                loading={uploading}
-                disabled={archived}
-                onClick={() => fileInput.current?.click()}
+            <div className="m3-upload">
+              <p
+                id={`${uploadId}-hint`}
+                className="muted"
+                style={{ fontSize: 12 }}
               >
-                {uploading
-                  ? t("common.uploading")
-                  : t("athletes.uploadBodyFile")}
-              </Button>
+                {t("athletes.uploadHint")}
+              </p>
+              <label className="m3-field__label" htmlFor={uploadId}>
+                {t("athletes.uploadBodyFile")}
+              </label>
+              <div className="m3-upload__row">
+                <input
+                  ref={fileInput}
+                  id={uploadId}
+                  aria-describedby={`${uploadId}-hint`}
+                  disabled={uploading || archived}
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png"
+                  className="sr-only"
+                  aria-label={t("athletes.uploadBodyFile")}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0]
+                    if (file) void uploadFile(file)
+                  }}
+                />
+                <Button
+                  variant="outlined"
+                  icon={<FileUp size={16} />}
+                  loading={uploading}
+                  disabled={archived}
+                  onClick={() => fileInput.current?.click()}
+                >
+                  {uploading
+                    ? t("common.uploading")
+                    : t("athletes.uploadBodyFile")}
+                </Button>
+              </div>
             </div>
-          </div>
-          <div style={{ height: 14 }} />
-          {athlete.body_files.length === 0 ? (
-            <EmptyState
-              icon={<FileUp size={24} />}
-              title={t("athletes.noBodyFiles")}
-            />
-          ) : (
-            <div className="stack-sm">
-              {athlete.body_files.map((file) => (
-                <div key={file.id} className="m3-file-row">
-                  <FileUp size={17} className="muted" />
-                  <span className="m3-file-row__name">
-                    {file.original_name}
-                  </span>
-                  <span className="muted">
-                    {formatBytes(file.size_bytes)} ·{" "}
-                    {formatDate(file.created_at)}
-                  </span>
-                  <Button
-                    variant="text"
-                    size="sm"
-                    icon={<Download size={14} />}
-                    onClick={() => downloadFile(file.id, file.original_name)}
-                  >
-                    {t("common.download")}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+            <div style={{ height: 14 }} />
+            {athlete.body_files.length === 0 ? (
+              <EmptyState
+                icon={<FileUp size={24} />}
+                title={t("athletes.noBodyFiles")}
+              />
+            ) : (
+              <div className="stack-sm">
+                {athlete.body_files.map((file) => (
+                  <div key={file.id} className="m3-file-row">
+                    <FileUp size={17} className="muted" />
+                    <span className="m3-file-row__name">
+                      {file.original_name}
+                    </span>
+                    <span className="muted">
+                      {formatBytes(file.size_bytes)} ·{" "}
+                      {formatDate(file.created_at)}
+                    </span>
+                    <Button
+                      variant="text"
+                      size="sm"
+                      icon={<Download size={14} />}
+                      onClick={() => downloadFile(file.id, file.original_name)}
+                    >
+                      {t("common.download")}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
       ) : null}
 
       <Dialog

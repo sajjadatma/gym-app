@@ -96,18 +96,22 @@ export function RowActionMenu({
       close()
       triggerRef.current?.focus()
     }
-    function handleViewportChange() {
+    function handleResize() {
+      close()
+    }
+    function handleScroll(event: Event) {
+      if (menuRef.current?.contains(event.target as Node)) return
       close()
     }
     document.addEventListener("pointerdown", handlePointerDown)
     document.addEventListener("keydown", handleKeyDown)
-    window.addEventListener("resize", handleViewportChange)
-    window.addEventListener("scroll", handleViewportChange, true)
+    window.addEventListener("resize", handleResize)
+    window.addEventListener("scroll", handleScroll, true)
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown)
       document.removeEventListener("keydown", handleKeyDown)
-      window.removeEventListener("resize", handleViewportChange)
-      window.removeEventListener("scroll", handleViewportChange, true)
+      window.removeEventListener("resize", handleResize)
+      window.removeEventListener("scroll", handleScroll, true)
     }
   }, [open, close])
 
@@ -137,6 +141,12 @@ export function RowActionMenu({
               className="m3-row-menu"
               style={style}
               onKeyDown={(event) => {
+                if (event.key === "Tab") {
+                  event.preventDefault()
+                  close()
+                  triggerRef.current?.focus()
+                  return
+                }
                 if (
                   !["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)
                 ) {

@@ -1182,14 +1182,6 @@ button:disabled {
   overflow: hidden;
 }
 
-.m3-data-table-wrap {
-  direction: ltr;
-}
-
-.m3-data-table-wrap .m3-data-table {
-  direction: rtl;
-}
-
 .m3-data-table {
   min-width: 780px;
 }
@@ -3393,7 +3385,6 @@ a.m3-contact-chip:focus-visible {
   background: #ffffff;
   color: #191c1a;
   box-shadow: var(--m3-shadow-2);
-  direction: rtl;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -3694,6 +3685,29 @@ a.m3-contact-chip:focus-visible {
 
   .m3-topbar__context {
     gap: 6px;
+  }
+}
+
+@media (max-width: 900px) {
+  .m3-button--sm,
+  .m3-text-button {
+    min-height: 44px;
+  }
+
+  .m3-icon-button,
+  .m3-row-actions__more {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 760px) {
+  .m3-field__input,
+  .m3-field__control input,
+  .m3-combobox__input,
+  .m3-date-field__input,
+  .m3-date-segment {
+    font-size: 16px;
   }
 }
 
@@ -4481,7 +4495,7 @@ a.m3-contact-chip:focus-visible {
 
 @media (max-width: 760px) {
   .m3-data-table {
-    min-width: 0;
+    min-width: 520px;
     table-layout: fixed;
   }
 
@@ -4518,7 +4532,15 @@ a.m3-contact-chip:focus-visible {
   }
 
   .m3-people-table {
-    min-width: 0;
+    min-width: 520px;
+  }
+
+  .m3-people-table--athletes {
+    min-width: 600px;
+  }
+
+  .m3-people-table__status {
+    width: 15%;
   }
 
   .m3-data-table__identity {
@@ -4536,8 +4558,10 @@ a.m3-contact-chip:focus-visible {
 }
 
 @media (max-width: 600px) {
-  .m3-people-table__club {
-    display: none;
+  .m3-people-table__club span {
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .m3-list-toolbar {
@@ -6201,5 +6225,15 @@ a.m3-contact-chip:focus-visible {
   .program-set-row__actions .m3-icon-button {
     width: 44px;
     height: 44px;
+  }
+}
+
+@media (max-width: 760px) {
+  .program-set-field input {
+    font-size: 16px;
+  }
+
+  .program-set-field::before {
+    font-size: 10px;
   }
 }

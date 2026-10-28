@@ -28,14 +28,14 @@ function gymFor(role: Role) {
   return { ...gym, my_roles: [role], is_owner: role === "GYM_ADMIN" }
 }
 
-function me(role: Role) {
+function me(role: Role, superuser = false) {
   return {
     id: USER_ID,
     email: "review@example.com",
     full_name: "کاربر آزمایشی",
     phone: null,
     is_active: true,
-    is_superuser: false,
+    is_superuser: superuser,
     must_change_password: false,
     created_at: "2025-01-01T08:00:00Z",
     gyms: [
@@ -46,6 +46,63 @@ function me(role: Role) {
         is_owner: role === "GYM_ADMIN",
       },
     ],
+  }
+}
+
+const category = {
+  id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+  name: "سینه",
+  gym_id: GYM_ID,
+}
+
+const exercise = {
+  id: "77777777-7777-4777-8777-777777777777",
+  name_fa: "پرس سینه",
+  muscle_group: "سینه",
+  category_id: category.id,
+  description: null,
+  instructions: null,
+  is_custom: true,
+  gym_id: GYM_ID,
+}
+
+function athleteProfile() {
+  return {
+    user_id: athleteSummary.user_id,
+    gym_id: GYM_ID,
+    email: athleteSummary.email,
+    full_name: athleteSummary.full_name,
+    phone: athleteSummary.phone,
+    birth_date: null,
+    height_cm: 180,
+    weight_kg: 80,
+    chest_cm: null,
+    waist_cm: null,
+    hips_cm: null,
+    arm_cm: null,
+    thigh_cm: null,
+    training_goal: null,
+    sports_history: null,
+    fitness_level: null,
+    limitations: null,
+    training_days: [],
+    training_days_count: null,
+    equipment: null,
+    is_archived: false,
+    created_at: "2025-01-01T08:00:00Z",
+    updated_at: "2025-01-01T08:00:00Z",
+  }
+}
+
+function athleteDetail() {
+  return {
+    profile: athleteProfile(),
+    coach_user_id: USER_ID,
+    coach_name: "مربی آزمایشی",
+    coach_email: "coach@example.com",
+    assignments: [],
+    body_files: [],
+    internal_coach_note: null,
   }
 }
 
@@ -106,6 +163,19 @@ const version = {
   ],
 }
 
+const superuserAthlete = {
+  user_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  gym_id: GYM_ID,
+  gym_name: gym.name,
+  email: "athlete@example.com",
+  full_name: "ورزشکار آزمایشی",
+  phone: "09120000000",
+  is_archived: false,
+  coach_user_id: USER_ID,
+  coach_name: "مربی آزمایشی",
+  created_at: "2025-01-01T08:00:00Z",
+}
+
 const athleteSummary = {
   user_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   gym_id: GYM_ID,
@@ -123,31 +193,7 @@ const athleteSummary = {
 }
 
 function overview() {
-  const profile = {
-    user_id: athleteSummary.user_id,
-    gym_id: GYM_ID,
-    email: athleteSummary.email,
-    full_name: athleteSummary.full_name,
-    phone: athleteSummary.phone,
-    birth_date: null,
-    height_cm: 180,
-    weight_kg: 80,
-    chest_cm: null,
-    waist_cm: null,
-    hips_cm: null,
-    arm_cm: null,
-    thigh_cm: null,
-    training_goal: null,
-    sports_history: null,
-    fitness_level: null,
-    limitations: null,
-    training_days: [],
-    training_days_count: null,
-    equipment: null,
-    is_archived: false,
-    created_at: "2025-01-01T08:00:00Z",
-    updated_at: "2025-01-01T08:00:00Z",
-  }
+  const profile = athleteProfile()
   return {
     kind: "ATHLETE",
     focus_gym_id: GYM_ID,
@@ -208,6 +254,11 @@ async function prepare(
     personOverview = false,
     program = false,
     athletes = false,
+    programEditor = false,
+    athleteRecord = false,
+    superuser = false,
+    locale = "fa",
+    globalAthletes = false,
   }: {
     role: Role
     activeGym?: boolean
@@ -215,10 +266,15 @@ async function prepare(
     personOverview?: boolean
     program?: boolean
     athletes?: boolean
+    programEditor?: boolean
+    athleteRecord?: boolean
+    superuser?: boolean
+    locale?: "fa" | "en"
+    globalAthletes?: boolean
   },
 ) {
   await page.addInitScript(
-    ({ gymId, active, athleteView, activeRole }) => {
+    ({ gymId, active, athleteView, activeRole, language }) => {
       if (active) {
         localStorage.setItem("gym.activeGymId", gymId)
         localStorage.setItem("gym.activeRole", activeRole)
@@ -226,10 +282,17 @@ async function prepare(
         localStorage.removeItem("gym.activeGymId")
       }
       localStorage.setItem("gym.athletes.view", athleteView)
-      localStorage.setItem("gym.locale", "fa")
+      localStorage.setItem("superuser.athletes.view", athleteView)
+      localStorage.setItem("gym.locale", language)
       localStorage.setItem("gym.theme", "light")
     },
-    { gymId: GYM_ID, active: activeGym, athleteView: view, activeRole: role },
+    {
+      gymId: GYM_ID,
+      active: activeGym,
+      athleteView: view,
+      activeRole: role,
+      language: locale,
+    },
   )
 
   await page.route("**/api/v1/**", async (route) => {
@@ -242,12 +305,39 @@ async function prepare(
         body: JSON.stringify(body),
       })
 
-    if (path === "/api/v1/users/me") return json(me(role))
+    if (path === "/api/v1/users/me") return json(me(role, superuser))
     if (path === "/api/v1/gyms/" || path === "/api/v1/gyms") {
       return json({ data: [gymFor(role)], count: 1 })
     }
     if (athletes && path === "/api/v1/athletes") {
       return json({ data: [athleteSummary], count: 1 })
+    }
+    if (globalAthletes && path === "/api/v1/superuser/athletes") {
+      return json({ data: [superuserAthlete], count: 1 })
+    }
+    if (programEditor && path === "/api/v1/exercises") {
+      return json({ data: [exercise], count: 1 })
+    }
+    if (programEditor && path === "/api/v1/exercise-categories") {
+      return json({ data: [category], count: 1 })
+    }
+    if (
+      programEditor &&
+      path === `/api/v1/athletes/${athleteSummary.user_id}`
+    ) {
+      return json(athleteDetail())
+    }
+    if (
+      athleteRecord &&
+      path === `/api/v1/athletes/${athleteSummary.user_id}`
+    ) {
+      return json(athleteDetail())
+    }
+    if (
+      athleteRecord &&
+      path === `/api/v1/athletes/${athleteSummary.user_id}/programs`
+    ) {
+      return json({ data: [], count: 0 })
     }
     if (
       personOverview &&
@@ -336,4 +426,183 @@ test("account menu stays inside a landscape viewport and closes on Escape", asyn
   await page.keyboard.press("Escape")
   await expect(menu).toHaveCount(0)
   await expect(trigger).toHaveAttribute("aria-expanded", "false")
+})
+
+test("tables follow the active locale direction", async ({ page }) => {
+  await prepare(page, {
+    role: "GYM_ADMIN",
+    athletes: true,
+    program: true,
+    view: "table",
+    locale: "en",
+  })
+  await page.goto(`/gyms/${GYM_ID}/athletes`)
+
+  await expect(page.locator("html")).toHaveAttribute("dir", "ltr")
+  const table = page.locator(".m3-data-table").first()
+  await expect(table).toBeVisible()
+  await expect(table).toHaveCSS("direction", "ltr")
+
+  await page.goto(`/print/${VERSION_ID}`)
+  await expect(page.locator(".m3-print-sheet")).toHaveCSS("direction", "ltr")
+
+  await page.goto(`/gyms/${GYM_ID}/athletes`)
+  await page.locator(".m3-topbar__actions button").first().click()
+  await page.locator(".m3-menu").getByRole("button", { name: /فارسی/ }).click()
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl")
+  await expect(page.locator(".m3-data-table").first()).toHaveCSS(
+    "direction",
+    "rtl",
+  )
+})
+
+test("mobile table cells keep status content inside their column", async ({
+  page,
+}) => {
+  await prepare(page, {
+    role: "COACH",
+    athletes: true,
+    view: "table",
+  })
+  await page.setViewportSize({ width: 320, height: 568 })
+  await page.goto(`/gyms/${GYM_ID}/athletes`)
+
+  const cell = page
+    .locator(".m3-data-table tbody tr")
+    .first()
+    .locator(".m3-people-table__status")
+  await expect(cell).toBeVisible()
+  const fit = await cell.evaluate((element) => ({
+    client: element.clientWidth,
+    scroll: element.scrollWidth,
+  }))
+  expect(fit.scroll).toBeLessThanOrEqual(fit.client + 1)
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  )
+  expect(overflow).toBeLessThanOrEqual(1)
+})
+
+test("global athlete tables keep the club visible on phones", async ({
+  page,
+}) => {
+  await prepare(page, {
+    role: "GYM_ADMIN",
+    activeGym: false,
+    superuser: true,
+    globalAthletes: true,
+    view: "table",
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/athletes")
+
+  const club = page
+    .locator(".m3-data-table tbody tr")
+    .first()
+    .locator(".m3-people-table__club")
+  await expect(club).toBeVisible()
+  await expect(club).toContainText(gym.name)
+})
+
+test("mobile action controls meet the minimum touch size", async ({ page }) => {
+  await prepare(page, { role: "GYM_ADMIN", athletes: true, view: "table" })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`/gyms/${GYM_ID}/athletes`)
+
+  const details = page
+    .locator(".m3-data-table tbody tr")
+    .first()
+    .getByRole("button", { name: "جزئیات" })
+  await expect(details).toBeVisible()
+  for (const target of [
+    details,
+    page.locator(".m3-topbar__actions button").first(),
+    page
+      .locator(".m3-data-table tbody tr")
+      .first()
+      .getByRole("button", { name: "اقدام‌های بیشتر" }),
+  ]) {
+    const box = await target.boundingBox()
+    expect(box).not.toBeNull()
+    expect(box!.height).toBeGreaterThanOrEqual(44)
+    expect(box!.width).toBeGreaterThanOrEqual(44)
+  }
+})
+
+test("mobile inputs stay at a readable size", async ({ page }) => {
+  await prepare(page, { role: "GYM_ADMIN", activeGym: false })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto("/login")
+
+  const input = page.locator(".m3-field__input").first()
+  await expect(input).toBeVisible()
+  const fontSize = await input.evaluate((element) =>
+    Number.parseFloat(getComputedStyle(element).fontSize),
+  )
+  expect(fontSize).toBeGreaterThanOrEqual(16)
+})
+
+test("program editor labels stay legible on phones", async ({ page }) => {
+  await prepare(page, {
+    role: "COACH",
+    program: true,
+    programEditor: true,
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`/gyms/${GYM_ID}/programs/${VERSION_ID}/edit`)
+
+  const field = page.locator(".program-set-field").first()
+  await expect(field).toBeVisible()
+  const labelSize = await field.evaluate((element) =>
+    Number.parseFloat(getComputedStyle(element, "::before").fontSize),
+  )
+  const inputSize = await field
+    .locator("input")
+    .evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    )
+  expect(labelSize).toBeGreaterThanOrEqual(10)
+  expect(inputSize).toBeGreaterThanOrEqual(16)
+})
+
+test("row action menu closes on Tab and stays open on its own scroll", async ({
+  page,
+}) => {
+  await prepare(page, { role: "GYM_ADMIN", athletes: true, view: "table" })
+  await page.goto(`/gyms/${GYM_ID}/athletes`)
+
+  const row = page.locator(".m3-data-table tbody tr").first()
+  const more = row.getByRole("button", { name: "اقدام‌های بیشتر" })
+  await more.click()
+  const menu = page.getByRole("menu")
+  await expect(menu).toBeVisible()
+  await expect(menu.getByRole("menuitem").first()).toBeFocused()
+  await page.keyboard.press("Tab")
+  await expect(page.getByRole("menu")).toHaveCount(0)
+  await expect(more).toBeFocused()
+
+  await more.click()
+  await expect(menu).toBeVisible()
+  await menu.dispatchEvent("scroll")
+  await expect(menu).toBeVisible()
+})
+
+test("athlete record tabs support arrow keys and expose a panel", async ({
+  page,
+}) => {
+  await prepare(page, {
+    role: "GYM_ADMIN",
+    athleteRecord: true,
+  })
+  await page.goto(`/gyms/${GYM_ID}/athletes/${athleteSummary.user_id}`)
+
+  const tabs = page.getByRole("tab")
+  await expect(tabs).toHaveCount(3)
+  await expect(tabs.nth(0)).toHaveAttribute("tabindex", "0")
+  await expect(tabs.nth(1)).toHaveAttribute("tabindex", "-1")
+  await tabs.nth(0).focus()
+  await page.keyboard.press("ArrowLeft")
+  await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true")
+  await expect(tabs.nth(1)).toBeFocused()
+  await expect(page.getByRole("tabpanel")).toBeVisible()
 })
