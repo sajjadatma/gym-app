@@ -105,6 +105,7 @@ test("birth dates reject future calendar days and dates keep visible labels when
 }) => {
   await page.goto("/athletes")
   await openAthlete(page, "نیما ورزشکار")
+  await page.getByRole("button", { name: "ویرایش پرونده" }).click()
   await page.getByRole("button", { name: "انتخاب تاریخ" }).first().click()
   const calendar = page
     .getByRole("dialog")

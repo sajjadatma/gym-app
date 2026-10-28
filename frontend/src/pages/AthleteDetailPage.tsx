@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNavigate } from "@tanstack/react-router"
+import { useBlocker, useNavigate } from "@tanstack/react-router"
 import {
   Archive,
   ArrowLeft,
@@ -9,6 +9,7 @@ import {
   FileUp,
   History,
   Mail,
+  Pencil,
   Phone,
   Plus,
   Printer,
@@ -20,10 +21,11 @@ import {
   Trash2,
   UserRound,
 } from "lucide-react"
-import { useEffect, useId, useRef, useState } from "react"
+import { type ReactNode, useEffect, useId, useRef, useState } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import {
+  type AthleteDetail,
   AthletesService,
   type CoachPublic,
   GymsService,
@@ -49,6 +51,7 @@ import {
   Tabs,
   TextField,
 } from "@/components/M3"
+import { type RowActionItem, RowActionMenu } from "@/components/RowActionMenu"
 import { useI18n } from "@/i18n"
 import { MAX_UPLOAD_BYTES } from "@/lib/upload"
 import { useAsyncPicker } from "@/lib/use-async-picker"
@@ -62,13 +65,58 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function profileFormValues(athlete: AthleteDetail) {
+  return {
+    full_name: athlete.profile.full_name ?? "",
+    phone: athlete.profile.phone ?? "",
+    birth_date: athlete.profile.birth_date ?? null,
+    height_cm: athlete.profile.height_cm?.toString() ?? "",
+    weight_kg: athlete.profile.weight_kg?.toString() ?? "",
+    chest_cm: athlete.profile.chest_cm?.toString() ?? "",
+    waist_cm: athlete.profile.waist_cm?.toString() ?? "",
+    hips_cm: athlete.profile.hips_cm?.toString() ?? "",
+    arm_cm: athlete.profile.arm_cm?.toString() ?? "",
+    thigh_cm: athlete.profile.thigh_cm?.toString() ?? "",
+    training_goal: athlete.profile.training_goal ?? "",
+    sports_history: athlete.profile.sports_history ?? "",
+    fitness_level: athlete.profile.fitness_level ?? "",
+    limitations: athlete.profile.limitations ?? "",
+    training_days_count: athlete.profile.training_days_count?.toString() ?? "",
+    equipment: athlete.profile.equipment ?? "",
+    internal_coach_note: athlete.internal_coach_note ?? "",
+  }
+}
+
+function ReadOnlyField({
+  label,
+  value,
+  wide,
+  className = "",
+}: {
+  label: string
+  value: ReactNode
+  wide?: boolean
+  className?: string
+}) {
+  return (
+    <div
+      className={`m3-readonly-field ${wide ? "m3-readonly-field--wide" : ""} ${className}`}
+    >
+      <span className="m3-readonly-field__label">{label}</span>
+      <span className="m3-readonly-field__value">{value}</span>
+    </div>
+  )
+}
+
 export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
   const { t, formatDate, formatDateTime, formatNumber } = useI18n()
   const { activeGym, activeGymId, isAdmin, activeRole, me } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
-  const [tab, setTab] = useState<Tab>("profile")
+  const [tab, setTab] = useState<Tab>("programs")
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [profileDirty, setProfileDirty] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [reassignOpen, setReassignOpen] = useState(false)
@@ -86,7 +134,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
   const fileInput = useRef<HTMLInputElement>(null)
   const hydratedProfileRef = useRef<string | null>(null)
   const uploadId = useId()
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     full_name: "",
     phone: "",
     birth_date: "" as string | null,
@@ -104,7 +152,23 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
     training_days_count: "",
     equipment: "",
     internal_coach_note: "",
+  }))
+
+  const blocker = useBlocker({
+    shouldBlockFn: () => profileDirty && editingProfile,
+    withResolver: true,
+    disabled: !(profileDirty && editingProfile),
   })
+
+  useEffect(() => {
+    if (!profileDirty) return
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ""
+    }
+    window.addEventListener("beforeunload", beforeUnload)
+    return () => window.removeEventListener("beforeunload", beforeUnload)
+  }, [profileDirty])
 
   const athleteQuery = useQuery({
     queryKey: ["athlete", activeGymId, athleteId],
@@ -151,26 +215,9 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
     const profileKey = `${activeGymId}:${athlete.profile.user_id}`
     if (hydratedProfileRef.current === profileKey) return
     hydratedProfileRef.current = profileKey
-    setForm({
-      full_name: athlete.profile.full_name ?? "",
-      phone: athlete.profile.phone ?? "",
-      birth_date: athlete.profile.birth_date ?? null,
-      height_cm: athlete.profile.height_cm?.toString() ?? "",
-      weight_kg: athlete.profile.weight_kg?.toString() ?? "",
-      chest_cm: athlete.profile.chest_cm?.toString() ?? "",
-      waist_cm: athlete.profile.waist_cm?.toString() ?? "",
-      hips_cm: athlete.profile.hips_cm?.toString() ?? "",
-      arm_cm: athlete.profile.arm_cm?.toString() ?? "",
-      thigh_cm: athlete.profile.thigh_cm?.toString() ?? "",
-      training_goal: athlete.profile.training_goal ?? "",
-      sports_history: athlete.profile.sports_history ?? "",
-      fitness_level: athlete.profile.fitness_level ?? "",
-      limitations: athlete.profile.limitations ?? "",
-      training_days_count:
-        athlete.profile.training_days_count?.toString() ?? "",
-      equipment: athlete.profile.equipment ?? "",
-      internal_coach_note: athlete.internal_coach_note ?? "",
-    })
+    setForm(profileFormValues(athlete))
+    setEditingProfile(false)
+    setProfileDirty(false)
   }, [activeGymId, athlete])
 
   if (!activeGym) {
@@ -205,6 +252,27 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
     return value.trim() ? Number(value) : null
   }
 
+  function updateForm(patch: Partial<typeof form>) {
+    setForm((previous) => ({ ...previous, ...patch }))
+    setProfileDirty(true)
+  }
+
+  function startEditingProfile() {
+    if (!athlete) return
+    setError(null)
+    setForm(profileFormValues(athlete))
+    setProfileDirty(false)
+    setEditingProfile(true)
+  }
+
+  function cancelEditingProfile() {
+    if (!athlete) return
+    setError(null)
+    setForm(profileFormValues(athlete))
+    setProfileDirty(false)
+    setEditingProfile(false)
+  }
+
   async function saveProfile() {
     setSaving(true)
     setError(null)
@@ -237,6 +305,8 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
         ["athlete", activeGymId, athleteId],
         response.data,
       )
+      setEditingProfile(false)
+      setProfileDirty(false)
       show(t("athletes.noteSaved"), "success")
     } catch (err) {
       setError(translateApiError(err, t))
@@ -438,19 +508,104 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
     }
   }
 
+  const fitnessLevelLabel = (value: string | null | undefined) => {
+    if (value === "beginner") return t("athletes.levelBeginner")
+    if (value === "intermediate") return t("athletes.levelIntermediate")
+    if (value === "advanced") return t("athletes.levelAdvanced")
+    return t("person.notRecorded")
+  }
+
+  const measurementFields = [
+    {
+      label: t("athletes.height"),
+      value: athlete.profile.height_cm,
+      unit: t("common.units.cm"),
+    },
+    {
+      label: t("athletes.weight"),
+      value: athlete.profile.weight_kg,
+      unit: t("common.units.kg"),
+    },
+    {
+      label: t("athletes.chest"),
+      value: athlete.profile.chest_cm,
+      unit: t("common.units.cm"),
+    },
+    {
+      label: t("athletes.waist"),
+      value: athlete.profile.waist_cm,
+      unit: t("common.units.cm"),
+    },
+    {
+      label: t("athletes.hips"),
+      value: athlete.profile.hips_cm,
+      unit: t("common.units.cm"),
+    },
+    {
+      label: t("athletes.arm"),
+      value: athlete.profile.arm_cm,
+      unit: t("common.units.cm"),
+    },
+    {
+      label: t("athletes.thigh"),
+      value: athlete.profile.thigh_cm,
+      unit: t("common.units.cm"),
+    },
+  ]
+
+  const notRecorded = t("person.notRecorded")
+
   const tabItems = [
-    { value: "profile", label: t("athletes.profile") },
     {
       value: "programs",
       label: t("athletes.programs"),
       count: programsQuery.data?.length ?? 0,
     },
+    { value: "profile", label: t("athletes.profile") },
     {
       value: "bodyFiles",
       label: t("athletes.bodyFiles"),
       count: athlete.body_files.length,
     },
   ]
+
+  const adminActions: RowActionItem[] = []
+  if (isAdmin && !athlete.profile.is_archived) {
+    adminActions.push({
+      key: "reassign",
+      label: t("athletes.reassign"),
+      icon: <RefreshCw size={15} />,
+      onSelect: () => {
+        setError(null)
+        setReassignOpen(true)
+      },
+    })
+  }
+  if (isAdmin) {
+    adminActions.push({
+      key: "archive",
+      label: t(
+        athlete.profile.is_archived ? "athletes.restore" : "athletes.archive",
+      ),
+      icon: athlete.profile.is_archived ? (
+        <RotateCcw size={15} />
+      ) : (
+        <Archive size={15} />
+      ),
+      onSelect: () => {
+        if (athlete.profile.is_archived) void restoreAthlete()
+        else setArchiveOpen(true)
+      },
+    })
+    adminActions.push({
+      key: "delete",
+      label: t("athletes.delete"),
+      icon: <Trash2 size={15} />,
+      destructive: true,
+      separatorBefore: true,
+      onSelect: () => setDeleteOpen(true),
+    })
+  }
 
   return (
     <>
@@ -467,51 +622,17 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
         backLabel={t("common.back")}
         actions={
           <>
-            {isAdmin && !athlete.profile.is_archived ? (
-              <>
-                <Button
-                  variant="outlined"
-                  icon={<RefreshCw size={16} />}
-                  onClick={() => {
-                    setError(null)
-                    setReassignOpen(true)
-                  }}
-                >
-                  {t("athletes.reassign")}
-                </Button>
-                <Button
-                  variant="outlined"
-                  icon={<Archive size={16} />}
-                  onClick={() => setArchiveOpen(true)}
-                >
-                  {t("athletes.archive")}
-                </Button>
-              </>
-            ) : null}
-            {isAdmin && athlete.profile.is_archived ? (
-              <Button
-                variant="outlined"
-                icon={<RotateCcw size={16} />}
-                onClick={() => void restoreAthlete()}
-                loading={saving}
-              >
-                {t("athletes.restore")}
-              </Button>
-            ) : null}
-            {isAdmin ? (
-              <Button
-                variant="text"
-                className="m3-text-danger"
-                icon={<Trash2 size={16} />}
-                onClick={() => setDeleteOpen(true)}
-              >
-                {t("athletes.delete")}
-              </Button>
-            ) : null}
-            {canEdit && activeProgram ? (
+            {canEdit ? (
               <Button icon={<Plus size={17} />} onClick={openNewProgram}>
                 {t("athletes.createProgram")}
               </Button>
+            ) : null}
+            {adminActions.length ? (
+              <RowActionMenu
+                items={adminActions}
+                label={t("common.moreActions")}
+                disabled={saving}
+              />
             ) : null}
           </>
         }
@@ -530,13 +651,15 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
             <Avatar name={athlete.profile.full_name ?? athlete.profile.email} />
           </div>
           <div className="m3-profile-hero__info">
-            <div className="m3-profile-hero__name">
-              <span className="m3-profile-hero__title">
-                {athlete.profile.full_name ?? athlete.profile.email}
-              </span>
+            <div className="m3-athlete-summary__meta">
               <StatusBadge
                 status={athlete.profile.is_archived ? "archived" : "active"}
               />
+              <span className="muted">
+                {t("athletes.memberSince", {
+                  date: formatDate(athlete.profile.created_at),
+                })}
+              </span>
             </div>
             <div className="m3-profile-hero__contacts">
               <a
@@ -637,7 +760,26 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
         </div>
       </section>
 
-      <div style={{ height: 18 }} />
+      <div className="m3-athlete-stats">
+        <span>
+          <ClipboardList size={15} aria-hidden />
+          {formatNumber(programsQuery.data?.length ?? 0)}{" "}
+          {t("athletes.programs")}
+        </span>
+        <span>
+          <FileUp size={15} aria-hidden />
+          {formatNumber(athlete.body_files.length)} {t("athletes.bodyFiles")}
+        </span>
+        <span>
+          <CalendarDays size={15} aria-hidden />
+          {athlete.profile.training_days_count == null
+            ? t("person.notRecorded")
+            : t("athletes.trainingDaysValue", {
+                count: formatNumber(athlete.profile.training_days_count),
+              })}
+        </span>
+      </div>
+
       <Tabs
         tabs={tabItems}
         value={tab}
@@ -653,11 +795,53 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
 
       {tab === "profile" ? (
         <div
-          className="stack"
+          className={`stack m3-profile-stack ${editingProfile ? "is-editing" : ""}`}
           role="tabpanel"
           id="athlete-record-panel-profile"
           aria-labelledby="athlete-record-tab-profile"
         >
+          <div className="m3-profile-toolbar">
+            <div>
+              <h2 className="m3-section__title">{t("athletes.profile")}</h2>
+              <p className="m3-section__subtitle">
+                {editingProfile
+                  ? t("athletes.editingProfileHint")
+                  : t("athletes.profileHint")}
+              </p>
+            </div>
+            {canEdit && !editingProfile ? (
+              <Button
+                variant="outlined"
+                icon={<Pencil size={16} />}
+                onClick={startEditingProfile}
+              >
+                {t("athletes.editProfile")}
+              </Button>
+            ) : null}
+          </div>
+
+          {editingProfile ? (
+            <div className="m3-profile-editbar">
+              <span>{t("athletes.editingProfile")}</span>
+              <div className="row" style={{ gap: 6 }}>
+                <Button
+                  variant="text"
+                  onClick={cancelEditingProfile}
+                  disabled={saving}
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  icon={<Save size={16} />}
+                  onClick={saveProfile}
+                  loading={saving}
+                >
+                  {t("athletes.saveProfile")}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           <Card>
             <div className="m3-section__header">
               <div>
@@ -667,54 +851,86 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                   {formatDateTime(athlete.profile.updated_at)}
                 </p>
               </div>
-              <Avatar
-                name={athlete.profile.full_name ?? athlete.profile.email}
-              />
             </div>
-            <div className="grid-2">
-              <TextField
-                label={t("athletes.fullName")}
-                value={form.full_name}
-                onChange={(event) =>
-                  setForm({ ...form, full_name: event.target.value })
-                }
-                disabled={archived}
-              />
-              <TextField
-                label={t("athletes.phone")}
-                dir="ltr"
-                value={form.phone}
-                onChange={(event) =>
-                  setForm({ ...form, phone: event.target.value })
-                }
-                disabled={archived}
-              />
-            </div>
-            <div className="grid-2" style={{ marginTop: 14 }}>
-              <DateField
-                label={t("athletes.birthDate")}
-                maxToday
-                dayMonthYear
-                value={form.birth_date}
-                onChange={(value) => setForm({ ...form, birth_date: value })}
-                disabled={archived}
-              />
-              <SelectField
-                label={t("athletes.fitnessLevel")}
-                value={form.fitness_level}
-                onChange={(value) => setForm({ ...form, fitness_level: value })}
-                disabled={archived}
-                options={[
-                  { value: "", label: t("common.none") },
-                  { value: "beginner", label: t("athletes.levelBeginner") },
-                  {
-                    value: "intermediate",
-                    label: t("athletes.levelIntermediate"),
-                  },
-                  { value: "advanced", label: t("athletes.levelAdvanced") },
-                ]}
-              />
-            </div>
+            {editingProfile ? (
+              <>
+                <div className="grid-2">
+                  <TextField
+                    label={t("athletes.fullName")}
+                    value={form.full_name}
+                    onChange={(event) =>
+                      updateForm({ full_name: event.target.value })
+                    }
+                  />
+                  <TextField
+                    label={t("athletes.phone")}
+                    dir="ltr"
+                    value={form.phone}
+                    onChange={(event) =>
+                      updateForm({ phone: event.target.value })
+                    }
+                  />
+                </div>
+                <div className="grid-2" style={{ marginTop: 14 }}>
+                  <DateField
+                    label={t("athletes.birthDate")}
+                    maxToday
+                    dayMonthYear
+                    value={form.birth_date}
+                    onChange={(value) => updateForm({ birth_date: value })}
+                  />
+                  <SelectField
+                    label={t("athletes.fitnessLevel")}
+                    value={form.fitness_level}
+                    onChange={(value) => updateForm({ fitness_level: value })}
+                    options={[
+                      { value: "", label: t("common.none") },
+                      {
+                        value: "beginner",
+                        label: t("athletes.levelBeginner"),
+                      },
+                      {
+                        value: "intermediate",
+                        label: t("athletes.levelIntermediate"),
+                      },
+                      {
+                        value: "advanced",
+                        label: t("athletes.levelAdvanced"),
+                      },
+                    ]}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="m3-readonly-grid">
+                <ReadOnlyField
+                  label={t("athletes.fullName")}
+                  value={athlete.profile.full_name ?? notRecorded}
+                />
+                <ReadOnlyField
+                  label={t("athletes.phone")}
+                  value={
+                    athlete.profile.phone ? (
+                      <span dir="ltr">{athlete.profile.phone}</span>
+                    ) : (
+                      notRecorded
+                    )
+                  }
+                />
+                <ReadOnlyField
+                  label={t("athletes.birthDate")}
+                  value={
+                    athlete.profile.birth_date
+                      ? formatDate(athlete.profile.birth_date)
+                      : notRecorded
+                  }
+                />
+                <ReadOnlyField
+                  label={t("athletes.fitnessLevel")}
+                  value={fitnessLevelLabel(athlete.profile.fitness_level)}
+                />
+              </div>
+            )}
           </Card>
 
           <Card>
@@ -729,29 +945,44 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 </p>
               </div>
             </div>
-            <div className="grid-3">
-              {[
-                ["height_cm", t("athletes.height"), t("common.units.cm")],
-                ["weight_kg", t("athletes.weight"), t("common.units.kg")],
-                ["chest_cm", t("athletes.chest"), t("common.units.cm")],
-                ["waist_cm", t("athletes.waist"), t("common.units.cm")],
-                ["hips_cm", t("athletes.hips"), t("common.units.cm")],
-                ["arm_cm", t("athletes.arm"), t("common.units.cm")],
-                ["thigh_cm", t("athletes.thigh"), t("common.units.cm")],
-              ].map(([key, label, unit]) => (
-                <TextField
-                  key={key}
-                  label={label}
-                  suffix={unit}
-                  inputMode="decimal"
-                  value={form[key as keyof typeof form] as string}
-                  onChange={(event) =>
-                    setForm({ ...form, [key]: event.target.value })
-                  }
-                  disabled={archived}
-                />
-              ))}
-            </div>
+            {editingProfile ? (
+              <div className="grid-3">
+                {[
+                  ["height_cm", t("athletes.height"), t("common.units.cm")],
+                  ["weight_kg", t("athletes.weight"), t("common.units.kg")],
+                  ["chest_cm", t("athletes.chest"), t("common.units.cm")],
+                  ["waist_cm", t("athletes.waist"), t("common.units.cm")],
+                  ["hips_cm", t("athletes.hips"), t("common.units.cm")],
+                  ["arm_cm", t("athletes.arm"), t("common.units.cm")],
+                  ["thigh_cm", t("athletes.thigh"), t("common.units.cm")],
+                ].map(([key, label, unit]) => (
+                  <TextField
+                    key={key}
+                    label={label}
+                    suffix={unit}
+                    inputMode="decimal"
+                    value={form[key as keyof typeof form] as string}
+                    onChange={(event) =>
+                      updateForm({ [key]: event.target.value })
+                    }
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="m3-readonly-grid m3-readonly-grid--three">
+                {measurementFields.map((field) => (
+                  <ReadOnlyField
+                    key={field.label}
+                    label={field.label}
+                    value={
+                      field.value == null
+                        ? notRecorded
+                        : `${formatNumber(field.value)} ${field.unit}`
+                    }
+                  />
+                ))}
+              </div>
+            )}
           </Card>
 
           <Card>
@@ -761,62 +992,96 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
                 <p className="m3-section__subtitle">{t("athletes.subtitle")}</p>
               </div>
             </div>
-            <div className="grid-2">
-              <TextField
-                label={t("athletes.goal")}
-                value={form.training_goal}
-                onChange={(event) =>
-                  setForm({ ...form, training_goal: event.target.value })
-                }
-                disabled={archived}
-              />
-              <TextField
-                label={t("athletes.equipment")}
-                value={form.equipment}
-                onChange={(event) =>
-                  setForm({ ...form, equipment: event.target.value })
-                }
-                disabled={archived}
-              />
-            </div>
-            <TextField
-              label={t("athletes.trainingDays")}
-              type="number"
-              min={1}
-              max={7}
-              step={1}
-              inputMode="numeric"
-              value={form.training_days_count}
-              disabled={archived}
-              onChange={(event) => {
-                const value = event.target.value
-                if (value === "" || /^[1-7]$/.test(value)) {
-                  setForm({ ...form, training_days_count: value })
-                }
-              }}
-            />
-            <div className="grid-2" style={{ marginTop: 14 }}>
-              <TextField
-                label={t("athletes.sportsHistory")}
-                value={form.sports_history}
-                onChange={(event) =>
-                  setForm({ ...form, sports_history: event.target.value })
-                }
-                multiline
-                rows={3}
-                disabled={archived}
-              />
-              <TextField
-                label={t("athletes.limitations")}
-                value={form.limitations}
-                onChange={(event) =>
-                  setForm({ ...form, limitations: event.target.value })
-                }
-                multiline
-                rows={3}
-                disabled={archived}
-              />
-            </div>
+            {editingProfile ? (
+              <>
+                <div className="grid-2">
+                  <TextField
+                    label={t("athletes.goal")}
+                    value={form.training_goal}
+                    onChange={(event) =>
+                      updateForm({ training_goal: event.target.value })
+                    }
+                  />
+                  <TextField
+                    label={t("athletes.equipment")}
+                    value={form.equipment}
+                    onChange={(event) =>
+                      updateForm({ equipment: event.target.value })
+                    }
+                  />
+                </div>
+                <div className="grid-2" style={{ marginTop: 14 }}>
+                  <TextField
+                    label={t("athletes.trainingDays")}
+                    type="number"
+                    min={1}
+                    max={7}
+                    step={1}
+                    inputMode="numeric"
+                    value={form.training_days_count}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      if (value === "" || /^[1-7]$/.test(value)) {
+                        updateForm({ training_days_count: value })
+                      }
+                    }}
+                  />
+                </div>
+                <div className="grid-2" style={{ marginTop: 14 }}>
+                  <TextField
+                    label={t("athletes.sportsHistory")}
+                    value={form.sports_history}
+                    onChange={(event) =>
+                      updateForm({ sports_history: event.target.value })
+                    }
+                    multiline
+                    rows={3}
+                  />
+                  <TextField
+                    label={t("athletes.limitations")}
+                    value={form.limitations}
+                    onChange={(event) =>
+                      updateForm({ limitations: event.target.value })
+                    }
+                    multiline
+                    rows={3}
+                  />
+                </div>
+              </>
+            ) : (
+              <div className="m3-readonly-grid">
+                <ReadOnlyField
+                  label={t("athletes.goal")}
+                  value={athlete.profile.training_goal ?? notRecorded}
+                />
+                <ReadOnlyField
+                  label={t("athletes.equipment")}
+                  value={athlete.profile.equipment ?? notRecorded}
+                />
+                <ReadOnlyField
+                  label={t("athletes.trainingDays")}
+                  value={
+                    athlete.profile.training_days_count == null
+                      ? notRecorded
+                      : t("athletes.trainingDaysValue", {
+                          count: formatNumber(
+                            athlete.profile.training_days_count,
+                          ),
+                        })
+                  }
+                />
+                <ReadOnlyField
+                  label={t("athletes.sportsHistory")}
+                  value={athlete.profile.sports_history ?? notRecorded}
+                  wide
+                />
+                <ReadOnlyField
+                  label={t("athletes.limitations")}
+                  value={athlete.profile.limitations ?? notRecorded}
+                  wide
+                />
+              </div>
+            )}
           </Card>
 
           <Card>
@@ -831,30 +1096,23 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
               </div>
               <ShieldAlert size={21} className="muted" />
             </div>
-            <TextField
-              label={t("athletes.internalNote")}
-              value={form.internal_coach_note}
-              onChange={(event) =>
-                setForm({ ...form, internal_coach_note: event.target.value })
-              }
-              multiline
-              rows={4}
-              helper={t("athletes.internalNoteHint")}
-              disabled={archived}
-            />
+            {editingProfile ? (
+              <TextField
+                label={t("athletes.internalNote")}
+                value={form.internal_coach_note}
+                onChange={(event) =>
+                  updateForm({ internal_coach_note: event.target.value })
+                }
+                multiline
+                rows={4}
+                helper={t("athletes.internalNoteHint")}
+              />
+            ) : athlete.internal_coach_note ? (
+              <p className="m3-profile-note">{athlete.internal_coach_note}</p>
+            ) : (
+              <p className="muted">{t("person.note.empty")}</p>
+            )}
           </Card>
-
-          {!athlete.profile.is_archived ? (
-            <div className="row" style={{ justifyContent: "flex-end" }}>
-              <Button
-                icon={<Save size={17} />}
-                onClick={saveProfile}
-                loading={saving}
-              >
-                {t("common.save")}
-              </Button>
-            </div>
-          ) : null}
 
           <Card>
             <div className="m3-section__header">
@@ -1252,6 +1510,16 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
           </div>
         </div>
       </Dialog>
+
+      <ConfirmDialog
+        open={blocker.status === "blocked"}
+        title={t("program.dirty")}
+        description={t("program.unsaved")}
+        confirmLabel={t("common.leave")}
+        cancelLabel={t("common.stay")}
+        onConfirm={() => blocker.proceed?.()}
+        onClose={() => blocker.reset?.()}
+      />
     </>
   )
 }

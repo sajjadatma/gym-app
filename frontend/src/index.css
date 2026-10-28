@@ -6573,3 +6573,178 @@ a.m3-contact-chip:focus-visible {
     max-width: 142px;
   }
 }
+
+/* Athlete overview ---------------------------------------------------- */
+
+.m3-athlete-summary__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.m3-athlete-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+.m3-athlete-stats span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: 999px;
+  background: var(--m3-surface-container-low);
+  color: var(--m3-on-surface-variant);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.m3-profile-hero {
+  padding: 18px;
+  gap: 16px;
+  border-radius: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.85fr);
+}
+
+.m3-profile-hero__avatar .m3-avatar {
+  width: 54px;
+  height: 54px;
+  font-size: 17px;
+}
+
+.m3-profile-hero__contacts {
+  margin-top: 8px;
+}
+
+.m3-profile-hero__program {
+  gap: 8px;
+  padding: 14px;
+  border-radius: 16px;
+}
+
+.m3-profile-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.m3-profile-toolbar .m3-section__subtitle {
+  max-width: 58ch;
+}
+
+.m3-profile-editbar {
+  position: sticky;
+  top: 78px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px 10px 16px;
+  border: 1px solid
+    color-mix(in srgb, var(--m3-primary) 32%, var(--m3-outline-variant));
+  border-radius: 12px;
+  background: var(--m3-secondary-container);
+  color: var(--m3-on-secondary-container);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.m3-readonly-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.m3-readonly-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.m3-readonly-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: 10px;
+  background: var(--m3-surface-container-low);
+}
+
+.m3-readonly-field--wide {
+  grid-column: 1 / -1;
+}
+
+.m3-readonly-field__label {
+  color: var(--m3-on-surface-variant);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.m3-readonly-field__value {
+  min-width: 0;
+  font-size: 13.5px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.m3-profile-note {
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--m3-surface-container-low);
+  font-size: 13px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 900px) {
+  .m3-profile-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .m3-profile-editbar {
+    position: fixed;
+    top: auto;
+    inset-inline: 12px;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    z-index: 45;
+    justify-content: flex-end;
+    box-shadow: var(--m3-shadow-3);
+  }
+
+  .m3-profile-editbar > span {
+    display: none;
+  }
+
+  .m3-profile-stack.is-editing {
+    padding-bottom: 96px;
+  }
+
+  .m3-readonly-grid--three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .m3-readonly-grid,
+  .m3-readonly-grid--three {
+    grid-template-columns: 1fr;
+  }
+
+  .m3-athlete-stats {
+    gap: 6px;
+  }
+
+  .m3-athlete-stats span {
+    font-size: 11px;
+  }
+}

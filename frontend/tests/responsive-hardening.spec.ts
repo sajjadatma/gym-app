@@ -884,3 +884,106 @@ test("archived athletes use cards with restore and delete on phones", async ({
   await expect(menu.getByRole("menuitem", { name: "بازیابی" })).toBeVisible()
   await expect(menu.getByRole("menuitem", { name: "حذف" })).toBeVisible()
 })
+
+test("athlete records open on programs with a read-only profile until edit", async ({
+  page,
+}) => {
+  await prepare(page, { role: "GYM_ADMIN", athleteRecord: true })
+  await page.goto(`/gyms/${GYM_ID}/athletes/${athleteSummary.user_id}`)
+
+  const tabs = page.getByRole("tab")
+  await expect(tabs.nth(0)).toContainText("برنامه‌ها")
+  await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true")
+  await tabs.filter({ hasText: "پرونده" }).click()
+
+  await expect(page.getByText("09120000000").first()).toBeVisible()
+  await expect(page.getByLabel("تلفن", { exact: true })).toHaveCount(0)
+
+  await page.getByRole("button", { name: "ویرایش پرونده" }).click()
+  const phone = page.getByLabel("تلفن", { exact: true })
+  await expect(phone).toHaveValue("09120000000")
+  await phone.fill("09129999999")
+  await page.getByRole("button", { name: "انصراف", exact: true }).click()
+  await expect(page.getByLabel("تلفن", { exact: true })).toHaveCount(0)
+  await expect(page.getByText("09120000000").first()).toBeVisible()
+
+  await page.getByRole("button", { name: "ویرایش پرونده" }).click()
+  await expect(page.getByLabel("تلفن", { exact: true })).toHaveValue(
+    "09120000000",
+  )
+})
+
+test("athlete administration actions live in an overflow menu", async ({
+  page,
+}) => {
+  await prepare(page, { role: "GYM_ADMIN", athleteRecord: true })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto(`/gyms/${GYM_ID}/athletes/${athleteSummary.user_id}`)
+
+  await expect(page.getByRole("button", { name: "آرشیو ورزشکار" })).toHaveCount(
+    0,
+  )
+  const more = page.getByRole("button", { name: "اقدام‌های بیشتر" }).first()
+  await more.click()
+  const menu = page.getByRole("menu")
+  await expect(menu.getByRole("menuitem", { name: "تغییر مربی" })).toBeVisible()
+  await expect(
+    menu.getByRole("menuitem", { name: "آرشیو ورزشکار" }),
+  ).toBeVisible()
+  await expect(menu.getByRole("menuitem", { name: "حذف" })).toBeVisible()
+})
+
+test("mobile profile edit actions stay compact above the navigation", async ({
+  page,
+}) => {
+  await prepare(page, { role: "GYM_ADMIN", athleteRecord: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`/gyms/${GYM_ID}/athletes/${athleteSummary.user_id}`)
+  await page.getByRole("tab", { name: "پرونده" }).click()
+  await page.getByRole("button", { name: "ویرایش پرونده" }).click()
+
+  const bar = page.locator(".m3-profile-editbar")
+  await expect(bar).toBeVisible()
+  const box = await bar.boundingBox()
+  expect(box).not.toBeNull()
+  expect(box!.height).toBeLessThanOrEqual(90)
+  expect(box!.y).toBeGreaterThan(0)
+  expect(box!.y + box!.height).toBeLessThanOrEqual(844)
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  )
+  expect(overflow).toBeLessThanOrEqual(1)
+})
+
+test("saving edited profile returns to the read-only overview", async ({
+  page,
+}) => {
+  await prepare(page, { role: "GYM_ADMIN", athleteRecord: true })
+  await page.route(
+    `**/api/v1/athletes/${athleteSummary.user_id}`,
+    async (route) => {
+      if (route.request().method() !== "PATCH") {
+        return route.fallback()
+      }
+      const detail = athleteDetail()
+      detail.profile.full_name = "ورزشکار ویرایش‌شده"
+      detail.profile.phone = "09121111111"
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(detail),
+      })
+    },
+  )
+  await page.goto(`/gyms/${GYM_ID}/athletes/${athleteSummary.user_id}`)
+  await page.getByRole("tab", { name: "پرونده" }).click()
+  await page.getByRole("button", { name: "ویرایش پرونده" }).click()
+  await page.getByLabel("تلفن", { exact: true }).fill("09121111111")
+  await page.getByRole("button", { name: "ذخیره تغییرات" }).click()
+
+  await expect(page.getByLabel("تلفن", { exact: true })).toHaveCount(0)
+  await expect(
+    page.getByRole("heading", { name: "ورزشکار ویرایش‌شده" }),
+  ).toBeVisible()
+  await expect(page.getByText("09121111111").first()).toBeVisible()
+})

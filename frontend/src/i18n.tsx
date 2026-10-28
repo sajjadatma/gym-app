@@ -507,6 +507,15 @@ const fa = {
   "athletes.archiveConsequences":
     "آرشیو کردن دسترسی ورزشکار را غیرفعال می‌کند اما داده‌ها را نگه می‌دارد.",
   "athletes.profile": "پرونده",
+  "athletes.profileHint":
+    "خلاصهٔ اطلاعات ثبت‌شده. برای تغییر، ویرایش پرونده را انتخاب کنید.",
+  "athletes.editProfile": "ویرایش پرونده",
+  "athletes.editingProfile": "در حال ویرایش پرونده",
+  "athletes.editingProfileHint":
+    "تغییرات را ذخیره کنید یا برای بازگشت به حالت نمایش، انصراف بزنید.",
+  "athletes.saveProfile": "ذخیره تغییرات",
+  "athletes.memberSince": "عضو از {date}",
+  "athletes.trainingDaysValue": "{count} روز در هفته",
   "athletes.programs": "برنامه‌ها",
   "athletes.bodyFiles": "آنالیز بدن",
   "athletes.assignmentHistory": "تاریخچه مربی",
@@ -1463,6 +1472,15 @@ const en: Record<TranslationKey, string> = {
   "athletes.archiveConsequences":
     "Archiving disables the athlete's access but keeps the data.",
   "athletes.profile": "Profile",
+  "athletes.profileHint":
+    "A summary of the saved record. Choose Edit profile to make changes.",
+  "athletes.editProfile": "Edit profile",
+  "athletes.editingProfile": "Editing profile",
+  "athletes.editingProfileHint":
+    "Save your changes or cancel to return to the read-only view.",
+  "athletes.saveProfile": "Save changes",
+  "athletes.memberSince": "Member since {date}",
+  "athletes.trainingDaysValue": "{count} days per week",
   "athletes.programs": "Programs",
   "athletes.bodyFiles": "Body analysis",
   "athletes.assignmentHistory": "Coach history",
