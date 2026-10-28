@@ -987,3 +987,65 @@ test("saving edited profile returns to the read-only overview", async ({
   ).toBeVisible()
   await expect(page.getByText("09121111111").first()).toBeVisible()
 })
+
+test("active program card opens by default and can collapse for review", async ({
+  page,
+}) => {
+  await prepare(page, {
+    role: "GYM_ADMIN",
+    athleteRecord: true,
+    program: true,
+  })
+  const summary = {
+    id: VERSION_ID,
+    program_id: version.program_id,
+    athlete_user_id: athleteSummary.user_id,
+    athlete_name: athleteSummary.full_name,
+    title: version.title,
+    goal: null,
+    version_number: 1,
+    revision: 1,
+    status: "ACTIVE",
+    coach_id: USER_ID,
+    coach_name: version.coach_name,
+    start_date: null,
+    end_date: null,
+    created_at: version.created_at,
+    published_at: version.published_at,
+    archived_at: null,
+    day_count: 2,
+  }
+  await page.route(
+    `**/api/v1/athletes/${athleteSummary.user_id}/programs`,
+    (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ data: [summary], count: 1 }),
+      }),
+  )
+
+  await page.goto(`/gyms/${GYM_ID}/athletes/${athleteSummary.user_id}`)
+  const card = page.locator(".program-review-card")
+  await expect(card).toHaveCount(1)
+  await expect(card).toHaveClass(/is-open/)
+  await expect(card.locator(".program-review-card__body")).toContainText(
+    "پرس سینه",
+  )
+  await expect(card.getByRole("button", { name: "ویرایش" })).toBeVisible()
+  await expect(card.getByRole("button", { name: "چاپ" })).toBeVisible()
+
+  const toggle = card.locator(".program-review-card__toggle")
+  await expect(toggle).toHaveAttribute("aria-expanded", "true")
+  await toggle.click()
+  await expect(toggle).toHaveAttribute("aria-expanded", "false")
+  await expect(card.locator(".program-review-card__body")).toHaveCount(0)
+  await expect(card).toContainText(version.title)
+  await expect(card).toContainText("نسخه ۱")
+  await expect(card.getByRole("button", { name: "ویرایش" })).toBeVisible()
+
+  await toggle.click()
+  await expect(card.locator(".program-review-card__body")).toContainText(
+    "۴۵ ثانیه",
+  )
+})
