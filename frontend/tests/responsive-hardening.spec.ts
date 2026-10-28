@@ -160,6 +160,18 @@ const version = {
         },
       ],
     },
+    {
+      day_number: 2,
+      weekday: null,
+      title: "روز دوم",
+      notes: null,
+      category_id: null,
+      category_ids: [],
+      category_names: [],
+      category_name: null,
+      id: "aaaa1111-6666-4666-8666-666666666666",
+      exercises: [],
+    },
   ],
 }
 
@@ -421,6 +433,16 @@ test("workout duration stays visible on a phone", async ({ page }) => {
   await expect(setRow).toBeVisible()
   await expect(setRow.getByText("مدت")).toBeVisible()
   await expect(setRow.getByText("۴۵ ثانیه")).toBeVisible()
+  const tabs = page.getByRole("tab")
+  await expect(tabs).toHaveCount(2)
+  await expect(tabs.nth(0)).toHaveAttribute("tabindex", "0")
+  await expect(tabs.nth(1)).toHaveAttribute("tabindex", "-1")
+  await tabs.nth(0).focus()
+  await page.keyboard.press("ArrowLeft")
+  await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true")
+  await expect(tabs.nth(1)).toBeFocused()
+  await expect(page.getByRole("tabpanel")).toBeVisible()
+
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - window.innerWidth,
   )
@@ -623,6 +645,15 @@ test("program editor labels stay legible on phones", async ({ page }) => {
     )
   expect(labelSize).toBeGreaterThanOrEqual(10)
   expect(inputSize).toBeGreaterThanOrEqual(16)
+
+  const dayTabs = page.locator(".program-day-tab")
+  await expect(dayTabs).toHaveCount(2)
+  await expect(dayTabs.nth(0)).toHaveAttribute("tabindex", "0")
+  await expect(dayTabs.nth(1)).toHaveAttribute("tabindex", "-1")
+  await dayTabs.nth(0).focus()
+  await page.keyboard.press("ArrowLeft")
+  await expect(dayTabs.nth(1)).toHaveAttribute("aria-selected", "true")
+  await expect(dayTabs.nth(1)).toBeFocused()
 })
 
 test("row action menu closes on Tab and stays open on its own scroll", async ({

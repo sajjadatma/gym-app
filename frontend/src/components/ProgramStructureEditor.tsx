@@ -95,7 +95,7 @@ export function ProgramStructureEditor({
   trainedDaysCount?: number | null
   readOnly?: boolean
 }) {
-  const { t, formatNumber } = useI18n()
+  const { t, direction, formatNumber } = useI18n()
   const categoriesQuery = useExerciseCategories()
   const categories = categoriesQuery.data ?? []
   const [categoryErrors, setCategoryErrors] = useState<Record<number, string>>(
@@ -777,6 +777,30 @@ export function ProgramStructureEditor({
             className="program-day-tabs"
             role="tablist"
             aria-label={t("program.days")}
+            onKeyDown={(event) => {
+              const keys = ["ArrowLeft", "ArrowRight", "Home", "End"]
+              if (!keys.includes(event.key)) return
+              const buttons = Array.from(
+                event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                  '[role="tab"]',
+                ),
+              )
+              const current = buttons.indexOf(
+                document.activeElement as HTMLButtonElement,
+              )
+              let next = current
+              if (event.key === "Home") next = 0
+              else if (event.key === "End") next = buttons.length - 1
+              else if (event.key === "ArrowLeft") {
+                next = direction === "rtl" ? current + 1 : current - 1
+              } else {
+                next = direction === "rtl" ? current - 1 : current + 1
+              }
+              if (next < 0 || next >= buttons.length) return
+              event.preventDefault()
+              buttons[next].focus()
+              setActiveTabIndex(next)
+            }}
           >
             {shownTabs.map((entry, tabIndex) => {
               const active = tabIndex === activeTabIndex
@@ -792,6 +816,7 @@ export function ProgramStructureEditor({
                   id={`workout-day-tab-${entry.index}`}
                   aria-selected={active}
                   aria-controls={`workout-day-${entry.index}`}
+                  tabIndex={active ? 0 : -1}
                   className={`program-day-tab ${active ? "is-active" : ""}`}
                   onClick={() => setActiveTabIndex(tabIndex)}
                 >

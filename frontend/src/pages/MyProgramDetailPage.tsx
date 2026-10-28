@@ -17,7 +17,7 @@ import { useI18n } from "@/i18n"
 import { workoutDayLabel } from "@/lib/workoutDayLabel"
 
 export function MyProgramDetailPage({ versionId }: { versionId: string }) {
-  const { t, formatDate, formatNumber } = useI18n()
+  const { t, direction, formatDate, formatNumber } = useI18n()
   const { activeGym, activeGymId } = useAuth()
   const navigate = useNavigate()
   const [selectedDay, setSelectedDay] = useState(0)
@@ -123,13 +123,40 @@ export function MyProgramDetailPage({ versionId }: { versionId: string }) {
             className="m3-day-picker"
             role="tablist"
             aria-label={t("program.days")}
+            onKeyDown={(event) => {
+              const keys = ["ArrowLeft", "ArrowRight", "Home", "End"]
+              if (!keys.includes(event.key)) return
+              const buttons = Array.from(
+                event.currentTarget.querySelectorAll<HTMLButtonElement>(
+                  '[role="tab"]',
+                ),
+              )
+              const current = buttons.indexOf(
+                document.activeElement as HTMLButtonElement,
+              )
+              let next = current
+              if (event.key === "Home") next = 0
+              else if (event.key === "End") next = buttons.length - 1
+              else if (event.key === "ArrowLeft") {
+                next = direction === "rtl" ? current + 1 : current - 1
+              } else {
+                next = direction === "rtl" ? current - 1 : current + 1
+              }
+              if (next < 0 || next >= buttons.length) return
+              event.preventDefault()
+              buttons[next].focus()
+              setSelectedDay(next)
+            }}
           >
             {version.days.map((item, index) => (
               <button
                 key={item.id ?? index}
                 type="button"
                 role="tab"
+                id={`my-day-tab-${index}`}
+                aria-controls={`my-day-panel-${index}`}
                 aria-selected={selectedDay === index}
+                tabIndex={selectedDay === index ? 0 : -1}
                 className={`m3-day-pill ${selectedDay === index ? "is-active" : ""}`}
                 onClick={() => setSelectedDay(index)}
               >
@@ -143,11 +170,21 @@ export function MyProgramDetailPage({ versionId }: { versionId: string }) {
           </div>
 
           {day ? (
-            <div className="stack">
+            <div
+              className="stack"
+              role="tabpanel"
+              id={`my-day-panel-${selectedDay}`}
+              aria-labelledby={`my-day-tab-${selectedDay}`}
+            >
               {day.notes ? (
                 <div className="m3-inline-alert m3-inline-alert--info">
                   {day.notes}
                 </div>
+              ) : null}
+              {day.exercises.length === 0 ? (
+                <Card>
+                  <p className="muted">{t("program.noExercises")}</p>
+                </Card>
               ) : null}
               {day.exercises.map((exercise, index) => (
                 <div
