@@ -42,7 +42,12 @@
   --m3-radius-m: 12px;
   --m3-radius-l: 16px;
   --m3-radius-xl: 28px;
+  --m3-motion-inline-sign: 1;
   --m3-font: "Vazirmatn Variable", "Vazirmatn", "Segoe UI", Tahoma, sans-serif;
+}
+
+:root[dir="rtl"] {
+  --m3-motion-inline-sign: -1;
 }
 
 :root[data-theme="dark"] {
@@ -342,8 +347,8 @@ button:disabled {
   height: 32px;
   border-radius: 16px;
   transition:
-    background 160ms ease,
-    color 160ms ease;
+    background-color var(--m3-motion-standard-effects-fast),
+    color var(--m3-motion-standard-effects-fast);
 }
 
 .m3-nav-rail__item:hover .m3-nav-rail__icon {
@@ -472,14 +477,7 @@ button:disabled {
   background: var(--m3-surface-container-high);
   box-shadow: var(--m3-shadow-3);
   z-index: 70;
-  animation: menu-in 120ms ease-out;
-}
-
-@keyframes menu-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
+  animation: m3-motion-popover-enter var(--m3-motion-standard-effects-fast) both;
 }
 
 .m3-menu__item {
@@ -494,6 +492,9 @@ button:disabled {
   color: var(--m3-on-surface);
   font-size: 13.5px;
   text-align: start;
+  transition:
+    background-color var(--m3-motion-standard-effects-fast),
+    color var(--m3-motion-standard-effects-fast);
 }
 
 .m3-menu__item:hover {
@@ -548,9 +549,10 @@ button:disabled {
   text-align: center;
   white-space: nowrap;
   transition:
-    background 140ms ease,
-    box-shadow 140ms ease,
-    border-color 140ms ease;
+    background-color var(--m3-motion-standard-effects-fast),
+    box-shadow var(--m3-motion-standard-effects-fast),
+    border-color var(--m3-motion-standard-effects-fast),
+    transform var(--m3-motion-standard-effects-fast);
 }
 
 .m3-button--sm {
@@ -616,6 +618,10 @@ button:disabled {
   background: color-mix(in srgb, var(--m3-error) 88%, black);
 }
 
+.m3-button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
 .m3-button:disabled {
   opacity: 0.38;
 }
@@ -630,10 +636,15 @@ button:disabled {
   background: transparent;
   color: var(--m3-on-surface-variant);
   flex: 0 0 auto;
+  transition: transform var(--m3-motion-standard-effects-fast);
 }
 
 .m3-icon-button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--m3-on-surface) 8%, transparent);
+}
+
+.m3-icon-button:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .m3-icon-button--filled {
@@ -673,8 +684,8 @@ button:disabled {
   background: var(--m3-surface-container-highest);
   color: var(--m3-on-surface);
   transition:
-    border-color 140ms ease,
-    background 140ms ease;
+    border-color var(--m3-motion-standard-effects-fast),
+    background-color var(--m3-motion-standard-effects-fast);
 }
 
 .m3-field__control:focus-within {
@@ -775,7 +786,9 @@ button:disabled {
   border: 2px solid var(--m3-outline);
   border-radius: 999px;
   background: var(--m3-surface-container-highest);
-  transition: all 160ms ease;
+  transition:
+    background-color var(--m3-motion-standard-effects-default),
+    border-color var(--m3-motion-standard-effects-default);
 }
 
 .m3-switch__track[data-checked="true"] {
@@ -789,17 +802,18 @@ button:disabled {
   inset-inline-start: 5px;
   width: 18px;
   height: 18px;
-  transform: translateY(-50%);
+  transform: translateY(-50%) scale(0.82);
   border-radius: 50%;
   background: var(--m3-outline);
-  transition: all 160ms ease;
+  transition:
+    transform var(--m3-motion-standard-spatial-fast),
+    background-color var(--m3-motion-standard-effects-fast);
 }
 
 .m3-switch__track[data-checked="true"] .m3-switch__thumb {
-  inset-inline-start: 25px;
-  width: 22px;
-  height: 22px;
   background: var(--m3-on-primary);
+  transform: translateY(-50%)
+    translateX(calc(20px * var(--m3-motion-inline-sign, 1))) scale(1);
 }
 
 .m3-chip {
@@ -815,10 +829,23 @@ button:disabled {
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+  transition:
+    background-color var(--m3-motion-standard-effects-fast),
+    border-color var(--m3-motion-standard-effects-fast),
+    color var(--m3-motion-standard-effects-fast);
 }
 
 .m3-chip:hover {
   background: color-mix(in srgb, var(--m3-on-surface) 6%, transparent);
+}
+
+.m3-chip:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+button.m3-chip {
+  cursor: pointer;
+  transition: transform var(--m3-motion-standard-effects-fast);
 }
 
 .m3-chip--selected {
@@ -919,8 +946,8 @@ button:disabled {
   font-weight: 600;
   cursor: pointer;
   transition:
-    background 160ms ease,
-    border-color 160ms ease;
+    background-color var(--m3-motion-standard-effects-fast),
+    border-color var(--m3-motion-standard-effects-fast);
 }
 
 .m3-back-button:hover {
@@ -1004,7 +1031,7 @@ button:disabled {
 }
 .is-updating {
   opacity: 0.65;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--m3-motion-standard-effects-fast);
 }
 
 .m3-async-picker__footer {
@@ -1135,8 +1162,8 @@ button:disabled {
   font-weight: 600;
   cursor: pointer;
   transition:
-    background 140ms ease,
-    color 140ms ease;
+    background-color var(--m3-motion-standard-effects-fast),
+    color var(--m3-motion-standard-effects-fast);
 }
 
 .m3-view-toggle__option:hover {
@@ -1198,7 +1225,8 @@ button:disabled {
 }
 
 .m3-data-table tbody tr {
-  transition: background 120ms ease;
+  transition: background-color var(--m3-motion-duration-short-2)
+    var(--m3-motion-standard-easing);
 }
 
 .m3-data-table tbody tr:hover {
@@ -1281,7 +1309,8 @@ button:disabled {
 
 .m3-data-table__person strong {
   font-size: 13px;
-  transition: color 120ms ease;
+  transition: color var(--m3-motion-duration-short-2)
+    var(--m3-motion-standard-easing);
 }
 
 .m3-data-table__email {
@@ -1551,6 +1580,15 @@ button:disabled {
   height: 3px;
   border-radius: 3px 3px 0 0;
   background: transparent;
+  transform: scaleX(0);
+  transform-origin: right center;
+  transition:
+    transform var(--m3-motion-standard-effects-default),
+    background-color var(--m3-motion-standard-effects-fast);
+}
+
+[dir="ltr"] .m3-tabs__tab::after {
+  transform-origin: left center;
 }
 
 .m3-tabs__tab.is-active {
@@ -1559,6 +1597,7 @@ button:disabled {
 
 .m3-tabs__tab.is-active::after {
   background: var(--m3-primary);
+  transform: scaleX(1);
 }
 
 .m3-tabs__count {
@@ -1684,14 +1723,18 @@ button:disabled {
   text-align: start;
   cursor: pointer;
   transition:
-    border-color 140ms ease,
-    transform 140ms ease,
-    box-shadow 140ms ease;
+    border-color var(--m3-motion-standard-effects-fast),
+    transform var(--m3-motion-standard-effects-fast),
+    box-shadow var(--m3-motion-standard-effects-fast);
 }
 
 .m3-entity-card:hover {
   border-color: var(--m3-outline-variant);
   box-shadow: var(--m3-shadow-1);
+}
+
+.m3-entity-card:active:not(:disabled) {
+  transform: scale(0.99);
 }
 
 .m3-entity-card:focus-within {
@@ -1973,13 +2016,7 @@ button:disabled {
   place-items: center;
   padding: 16px;
   background: var(--m3-scrim);
-  animation: scrim-in 150ms ease-out;
-}
-
-@keyframes scrim-in {
-  from {
-    opacity: 0;
-  }
+  animation: m3-motion-scrim-enter var(--m3-motion-standard-effects-fast) both;
 }
 
 .m3-dialog {
@@ -1993,7 +2030,8 @@ button:disabled {
   background: var(--m3-surface-container-high);
   color: var(--m3-on-surface);
   box-shadow: var(--m3-shadow-3);
-  animation: dialog-in 160ms ease-out;
+  animation: m3-motion-dialog-enter var(--m3-motion-expressive-spatial-fast)
+    both;
 }
 
 .m3-dialog--sm {
@@ -2002,13 +2040,6 @@ button:disabled {
 
 .m3-dialog--lg {
   max-width: 900px;
-}
-
-@keyframes dialog-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.985);
-  }
 }
 
 .m3-dialog__header {
@@ -2060,18 +2091,12 @@ button:disabled {
   color: var(--m3-inverse-on-surface);
   box-shadow: var(--m3-shadow-3);
   font-size: 13px;
-  animation: snackbar-in 180ms ease-out;
+  animation: m3-motion-snackbar-enter var(--m3-motion-standard-effects-default)
+    both;
 }
 
 [dir="rtl"] .m3-snackbar {
   transform: translateX(50%);
-}
-
-@keyframes snackbar-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
 }
 
 .m3-snackbar--success {
@@ -2114,7 +2139,8 @@ button:disabled {
   border: 3px solid var(--m3-outline-variant);
   border-top-color: var(--m3-primary);
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: spin var(--m3-motion-duration-spinner)
+    var(--m3-motion-easing-linear) infinite;
 }
 
 .m3-spinner--small {
@@ -2143,7 +2169,8 @@ button:disabled {
   height: 100%;
   background: var(--m3-primary);
   border-radius: 4px;
-  animation: indeterminate 1.3s ease-in-out infinite;
+  animation: indeterminate var(--m3-motion-duration-progress)
+    var(--m3-motion-standard-easing) infinite;
 }
 
 @keyframes indeterminate {
@@ -3621,11 +3648,19 @@ a.m3-contact-chip:focus-visible {
     font-size: 9.5px;
     font-weight: 600;
     max-width: 96px;
+    transition:
+      background-color var(--m3-motion-standard-effects-fast),
+      color var(--m3-motion-standard-effects-fast),
+      transform var(--m3-motion-standard-effects-fast);
   }
 
   .m3-mobile-nav__item.is-active {
     color: var(--m3-on-secondary-container);
     background: var(--m3-secondary-container);
+  }
+
+  .m3-mobile-nav__item:active {
+    transform: scale(0.96);
   }
 
   .m3-snackbar {
@@ -3713,6 +3748,10 @@ a.m3-contact-chip:focus-visible {
   .m3-date-segment {
     font-size: 16px;
   }
+
+  .m3-field__input {
+    padding-block: 12px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -3755,17 +3794,6 @@ a.m3-contact-chip:focus-visible {
   .m3-dialog__content,
   .m3-dialog__footer {
     padding-inline: 18px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms;
-    animation-iteration-count: 1;
-    transition-duration: 0.01ms;
-    scroll-behavior: auto;
   }
 }
 
@@ -3861,7 +3889,7 @@ a.m3-contact-chip:focus-visible {
 .m3-select__chevron {
   flex: 0 0 auto;
   color: var(--m3-on-surface-variant);
-  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
+  transition: transform var(--m3-motion-standard-effects-default);
 }
 
 .m3-select[data-open] .m3-select__chevron {
@@ -3884,17 +3912,11 @@ a.m3-contact-chip:focus-visible {
   background: var(--m3-surface-container-high);
   box-shadow: var(--m3-shadow-2);
   outline: none;
-  animation: m3-popover-in 120ms ease-out;
+  animation: m3-motion-popover-enter var(--m3-motion-standard-effects-fast) both;
 }
 
 .m3-select-popover {
   width: var(--trigger-width, 220px);
-}
-
-@keyframes m3-popover-in {
-  from {
-    transform: scale(0.98) translateY(-3px);
-  }
 }
 
 .m3-listbox {
@@ -3917,7 +3939,8 @@ a.m3-contact-chip:focus-visible {
   line-height: 1.5;
   outline: none;
   cursor: default;
-  transition: background 100ms ease;
+  transition: background-color var(--m3-motion-duration-short-2)
+    var(--m3-motion-standard-easing);
 }
 
 .m3-listbox__item[data-hovered],
@@ -4022,7 +4045,7 @@ a.m3-contact-chip:focus-visible {
 }
 
 .m3-combobox__trigger svg {
-  transition: transform 160ms cubic-bezier(0.2, 0, 0, 1);
+  transition: transform var(--m3-motion-standard-effects-default);
 }
 
 /* DatePicker -------------------------------------------------------- */
@@ -4117,7 +4140,7 @@ a.m3-contact-chip:focus-visible {
   background: var(--m3-surface-container-high);
   box-shadow: var(--m3-shadow-3);
   outline: none;
-  animation: m3-popover-in 140ms ease-out;
+  animation: m3-motion-popover-enter var(--m3-motion-standard-effects-fast) both;
 }
 
 .m3-date-dialog {
@@ -4673,8 +4696,8 @@ a.m3-contact-chip:focus-visible {
   background: var(--m3-surface-container-low);
   text-align: center;
   transition:
-    border-color 140ms ease,
-    background 140ms ease;
+    border-color var(--m3-motion-standard-effects-fast),
+    background-color var(--m3-motion-standard-effects-fast);
 }
 
 .m3-import-dropzone.is-dragging {
@@ -5390,9 +5413,9 @@ a.m3-contact-chip:focus-visible {
   color: var(--m3-on-surface);
   text-align: start;
   transition:
-    background 180ms ease,
-    border-color 180ms ease,
-    transform 180ms ease;
+    background-color var(--m3-motion-standard-effects-default),
+    border-color var(--m3-motion-standard-effects-default),
+    transform var(--m3-motion-standard-effects-default);
 }
 
 .program-day-tab:hover {
@@ -6309,8 +6332,8 @@ a.m3-contact-chip:focus-visible {
 .m3-topbar__gym--switch {
   cursor: pointer;
   transition:
-    background 140ms ease,
-    border-color 140ms ease;
+    background-color var(--m3-motion-standard-effects-fast),
+    border-color var(--m3-motion-standard-effects-fast);
 }
 
 .m3-topbar__gym--switch:hover {
@@ -6334,8 +6357,8 @@ a.m3-contact-chip:focus-visible {
   background: var(--m3-surface-container-low);
   color: var(--m3-on-surface);
   transition:
-    background 140ms ease,
-    border-color 140ms ease;
+    background-color var(--m3-motion-standard-effects-fast),
+    border-color var(--m3-motion-standard-effects-fast);
 }
 
 .m3-account-trigger:hover {
@@ -6522,7 +6545,7 @@ a.m3-contact-chip:focus-visible {
   inset: 0;
   z-index: 1390;
   background: var(--m3-scrim);
-  animation: scrim-in 150ms ease-out;
+  animation: m3-motion-scrim-enter var(--m3-motion-standard-effects-fast) both;
 }
 
 .m3-account-sheet {
@@ -6539,18 +6562,11 @@ a.m3-contact-chip:focus-visible {
   background: var(--m3-surface-container-high);
   box-shadow: var(--m3-shadow-3);
   outline: none;
-  animation: account-sheet-in 180ms ease-out;
+  animation: m3-motion-sheet-enter var(--m3-motion-expressive-spatial-fast) both;
 }
 
 .m3-account-sheet .m3-account__header {
   padding: 12px 12px 8px;
-}
-
-@keyframes account-sheet-in {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
 }
 
 @media (max-width: 900px) {
@@ -6800,7 +6816,7 @@ a.m3-contact-chip:focus-visible {
   border-radius: 50%;
   background: var(--m3-surface-container-highest);
   color: var(--m3-on-surface-variant);
-  transition: transform 160ms ease;
+  transition: transform var(--m3-motion-standard-effects-default);
 }
 
 .program-review-card.is-open .program-review-card__chevron {
@@ -6846,6 +6862,7 @@ a.m3-contact-chip:focus-visible {
     var(--m3-surface-container-low) 55%,
     transparent
   );
+  animation: m3-motion-content-enter var(--m3-motion-standard-spatial-fast) both;
 }
 
 .program-review {

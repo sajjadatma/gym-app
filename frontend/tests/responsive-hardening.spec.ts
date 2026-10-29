@@ -720,7 +720,7 @@ test("program editor labels stay legible on phones", async ({ page }) => {
   await expect(dayTabs.nth(1)).toBeFocused()
 })
 
-test("row action menu closes on Tab and stays open on its own scroll", async ({
+test("row action menu closes on Tab or page scroll and stays open on its own scroll", async ({
   page,
 }) => {
   await prepare(page, { role: "GYM_ADMIN", athletes: true, view: "table" })
@@ -740,6 +740,10 @@ test("row action menu closes on Tab and stays open on its own scroll", async ({
   await expect(menu).toBeVisible()
   await menu.dispatchEvent("scroll")
   await expect(menu).toBeVisible()
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("scroll", { bubbles: true })),
+  )
+  await expect(menu).toHaveCount(0)
 })
 
 test("athlete record tabs support arrow keys and expose a panel", async ({
@@ -986,6 +990,75 @@ test("saving edited profile returns to the read-only overview", async ({
     page.getByRole("heading", { name: "ورزشکار ویرایش‌شده" }),
   ).toBeVisible()
   await expect(page.getByText("09121111111").first()).toBeVisible()
+})
+
+test("motion system uses Standard feedback, Expressive sheets and reduced-motion fallback", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" })
+  await prepare(page, { role: "GYM_ADMIN", athletes: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto(`/gyms/${GYM_ID}/athletes`)
+
+  const tokens = await page.evaluate(() => {
+    const style = getComputedStyle(document.documentElement)
+    return {
+      standardDuration: style
+        .getPropertyValue("--m3-motion-standard-effects-fast")
+        .trim(),
+      expressiveDuration: style
+        .getPropertyValue("--m3-motion-expressive-spatial-fast")
+        .trim(),
+    }
+  })
+  expect(tokens.standardDuration).toContain("150ms")
+  expect(tokens.expressiveDuration).toContain("350ms")
+
+  const buttonDuration = await page
+    .locator(".m3-page-header .m3-button--filled")
+    .first()
+    .evaluate((element) => getComputedStyle(element).transitionDuration)
+  expect(buttonDuration).toContain("0.15s")
+
+  await page.locator(".m3-account-trigger").click()
+  const sheet = page.locator(".m3-account-sheet")
+  await expect(sheet).toBeVisible()
+  const sheetDuration = await sheet.evaluate(
+    (element) => getComputedStyle(element).animationDuration,
+  )
+  expect(sheetDuration).toBe("0.35s")
+
+  await page.emulateMedia({ reducedMotion: "reduce" })
+  const reduced = await sheet.evaluate((element) => {
+    const unrelated = document.createElement("div")
+    unrelated.style.transition = "opacity 1s linear"
+    document.body.append(unrelated)
+    const unrelatedTransition = getComputedStyle(unrelated).transitionDuration
+    unrelated.remove()
+
+    const progress = document.createElement("div")
+    progress.className = "m3-linear-progress"
+    progress.innerHTML = "<span></span>"
+    document.body.append(progress)
+    const progressWidthRatio =
+      Number.parseFloat(getComputedStyle(progress.firstElementChild!).width) /
+      progress.getBoundingClientRect().width
+    progress.remove()
+
+    return {
+      name: getComputedStyle(element).animationName,
+      duration: getComputedStyle(element).animationDuration,
+      transition: getComputedStyle(element).transitionDuration,
+      unrelatedTransition,
+      progressWidthRatio,
+    }
+  })
+  expect(reduced.name).toBe("none")
+  expect(reduced.duration).toBe("0s")
+  expect(reduced.transition).toBe("0s")
+  expect(reduced.unrelatedTransition).toBe("1s")
+  expect(reduced.progressWidthRatio).toBeGreaterThan(0)
+  expect(reduced.progressWidthRatio).toBeLessThan(0.8)
 })
 
 test("active program card opens by default and can collapse for review", async ({
