@@ -440,9 +440,7 @@ test("superuser transfers a coach and athlete between clubs", async ({
     .click()
   await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(coachEmail)
   const transferredCoachRow = page.locator("tr", { hasText: coachEmail })
-  await transferredCoachRow
-    .getByRole("button", { name: "انتقال باشگاه" })
-    .click()
+  await chooseRowAction(page, transferredCoachRow, "انتقال باشگاه")
   dialog = page.getByRole("dialog")
   await dialog.getByRole("button", { name: /باشگاه/ }).click()
   await page.getByRole("option", { name: destinationClub }).click()
