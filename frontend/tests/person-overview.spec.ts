@@ -20,7 +20,9 @@ test("athlete and coach details open the complete overview page", async ({
     page.getByRole("heading", { name: "تاریخچهٔ کامل" }),
   ).toBeVisible()
   await expect(page.getByText("عضویت‌ها و نقش‌ها")).toBeVisible()
-  await expect(page.getByText("برنامه‌های تمرینی")).toBeVisible()
+  await expect(
+    page.getByRole("heading", { name: "برنامه‌های تمرینی" }),
+  ).toBeVisible()
 
   await page.getByRole("button", { name: "بازگشت" }).click()
   await expect(page.locator(".m3-data-table")).toBeVisible()

@@ -5,7 +5,13 @@ import { expect, test } from "./fixtures/athlete-data"
 
 async function chooseRowAction(page: Page, row: Locator, name: string) {
   await row.getByRole("button", { name: "اقدام‌های بیشتر" }).click()
-  await page.getByRole("menu").getByRole("menuitem", { name }).click()
+  const item = page.getByRole("menu").getByRole("menuitem", { name })
+  await item.focus()
+  await page.keyboard.press("Enter")
+}
+
+function archivedItems(page: Page) {
+  return page.locator(".m3-archive-table tbody tr, .m3-entity-card")
 }
 
 async function expectPageFits(page: Page) {
@@ -38,9 +44,9 @@ test("archived athletes can be restored or permanently deleted", async ({
   )
   await expectPageFits(page)
 
-  const restoreRow = page
-    .locator(".m3-archive-table tbody tr")
-    .filter({ hasText: restoreTarget.email })
+  const restoreRow = archivedItems(page).filter({
+    hasText: restoreTarget.email,
+  })
   await chooseRowAction(page, restoreRow, "بازیابی")
   await expect(page.getByText("ورزشکار بازیابی شد.")).toBeVisible()
   await expect(restoreRow).toHaveCount(0)
@@ -51,9 +57,9 @@ test("archived athletes can be restored or permanently deleted", async ({
   await expect(page.locator(".m3-entity-card")).toHaveCount(1)
 
   await page.goto("/athletes/archived")
-  const deleteRow = page
-    .locator(".m3-archive-table tbody tr")
-    .filter({ hasText: deleteTarget.email })
+  const deleteRow = archivedItems(page).filter({
+    hasText: deleteTarget.email,
+  })
   const moreButton = deleteRow.getByRole("button", {
     name: "اقدام‌های بیشتر",
   })
@@ -107,7 +113,9 @@ test("archived athletes can be restored or permanently deleted", async ({
 test("archived athletes can be restored in bulk", async ({
   page,
   athleteData,
+  isMobile,
 }) => {
+  test.skip(isMobile, "Bulk selection is available in the desktop table view.")
   const marker = `بازیابی گروهی ${Date.now()}`
   const first = await athleteData.create({
     name: `${marker} ۱`,
@@ -142,6 +150,7 @@ test("archived athletes can be restored in bulk", async ({
 test("archive is available on cards and as a table bulk action", async ({
   page,
   athleteData,
+  isMobile,
 }) => {
   const cardTarget = await athleteData.create({
     name: "آرشیو کارت آزمون",
@@ -156,6 +165,8 @@ test("archive is available on cards and as a table bulk action", async ({
   await cardDialog.getByRole("button", { name: "آرشیو", exact: true }).click()
   await expect(page.getByText("ورزشکار آرشیو شد.")).toBeVisible()
   await expect(page.locator(".m3-entity-card")).toHaveCount(0)
+
+  if (isMobile) return
 
   const marker = `آرشیو گروهی جدول ${Date.now()}`
   await athleteData.create({ name: `${marker} ۱` })

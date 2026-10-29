@@ -99,7 +99,10 @@ test("admin creates catalog entries; coach selects them; day categories reach at
   expect(rejected.status()).toBe(403)
 
   await page.goto(`/athletes/${athleteId}`)
-  await page.getByRole("button", { name: "ساخت برنامه", exact: true }).click()
+  await page
+    .locator(".m3-page-header")
+    .getByRole("button", { name: "ساخت برنامه", exact: true })
+    .click()
   await dialog.getByLabel(/عنوان برنامه/).fill(`برنامه دسته نمونه ${suffix}`)
   await dialog.getByRole("button", { name: "ایجاد", exact: true }).click()
   await expect(page).toHaveURL(/\/programs\/[^/]+\/edit$/)

@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test"
 
 import { ATHLETE_EMAIL, DEMO_PASSWORD } from "./credentials"
-import { openAthlete } from "./utils/athletes"
+import { openAthleteProfile } from "./utils/athletes"
 
 async function expectAssociatedLabels(page: Page) {
   const missing = await page.locator("body").evaluate((body) => {
@@ -104,7 +104,7 @@ test("birth dates reject future calendar days and dates keep visible labels when
   page,
 }) => {
   await page.goto("/athletes")
-  await openAthlete(page, "نیما ورزشکار")
+  await openAthleteProfile(page, "نیما ورزشکار")
   await page.getByRole("button", { name: "ویرایش پرونده" }).click()
   await page.getByRole("button", { name: "انتخاب تاریخ" }).first().click()
   const calendar = page
@@ -156,6 +156,7 @@ test("athlete profile and upload controls have associated labels", async ({
         theme,
       )
       await page.reload()
+      await page.evaluate(() => document.fonts.ready)
       await expect(page.getByLabel("تلفن", { exact: true })).toBeVisible()
       const styles = await page
         .locator(".m3-field__control")

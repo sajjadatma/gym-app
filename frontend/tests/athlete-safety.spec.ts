@@ -178,13 +178,15 @@ test("busy permanent deletion cannot be dismissed or submitted twice", async ({
   await page.goto("/athletes/archived")
   await page.getByLabel("جستجوی نام، ایمیل یا تلفن").fill(target.email)
   const row = page.locator(".m3-archive-table tbody tr").first()
-  const deleteButton = row.getByRole("button", {
-    name: "حذف",
-    exact: true,
-  })
+  const moreButton = row.getByRole("button", { name: "اقدام‌های بیشتر" })
 
-  // Idle cancellation keeps focus trapped and restores the initiating button.
-  await deleteButton.click()
+  async function openDeleteDialog() {
+    await moreButton.click()
+    await page.getByRole("menu").getByRole("menuitem", { name: "حذف" }).click()
+  }
+
+  // Idle cancellation keeps focus trapped and restores the initiating trigger.
+  await openDeleteDialog()
   const idleDialog = page.getByRole("dialog")
   const idleConfirmation = idleDialog.getByRole("textbox")
   await expect(idleConfirmation).toBeFocused()
@@ -202,10 +204,10 @@ test("busy permanent deletion cannot be dismissed or submitted twice", async ({
   ).toBe(true)
   await page.keyboard.press("Escape")
   await expect(idleDialog).toHaveCount(0)
-  await expect(deleteButton).toBeFocused()
+  await expect(moreButton).toBeFocused()
   expect(deleteCalls).toBe(0)
 
-  await deleteButton.click()
+  await openDeleteDialog()
   const dialog = page.getByRole("dialog")
   await dialog.getByRole("textbox").fill(target.email)
   const submit = dialog.getByRole("button", { name: "حذف دائمی" })

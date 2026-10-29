@@ -73,7 +73,9 @@ export function RowActionMenu({
           },
     )
     const frame = requestAnimationFrame(() => {
-      menuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+      menuRef.current
+        ?.querySelector<HTMLElement>('[role="menuitem"]')
+        ?.focus({ preventScroll: true })
     })
     return () => cancelAnimationFrame(frame)
   }, [open])
@@ -106,12 +108,12 @@ export function RowActionMenu({
     document.addEventListener("pointerdown", handlePointerDown)
     document.addEventListener("keydown", handleKeyDown)
     window.addEventListener("resize", handleResize)
-    window.addEventListener("scroll", handleScroll, true)
+    window.addEventListener("scroll", handleScroll)
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown)
       document.removeEventListener("keydown", handleKeyDown)
       window.removeEventListener("resize", handleResize)
-      window.removeEventListener("scroll", handleScroll, true)
+      window.removeEventListener("scroll", handleScroll)
     }
   }, [open, close])
 
@@ -188,6 +190,7 @@ export function RowActionMenu({
                     }`}
                     disabled={item.disabled}
                     onClick={() => {
+                      triggerRef.current?.focus()
                       close()
                       item.onSelect()
                     }}

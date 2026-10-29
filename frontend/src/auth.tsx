@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react"
 import type { GymPublic, UserMePublic } from "./client"
@@ -100,13 +101,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [gyms, gymsQuery.isSuccess, activeGymId, me])
 
   const defaultRole = pickDefaultRole(activeGym)
+  const roleGymId = useRef<string | null>(null)
   useEffect(() => {
-    if (!activeGym) return
+    if (!activeGym) {
+      roleGymId.current = null
+      return
+    }
     const roles = activeGym.my_roles.filter((role): role is RoleMode =>
       ROLE_ORDER.includes(role as RoleMode),
     )
     if (!roles.length) return
-    if (!activeRole || !roles.includes(activeRole)) {
+    const gymChanged = roleGymId.current !== activeGym.id
+    roleGymId.current = activeGym.id
+    if (gymChanged || !activeRole || !roles.includes(activeRole)) {
       const next = pickDefaultRole(activeGym)
       if (next) {
         localStorage.setItem("gym.activeRole", next)

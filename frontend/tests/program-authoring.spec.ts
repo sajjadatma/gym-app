@@ -11,14 +11,20 @@ test("admin builds, saves and publishes a program through the UI", async ({
   const athleteId = athlete.athleteId
 
   await page.goto(`/athletes/${athleteId}`)
-  await page.getByRole("button", { name: "ساخت برنامه" }).click()
+  await page
+    .locator(".m3-page-header")
+    .getByRole("button", { name: "ساخت برنامه" })
+    .click()
   const createDialog = page.getByRole("dialog")
   await createDialog.getByLabel(/عنوان برنامه/).fill("عنوان لغوشده")
   await createDialog.getByLabel(/هدف/).fill("هدف لغوشده")
   await createDialog
     .getByRole("button", { name: "انصراف", exact: true })
     .click()
-  await page.getByRole("button", { name: "ساخت برنامه", exact: true }).click()
+  await page
+    .locator(".m3-page-header")
+    .getByRole("button", { name: "ساخت برنامه", exact: true })
+    .click()
   await expect(createDialog.getByLabel(/عنوان برنامه/)).toHaveValue("")
   await expect(createDialog.getByLabel(/هدف/)).toHaveValue("")
   await createDialog.getByLabel(/عنوان برنامه/).fill("برنامه آزمون رابط")
@@ -130,7 +136,10 @@ test("numbered day builder caps program days to the athlete's training-day count
   })
 
   await page.goto(`/athletes/${athleteId}`)
-  await page.getByRole("button", { name: "ساخت برنامه", exact: true }).click()
+  await page
+    .locator(".m3-page-header")
+    .getByRole("button", { name: "ساخت برنامه", exact: true })
+    .click()
   const createDialog = page.getByRole("dialog")
   await createDialog.getByLabel(/عنوان برنامه/).fill("برنامه دو روزه")
   await createDialog.getByRole("button", { name: "ایجاد" }).click()

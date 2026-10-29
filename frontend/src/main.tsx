@@ -6,6 +6,7 @@ import ReactDOM from "react-dom/client"
 
 import "./api"
 import "./index.css"
+import "./motion.css"
 import { AuthProvider } from "./auth"
 import { I18nProvider } from "./i18n"
 import { routeTree } from "./routeTree.gen"

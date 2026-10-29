@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { openAthlete } from "./utils/athletes"
+import { openAthlete, openAthleteProfileEditor } from "./utils/athletes"
 
 test("Select opens a listbox, supports keyboard selection and Escape", async ({
   page,
@@ -77,7 +77,7 @@ test("Persian date picker selects today and submits Gregorian ISO", async ({
   page,
 }) => {
   await page.goto("/athletes")
-  await openAthlete(page, "نیما ورزشکار")
+  await openAthleteProfileEditor(page, "نیما ورزشکار")
   await expect(
     page.getByRole("heading", { name: "نیما ورزشکار" }),
   ).toBeVisible()
@@ -103,7 +103,7 @@ test("Persian date picker selects today and submits Gregorian ISO", async ({
         req.method() === "PATCH" &&
         /\/api\/v1\/athletes\/[^/]+$/.test(req.url()),
     ),
-    page.getByRole("button", { name: "ذخیره", exact: true }).click(),
+    page.getByRole("button", { name: "ذخیره تغییرات", exact: true }).click(),
   ])
   expect(request.postDataJSON().birth_date).toBe(todayIso)
 })
@@ -157,7 +157,7 @@ test("English locale keeps Select and DatePicker usable in LTR", async ({
   ).toBeVisible()
   await dialog.getByRole("button", { name: "Cancel" }).click()
 
-  await openAthlete(page, "نیما ورزشکار")
+  await openAthleteProfileEditor(page, "نیما ورزشکار", "en")
   await page.getByRole("button", { name: "Select date" }).first().click()
   const dateDialog = page.getByRole("dialog")
   await expect(dateDialog.getByRole("grid")).toBeVisible()
@@ -169,7 +169,7 @@ test("Persian leap-year date converts to the correct Gregorian ISO", async ({
   page,
 }) => {
   await page.goto("/athletes")
-  await openAthlete(page, "نیما ورزشکار")
+  await openAthleteProfileEditor(page, "نیما ورزشکار")
 
   await page.getByRole("button", { name: "انتخاب تاریخ" }).first().click()
   const dateDialog = page.getByRole("dialog")
@@ -187,14 +187,14 @@ test("Persian leap-year date converts to the correct Gregorian ISO", async ({
         req.method() === "PATCH" &&
         /\/api\/v1\/athletes\/[^/]+$/.test(req.url()),
     ),
-    page.getByRole("button", { name: "ذخیره", exact: true }).click(),
+    page.getByRole("button", { name: "ذخیره تغییرات", exact: true }).click(),
   ])
   expect(request.postDataJSON().birth_date).toBe("2025-03-20")
 })
 
 test("date picker clear action submits a null value", async ({ page }) => {
   await page.goto("/athletes")
-  await openAthlete(page, "نیما ورزشکار")
+  await openAthleteProfileEditor(page, "نیما ورزشکار")
 
   await page.getByRole("button", { name: "انتخاب تاریخ" }).first().click()
   let dateDialog = page.getByRole("dialog")
@@ -212,7 +212,7 @@ test("date picker clear action submits a null value", async ({ page }) => {
         req.method() === "PATCH" &&
         /\/api\/v1\/athletes\/[^/]+$/.test(req.url()),
     ),
-    page.getByRole("button", { name: "ذخیره", exact: true }).click(),
+    page.getByRole("button", { name: "ذخیره تغییرات", exact: true }).click(),
   ])
   expect(request.postDataJSON().birth_date).toBeNull()
 })

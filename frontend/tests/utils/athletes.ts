@@ -14,3 +14,30 @@ export async function openAthlete(page: Page, name: string) {
   await expect(target).toBeVisible()
   await target.click()
 }
+
+export async function openAthleteProfile(
+  page: Page,
+  name: string,
+  language: "fa" | "en" = "fa",
+) {
+  await openAthlete(page, name)
+  await page
+    .getByRole("tab", { name: language === "en" ? "Profile" : "پرونده" })
+    .click()
+  await expect(
+    page.getByRole("tab", { name: language === "en" ? "Profile" : "پرونده" }),
+  ).toHaveAttribute("aria-selected", "true")
+}
+
+export async function openAthleteProfileEditor(
+  page: Page,
+  name: string,
+  language: "fa" | "en" = "fa",
+) {
+  await openAthleteProfile(page, name, language)
+  await page
+    .getByRole("button", {
+      name: language === "en" ? "Edit profile" : "ویرایش پرونده",
+    })
+    .click()
+}
