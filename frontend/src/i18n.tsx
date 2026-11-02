@@ -1056,8 +1056,6 @@ const fa = {
   "errors.finance_staff_required": "عضو انتخاب‌شده کارشناس مالی فعال نیست.",
   "errors.finance_manage_required":
     "این عملیات به دسترسی مدیریت مالی نیاز دارد.",
-  "errors.idempotency_key_required":
-    "درخواست بدون شناسه یکتا ارسال شد؛ دوباره تلاش کنید.",
   "errors.idempotency_key_reused":
     "این درخواست قبلاً با محتوای دیگری ثبت شده است.",
   "errors.superuser_required": "این عملیات فقط برای مدیر کل مجاز است.",
@@ -2131,8 +2129,6 @@ const en: Record<TranslationKey, string> = {
     "The selected member is not active finance staff.",
   "errors.finance_manage_required":
     "This action requires finance management access.",
-  "errors.idempotency_key_required":
-    "The request had no unique key; please retry.",
   "errors.idempotency_key_reused":
     "This request key was already used with different content.",
   "errors.superuser_required":

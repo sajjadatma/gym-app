@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import CurrentUser, GymContextDep, SessionDep
@@ -52,22 +52,12 @@ _CONSTRAINT_DETAILS = {
 }
 
 
-def _idempotency_key(
-    key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
-) -> str:
-    if key is None or not key.strip():
-        raise HTTPException(
-            status_code=400, detail="idempotency_key_required"
-        )
-    value = key.strip()
-    if len(value) > 100:
-        raise HTTPException(
-            status_code=400, detail="invalid_idempotency_key"
-        )
-    return value
-
-
-IdempotencyKey = Annotated[str, Depends(_idempotency_key)]
+# Declared required so the generated client and OpenAPI match runtime: a
+# missing or empty key is rejected by request validation before any work.
+IdempotencyKey = Annotated[
+    str,
+    Header(alias="Idempotency-Key", min_length=1, max_length=100),
+]
 
 
 def _commit_conflict(session: SessionDep, exc: IntegrityError) -> HTTPException:

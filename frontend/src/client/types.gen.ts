@@ -5581,15 +5581,15 @@ export type financeReadFinanceJournalEntryResponse = financeReadFinanceJournalEn
 
 export type financePostFinanceOpeningBalanceData = {
     body: FinanceOpeningBalanceCreate;
-    headers?: {
+    headers: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key': string;
         /**
          * X-Gym-Id
          */
         'X-Gym-ID'?: string | null;
-        /**
-         * Idempotency-Key
-         */
-        'Idempotency-Key'?: string | null;
     };
     path?: never;
     query?: never;
@@ -5616,15 +5616,15 @@ export type financePostFinanceOpeningBalanceResponse = financePostFinanceOpening
 
 export type financeCorrectFinanceJournalData = {
     body: FinanceJournalCorrectionCreate;
-    headers?: {
+    headers: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key': string;
         /**
          * X-Gym-Id
          */
         'X-Gym-ID'?: string | null;
-        /**
-         * Idempotency-Key
-         */
-        'Idempotency-Key'?: string | null;
     };
     path: {
         /**
