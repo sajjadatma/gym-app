@@ -114,7 +114,7 @@ export function FinancePage() {
       (
         await GymsService.listMembers({
           path: { gym_id: activeGymId! },
-          query: { staff_only: true, offset: 0, limit: 100 },
+          query: { staff_only: true, offset: 0, limit: 50 },
         })
       ).data,
     enabled: Boolean(activeGymId && isAdmin),
@@ -504,8 +504,12 @@ export function FinancePage() {
                     <thead>
                       <tr>
                         <th>{t("finance.account")}</th>
-                        <th>{t("finance.debit")}</th>
-                        <th>{t("finance.credit")}</th>
+                        <th>
+                          {t("finance.debit")} ({unitLabel})
+                        </th>
+                        <th>
+                          {t("finance.credit")} ({unitLabel})
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
