@@ -30,6 +30,9 @@ FinanceJournalEvent = Literal[
     "REFUND_RECORDED",
     "EXPENSE_RECORDED",
     "EXPENSE_PAID",
+    "COACH_ALLOCATION",
+    "COACH_SETTLEMENT",
+    "COACH_REFUND_ADJUSTMENT",
 ]
 
 FinancePermissionName = Literal[
@@ -221,7 +224,8 @@ class FinanceJournal(SQLModel, table=True):
             "event_type IN ('OPENING_BALANCE', 'CORRECTION', "
             "'INVOICE_ISSUED', 'INVOICE_VOID', 'RECEIPT_CONFIRMED', "
             "'ADVANCE_APPLIED', 'REFUND_RECORDED', 'EXPENSE_RECORDED', "
-            "'EXPENSE_PAID')",
+            "'EXPENSE_PAID', 'COACH_ALLOCATION', 'COACH_SETTLEMENT', "
+            "'COACH_REFUND_ADJUSTMENT')",
             name="ck_finance_journal_event",
         ),
     )
@@ -1433,3 +1437,83 @@ class FinanceCoachAgreementPublic(SQLModel):
 class FinanceCoachAgreementsPublic(SQLModel):
     data: list[FinanceCoachAgreementPublic]
     count: int
+
+
+FinanceCoachEarningStatus = Literal["CALCULATED", "UNRESOLVED"]
+
+
+class FinanceCoachEarning(SQLModel, table=True):
+    __tablename__ = "finance_coach_earning"
+    __table_args__ = (
+        UniqueConstraint(
+            "gym_id", "source_key", name="uq_finance_coach_earning_source"
+        ),
+        CheckConstraint(
+            "base_irr >= 0 AND discount_irr >= 0 AND coach_share_irr >= 0 "
+            "AND platform_share_irr >= 0 AND gym_share_irr >= 0",
+            name="ck_finance_coach_earning_amounts",
+        ),
+        CheckConstraint(
+            "status IN ('CALCULATED', 'UNRESOLVED')",
+            name="ck_finance_coach_earning_status",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    coach_user_id: uuid.UUID = Field(
+        foreign_key="user.id", ondelete="RESTRICT", index=True
+    )
+    invoice_id: uuid.UUID = Field(
+        foreign_key="finance_invoice.id", ondelete="RESTRICT", index=True
+    )
+    invoice_line_id: uuid.UUID = Field(
+        foreign_key="finance_invoice_line.id", ondelete="RESTRICT", index=True
+    )
+    receipt_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="finance_receipt.id",
+        ondelete="RESTRICT",
+        index=True,
+    )
+    credit_movement_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="finance_credit_movement.id",
+        ondelete="RESTRICT",
+    )
+    source_key: str = Field(max_length=120)
+    agreement_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="finance_coach_agreement.id",
+        ondelete="RESTRICT",
+    )
+    agreement_version: int | None = Field(default=None)
+    discount_funding: str = Field(default="GYM", max_length=20)
+    base_irr: int = Field(default=0, sa_column=Column(BigInteger, nullable=False))
+    discount_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    coach_share_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    platform_share_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    gym_share_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    status: str = Field(default="CALCULATED", max_length=20)
+    unresolved_reason: str | None = Field(default=None, max_length=100)
+    vesting_mode: str = Field(default="MANUAL", max_length=20)
+    vesting_date: date | None = Field(default=None)
+    vested_at: datetime | None = Field(default=None)
+    vested_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    vesting_reason: str | None = Field(default=None, max_length=500)
+    journal_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="finance_journal.id",
+        ondelete="RESTRICT",
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)

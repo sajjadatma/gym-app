@@ -38,6 +38,7 @@ from app.finance_models import (
     FinanceCoachAgreementsPublic,
     FinanceCoachAgreementTerm,
     FinanceCoachAgreementTermPublic,
+    FinanceCoachEarning,
     FinanceCreditApplyCreate,
     FinanceCreditMovement,
     FinanceCreditPublic,
@@ -128,10 +129,12 @@ DEFAULT_ACCOUNTS: tuple[tuple[str, str, str], ...] = (
     ("1000", "نقد و بانک", "ASSET"),
     ("1100", "مطالبات", "ASSET"),
     ("2000", "بدهی‌ها", "LIABILITY"),
+    ("2100", "بدهی به مربیان", "LIABILITY"),
     ("3000", "سرمایه افتتاحیه", "EQUITY"),
     ("4000", "درآمد", "INCOME"),
     ("4100", "برگشت از فروش", "INCOME"),
     ("5000", "هزینه‌ها", "EXPENSE"),
+    ("5100", "حق‌الزحمه مربیان", "EXPENSE"),
 )
 
 
@@ -1567,6 +1570,195 @@ def delete_invoice(
     session.commit()
 
 
+
+
+# ---------------------------------------------------------------------------
+# Deterministic revenue allocation (Phase 3)
+# ---------------------------------------------------------------------------
+
+
+def _split_proportional(total: int, weights: list[int]) -> list[int]:
+    """Split an integer total by weights, exact to the rial."""
+    if total <= 0 or not weights:
+        return [0] * len(weights)
+    weight_total = sum(weights)
+    if weight_total <= 0:
+        return [0] * len(weights)
+    shares = [total * weight // weight_total for weight in weights]
+    remainder = total - sum(shares)
+    for index in sorted(range(len(weights)), key=lambda i: (-weights[i], i)):
+        if remainder == 0:
+            break
+        take = min(max(weights[index] - shares[index], 0), remainder)
+        shares[index] += take
+        remainder -= take
+    if remainder:
+        shares[0] += remainder
+    return shares
+
+
+def _allocate_coach_shares(
+    snapshot: dict[str, Any],
+    *,
+    base_irr: int,
+    discount_irr: int,
+    discount_funding: str,
+) -> tuple[int, int, int]:
+    """Return coach, platform and gym shares summing to collected net."""
+    totals = {"COACH": 0, "ASCORA": 0, "GYM": 0}
+    remaining = base_irr
+    mode = snapshot.get("mode", "DIRECT")
+    for term in snapshot.get("terms", []):
+        if remaining <= 0:
+            break
+        recipient = term.get("recipient")
+        if recipient not in totals:
+            continue
+        if term.get("basis") == "PERCENT":
+            denominator = base_irr if mode == "DIRECT" else remaining
+            amount = denominator * int(term.get("percent_bp", 0)) // 10_000
+        else:
+            amount = int(term.get("fixed_irr", 0))
+        amount = max(0, min(amount, remaining))
+        totals[recipient] += amount
+        remaining -= amount
+    totals["GYM"] += remaining
+
+    discount = min(discount_irr, base_irr)
+    if discount > 0:
+        if discount_funding == "MIXED":
+            shares = _split_proportional(
+                discount,
+                [totals["COACH"], totals["ASCORA"], totals["GYM"]],
+            )
+            totals["COACH"] -= shares[0]
+            totals["ASCORA"] -= shares[1]
+            totals["GYM"] -= shares[2]
+        else:
+            funder = discount_funding if discount_funding in totals else "GYM"
+            taken = min(discount, totals[funder])
+            totals[funder] -= taken
+            remainder = discount - taken
+            for recipient in ("GYM", "COACH", "ASCORA"):
+                if remainder == 0:
+                    break
+                take = min(remainder, totals[recipient])
+                totals[recipient] -= take
+                remainder -= take
+
+    # Keep the invariant exact even for a malformed historical snapshot.
+    delta = (base_irr - discount) - sum(totals.values())
+    totals["GYM"] += delta
+    if totals["GYM"] < 0:
+        totals["GYM"] = 0
+    return totals["COACH"], totals["ASCORA"], totals["GYM"]
+
+
+def _create_coach_earnings(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    invoice: FinanceInvoice,
+    amount_irr: int,
+    received_on: date,
+    receipt_id: uuid.UUID | None,
+    credit_movement_id: uuid.UUID | None,
+    source_prefix: str,
+) -> int:
+    lines = session.exec(
+        select(FinanceInvoiceLine)
+        .where(FinanceInvoiceLine.invoice_id == invoice.id)
+        .order_by(col(FinanceInvoiceLine.line_number))
+    ).all()
+    payables = [line.payable_irr for line in lines]
+    portions = _split_proportional(amount_irr, payables)
+    created: list[FinanceCoachEarning] = []
+    for line, portion in zip(lines, portions, strict=True):
+        if portion <= 0 or line.coach_user_id is None:
+            continue
+        snapshot = (
+            line.agreement_snapshot
+            if line.coach_allocation_status == "SNAPSHOTTED"
+            else None
+        )
+        discount_portion = (
+            line.discount_share_irr * portion // line.payable_irr
+            if line.payable_irr > 0
+            else 0
+        )
+        base_portion = portion + discount_portion
+        if snapshot is None:
+            coach = platform = gym = 0
+            status = "UNRESOLVED"
+            reason = "coach_agreement_missing"
+            vesting_mode = "MANUAL"
+            vesting_date = None
+        else:
+            coach, platform, gym = _allocate_coach_shares(
+                snapshot,
+                base_irr=base_portion,
+                discount_irr=discount_portion,
+                discount_funding=invoice.discount_funding,
+            )
+            status = "CALCULATED"
+            reason = None
+            vesting_mode = snapshot.get("vesting_mode", "MANUAL")
+            vesting_date = (
+                received_on + timedelta(days=int(snapshot.get("vesting_days", 0)))
+                if vesting_mode == "ON_DATE"
+                else None
+            )
+        earning = FinanceCoachEarning(
+            gym_id=scope.gym_id,
+            coach_user_id=line.coach_user_id,
+            invoice_id=invoice.id,
+            invoice_line_id=line.id,
+            receipt_id=receipt_id,
+            credit_movement_id=credit_movement_id,
+            source_key=f"{source_prefix}:{line.id}",
+            agreement_id=line.coach_agreement_id,
+            agreement_version=line.coach_agreement_version,
+            discount_funding=invoice.discount_funding,
+            base_irr=base_portion,
+            discount_irr=discount_portion,
+            coach_share_irr=coach,
+            platform_share_irr=platform,
+            gym_share_irr=gym,
+            status=status,
+            unresolved_reason=reason,
+            vesting_mode=vesting_mode,
+            vesting_date=vesting_date,
+        )
+        session.add(earning)
+        created.append(earning)
+    if not created:
+        return 0
+    session.flush()
+    coach_total = sum(row.coach_share_irr for row in created)
+    if coach_total > 0:
+        accounts = ensure_accounts(session, scope.gym_id)
+        journal = post_journal(
+            session,
+            gym_id=scope.gym_id,
+            posting_date=received_on,
+            event_type="COACH_ALLOCATION",
+            description="Coach revenue allocation",
+            lines=[
+                (accounts["5100"].id, coach_total, 0, "Coach share"),
+                (accounts["2100"].id, 0, coach_total, "Coach payable"),
+            ],
+            created_by_id=actor.id,
+            source_type="finance_coach_earning",
+            source_id=created[0].id,
+        )
+        for row in created:
+            if row.coach_share_irr > 0:
+                row.journal_id = journal.id
+                session.add(row)
+    return coach_total
+
+
 def _snapshot_invoice_coaches(
     session: Session, *, invoice: FinanceInvoice, issue_date: date
 ) -> None:
@@ -2087,6 +2279,17 @@ def create_receipt(
                 amount_irr=allocation.amount_irr,
             )
         )
+        _create_coach_earnings(
+            session,
+            scope=scope,
+            actor=actor,
+            invoice=invoice,
+            amount_irr=allocation.amount_irr,
+            received_on=body.received_on,
+            receipt_id=receipt.id,
+            credit_movement_id=None,
+            source_prefix=f"receipt:{receipt.id}",
+        )
 
     if excess:
         credit = _customer_credit(
@@ -2215,14 +2418,25 @@ def apply_customer_credit(
     credit.balance_irr -= body.amount_irr
     credit.updated_at = utcnow()
     session.add(credit)
-    session.add(
-        FinanceCreditMovement(
-            credit_id=credit.id,
-            kind="APPLIED",
-            amount_irr=body.amount_irr,
-            invoice_id=invoice.id,
-            created_by_id=actor.id,
-        )
+    movement = FinanceCreditMovement(
+        credit_id=credit.id,
+        kind="APPLIED",
+        amount_irr=body.amount_irr,
+        invoice_id=invoice.id,
+        created_by_id=actor.id,
+    )
+    session.add(movement)
+    session.flush()
+    _create_coach_earnings(
+        session,
+        scope=scope,
+        actor=actor,
+        invoice=invoice,
+        amount_irr=body.amount_irr,
+        received_on=body.received_on,
+        receipt_id=None,
+        credit_movement_id=movement.id,
+        source_prefix=f"advance:{movement.id}",
     )
     record_audit(
         session,
