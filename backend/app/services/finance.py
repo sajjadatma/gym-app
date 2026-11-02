@@ -17,6 +17,7 @@ from app.finance_models import (
     FINANCE_CATALOG_MANAGE,
     FINANCE_INVOICE_MANAGE,
     FINANCE_OPENING_MANAGE,
+    FINANCE_PAYMENT_RECORD,
     FINANCE_PERIOD_MANAGE,
     FINANCE_VIEW,
     FinanceAccount,
@@ -26,6 +27,11 @@ from app.finance_models import (
     FinanceCatalogItemPublic,
     FinanceCatalogItemUpdate,
     FinanceCatalogPublic,
+    FinanceCreditApplyCreate,
+    FinanceCreditMovement,
+    FinanceCreditPublic,
+    FinanceCreditsPublic,
+    FinanceCustomerCredit,
     FinanceGrant,
     FinanceGrantItem,
     FinanceGrantRow,
@@ -51,6 +57,12 @@ from app.finance_models import (
     FinancePeriodPublic,
     FinancePeriodsPublic,
     FinancePermissionName,
+    FinanceReceipt,
+    FinanceReceiptAllocation,
+    FinanceReceiptAllocationPublic,
+    FinanceReceiptCreate,
+    FinanceReceiptPublic,
+    FinanceReceiptsPublic,
     FinanceSequence,
     FinanceSettings,
     FinanceSettingsPublic,
@@ -61,6 +73,7 @@ from app.models import Gym, GymMembership, User
 ADMIN_PERMISSIONS: tuple[FinancePermissionName, ...] = (
     FINANCE_VIEW,
     FINANCE_OPENING_MANAGE,
+    FINANCE_PAYMENT_RECORD,
     FINANCE_PERIOD_MANAGE,
     FINANCE_CATALOG_MANAGE,
     FINANCE_INVOICE_MANAGE,
@@ -1288,15 +1301,6 @@ def _get_invoice(
     return invoice
 
 
-def _invoice_paid_irr(
-    session: Session,  # noqa: ARG001 - payments slice fills this in
-    invoice_id: uuid.UUID,  # noqa: ARG001
-) -> int:
-    # Receipts and advances arrive with the payments slice; until then an
-    # issued invoice has no confirmed collections.
-    return 0
-
-
 def invoice_public(
     session: Session, invoice: FinanceInvoice
 ) -> FinanceInvoicePublic:
@@ -1668,6 +1672,422 @@ def void_invoice(
         gym_id=scope.gym_id,
         target_id=invoice.id,
         detail=f"number={invoice.invoice_number}",
+    )
+    remember_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="finance_invoice",
+        result_id=invoice.id,
+    )
+    session.commit()
+    session.refresh(invoice)
+    return invoice_public(session, invoice)
+
+
+# ---------------------------------------------------------------------------
+# Manual receipts, allocations and advances (Phase 2)
+# ---------------------------------------------------------------------------
+
+RECEIPT_DOC_TYPE = "RECEIPT"
+
+
+def _invoice_paid_irr(session: Session, invoice_id: uuid.UUID) -> int:
+    allocated = session.exec(
+        select(
+            func.coalesce(func.sum(FinanceReceiptAllocation.amount_irr), 0)
+        ).where(FinanceReceiptAllocation.invoice_id == invoice_id)
+    ).one()
+    applied = session.exec(
+        select(func.coalesce(func.sum(FinanceCreditMovement.amount_irr), 0)).where(
+            FinanceCreditMovement.invoice_id == invoice_id,
+            FinanceCreditMovement.kind == "APPLIED",
+        )
+    ).one()
+    return int(allocated) + int(applied)
+
+
+def _customer_credit(
+    session: Session, *, gym_id: uuid.UUID, customer_user_id: uuid.UUID
+) -> FinanceCustomerCredit | None:
+    return session.exec(
+        select(FinanceCustomerCredit).where(
+            FinanceCustomerCredit.gym_id == gym_id,
+            FinanceCustomerCredit.customer_user_id == customer_user_id,
+        )
+    ).first()
+
+
+def _credit_public(
+    session: Session, credit: FinanceCustomerCredit
+) -> FinanceCreditPublic:
+    user = session.get(User, credit.customer_user_id)
+    return FinanceCreditPublic(
+        customer_user_id=credit.customer_user_id,
+        customer_name=(user.full_name or user.email) if user else None,
+        balance_irr=credit.balance_irr,
+    )
+
+
+def receipt_public(
+    session: Session, receipt: FinanceReceipt
+) -> FinanceReceiptPublic:
+    rows = session.exec(
+        select(FinanceReceiptAllocation, FinanceInvoice.invoice_number)
+        .join(
+            FinanceInvoice,
+            col(FinanceInvoice.id) == col(FinanceReceiptAllocation.invoice_id),
+        )
+        .where(FinanceReceiptAllocation.receipt_id == receipt.id)
+        .order_by(col(FinanceInvoice.invoice_number))
+    ).all()
+    allocated = sum(line.amount_irr for line, _number in rows)
+    return FinanceReceiptPublic(
+        id=receipt.id,
+        receipt_number=receipt.receipt_number,
+        customer_user_id=receipt.customer_user_id,
+        customer_name=receipt.customer_name,
+        method=receipt.method,  # type: ignore[arg-type]
+        amount_irr=receipt.amount_irr,
+        allocated_irr=allocated,
+        excess_irr=receipt.amount_irr - allocated,
+        reference=receipt.reference,
+        received_on=receipt.received_on,
+        status=receipt.status,  # type: ignore[arg-type]
+        verification_source=receipt.verification_source,
+        reconciled=receipt.reconciled_at is not None,
+        created_at=receipt.created_at,
+        allocations=[
+            FinanceReceiptAllocationPublic(
+                invoice_id=line.invoice_id,
+                invoice_number=number,
+                amount_irr=line.amount_irr,
+            )
+            for line, number in rows
+        ],
+    )
+
+
+def list_receipts(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    customer_user_id: uuid.UUID | None,
+    offset: int,
+    limit: int,
+) -> FinanceReceiptsPublic:
+    filters = [FinanceReceipt.gym_id == gym_id]
+    if customer_user_id:
+        filters.append(FinanceReceipt.customer_user_id == customer_user_id)
+    total = session.exec(
+        select(func.count(col(FinanceReceipt.id))).where(*filters)
+    ).one()
+    receipts = session.exec(
+        select(FinanceReceipt)
+        .where(*filters)
+        .order_by(col(FinanceReceipt.created_at).desc())
+        .offset(offset)
+        .limit(limit)
+    ).all()
+    return FinanceReceiptsPublic(
+        data=[receipt_public(session, receipt) for receipt in receipts],
+        count=int(total),
+    )
+
+
+def get_receipt(
+    session: Session, *, gym_id: uuid.UUID, receipt_id: uuid.UUID
+) -> FinanceReceiptPublic:
+    receipt = session.get(FinanceReceipt, receipt_id)
+    if receipt is None or receipt.gym_id != gym_id:
+        raise HTTPException(status_code=404, detail="receipt_not_found")
+    return receipt_public(session, receipt)
+
+
+def list_credits(
+    session: Session, *, gym_id: uuid.UUID
+) -> FinanceCreditsPublic:
+    credits = session.exec(
+        select(FinanceCustomerCredit)
+        .where(
+            FinanceCustomerCredit.gym_id == gym_id,
+            col(FinanceCustomerCredit.balance_irr) > 0,
+        )
+        .order_by(col(FinanceCustomerCredit.updated_at).desc())
+    ).all()
+    return FinanceCreditsPublic(
+        data=[_credit_public(session, credit) for credit in credits],
+        count=len(credits),
+    )
+
+
+def create_receipt(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    body: FinanceReceiptCreate,
+    operation_key: str,
+) -> FinanceReceiptPublic:
+    scope.require(FINANCE_PAYMENT_RECORD)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
+    scope.require(FINANCE_PAYMENT_RECORD)
+    payload = body.model_dump(mode="json")
+    operation = find_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+    )
+    if operation is not None:
+        receipt = session.get(FinanceReceipt, operation.result_id)
+        if receipt is None or receipt.gym_id != scope.gym_id:
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
+        return receipt_public(session, receipt)
+
+    customer = _invoice_customer(
+        session, gym_id=scope.gym_id, user_id=body.customer_user_id
+    )
+    seen: set[uuid.UUID] = set()
+    invoices: list[FinanceInvoice] = []
+    allocated = 0
+    for allocation in body.allocations:
+        if allocation.invoice_id in seen:
+            raise HTTPException(
+                status_code=400, detail="duplicate_invoice_allocation"
+            )
+        seen.add(allocation.invoice_id)
+        invoice = _get_invoice(
+            session, gym_id=scope.gym_id, invoice_id=allocation.invoice_id
+        )
+        if invoice.customer_user_id != customer.id:
+            raise HTTPException(
+                status_code=400, detail="receipt_customer_mismatch"
+            )
+        if invoice.status != "ISSUED":
+            raise HTTPException(
+                status_code=400, detail="invoice_not_issued"
+            )
+        remaining = invoice.total_irr - _invoice_paid_irr(session, invoice.id)
+        if allocation.amount_irr > remaining:
+            raise HTTPException(
+                status_code=400,
+                detail="receipt_allocation_exceeds_invoice",
+            )
+        allocated += allocation.amount_irr
+        invoices.append(invoice)
+    if allocated > body.amount_irr:
+        raise HTTPException(status_code=400, detail="receipt_over_allocated")
+    excess = body.amount_irr - allocated
+
+    accounts = ensure_accounts(session, scope.gym_id)
+    number = allocate_document_number(session, scope.gym_id, RECEIPT_DOC_TYPE)
+    receipt = FinanceReceipt(
+        gym_id=scope.gym_id,
+        customer_user_id=customer.id,
+        customer_name=customer.full_name or customer.email,
+        receipt_number=number,
+        method=body.method,
+        amount_irr=body.amount_irr,
+        reference=body.reference,
+        received_on=body.received_on,
+        status="CONFIRMED",
+        verification_source="STAFF_ATTESTATION",
+        created_by_id=actor.id,
+    )
+    session.add(receipt)
+    session.flush()
+
+    journal_lines: list[tuple[uuid.UUID, int, int, str | None]] = [
+        (accounts["1000"].id, body.amount_irr, 0, f"Receipt {number}")
+    ]
+    if allocated:
+        journal_lines.append(
+            (accounts["1100"].id, 0, allocated, f"Receipt {number}")
+        )
+    if excess:
+        journal_lines.append(
+            (accounts["2000"].id, 0, excess, f"Customer advance {number}")
+        )
+    journal = post_journal(
+        session,
+        gym_id=scope.gym_id,
+        posting_date=body.received_on,
+        event_type="RECEIPT_CONFIRMED",
+        description=f"Receipt {number}",
+        lines=journal_lines,
+        created_by_id=actor.id,
+        source_type="finance_receipt",
+        source_id=receipt.id,
+    )
+    receipt.journal_id = journal.id
+    session.add(receipt)
+
+    for allocation, invoice in zip(body.allocations, invoices, strict=True):
+        session.add(
+            FinanceReceiptAllocation(
+                receipt_id=receipt.id,
+                invoice_id=invoice.id,
+                amount_irr=allocation.amount_irr,
+            )
+        )
+
+    if excess:
+        credit = _customer_credit(
+            session, gym_id=scope.gym_id, customer_user_id=customer.id
+        )
+        if credit is None:
+            credit = FinanceCustomerCredit(
+                gym_id=scope.gym_id,
+                customer_user_id=customer.id,
+                balance_irr=0,
+            )
+            session.add(credit)
+            session.flush()
+        credit.balance_irr += excess
+        credit.updated_at = utcnow()
+        session.add(credit)
+        session.add(
+            FinanceCreditMovement(
+                credit_id=credit.id,
+                kind="RECEIPT_EXCESS",
+                amount_irr=excess,
+                receipt_id=receipt.id,
+                created_by_id=actor.id,
+            )
+        )
+
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.receipt.confirmed",
+        target_type="finance_receipt",
+        target_id=receipt.id,
+        detail={
+            "receipt_number": number,
+            "amount_irr": body.amount_irr,
+            "allocated_irr": allocated,
+            "excess_irr": excess,
+            "method": body.method,
+        },
+    )
+    audit(
+        "finance.receipt.confirmed",
+        actor_id=actor.id,
+        gym_id=scope.gym_id,
+        target_id=receipt.id,
+        detail=f"number={number}",
+    )
+    remember_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="finance_receipt",
+        result_id=receipt.id,
+    )
+    session.commit()
+    session.refresh(receipt)
+    return receipt_public(session, receipt)
+
+
+def apply_customer_credit(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    body: FinanceCreditApplyCreate,
+    operation_key: str,
+) -> FinanceInvoicePublic:
+    scope.require(FINANCE_PAYMENT_RECORD)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
+    scope.require(FINANCE_PAYMENT_RECORD)
+    payload = body.model_dump(mode="json")
+    operation = find_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+    )
+    if operation is not None:
+        invoice = session.get(FinanceInvoice, operation.result_id)
+        if invoice is None or invoice.gym_id != scope.gym_id:
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
+        return invoice_public(session, invoice)
+
+    customer = _invoice_customer(
+        session, gym_id=scope.gym_id, user_id=body.customer_user_id
+    )
+    invoice = _get_invoice(
+        session, gym_id=scope.gym_id, invoice_id=body.invoice_id
+    )
+    if invoice.customer_user_id != customer.id:
+        raise HTTPException(status_code=400, detail="receipt_customer_mismatch")
+    if invoice.status != "ISSUED":
+        raise HTTPException(status_code=400, detail="invoice_not_issued")
+    credit = _customer_credit(
+        session, gym_id=scope.gym_id, customer_user_id=customer.id
+    )
+    if credit is None or credit.balance_irr < body.amount_irr:
+        raise HTTPException(
+            status_code=400, detail="insufficient_customer_credit"
+        )
+    remaining = invoice.total_irr - _invoice_paid_irr(session, invoice.id)
+    if body.amount_irr > remaining:
+        raise HTTPException(
+            status_code=400, detail="credit_exceeds_invoice_balance"
+        )
+
+    accounts = ensure_accounts(session, scope.gym_id)
+    journal = post_journal(
+        session,
+        gym_id=scope.gym_id,
+        posting_date=body.received_on,
+        event_type="ADVANCE_APPLIED",
+        description=f"Advance applied to invoice {invoice.invoice_number}",
+        lines=[
+            (accounts["2000"].id, body.amount_irr, 0, "Customer advance"),
+            (accounts["1100"].id, 0, body.amount_irr, "Invoice settlement"),
+        ],
+        created_by_id=actor.id,
+        source_type="finance_invoice",
+        source_id=invoice.id,
+    )
+    credit.balance_irr -= body.amount_irr
+    credit.updated_at = utcnow()
+    session.add(credit)
+    session.add(
+        FinanceCreditMovement(
+            credit_id=credit.id,
+            kind="APPLIED",
+            amount_irr=body.amount_irr,
+            invoice_id=invoice.id,
+            created_by_id=actor.id,
+        )
+    )
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.credit.applied",
+        target_type="finance_invoice",
+        target_id=invoice.id,
+        detail={
+            "amount_irr": body.amount_irr,
+            "journal_id": str(journal.id),
+        },
+    )
+    audit(
+        "finance.credit.applied",
+        actor_id=actor.id,
+        gym_id=scope.gym_id,
+        target_id=invoice.id,
     )
     remember_operation(
         session,

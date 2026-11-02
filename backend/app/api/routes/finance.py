@@ -16,6 +16,8 @@ from app.finance_models import (
     FinanceCatalogItemPublic,
     FinanceCatalogItemUpdate,
     FinanceCatalogPublic,
+    FinanceCreditApplyCreate,
+    FinanceCreditsPublic,
     FinanceGrantRow,
     FinanceGrantsPublic,
     FinanceGrantUpdate,
@@ -31,25 +33,33 @@ from app.finance_models import (
     FinanceOpeningBalanceCreate,
     FinancePeriodPublic,
     FinancePeriodsPublic,
+    FinanceReceiptCreate,
+    FinanceReceiptPublic,
+    FinanceReceiptsPublic,
     FinanceSettingsPublic,
     FinanceSettingsUpdate,
 )
 from app.models import Message
 from app.services.finance import (
     accounts_public,
+    apply_customer_credit,
     close_period,
     create_catalog_item,
     create_invoice,
+    create_receipt,
     delete_invoice,
     ensure_settings,
     get_invoice,
     get_journal,
+    get_receipt,
     issue_invoice,
     list_catalog,
+    list_credits,
     list_grants,
     list_invoices,
     list_journals,
     list_periods,
+    list_receipts,
     lock_finance_gym,
     post_correction,
     post_opening_balance,
@@ -490,6 +500,101 @@ def void_finance_invoice(
             invoice_id=invoice_id,
             reason=body.reason,
             posting_date=body.posting_date,
+            operation_key=idempotency_key,
+        )
+    except IntegrityError as exc:
+        raise _commit_conflict(session, exc) from exc
+
+
+# ---------------------------------------------------------------------------
+# Manual receipts and customer advances (Phase 2)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/receipts", response_model=FinanceReceiptsPublic)
+def read_finance_receipts(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    customer_user_id: uuid.UUID | None = None,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return list_receipts(
+        session,
+        gym_id=ctx.gym.id,
+        customer_user_id=customer_user_id,
+        offset=offset,
+        limit=limit,
+    )
+
+
+@router.post("/receipts", response_model=FinanceReceiptPublic)
+def record_finance_receipt(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceReceiptCreate,
+    idempotency_key: IdempotencyKey,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    try:
+        return create_receipt(
+            session,
+            scope=scope,
+            actor=current_user,
+            body=body,
+            operation_key=idempotency_key,
+        )
+    except IntegrityError as exc:
+        raise _commit_conflict(session, exc) from exc
+
+
+@router.get("/receipts/{receipt_id}", response_model=FinanceReceiptPublic)
+def read_finance_receipt(
+    *,
+    receipt_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return get_receipt(session, gym_id=ctx.gym.id, receipt_id=receipt_id)
+
+
+@router.get("/credits", response_model=FinanceCreditsPublic)
+def read_finance_credits(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return list_credits(session, gym_id=ctx.gym.id)
+
+
+@router.post("/credits/apply", response_model=FinanceInvoicePublic)
+def apply_finance_credit(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceCreditApplyCreate,
+    idempotency_key: IdempotencyKey,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    try:
+        return apply_customer_credit(
+            session,
+            scope=scope,
+            actor=current_user,
+            body=body,
             operation_key=idempotency_key,
         )
     except IntegrityError as exc:

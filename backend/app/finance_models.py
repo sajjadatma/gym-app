@@ -25,6 +25,8 @@ FinanceJournalEvent = Literal[
     "CORRECTION",
     "INVOICE_ISSUED",
     "INVOICE_VOID",
+    "RECEIPT_CONFIRMED",
+    "ADVANCE_APPLIED",
 ]
 
 FinancePermissionName = Literal[
@@ -33,6 +35,7 @@ FinancePermissionName = Literal[
     "finance.period.manage",
     "finance.catalog.manage",
     "finance.invoice.manage",
+    "finance.payment.record",
 ]
 
 GrantableFinancePermission = Literal[
@@ -40,6 +43,7 @@ GrantableFinancePermission = Literal[
     "finance.period.manage",
     "finance.catalog.manage",
     "finance.invoice.manage",
+    "finance.payment.record",
 ]
 
 FINANCE_VIEW: Final[FinancePermissionName] = "finance.view"
@@ -47,6 +51,7 @@ FINANCE_OPENING_MANAGE: Final[FinancePermissionName] = "finance.opening.manage"
 FINANCE_PERIOD_MANAGE: Final[FinancePermissionName] = "finance.period.manage"
 FINANCE_CATALOG_MANAGE: Final[FinancePermissionName] = "finance.catalog.manage"
 FINANCE_INVOICE_MANAGE: Final[FinancePermissionName] = "finance.invoice.manage"
+FINANCE_PAYMENT_RECORD: Final[FinancePermissionName] = "finance.payment.record"
 
 # Guardrail for the JavaScript-safe integer transport. 10^15 IRR is one
 # hundred trillion toman, far above any gym amount and below 2^53.
@@ -196,7 +201,8 @@ class FinanceJournal(SQLModel, table=True):
         ),
         CheckConstraint(
             "event_type IN ('OPENING_BALANCE', 'CORRECTION', "
-            "'INVOICE_ISSUED', 'INVOICE_VOID')",
+            "'INVOICE_ISSUED', 'INVOICE_VOID', 'RECEIPT_CONFIRMED', "
+            "'ADVANCE_APPLIED')",
             name="ck_finance_journal_event",
         ),
     )
@@ -266,7 +272,7 @@ class FinanceGrant(SQLModel, table=True):
         CheckConstraint(
             "permission IN ('finance.opening.manage', "
             "'finance.period.manage', 'finance.catalog.manage', "
-            "'finance.invoice.manage')",
+            "'finance.invoice.manage', 'finance.payment.record')",
             name="ck_finance_grant_permission",
         ),
     )
@@ -681,4 +687,187 @@ class FinanceInvoicePublic(SQLModel):
 
 class FinanceInvoicesPublic(SQLModel):
     data: list[FinanceInvoicePublic]
+    count: int
+
+
+# ---------------------------------------------------------------------------
+# Manual receipts, allocations and customer advances (Phase 2)
+# ---------------------------------------------------------------------------
+
+FinancePaymentMethod = Literal["CASH", "POS", "TRANSFER"]
+FinanceReceiptStatus = Literal["CONFIRMED", "REVERSED"]
+FinanceCreditMovementKind = Literal["RECEIPT_EXCESS", "APPLIED"]
+
+
+class FinanceReceipt(SQLModel, table=True):
+    __tablename__ = "finance_receipt"
+    __table_args__ = (
+        UniqueConstraint(
+            "gym_id", "receipt_number", name="uq_finance_receipt_number"
+        ),
+        CheckConstraint(
+            "method IN ('CASH', 'POS', 'TRANSFER')",
+            name="ck_finance_receipt_method",
+        ),
+        CheckConstraint(
+            "status IN ('CONFIRMED', 'REVERSED')",
+            name="ck_finance_receipt_status",
+        ),
+        CheckConstraint("amount_irr > 0", name="ck_finance_receipt_amount"),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    customer_user_id: uuid.UUID = Field(
+        foreign_key="user.id", ondelete="RESTRICT", index=True
+    )
+    customer_name: str | None = Field(default=None, max_length=255)
+    receipt_number: int
+    method: str = Field(max_length=20)
+    amount_irr: int = Field(sa_column=Column(BigInteger, nullable=False))
+    reference: str | None = Field(default=None, max_length=255)
+    received_on: date
+    status: str = Field(default="CONFIRMED", max_length=20)
+    # Declared by an authorized operator (manual cash/POS/transfer). Online
+    # gateway verification is a separate, later source.
+    verification_source: str = Field(default="STAFF_ATTESTATION", max_length=32)
+    reconciled_at: datetime | None = Field(default=None)
+    journal_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_journal.id", ondelete="RESTRICT"
+    )
+    created_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+class FinanceReceiptAllocation(SQLModel, table=True):
+    __tablename__ = "finance_receipt_allocation"
+    __table_args__ = (
+        UniqueConstraint(
+            "receipt_id", "invoice_id", name="uq_finance_allocation_receipt_invoice"
+        ),
+        CheckConstraint("amount_irr > 0", name="ck_finance_allocation_amount"),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    receipt_id: uuid.UUID = Field(
+        foreign_key="finance_receipt.id", ondelete="CASCADE", index=True
+    )
+    invoice_id: uuid.UUID = Field(
+        foreign_key="finance_invoice.id", ondelete="RESTRICT", index=True
+    )
+    amount_irr: int = Field(sa_column=Column(BigInteger, nullable=False))
+
+
+class FinanceCustomerCredit(SQLModel, table=True):
+    """A refundable, non-transferable advance inside one gym."""
+
+    __tablename__ = "finance_customer_credit"
+    __table_args__ = (
+        UniqueConstraint(
+            "gym_id", "customer_user_id", name="uq_finance_credit_gym_customer"
+        ),
+        CheckConstraint("balance_irr >= 0", name="ck_finance_credit_balance"),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    customer_user_id: uuid.UUID = Field(
+        foreign_key="user.id", ondelete="RESTRICT", index=True
+    )
+    balance_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    updated_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+class FinanceCreditMovement(SQLModel, table=True):
+    __tablename__ = "finance_credit_movement"
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('RECEIPT_EXCESS', 'APPLIED')",
+            name="ck_finance_credit_movement_kind",
+        ),
+        CheckConstraint("amount_irr > 0", name="ck_finance_credit_movement_amount"),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    credit_id: uuid.UUID = Field(
+        foreign_key="finance_customer_credit.id", ondelete="CASCADE", index=True
+    )
+    kind: str = Field(max_length=20)
+    amount_irr: int = Field(sa_column=Column(BigInteger, nullable=False))
+    receipt_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_receipt.id", ondelete="RESTRICT"
+    )
+    invoice_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_invoice.id", ondelete="RESTRICT"
+    )
+    created_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+class FinanceReceiptAllocationInput(SQLModel):
+    invoice_id: uuid.UUID
+    amount_irr: int = Field(ge=1, le=MAX_FINANCE_IRR)
+
+
+class FinanceReceiptCreate(SQLModel):
+    customer_user_id: uuid.UUID
+    method: FinancePaymentMethod
+    amount_irr: int = Field(ge=1, le=MAX_FINANCE_IRR)
+    reference: str | None = Field(default=None, max_length=255)
+    received_on: date
+    allocations: list[FinanceReceiptAllocationInput] = Field(
+        default_factory=list
+    )
+
+
+class FinanceCreditApplyCreate(SQLModel):
+    customer_user_id: uuid.UUID
+    invoice_id: uuid.UUID
+    amount_irr: int = Field(ge=1, le=MAX_FINANCE_IRR)
+    received_on: date
+
+
+class FinanceReceiptAllocationPublic(SQLModel):
+    invoice_id: uuid.UUID
+    invoice_number: int | None = None
+    amount_irr: int
+
+
+class FinanceReceiptPublic(SQLModel):
+    id: uuid.UUID
+    receipt_number: int
+    customer_user_id: uuid.UUID
+    customer_name: str | None = None
+    method: FinancePaymentMethod
+    amount_irr: int
+    allocated_irr: int
+    excess_irr: int
+    reference: str | None = None
+    received_on: date
+    status: FinanceReceiptStatus
+    verification_source: str
+    reconciled: bool
+    created_at: datetime
+    allocations: list[FinanceReceiptAllocationPublic]
+
+
+class FinanceReceiptsPublic(SQLModel):
+    data: list[FinanceReceiptPublic]
+    count: int
+
+
+class FinanceCreditPublic(SQLModel):
+    customer_user_id: uuid.UUID
+    customer_name: str | None = None
+    balance_irr: int
+
+
+class FinanceCreditsPublic(SQLModel):
+    data: list[FinanceCreditPublic]
     count: int

@@ -161,6 +161,10 @@ def test_finance_migration_creates_schema_and_role_then_rolls_back(
             "finance_invoice",
             "finance_invoice_line",
             "finance_installment",
+            "finance_receipt",
+            "finance_receipt_allocation",
+            "finance_customer_credit",
+            "finance_credit_movement",
         }.issubset(tables)
 
         with engine.connect() as connection:
