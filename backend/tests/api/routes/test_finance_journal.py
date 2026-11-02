@@ -84,7 +84,9 @@ def test_opening_balance_posts_a_balanced_journal_and_lists_it(
     accounts = client.get("/api/v1/finance/accounts", headers=owner)
     assert accounts.status_code == 200, accounts.text
     codes = [row["code"] for row in accounts.json()["data"]]
-    assert codes == ["1000", "1100", "2000", "3000", "4000", "4100", "5000"]
+    assert codes == [
+        "1000", "1100", "2000", "2100", "3000", "4000", "4100", "5000", "5100"
+    ]
 
     created = post_opening(client, owner)
     assert created.status_code == 200, created.text
