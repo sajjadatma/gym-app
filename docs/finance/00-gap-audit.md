@@ -108,16 +108,34 @@ explicit action grants. No generic RBAC layer was built.
 | --- | --- |
 | Balanced journal | service + API tests; DB line checks; restore drill asserts balance |
 | Tenant isolation | cross-gym read/posting tests; Superuser cross-gym access test |
-| Permissions | staff/coach/athlete denial, grant allow-list, IRR cap, disabled mode |
+| Permissions | a finance staff member is denied every athlete, program, template, exercise, member, gym-admin and superuser surface (exact 403/404 matrix), keeps only finance + gym identity; grant allow-list, IRR cap, disabled mode |
 | Default flag | enabled with no settings row; only Superuser toggles |
-| Concurrency | concurrent opening balance and concurrent correction each post once |
+| Concurrency | concurrent opening balance, concurrent correction, and concurrent restated openings each post exactly once |
 | Control changes | settings/grant changes are re-read under the same per-gym lock, so a disable or lowered cap cannot be overtaken by an in-flight posting |
-| Idempotency | same key replays the same journal; changed payload is rejected |
+| Idempotency | `Idempotency-Key` is a required request header (422 when missing, matching the generated client); same key replays the same journal; changed payload is rejected |
 | Audit | actor, action, reason, linkage asserted from `finance_audit` for settings, opening, correction, grants and period close |
 | Migration | full upgrade → downgrade to pre-finance → upgrade; metadata check; real-Postgres constraints and deferred balance trigger |
 | Restore | backup/restore drill with a posted journal and balance/line-count verification |
 | Retention | a user with finance history is refused a hard delete with `409 user_has_finance_history` instead of a server error |
 | No regression | full backend, frontend, unit and Playwright suites pass |
+
+### Access boundary verification
+
+`FINANCE_STAFF` is deliberately not part of `is_staff` or `is_admin`. A
+dedicated boundary test asserts that the role cannot list or create athletes,
+exercises, categories, templates or coaches; cannot read, edit, archive or
+delete athletes or programs; cannot manage members, gym settings or ownership;
+cannot open people overviews; and cannot use superuser routes. It retains only
+its own finance workspace and gym identity. The role also carries no coaching
+or program rights in the navigation.
+
+### Idempotency contract
+
+Financial writes require the `Idempotency-Key` header. The OpenAPI contract
+declares it required, so a missing or empty header is rejected by request
+validation (422) before any work, and the generated client cannot compile a
+call without it. Replaying a key returns the original journal; reusing it with
+different content returns `409 idempotency_key_reused`.
 
 ### Corrections semantics
 
