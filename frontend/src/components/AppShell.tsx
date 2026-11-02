@@ -268,6 +268,12 @@ export function AppShell() {
         label: "nav.myProfile",
         icon: UserRound,
       },
+      {
+        to: clubPath("/my/finance"),
+        params: clubParams,
+        label: "nav.myFinance",
+        icon: Wallet,
+      },
     ]
   } else if (activeRole === "FINANCE_STAFF") {
     navItems = [

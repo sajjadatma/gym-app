@@ -25,7 +25,10 @@ export default defineConfig({
         storageState: "playwright/.auth/admin.json",
       },
       dependencies: ["admin-setup"],
-      testIgnore: [/athlete\.spec\.ts/, /superuser-context\.spec\.ts/],
+      testIgnore: [
+        /athlete(-finance)?\.spec\.ts/,
+        /superuser-context\.spec\.ts/,
+      ],
     },
     {
       name: "superuser",
@@ -53,7 +56,7 @@ export default defineConfig({
         storageState: "playwright/.auth/athlete.json",
       },
       dependencies: ["athlete-setup"],
-      testMatch: /athlete\.spec\.ts/,
+      testMatch: /athlete(-finance)?\.spec\.ts/,
     },
   ],
   webServer: process.env.PLAYWRIGHT_BASE_URL
