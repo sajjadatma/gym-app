@@ -296,8 +296,14 @@ def test_idempotency_key_is_required_for_financial_writes(
         headers=owner,
         json=opening_payload(),
     )
-    assert missing.status_code == 400, missing.text
-    assert missing.json()["detail"] == "idempotency_key_required"
+    assert missing.status_code == 422, missing.text
+
+    blank = client.post(
+        "/api/v1/finance/opening-balance",
+        headers={**owner, "Idempotency-Key": ""},
+        json=opening_payload(),
+    )
+    assert blank.status_code == 422, blank.text
     assert client.get("/api/v1/finance/journal", headers=owner).json()["count"] == 0
 
 
@@ -607,3 +613,43 @@ def test_settings_and_period_changes_are_audited(
     closed = next(row for row in rows if row.action == "finance.period.closed")
     assert closed.target_type == "finance_period"
     assert closed.target_id is not None
+
+
+def test_concurrent_restated_openings_post_exactly_one(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Concurrent Restate Gym")
+    first = post_opening(client, owner)
+    assert first.status_code == 200, first.text
+    corrected = correct(
+        client,
+        superuser_gym(superuser_headers, str(gym["id"])),
+        first.json()["id"],
+    )
+    assert corrected.status_code == 200, corrected.text
+
+    barrier = threading.Barrier(2, timeout=20)
+
+    def attempt(index: int) -> Any:
+        barrier.wait()
+        return post_opening(
+            client,
+            owner,
+            opening_payload(debit=700_000 + index),
+            key=f"restated-{index}",
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses = list(pool.map(attempt, range(2)))
+
+    statuses = sorted(response.status_code for response in responses)
+    assert statuses == [200, 409], [response.text for response in responses]
+    entries = client.get("/api/v1/finance/journal", headers=owner).json()["data"]
+    assert len(entries) == 3
+    active_openings = [
+        entry
+        for entry in entries
+        if entry["event_type"] == "OPENING_BALANCE"
+        and entry["id"] not in {item["reversal_of_id"] for item in entries}
+    ]
+    assert len(active_openings) == 1
