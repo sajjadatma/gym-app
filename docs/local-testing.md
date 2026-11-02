@@ -115,6 +115,34 @@ used locally.
 3. In the account menu, switch language to English: layout direction becomes LTR, labels switch, and numbers/dates use locale formatting. Switch back to فارسی for RTL/Jalali.
 4. Phone-sized emulation in browser devtools is sufficient; no physical device is required.
 
+### 9. Finance foundation (Phase 1)
+
+1. Sign in as `ali@example.com`, open **باشگاه آرام** and choose **مالی** in the
+   navigation. Finance is enabled by default.
+2. **ثبت موجودی افتتاحیه**: keep one debit line and one credit line, enter the
+   same amount in each, and save. The journal shows **سند ۱** with balanced
+   debit/credit lines.
+3. Try posting a second opening balance: the action is no longer offered, and
+   the API refuses a duplicate. Only the global superuser can post a linked
+   correction; the original entry stays unchanged.
+4. As the local superuser, turn **مالی باشگاه فعال باشد** off. The gym keeps
+   read access to its history, but new postings are refused until it is
+   re-enabled.
+5. In **تیم باشگاه**, add a member with the **کارشناس مالی** role. That member
+   sees only the dashboard and finance, never athletes or programs. Grant
+   **ثبت موجودی افتتاحیه** (optionally with an IRR cap) from the finance page;
+   an amount above the cap is rejected.
+6. Close the accounting period from the finance page. Later postings land in a
+   new open period; the closed period's journal is still readable.
+
+### 10. Finance accounting notes
+
+- Amounts are stored as integer IRR. The display unit (rial or toman) is a gym
+  setting; `105` IRR always shows as `10.5` toman and is never rounded.
+- Posted journals, journal lines and audit rows are append-only. Corrections
+  are new linked reversals, not edits.
+- Disabling finance never deletes or hides existing records.
+
 ## Automated verification
 
 ```sh
