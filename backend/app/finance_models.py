@@ -42,6 +42,8 @@ FinancePermissionName = Literal[
     "finance.refund.manage",
     "finance.expense.manage",
     "finance.membership.manage",
+    "finance.coach_agreement.manage",
+    "finance.settlement.manage",
 ]
 
 GrantableFinancePermission = Literal[
@@ -53,6 +55,8 @@ GrantableFinancePermission = Literal[
     "finance.refund.manage",
     "finance.expense.manage",
     "finance.membership.manage",
+    "finance.coach_agreement.manage",
+    "finance.settlement.manage",
 ]
 
 FINANCE_VIEW: Final[FinancePermissionName] = "finance.view"
@@ -64,6 +68,8 @@ FINANCE_PAYMENT_RECORD: Final[FinancePermissionName] = "finance.payment.record"
 FINANCE_REFUND_MANAGE: Final[FinancePermissionName] = "finance.refund.manage"
 FINANCE_EXPENSE_MANAGE: Final[FinancePermissionName] = "finance.expense.manage"
 FINANCE_MEMBERSHIP_MANAGE: Final[FinancePermissionName] = "finance.membership.manage"
+FINANCE_COACH_AGREEMENT_MANAGE: Final[FinancePermissionName] = "finance.coach_agreement.manage"
+FINANCE_SETTLEMENT_MANAGE: Final[FinancePermissionName] = "finance.settlement.manage"
 
 # Guardrail for the JavaScript-safe integer transport. 10^15 IRR is one
 # hundred trillion toman, far above any gym amount and below 2^53.
@@ -1252,3 +1258,158 @@ class FinanceRemindersPublic(SQLModel):
     within_days: int
     installments: list[FinanceInstallmentReminder]
     renewals: list[FinanceRenewalReminder]
+
+
+# ---------------------------------------------------------------------------
+# Coach agreements, allocation and settlements (Phase 3)
+# ---------------------------------------------------------------------------
+
+FinanceCoachAgreementStatus = Literal["DRAFT", "ACTIVE", "ENDED"]
+FinanceCoachAgreementMode = Literal["DIRECT", "WATERFALL"]
+FinanceCoachVestingMode = Literal["ON_DATE", "MANUAL"]
+FinanceCoachTermBasis = Literal["PERCENT", "FIXED"]
+FinanceCoachRecipient = Literal["COACH", "ASCORA", "GYM"]
+
+
+class FinanceCoachAgreement(SQLModel, table=True):
+    __tablename__ = "finance_coach_agreement"
+    __table_args__ = (
+        UniqueConstraint(
+            "gym_id",
+            "coach_user_id",
+            "version",
+            name="uq_finance_coach_agreement_version",
+        ),
+        CheckConstraint("version > 0", name="ck_finance_coach_agreement_version"),
+        CheckConstraint(
+            "status IN ('DRAFT', 'ACTIVE', 'ENDED')",
+            name="ck_finance_coach_agreement_status",
+        ),
+        CheckConstraint(
+            "mode IN ('DIRECT', 'WATERFALL')",
+            name="ck_finance_coach_agreement_mode",
+        ),
+        CheckConstraint(
+            "vesting_mode IN ('ON_DATE', 'MANUAL')",
+            name="ck_finance_coach_agreement_vesting",
+        ),
+        CheckConstraint(
+            "vesting_days >= 0", name="ck_finance_coach_agreement_days"
+        ),
+        CheckConstraint(
+            "effective_to IS NULL OR effective_to >= effective_from",
+            name="ck_finance_coach_agreement_dates",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    coach_user_id: uuid.UUID = Field(
+        foreign_key="user.id", ondelete="RESTRICT", index=True
+    )
+    version: int
+    status: str = Field(default="DRAFT", max_length=20)
+    mode: str = Field(default="DIRECT", max_length=20)
+    vesting_mode: str = Field(default="MANUAL", max_length=20)
+    vesting_days: int = Field(default=0)
+    effective_from: date
+    effective_to: date | None = Field(default=None)
+    notes: str | None = Field(default=None, max_length=1000)
+    created_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+    activated_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    activated_at: datetime | None = Field(default=None)
+
+
+class FinanceCoachAgreementTerm(SQLModel, table=True):
+    __tablename__ = "finance_coach_agreement_term"
+    __table_args__ = (
+        UniqueConstraint(
+            "agreement_id", "sequence", name="uq_finance_coach_term_sequence"
+        ),
+        CheckConstraint(
+            "recipient IN ('COACH', 'ASCORA', 'GYM')",
+            name="ck_finance_coach_term_recipient",
+        ),
+        CheckConstraint(
+            "basis IN ('PERCENT', 'FIXED')",
+            name="ck_finance_coach_term_basis",
+        ),
+        CheckConstraint(
+            "percent_bp >= 0 AND percent_bp <= 10000",
+            name="ck_finance_coach_term_percent",
+        ),
+        CheckConstraint(
+            "fixed_irr >= 0", name="ck_finance_coach_term_fixed"
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    agreement_id: uuid.UUID = Field(
+        foreign_key="finance_coach_agreement.id",
+        ondelete="CASCADE",
+        index=True,
+    )
+    sequence: int
+    recipient: str = Field(max_length=20)
+    basis: str = Field(max_length=20)
+    percent_bp: int = Field(default=0)
+    fixed_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    label: str | None = Field(default=None, max_length=100)
+
+
+class FinanceCoachAgreementTermInput(SQLModel):
+    recipient: FinanceCoachRecipient
+    basis: FinanceCoachTermBasis
+    percent_bp: int = Field(default=0, ge=0, le=10_000)
+    fixed_irr: int = Field(default=0, ge=0, le=MAX_FINANCE_IRR)
+    label: str | None = Field(default=None, max_length=100)
+
+
+class FinanceCoachAgreementCreate(SQLModel):
+    coach_user_id: uuid.UUID
+    effective_from: date
+    effective_to: date | None = None
+    mode: FinanceCoachAgreementMode = "DIRECT"
+    vesting_mode: FinanceCoachVestingMode = "MANUAL"
+    vesting_days: int = Field(default=0, ge=0, le=3650)
+    notes: str | None = Field(default=None, max_length=1000)
+    terms: list[FinanceCoachAgreementTermInput] = Field(min_length=1)
+
+
+class FinanceCoachAgreementTermPublic(SQLModel):
+    id: uuid.UUID
+    sequence: int
+    recipient: FinanceCoachRecipient
+    basis: FinanceCoachTermBasis
+    percent_bp: int
+    fixed_irr: int
+    label: str | None = None
+
+
+class FinanceCoachAgreementPublic(SQLModel):
+    id: uuid.UUID
+    coach_user_id: uuid.UUID
+    coach_name: str | None = None
+    version: int
+    status: FinanceCoachAgreementStatus
+    mode: FinanceCoachAgreementMode
+    vesting_mode: FinanceCoachVestingMode
+    vesting_days: int
+    effective_from: date
+    effective_to: date | None = None
+    notes: str | None = None
+    terms: list[FinanceCoachAgreementTermPublic]
+    created_at: datetime
+    activated_at: datetime | None = None
+
+
+class FinanceCoachAgreementsPublic(SQLModel):
+    data: list[FinanceCoachAgreementPublic]
+    count: int

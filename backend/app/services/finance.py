@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
@@ -15,6 +16,7 @@ from app.api.deps import GymContext
 from app.core.audit import audit
 from app.finance_models import (
     FINANCE_CATALOG_MANAGE,
+    FINANCE_COACH_AGREEMENT_MANAGE,
     FINANCE_EXPENSE_MANAGE,
     FINANCE_INVOICE_MANAGE,
     FINANCE_MEMBERSHIP_MANAGE,
@@ -30,6 +32,12 @@ from app.finance_models import (
     FinanceCatalogItemPublic,
     FinanceCatalogItemUpdate,
     FinanceCatalogPublic,
+    FinanceCoachAgreement,
+    FinanceCoachAgreementCreate,
+    FinanceCoachAgreementPublic,
+    FinanceCoachAgreementsPublic,
+    FinanceCoachAgreementTerm,
+    FinanceCoachAgreementTermPublic,
     FinanceCreditApplyCreate,
     FinanceCreditMovement,
     FinanceCreditPublic,
@@ -89,7 +97,13 @@ from app.finance_models import (
     FinanceSettingsPublic,
     GrantableFinancePermission,
 )
-from app.models import AthleteProfile, Gym, GymMembership, User
+from app.models import (
+    AthleteProfile,
+    Gym,
+    GymMembership,
+    GymMembershipRole,
+    User,
+)
 
 ADMIN_PERMISSIONS: tuple[FinancePermissionName, ...] = (
     FINANCE_VIEW,
@@ -100,6 +114,7 @@ ADMIN_PERMISSIONS: tuple[FinancePermissionName, ...] = (
     FINANCE_PERIOD_MANAGE,
     FINANCE_REFUND_MANAGE,
     FINANCE_CATALOG_MANAGE,
+    FINANCE_COACH_AGREEMENT_MANAGE,
     FINANCE_INVOICE_MANAGE,
 )
 
@@ -3479,3 +3494,212 @@ def list_reminders(
         installments=installment_reminders,
         renewals=renewal_reminders,
     )
+
+
+# ---------------------------------------------------------------------------
+# Versioned coach agreements (Phase 3)
+# ---------------------------------------------------------------------------
+
+
+def _agreement_public(
+    session: Session, agreement: FinanceCoachAgreement
+) -> FinanceCoachAgreementPublic:
+    coach = session.get(User, agreement.coach_user_id)
+    terms = session.exec(
+        select(FinanceCoachAgreementTerm)
+        .where(FinanceCoachAgreementTerm.agreement_id == agreement.id)
+        .order_by(col(FinanceCoachAgreementTerm.sequence))
+    ).all()
+    return FinanceCoachAgreementPublic(
+        id=agreement.id,
+        coach_user_id=agreement.coach_user_id,
+        coach_name=(coach.full_name or coach.email) if coach else None,
+        version=agreement.version,
+        status=agreement.status,  # type: ignore[arg-type]
+        mode=agreement.mode,  # type: ignore[arg-type]
+        vesting_mode=agreement.vesting_mode,  # type: ignore[arg-type]
+        vesting_days=agreement.vesting_days,
+        effective_from=agreement.effective_from,
+        effective_to=agreement.effective_to,
+        notes=agreement.notes,
+        terms=[
+            FinanceCoachAgreementTermPublic(
+                id=term.id,
+                sequence=term.sequence,
+                recipient=term.recipient,  # type: ignore[arg-type]
+                basis=term.basis,  # type: ignore[arg-type]
+                percent_bp=term.percent_bp,
+                fixed_irr=term.fixed_irr,
+                label=term.label,
+            )
+            for term in terms
+        ],
+        created_at=agreement.created_at,
+        activated_at=agreement.activated_at,
+    )
+
+
+def _is_gym_coach(session: Session, *, gym_id: uuid.UUID, user_id: uuid.UUID) -> bool:
+    return (
+        session.exec(
+            select(GymMembership)
+            .join(
+                GymMembershipRole,
+                col(GymMembershipRole.membership_id) == col(GymMembership.id),
+            )
+            .where(
+                GymMembership.gym_id == gym_id,
+                GymMembership.user_id == user_id,
+                col(GymMembership.is_active).is_(True),
+                GymMembershipRole.role == "COACH",
+            )
+        ).first()
+        is not None
+    )
+
+
+def _validate_agreement_terms(
+    terms: Sequence[Any],
+) -> None:
+    if not any(term.recipient == "COACH" for term in terms):
+        raise HTTPException(status_code=400, detail="coach_term_required")
+    for term in terms:
+        if term.basis == "PERCENT":
+            if term.percent_bp <= 0 or term.percent_bp > 10_000 or term.fixed_irr:
+                raise HTTPException(status_code=400, detail="invalid_coach_term")
+        elif term.fixed_irr <= 0 or term.percent_bp:
+            raise HTTPException(status_code=400, detail="invalid_coach_term")
+
+
+def create_coach_agreement(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    body: FinanceCoachAgreementCreate,
+) -> FinanceCoachAgreementPublic:
+    scope.require(FINANCE_COACH_AGREEMENT_MANAGE)
+    if not _is_gym_coach(session, gym_id=scope.gym_id, user_id=body.coach_user_id):
+        raise HTTPException(
+            status_code=400, detail="invalid_coach_agreement_coach"
+        )
+    if body.effective_to is not None and body.effective_to < body.effective_from:
+        raise HTTPException(
+            status_code=400, detail="invalid_coach_agreement_dates"
+        )
+    _validate_agreement_terms(body.terms)
+    latest = session.exec(
+        select(FinanceCoachAgreement)
+        .where(
+            FinanceCoachAgreement.gym_id == scope.gym_id,
+            FinanceCoachAgreement.coach_user_id == body.coach_user_id,
+        )
+        .order_by(col(FinanceCoachAgreement.version).desc())
+    ).first()
+    agreement = FinanceCoachAgreement(
+        gym_id=scope.gym_id,
+        coach_user_id=body.coach_user_id,
+        version=(latest.version + 1) if latest else 1,
+        mode=body.mode,
+        vesting_mode=body.vesting_mode,
+        vesting_days=body.vesting_days,
+        effective_from=body.effective_from,
+        effective_to=body.effective_to,
+        notes=body.notes,
+        created_by_id=actor.id,
+    )
+    session.add(agreement)
+    session.flush()
+    for sequence, item in enumerate(body.terms, start=1):
+        session.add(
+            FinanceCoachAgreementTerm(
+                agreement_id=agreement.id,
+                sequence=sequence,
+                recipient=item.recipient,
+                basis=item.basis,
+                percent_bp=item.percent_bp,
+                fixed_irr=item.fixed_irr,
+                label=item.label,
+            )
+        )
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.coach_agreement.created",
+        target_type="finance_coach_agreement",
+        target_id=agreement.id,
+        detail={"version": agreement.version, "coach_user_id": str(body.coach_user_id)},
+    )
+    session.commit()
+    session.refresh(agreement)
+    return _agreement_public(session, agreement)
+
+
+def list_coach_agreements(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    coach_user_id: uuid.UUID | None = None,
+) -> FinanceCoachAgreementsPublic:
+    filters: list[Any] = [FinanceCoachAgreement.gym_id == gym_id]
+    if coach_user_id is not None:
+        filters.append(FinanceCoachAgreement.coach_user_id == coach_user_id)
+    agreements = session.exec(
+        select(FinanceCoachAgreement)
+        .where(*filters)
+        .order_by(
+            col(FinanceCoachAgreement.coach_user_id),
+            col(FinanceCoachAgreement.version).desc(),
+        )
+    ).all()
+    return FinanceCoachAgreementsPublic(
+        data=[_agreement_public(session, row) for row in agreements],
+        count=len(agreements),
+    )
+
+
+def get_coach_agreement(
+    session: Session, *, gym_id: uuid.UUID, agreement_id: uuid.UUID
+) -> FinanceCoachAgreementPublic:
+    agreement = session.get(FinanceCoachAgreement, agreement_id)
+    if agreement is None or agreement.gym_id != gym_id:
+        raise HTTPException(status_code=404, detail="coach_agreement_not_found")
+    return _agreement_public(session, agreement)
+
+
+def activate_coach_agreement(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    agreement_id: uuid.UUID,
+) -> FinanceCoachAgreementPublic:
+    scope.require(FINANCE_COACH_AGREEMENT_MANAGE)
+    agreement = session.get(FinanceCoachAgreement, agreement_id)
+    if agreement is None or agreement.gym_id != scope.gym_id:
+        raise HTTPException(status_code=404, detail="coach_agreement_not_found")
+    if agreement.status != "DRAFT":
+        raise HTTPException(status_code=409, detail="coach_agreement_not_draft")
+    terms = session.exec(
+        select(FinanceCoachAgreementTerm).where(
+            FinanceCoachAgreementTerm.agreement_id == agreement.id
+        )
+    ).all()
+    _validate_agreement_terms(terms)
+    agreement.status = "ACTIVE"
+    agreement.activated_by_id = actor.id
+    agreement.activated_at = utcnow()
+    session.add(agreement)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.coach_agreement.activated",
+        target_type="finance_coach_agreement",
+        target_id=agreement.id,
+        detail={"version": agreement.version},
+    )
+    session.commit()
+    session.refresh(agreement)
+    return _agreement_public(session, agreement)

@@ -17,6 +17,9 @@ from app.finance_models import (
     FinanceCatalogItemPublic,
     FinanceCatalogItemUpdate,
     FinanceCatalogPublic,
+    FinanceCoachAgreementCreate,
+    FinanceCoachAgreementPublic,
+    FinanceCoachAgreementsPublic,
     FinanceCreditApplyCreate,
     FinanceCreditsPublic,
     FinanceExpenseCreate,
@@ -64,11 +67,13 @@ from app.finance_models import (
 from app.models import Message
 from app.services.finance import (
     accounts_public,
+    activate_coach_agreement,
     apply_customer_credit,
     approve_refund,
     cancel_membership,
     close_period,
     create_catalog_item,
+    create_coach_agreement,
     create_expense,
     create_invoice,
     create_membership,
@@ -76,6 +81,7 @@ from app.services.finance import (
     delete_invoice,
     ensure_settings,
     freeze_membership,
+    get_coach_agreement,
     get_expense,
     get_invoice,
     get_journal,
@@ -83,6 +89,7 @@ from app.services.finance import (
     get_receipt,
     issue_invoice,
     list_catalog,
+    list_coach_agreements,
     list_credits,
     list_expenses,
     list_grants,
@@ -1027,3 +1034,67 @@ def read_finance_reminders(
     scope = resolve_finance_scope(session, ctx, current_user)
     scope.require(FINANCE_VIEW)
     return list_reminders(session, gym_id=ctx.gym.id, within_days=within_days)
+
+
+@router.get("/coach-agreements", response_model=FinanceCoachAgreementsPublic)
+def read_coach_agreements(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    coach_user_id: uuid.UUID | None = None,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return list_coach_agreements(
+        session, gym_id=ctx.gym.id, coach_user_id=coach_user_id
+    )
+
+
+@router.post("/coach-agreements", response_model=FinanceCoachAgreementPublic)
+def create_finance_coach_agreement(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceCoachAgreementCreate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return create_coach_agreement(
+        session, scope=scope, actor=current_user, body=body
+    )
+
+
+@router.get(
+    "/coach-agreements/{agreement_id}",
+    response_model=FinanceCoachAgreementPublic,
+)
+def read_coach_agreement(
+    *,
+    agreement_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return get_coach_agreement(
+        session, gym_id=ctx.gym.id, agreement_id=agreement_id
+    )
+
+
+@router.post(
+    "/coach-agreements/{agreement_id}/activate",
+    response_model=FinanceCoachAgreementPublic,
+)
+def activate_finance_coach_agreement(
+    *,
+    agreement_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return activate_coach_agreement(
+        session, scope=scope, actor=current_user, agreement_id=agreement_id
+    )
