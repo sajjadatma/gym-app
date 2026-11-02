@@ -6,6 +6,7 @@ import { FinanceService } from "@/client"
 import { ErrorState, PageHeader, Spinner, Tabs } from "@/components/M3"
 import { useI18n } from "@/i18n"
 import { FinanceCatalogSection } from "./finance/FinanceCatalogSection"
+import { FinanceCoachesSection } from "./finance/FinanceCoachesSection"
 import { FinanceExpensesSection } from "./finance/FinanceExpensesSection"
 import { FinanceInvoicesSection } from "./finance/FinanceInvoicesSection"
 import { FinanceMembershipsSection } from "./finance/FinanceMembershipsSection"
@@ -79,6 +80,7 @@ export function FinancePage() {
           { value: "refunds", label: t("finance.tabRefunds") },
           { value: "expenses", label: t("finance.tabExpenses") },
           { value: "memberships", label: t("finance.tabMemberships") },
+          { value: "coaches", label: t("finance.tabCoaches") },
         ]}
       />
 
@@ -100,8 +102,10 @@ export function FinancePage() {
           <FinanceRefundsSection settings={settings} unit={unit} />
         ) : tab === "expenses" ? (
           <FinanceExpensesSection settings={settings} unit={unit} />
-        ) : (
+        ) : tab === "memberships" ? (
           <FinanceMembershipsSection settings={settings} unit={unit} />
+        ) : (
+          <FinanceCoachesSection settings={settings} unit={unit} />
         )}
       </div>
     </>

@@ -1209,7 +1209,7 @@ def read_coach_settlements(
     session: SessionDep,
     ctx: GymContextDep,
     current_user: CurrentUser,
-    coach_user_id: uuid.UUID,
+    coach_user_id: uuid.UUID | None = None,
 ) -> Any:
     scope = resolve_finance_scope(session, ctx, current_user)
     scope.require(FINANCE_VIEW)

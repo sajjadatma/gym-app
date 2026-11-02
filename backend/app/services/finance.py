@@ -132,6 +132,7 @@ ADMIN_PERMISSIONS: tuple[FinancePermissionName, ...] = (
     FINANCE_CATALOG_MANAGE,
     FINANCE_COACH_AGREEMENT_MANAGE,
     FINANCE_INVOICE_MANAGE,
+    FINANCE_SETTLEMENT_MANAGE,
 )
 
 DEFAULT_DISPLAY_UNIT = "RIAL"
@@ -4119,14 +4120,17 @@ def confirm_coach_settlement(
 
 
 def list_coach_settlements(
-    session: Session, *, gym_id: uuid.UUID, coach_user_id: uuid.UUID
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    coach_user_id: uuid.UUID | None = None,
 ) -> FinanceCoachSettlementsPublic:
+    filters: list[Any] = [FinanceCoachSettlement.gym_id == gym_id]
+    if coach_user_id is not None:
+        filters.append(FinanceCoachSettlement.coach_user_id == coach_user_id)
     rows = session.exec(
         select(FinanceCoachSettlement)
-        .where(
-            FinanceCoachSettlement.gym_id == gym_id,
-            FinanceCoachSettlement.coach_user_id == coach_user_id,
-        )
+        .where(*filters)
         .order_by(col(FinanceCoachSettlement.created_at).desc())
     ).all()
     return FinanceCoachSettlementsPublic(

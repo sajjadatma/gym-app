@@ -42,11 +42,12 @@ function ClubLayout() {
   )
   const isStaff = Boolean(gym && (isAdmin || gym.my_roles.includes("COACH")))
   const isAthlete = Boolean(gym?.my_roles.includes("ATHLETE"))
+  const coachEarnings = pathname.endsWith("/my/earnings")
   const allowed =
     section === ""
       ? true
       : section === "my"
-        ? isAthlete
+        ? isAthlete || (isStaff && coachEarnings)
         : section === "members"
           ? isAdmin
           : section === "finance"

@@ -1186,6 +1186,520 @@ export type FinanceCatalogPublic = {
 };
 
 /**
+ * FinanceCoachAgreementCreate
+ */
+export type FinanceCoachAgreementCreate = {
+    /**
+     * Coach User Id
+     */
+    coach_user_id: string;
+    /**
+     * Effective From
+     */
+    effective_from: string;
+    /**
+     * Effective To
+     */
+    effective_to?: string | null;
+    /**
+     * Mode
+     */
+    mode?: 'DIRECT' | 'WATERFALL';
+    /**
+     * Vesting Mode
+     */
+    vesting_mode?: 'ON_DATE' | 'MANUAL';
+    /**
+     * Vesting Days
+     */
+    vesting_days?: number;
+    /**
+     * Notes
+     */
+    notes?: string | null;
+    /**
+     * Terms
+     */
+    terms: Array<FinanceCoachAgreementTermInput>;
+};
+
+/**
+ * FinanceCoachAgreementPublic
+ */
+export type FinanceCoachAgreementPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Coach User Id
+     */
+    coach_user_id: string;
+    /**
+     * Coach Name
+     */
+    coach_name?: string | null;
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Status
+     */
+    status: 'DRAFT' | 'ACTIVE' | 'ENDED';
+    /**
+     * Mode
+     */
+    mode: 'DIRECT' | 'WATERFALL';
+    /**
+     * Vesting Mode
+     */
+    vesting_mode: 'ON_DATE' | 'MANUAL';
+    /**
+     * Vesting Days
+     */
+    vesting_days: number;
+    /**
+     * Effective From
+     */
+    effective_from: string;
+    /**
+     * Effective To
+     */
+    effective_to?: string | null;
+    /**
+     * Notes
+     */
+    notes?: string | null;
+    /**
+     * Terms
+     */
+    terms: Array<FinanceCoachAgreementTermPublic>;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Activated At
+     */
+    activated_at?: string | null;
+};
+
+/**
+ * FinanceCoachAgreementTermInput
+ */
+export type FinanceCoachAgreementTermInput = {
+    /**
+     * Recipient
+     */
+    recipient: 'COACH' | 'ASCORA' | 'GYM';
+    /**
+     * Basis
+     */
+    basis: 'PERCENT' | 'FIXED';
+    /**
+     * Percent Bp
+     */
+    percent_bp?: number;
+    /**
+     * Fixed Irr
+     */
+    fixed_irr?: number;
+    /**
+     * Label
+     */
+    label?: string | null;
+};
+
+/**
+ * FinanceCoachAgreementTermPublic
+ */
+export type FinanceCoachAgreementTermPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Sequence
+     */
+    sequence: number;
+    /**
+     * Recipient
+     */
+    recipient: 'COACH' | 'ASCORA' | 'GYM';
+    /**
+     * Basis
+     */
+    basis: 'PERCENT' | 'FIXED';
+    /**
+     * Percent Bp
+     */
+    percent_bp: number;
+    /**
+     * Fixed Irr
+     */
+    fixed_irr: number;
+    /**
+     * Label
+     */
+    label?: string | null;
+};
+
+/**
+ * FinanceCoachAgreementsPublic
+ */
+export type FinanceCoachAgreementsPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceCoachAgreementPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * FinanceCoachDiscrepanciesPublic
+ */
+export type FinanceCoachDiscrepanciesPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceCoachDiscrepancyPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * FinanceCoachDiscrepancyPublic
+ */
+export type FinanceCoachDiscrepancyPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Coach User Id
+     */
+    coach_user_id: string;
+    /**
+     * Coach Name
+     */
+    coach_name?: string | null;
+    /**
+     * Invoice Id
+     */
+    invoice_id: string;
+    /**
+     * Invoice Number
+     */
+    invoice_number?: number | null;
+    /**
+     * Earning Id
+     */
+    earning_id: string;
+    /**
+     * Refund Id
+     */
+    refund_id: string;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Status
+     */
+    status: 'OPEN' | 'RESOLVED';
+    /**
+     * Resolution Note
+     */
+    resolution_note?: string | null;
+    /**
+     * Resolved At
+     */
+    resolved_at?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * FinanceCoachDiscrepancyResolve
+ */
+export type FinanceCoachDiscrepancyResolve = {
+    /**
+     * Resolution Note
+     */
+    resolution_note: string;
+};
+
+/**
+ * FinanceCoachEarningPublic
+ */
+export type FinanceCoachEarningPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Coach User Id
+     */
+    coach_user_id: string;
+    /**
+     * Coach Name
+     */
+    coach_name?: string | null;
+    /**
+     * Invoice Id
+     */
+    invoice_id: string;
+    /**
+     * Invoice Number
+     */
+    invoice_number?: number | null;
+    /**
+     * Line Description
+     */
+    line_description?: string | null;
+    /**
+     * Receipt Id
+     */
+    receipt_id?: string | null;
+    /**
+     * Receipt Number
+     */
+    receipt_number?: number | null;
+    /**
+     * Agreement Id
+     */
+    agreement_id?: string | null;
+    /**
+     * Agreement Version
+     */
+    agreement_version?: number | null;
+    /**
+     * Discount Funding
+     */
+    discount_funding: string;
+    /**
+     * Base Irr
+     */
+    base_irr: number;
+    /**
+     * Discount Irr
+     */
+    discount_irr: number;
+    /**
+     * Coach Share Irr
+     */
+    coach_share_irr: number;
+    /**
+     * Platform Share Irr
+     */
+    platform_share_irr: number;
+    /**
+     * Gym Share Irr
+     */
+    gym_share_irr: number;
+    /**
+     * Calculated Irr
+     */
+    calculated_irr: number;
+    /**
+     * Vested Irr
+     */
+    vested_irr: number;
+    /**
+     * Settled Irr
+     */
+    settled_irr: number;
+    /**
+     * Adjusted Irr
+     */
+    adjusted_irr?: number;
+    /**
+     * Eligible Irr
+     */
+    eligible_irr: number;
+    /**
+     * Status
+     */
+    status: 'CALCULATED' | 'VESTED' | 'UNRESOLVED' | 'SETTLED';
+    /**
+     * Unresolved Reason
+     */
+    unresolved_reason?: string | null;
+    /**
+     * Vesting Mode
+     */
+    vesting_mode: string;
+    /**
+     * Vesting Date
+     */
+    vesting_date?: string | null;
+    /**
+     * Vested At
+     */
+    vested_at?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * FinanceCoachEarningsPublic
+ */
+export type FinanceCoachEarningsPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceCoachEarningPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * FinanceCoachSettlementCreate
+ */
+export type FinanceCoachSettlementCreate = {
+    /**
+     * Coach User Id
+     */
+    coach_user_id: string;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Method
+     */
+    method: 'CASH' | 'POS' | 'TRANSFER';
+    /**
+     * Reference
+     */
+    reference?: string | null;
+    /**
+     * Paid On
+     */
+    paid_on: string;
+    /**
+     * Notes
+     */
+    notes?: string | null;
+};
+
+/**
+ * FinanceCoachSettlementItemPublic
+ */
+export type FinanceCoachSettlementItemPublic = {
+    /**
+     * Earning Id
+     */
+    earning_id: string;
+    /**
+     * Invoice Id
+     */
+    invoice_id: string;
+    /**
+     * Invoice Number
+     */
+    invoice_number?: number | null;
+    /**
+     * Line Description
+     */
+    line_description?: string | null;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+};
+
+/**
+ * FinanceCoachSettlementPublic
+ */
+export type FinanceCoachSettlementPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Coach User Id
+     */
+    coach_user_id: string;
+    /**
+     * Coach Name
+     */
+    coach_name?: string | null;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Method
+     */
+    method: 'CASH' | 'POS' | 'TRANSFER';
+    /**
+     * Reference
+     */
+    reference?: string | null;
+    /**
+     * Paid On
+     */
+    paid_on: string;
+    /**
+     * Notes
+     */
+    notes?: string | null;
+    /**
+     * Status
+     */
+    status: 'RECORDED' | 'CONFIRMED';
+    /**
+     * Items
+     */
+    items: Array<FinanceCoachSettlementItemPublic>;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Confirmed At
+     */
+    confirmed_at?: string | null;
+};
+
+/**
+ * FinanceCoachSettlementsPublic
+ */
+export type FinanceCoachSettlementsPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceCoachSettlementPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * FinanceCoachVestingCreate
+ */
+export type FinanceCoachVestingCreate = {
+    /**
+     * Reason
+     */
+    reason: string;
+};
+
+/**
  * FinanceCreditApplyCreate
  */
 export type FinanceCreditApplyCreate = {
@@ -1372,7 +1886,7 @@ export type FinanceGrantItem = {
     /**
      * Permission
      */
-    permission: 'finance.opening.manage' | 'finance.period.manage' | 'finance.catalog.manage' | 'finance.invoice.manage' | 'finance.payment.record' | 'finance.refund.manage' | 'finance.expense.manage' | 'finance.membership.manage';
+    permission: 'finance.opening.manage' | 'finance.period.manage' | 'finance.catalog.manage' | 'finance.invoice.manage' | 'finance.payment.record' | 'finance.refund.manage' | 'finance.expense.manage' | 'finance.membership.manage' | 'finance.coach_agreement.manage' | 'finance.settlement.manage';
     /**
      * Amount Limit Irr
      */
@@ -1575,6 +2089,14 @@ export type FinanceInvoiceLineInput = {
      * Line Discount Irr
      */
     line_discount_irr?: number;
+    /**
+     * Coach User Id
+     */
+    coach_user_id?: string | null;
+    /**
+     * Bundle Discount Irr
+     */
+    bundle_discount_irr?: number | null;
 };
 
 /**
@@ -1625,6 +2147,22 @@ export type FinanceInvoiceLinePublic = {
      * Payable Irr
      */
     payable_irr: number;
+    /**
+     * Coach User Id
+     */
+    coach_user_id?: string | null;
+    /**
+     * Coach Agreement Id
+     */
+    coach_agreement_id?: string | null;
+    /**
+     * Coach Agreement Version
+     */
+    coach_agreement_version?: number | null;
+    /**
+     * Coach Allocation Status
+     */
+    coach_allocation_status?: string;
 };
 
 /**
@@ -1846,7 +2384,7 @@ export type FinanceJournalPublic = {
     /**
      * Event Type
      */
-    event_type: 'OPENING_BALANCE' | 'CORRECTION' | 'INVOICE_ISSUED' | 'INVOICE_VOID' | 'RECEIPT_CONFIRMED' | 'ADVANCE_APPLIED' | 'REFUND_RECORDED' | 'EXPENSE_RECORDED' | 'EXPENSE_PAID';
+    event_type: 'OPENING_BALANCE' | 'CORRECTION' | 'INVOICE_ISSUED' | 'INVOICE_VOID' | 'RECEIPT_CONFIRMED' | 'ADVANCE_APPLIED' | 'REFUND_RECORDED' | 'EXPENSE_RECORDED' | 'EXPENSE_PAID' | 'COACH_ALLOCATION' | 'COACH_SETTLEMENT' | 'COACH_REFUND_ADJUSTMENT';
     /**
      * Description
      */
@@ -8243,6 +8781,530 @@ export type financeReadFinanceRemindersResponses = {
 };
 
 export type financeReadFinanceRemindersResponse = financeReadFinanceRemindersResponses[keyof financeReadFinanceRemindersResponses];
+
+export type financeReadCoachAgreementsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Coach User Id
+         */
+        coach_user_id?: string | null;
+    };
+    url: '/api/v1/finance/coach-agreements';
+};
+
+export type financeReadCoachAgreementsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadCoachAgreementsError = financeReadCoachAgreementsErrors[keyof financeReadCoachAgreementsErrors];
+
+export type financeReadCoachAgreementsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachAgreementsPublic;
+};
+
+export type financeReadCoachAgreementsResponse = financeReadCoachAgreementsResponses[keyof financeReadCoachAgreementsResponses];
+
+export type financeCreateFinanceCoachAgreementData = {
+    body: FinanceCoachAgreementCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/coach-agreements';
+};
+
+export type financeCreateFinanceCoachAgreementErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeCreateFinanceCoachAgreementError = financeCreateFinanceCoachAgreementErrors[keyof financeCreateFinanceCoachAgreementErrors];
+
+export type financeCreateFinanceCoachAgreementResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachAgreementPublic;
+};
+
+export type financeCreateFinanceCoachAgreementResponse = financeCreateFinanceCoachAgreementResponses[keyof financeCreateFinanceCoachAgreementResponses];
+
+export type financeReadCoachAgreementData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Agreement Id
+         */
+        agreement_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/coach-agreements/{agreement_id}';
+};
+
+export type financeReadCoachAgreementErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadCoachAgreementError = financeReadCoachAgreementErrors[keyof financeReadCoachAgreementErrors];
+
+export type financeReadCoachAgreementResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachAgreementPublic;
+};
+
+export type financeReadCoachAgreementResponse = financeReadCoachAgreementResponses[keyof financeReadCoachAgreementResponses];
+
+export type financeActivateFinanceCoachAgreementData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Agreement Id
+         */
+        agreement_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/coach-agreements/{agreement_id}/activate';
+};
+
+export type financeActivateFinanceCoachAgreementErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeActivateFinanceCoachAgreementError = financeActivateFinanceCoachAgreementErrors[keyof financeActivateFinanceCoachAgreementErrors];
+
+export type financeActivateFinanceCoachAgreementResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachAgreementPublic;
+};
+
+export type financeActivateFinanceCoachAgreementResponse = financeActivateFinanceCoachAgreementResponses[keyof financeActivateFinanceCoachAgreementResponses];
+
+export type financeReadCoachEarningsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Coach User Id
+         */
+        coach_user_id?: string | null;
+    };
+    url: '/api/v1/finance/coach-earnings';
+};
+
+export type financeReadCoachEarningsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadCoachEarningsError = financeReadCoachEarningsErrors[keyof financeReadCoachEarningsErrors];
+
+export type financeReadCoachEarningsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachEarningsPublic;
+};
+
+export type financeReadCoachEarningsResponse = financeReadCoachEarningsResponses[keyof financeReadCoachEarningsResponses];
+
+export type financeReadCoachEarningData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Earning Id
+         */
+        earning_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/coach-earnings/{earning_id}';
+};
+
+export type financeReadCoachEarningErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadCoachEarningError = financeReadCoachEarningErrors[keyof financeReadCoachEarningErrors];
+
+export type financeReadCoachEarningResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachEarningPublic;
+};
+
+export type financeReadCoachEarningResponse = financeReadCoachEarningResponses[keyof financeReadCoachEarningResponses];
+
+export type financeVestFinanceCoachEarningData = {
+    body: FinanceCoachVestingCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Earning Id
+         */
+        earning_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/coach-earnings/{earning_id}/vest';
+};
+
+export type financeVestFinanceCoachEarningErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeVestFinanceCoachEarningError = financeVestFinanceCoachEarningErrors[keyof financeVestFinanceCoachEarningErrors];
+
+export type financeVestFinanceCoachEarningResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachEarningPublic;
+};
+
+export type financeVestFinanceCoachEarningResponse = financeVestFinanceCoachEarningResponses[keyof financeVestFinanceCoachEarningResponses];
+
+export type financeReadMyCoachEarningsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/my/earnings';
+};
+
+export type financeReadMyCoachEarningsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadMyCoachEarningsError = financeReadMyCoachEarningsErrors[keyof financeReadMyCoachEarningsErrors];
+
+export type financeReadMyCoachEarningsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachEarningsPublic;
+};
+
+export type financeReadMyCoachEarningsResponse = financeReadMyCoachEarningsResponses[keyof financeReadMyCoachEarningsResponses];
+
+export type financeReadCoachSettlementsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Coach User Id
+         */
+        coach_user_id?: string | null;
+    };
+    url: '/api/v1/finance/coach-settlements';
+};
+
+export type financeReadCoachSettlementsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadCoachSettlementsError = financeReadCoachSettlementsErrors[keyof financeReadCoachSettlementsErrors];
+
+export type financeReadCoachSettlementsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachSettlementsPublic;
+};
+
+export type financeReadCoachSettlementsResponse = financeReadCoachSettlementsResponses[keyof financeReadCoachSettlementsResponses];
+
+export type financeCreateFinanceCoachSettlementData = {
+    body: FinanceCoachSettlementCreate;
+    headers: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key': string;
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/coach-settlements';
+};
+
+export type financeCreateFinanceCoachSettlementErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeCreateFinanceCoachSettlementError = financeCreateFinanceCoachSettlementErrors[keyof financeCreateFinanceCoachSettlementErrors];
+
+export type financeCreateFinanceCoachSettlementResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachSettlementPublic;
+};
+
+export type financeCreateFinanceCoachSettlementResponse = financeCreateFinanceCoachSettlementResponses[keyof financeCreateFinanceCoachSettlementResponses];
+
+export type financeReadCoachSettlementData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Settlement Id
+         */
+        settlement_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/coach-settlements/{settlement_id}';
+};
+
+export type financeReadCoachSettlementErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadCoachSettlementError = financeReadCoachSettlementErrors[keyof financeReadCoachSettlementErrors];
+
+export type financeReadCoachSettlementResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachSettlementPublic;
+};
+
+export type financeReadCoachSettlementResponse = financeReadCoachSettlementResponses[keyof financeReadCoachSettlementResponses];
+
+export type financeConfirmFinanceCoachSettlementData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Settlement Id
+         */
+        settlement_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/coach-settlements/{settlement_id}/confirm';
+};
+
+export type financeConfirmFinanceCoachSettlementErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeConfirmFinanceCoachSettlementError = financeConfirmFinanceCoachSettlementErrors[keyof financeConfirmFinanceCoachSettlementErrors];
+
+export type financeConfirmFinanceCoachSettlementResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachSettlementPublic;
+};
+
+export type financeConfirmFinanceCoachSettlementResponse = financeConfirmFinanceCoachSettlementResponses[keyof financeConfirmFinanceCoachSettlementResponses];
+
+export type financeReadMyCoachSettlementsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/my/settlements';
+};
+
+export type financeReadMyCoachSettlementsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadMyCoachSettlementsError = financeReadMyCoachSettlementsErrors[keyof financeReadMyCoachSettlementsErrors];
+
+export type financeReadMyCoachSettlementsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachSettlementsPublic;
+};
+
+export type financeReadMyCoachSettlementsResponse = financeReadMyCoachSettlementsResponses[keyof financeReadMyCoachSettlementsResponses];
+
+export type financeReadCoachDiscrepanciesData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Status
+         */
+        status?: string | null;
+    };
+    url: '/api/v1/finance/coach-discrepancies';
+};
+
+export type financeReadCoachDiscrepanciesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadCoachDiscrepanciesError = financeReadCoachDiscrepanciesErrors[keyof financeReadCoachDiscrepanciesErrors];
+
+export type financeReadCoachDiscrepanciesResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachDiscrepanciesPublic;
+};
+
+export type financeReadCoachDiscrepanciesResponse = financeReadCoachDiscrepanciesResponses[keyof financeReadCoachDiscrepanciesResponses];
+
+export type financeResolveFinanceCoachDiscrepancyData = {
+    body: FinanceCoachDiscrepancyResolve;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Discrepancy Id
+         */
+        discrepancy_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/coach-discrepancies/{discrepancy_id}/resolve';
+};
+
+export type financeResolveFinanceCoachDiscrepancyErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeResolveFinanceCoachDiscrepancyError = financeResolveFinanceCoachDiscrepancyErrors[keyof financeResolveFinanceCoachDiscrepancyErrors];
+
+export type financeResolveFinanceCoachDiscrepancyResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachDiscrepancyPublic;
+};
+
+export type financeResolveFinanceCoachDiscrepancyResponse = financeResolveFinanceCoachDiscrepancyResponses[keyof financeResolveFinanceCoachDiscrepancyResponses];
 
 export type utilsHealthCheckData = {
     body?: never;

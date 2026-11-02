@@ -31,6 +31,7 @@ import { Route as AppAthletesArchivedRouteImport } from './routes/_app.athletes.
 import { Route as AppGymsIndexRouteImport } from './routes/_app.gyms.index'
 import { Route as AppGymsGymIdRouteImport } from './routes/_app.gyms.$gymId'
 import { Route as AppMyIndexRouteImport } from './routes/_app.my.index'
+import { Route as AppMyEarningsRouteImport } from './routes/_app.my.earnings'
 import { Route as AppMyFinanceRouteImport } from './routes/_app.my.finance'
 import { Route as AppMyProfileRouteImport } from './routes/_app.my.profile'
 import { Route as AppPeopleUserIdRouteImport } from './routes/_app.people.$userId'
@@ -51,6 +52,7 @@ import { Route as AppGymsGymIdAthletesIndexRouteImport } from './routes/_app.gym
 import { Route as AppGymsGymIdAthletesAthleteIdRouteImport } from './routes/_app.gyms.$gymId.athletes.$athleteId'
 import { Route as AppGymsGymIdAthletesArchivedRouteImport } from './routes/_app.gyms.$gymId.athletes.archived'
 import { Route as AppGymsGymIdMyIndexRouteImport } from './routes/_app.gyms.$gymId.my.index'
+import { Route as AppGymsGymIdMyEarningsRouteImport } from './routes/_app.gyms.$gymId.my.earnings'
 import { Route as AppGymsGymIdMyFinanceRouteImport } from './routes/_app.gyms.$gymId.my.finance'
 import { Route as AppGymsGymIdMyProfileRouteImport } from './routes/_app.gyms.$gymId.my.profile'
 import { Route as AppGymsGymIdTemplatesIndexRouteImport } from './routes/_app.gyms.$gymId.templates.index'
@@ -168,6 +170,11 @@ const AppMyIndexRoute = AppMyIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppMyRoute,
 } as any)
+const AppMyEarningsRoute = AppMyEarningsRouteImport.update({
+  id: '/earnings',
+  path: '/earnings',
+  getParentRoute: () => AppMyRoute,
+} as any)
 const AppMyFinanceRoute = AppMyFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
@@ -273,6 +280,11 @@ const AppGymsGymIdMyIndexRoute = AppGymsGymIdMyIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppGymsGymIdMyRoute,
 } as any)
+const AppGymsGymIdMyEarningsRoute = AppGymsGymIdMyEarningsRouteImport.update({
+  id: '/earnings',
+  path: '/earnings',
+  getParentRoute: () => AppGymsGymIdMyRoute,
+} as any)
 const AppGymsGymIdMyFinanceRoute = AppGymsGymIdMyFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
@@ -333,6 +345,7 @@ export interface FileRoutesByFullPath {
   '/athletes/$athleteId': typeof AppAthletesAthleteIdRoute
   '/athletes/archived': typeof AppAthletesArchivedRoute
   '/gyms/$gymId': typeof AppGymsGymIdRouteWithChildren
+  '/my/earnings': typeof AppMyEarningsRoute
   '/my/finance': typeof AppMyFinanceRoute
   '/my/profile': typeof AppMyProfileRoute
   '/people/$userId': typeof AppPeopleUserIdRoute
@@ -354,6 +367,7 @@ export interface FileRoutesByFullPath {
   '/gyms/$gymId/': typeof AppGymsGymIdIndexRoute
   '/gyms/$gymId/athletes/$athleteId': typeof AppGymsGymIdAthletesAthleteIdRoute
   '/gyms/$gymId/athletes/archived': typeof AppGymsGymIdAthletesArchivedRoute
+  '/gyms/$gymId/my/earnings': typeof AppGymsGymIdMyEarningsRoute
   '/gyms/$gymId/my/finance': typeof AppGymsGymIdMyFinanceRoute
   '/gyms/$gymId/my/profile': typeof AppGymsGymIdMyProfileRoute
   '/gyms/$gymId/templates/new': typeof AppGymsGymIdTemplatesNewRoute
@@ -378,6 +392,7 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/athletes/$athleteId': typeof AppAthletesAthleteIdRoute
   '/athletes/archived': typeof AppAthletesArchivedRoute
+  '/my/earnings': typeof AppMyEarningsRoute
   '/my/finance': typeof AppMyFinanceRoute
   '/my/profile': typeof AppMyProfileRoute
   '/people/$userId': typeof AppPeopleUserIdRoute
@@ -396,6 +411,7 @@ export interface FileRoutesByTo {
   '/gyms/$gymId': typeof AppGymsGymIdIndexRoute
   '/gyms/$gymId/athletes/$athleteId': typeof AppGymsGymIdAthletesAthleteIdRoute
   '/gyms/$gymId/athletes/archived': typeof AppGymsGymIdAthletesArchivedRoute
+  '/gyms/$gymId/my/earnings': typeof AppGymsGymIdMyEarningsRoute
   '/gyms/$gymId/my/finance': typeof AppGymsGymIdMyFinanceRoute
   '/gyms/$gymId/my/profile': typeof AppGymsGymIdMyProfileRoute
   '/gyms/$gymId/templates/new': typeof AppGymsGymIdTemplatesNewRoute
@@ -427,6 +443,7 @@ export interface FileRoutesById {
   '/_app/athletes/$athleteId': typeof AppAthletesAthleteIdRoute
   '/_app/athletes/archived': typeof AppAthletesArchivedRoute
   '/_app/gyms/$gymId': typeof AppGymsGymIdRouteWithChildren
+  '/_app/my/earnings': typeof AppMyEarningsRoute
   '/_app/my/finance': typeof AppMyFinanceRoute
   '/_app/my/profile': typeof AppMyProfileRoute
   '/_app/people/$userId': typeof AppPeopleUserIdRoute
@@ -448,6 +465,7 @@ export interface FileRoutesById {
   '/_app/gyms/$gymId/': typeof AppGymsGymIdIndexRoute
   '/_app/gyms/$gymId/athletes/$athleteId': typeof AppGymsGymIdAthletesAthleteIdRoute
   '/_app/gyms/$gymId/athletes/archived': typeof AppGymsGymIdAthletesArchivedRoute
+  '/_app/gyms/$gymId/my/earnings': typeof AppGymsGymIdMyEarningsRoute
   '/_app/gyms/$gymId/my/finance': typeof AppGymsGymIdMyFinanceRoute
   '/_app/gyms/$gymId/my/profile': typeof AppGymsGymIdMyProfileRoute
   '/_app/gyms/$gymId/templates/new': typeof AppGymsGymIdTemplatesNewRoute
@@ -479,6 +497,7 @@ export interface FileRouteTypes {
     | '/athletes/$athleteId'
     | '/athletes/archived'
     | '/gyms/$gymId'
+    | '/my/earnings'
     | '/my/finance'
     | '/my/profile'
     | '/people/$userId'
@@ -500,6 +519,7 @@ export interface FileRouteTypes {
     | '/gyms/$gymId/'
     | '/gyms/$gymId/athletes/$athleteId'
     | '/gyms/$gymId/athletes/archived'
+    | '/gyms/$gymId/my/earnings'
     | '/gyms/$gymId/my/finance'
     | '/gyms/$gymId/my/profile'
     | '/gyms/$gymId/templates/new'
@@ -524,6 +544,7 @@ export interface FileRouteTypes {
     | '/'
     | '/athletes/$athleteId'
     | '/athletes/archived'
+    | '/my/earnings'
     | '/my/finance'
     | '/my/profile'
     | '/people/$userId'
@@ -542,6 +563,7 @@ export interface FileRouteTypes {
     | '/gyms/$gymId'
     | '/gyms/$gymId/athletes/$athleteId'
     | '/gyms/$gymId/athletes/archived'
+    | '/gyms/$gymId/my/earnings'
     | '/gyms/$gymId/my/finance'
     | '/gyms/$gymId/my/profile'
     | '/gyms/$gymId/templates/new'
@@ -572,6 +594,7 @@ export interface FileRouteTypes {
     | '/_app/athletes/$athleteId'
     | '/_app/athletes/archived'
     | '/_app/gyms/$gymId'
+    | '/_app/my/earnings'
     | '/_app/my/finance'
     | '/_app/my/profile'
     | '/_app/people/$userId'
@@ -593,6 +616,7 @@ export interface FileRouteTypes {
     | '/_app/gyms/$gymId/'
     | '/_app/gyms/$gymId/athletes/$athleteId'
     | '/_app/gyms/$gymId/athletes/archived'
+    | '/_app/gyms/$gymId/my/earnings'
     | '/_app/gyms/$gymId/my/finance'
     | '/_app/gyms/$gymId/my/profile'
     | '/_app/gyms/$gymId/templates/new'
@@ -770,6 +794,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMyIndexRouteImport
       parentRoute: typeof AppMyRoute
     }
+    '/_app/my/earnings': {
+      id: '/_app/my/earnings'
+      path: '/earnings'
+      fullPath: '/my/earnings'
+      preLoaderRoute: typeof AppMyEarningsRouteImport
+      parentRoute: typeof AppMyRoute
+    }
     '/_app/my/finance': {
       id: '/_app/my/finance'
       path: '/finance'
@@ -910,6 +941,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGymsGymIdMyIndexRouteImport
       parentRoute: typeof AppGymsGymIdMyRoute
     }
+    '/_app/gyms/$gymId/my/earnings': {
+      id: '/_app/gyms/$gymId/my/earnings'
+      path: '/earnings'
+      fullPath: '/gyms/$gymId/my/earnings'
+      preLoaderRoute: typeof AppGymsGymIdMyEarningsRouteImport
+      parentRoute: typeof AppGymsGymIdMyRoute
+    }
     '/_app/gyms/$gymId/my/finance': {
       id: '/_app/gyms/$gymId/my/finance'
       path: '/finance'
@@ -994,6 +1032,7 @@ const AppGymsGymIdAthletesRouteWithChildren =
   AppGymsGymIdAthletesRoute._addFileChildren(AppGymsGymIdAthletesRouteChildren)
 
 interface AppGymsGymIdMyRouteChildren {
+  AppGymsGymIdMyEarningsRoute: typeof AppGymsGymIdMyEarningsRoute
   AppGymsGymIdMyFinanceRoute: typeof AppGymsGymIdMyFinanceRoute
   AppGymsGymIdMyProfileRoute: typeof AppGymsGymIdMyProfileRoute
   AppGymsGymIdMyIndexRoute: typeof AppGymsGymIdMyIndexRoute
@@ -1001,6 +1040,7 @@ interface AppGymsGymIdMyRouteChildren {
 }
 
 const AppGymsGymIdMyRouteChildren: AppGymsGymIdMyRouteChildren = {
+  AppGymsGymIdMyEarningsRoute: AppGymsGymIdMyEarningsRoute,
   AppGymsGymIdMyFinanceRoute: AppGymsGymIdMyFinanceRoute,
   AppGymsGymIdMyProfileRoute: AppGymsGymIdMyProfileRoute,
   AppGymsGymIdMyIndexRoute: AppGymsGymIdMyIndexRoute,
@@ -1072,6 +1112,7 @@ const AppGymsRouteWithChildren =
   AppGymsRoute._addFileChildren(AppGymsRouteChildren)
 
 interface AppMyRouteChildren {
+  AppMyEarningsRoute: typeof AppMyEarningsRoute
   AppMyFinanceRoute: typeof AppMyFinanceRoute
   AppMyProfileRoute: typeof AppMyProfileRoute
   AppMyIndexRoute: typeof AppMyIndexRoute
@@ -1079,6 +1120,7 @@ interface AppMyRouteChildren {
 }
 
 const AppMyRouteChildren: AppMyRouteChildren = {
+  AppMyEarningsRoute: AppMyEarningsRoute,
   AppMyFinanceRoute: AppMyFinanceRoute,
   AppMyProfileRoute: AppMyProfileRoute,
   AppMyIndexRoute: AppMyIndexRoute,

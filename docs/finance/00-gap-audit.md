@@ -4,8 +4,8 @@
 - **Base:** `f3b37bce41ed25daa975a0927861b5c38b9b523b` (`origin/main`)
 - **Scope:** Phase 0 repository audit plus the Phase 1 authoritative financial
   foundation from `ASCORA-FINANCE-PRD.md`.
-- **Not in scope:** Phase 3+ (coach settlement/allocation, platform
-  monetization, reconciliation). Production was not touched.
+- **Not in scope:** Phase 4+ (platform monetization, dashboards, plan limits)
+  and Phase 5 readiness. Production was not touched.
 
 ## Baseline (Phase 0, before finance code)
 
@@ -216,11 +216,52 @@ recorded but not used for calculations.
 
 Phase 2 is **user-complete for the approved scope**. Phase 3 has not started.
 
+## Phase 3 — coach contracts, allocation and settlement (status)
+
+**Implemented and tested:**
+
+1. **Versioned agreements** — effective-dated coach agreement versions with
+   ordered fixed/percent terms for coach, ASCORA and gym recipients, `DIRECT`
+   or `WATERFALL` distribution and explicit `ON_DATE`/`MANUAL` vesting.
+2. **Sale snapshots** — issuing an invoice selects the highest active agreement
+   effective on the issue date and freezes its version and terms on each coach
+   line. A missing agreement leaves the line `UNRESOLVED` without blocking
+   payment intake; issued records are never rewritten.
+3. **Deterministic allocation** — confirmed receipts and applied advances are
+   split across invoice lines by payable with largest-remainder integer math.
+   Bundle discounts are borne by GYM, COACH, ASCORA or pro-rata for `MIXED`;
+   the gym is the deterministic residual and recipient shares always sum to
+   the collected net. Coach shares post a balanced expense/payable journal.
+4. **Earnings and vesting** — calculated, vested, eligible and settled views;
+   `ON_DATE` vesting derives from the receipt date plus the snapshot days;
+   `MANUAL` vesting requires an audited reason. Fixed and waterfall terms are
+   covered, and unresolved/unvested amounts are never eligible.
+5. **Settlements** — manual and partial FIFO settlements capped by the vested
+   eligible balance, a balanced payable-to-cash journal, and an audited
+   recorded→confirmed lifecycle. Coach and finance users can read history.
+6. **Refund discrepancies** — invoice refunds reverse the coach share
+   proportionally. Unsettled share posts a balanced reversal; already-settled
+   share becomes an OPEN discrepancy for a manual, audited resolution. No
+   automatic clawback or negative payout is created.
+7. **Decision #66 correction** — drafts can provide an explicit bundle-discount
+   share per line; the shares must sum to the invoice discount and fit each
+   line. Proportional allocation remains the default.
+8. **Decision #15/#71 (current limitation)** — reminders are **in-app and
+   computed on read only**. There is no SMS, background scheduler or
+   notification platform. The remaining proactive-reminder requirement stays
+   open for a later approved reminder/delivery phase; no scheduler was added.
+9. **UI** — a finance Coaches tab (agreements, earnings, settlements,
+   discrepancies) and a coach `My earnings` page with per-gym calculated,
+   vested, eligible and settled history.
+
+**Phase 3 deliberate exclusions:** automatic coach clawback (#30 remains
+deferred), usage/attendance tracking (#18), advanced analytics (#46), and
+platform monetization/settlement (Phase 4).
+
 ## Remaining phases
 
-3. Coach agreements and allocation, vesting, settlements, reconciliation.
 4. Superuser plans/contracts, platform fees, dashboards, exports, limits.
 5. Readiness: gateway selection (only if enabled), restore/monitoring evidence,
    Iran legal/tax/provider checks, 3–5 gym pilot.
 
-Phase 3 must not start without explicit approval.
+Phase 4 must not start without explicit approval.

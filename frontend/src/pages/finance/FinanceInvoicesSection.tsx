@@ -45,6 +45,7 @@ type LineRow = {
   unitPrice: string
   lineDiscount: string
   bundleDiscount: string
+  coachUserId: string
 }
 
 type InstallmentRow = {
@@ -73,6 +74,7 @@ function emptyLine(): LineRow {
     unitPrice: "",
     lineDiscount: "",
     bundleDiscount: "",
+    coachUserId: "",
   }
 }
 
@@ -86,7 +88,7 @@ export function FinanceInvoicesSection({
   const { show } = useSnackbar()
   const { money, parse } = useMoney(unit)
   const customers = useFinanceCustomers()
-  const { customerOptions, customerName } = customers
+  const { coachOptions, customerOptions, customerName } = customers
 
   const [statusFilter, setStatusFilter] = useState("")
   const [formOpen, setFormOpen] = useState(false)
@@ -193,6 +195,7 @@ export function FinanceInvoicesSection({
         bundleDiscount: line.discount_share_irr
           ? amountInput(line.discount_share_irr, unit)
           : "",
+        coachUserId: line.coach_user_id ?? "",
       })),
     )
     setInstallments(
@@ -302,6 +305,7 @@ export function FinanceInvoicesSection({
         unit_price_irr: price,
         line_discount_irr: lineDiscount,
         bundle_discount_irr: explicitBundle ? bundleDiscount : null,
+        coach_user_id: line.coachUserId || null,
       }
     })
     if (parsedLines.some((line) => line === null)) {
@@ -741,6 +745,18 @@ export function FinanceInvoicesSection({
                     required
                   />
                 </div>
+                <SelectField
+                  label={t("finance.invoice.coach")}
+                  value={line.coachUserId}
+                  onChange={(value) =>
+                    updateLine(line.key, { coachUserId: value })
+                  }
+                  options={[
+                    { value: "", label: t("finance.invoice.noCoach") },
+                    ...coachOptions,
+                  ]}
+                  helper={t("finance.invoice.coachHint")}
+                />
                 <div className="row" style={{ gap: 8, alignItems: "flex-end" }}>
                   <TextField
                     label={t("finance.quantity")}

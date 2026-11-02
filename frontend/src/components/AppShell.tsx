@@ -316,6 +316,12 @@ export function AppShell() {
         label: "nav.templates",
         icon: Bookmark,
       },
+      {
+        to: clubPath("/my/earnings"),
+        params: clubParams,
+        label: "nav.myEarnings",
+        icon: Wallet,
+      },
     ]
   } else {
     navItems = [

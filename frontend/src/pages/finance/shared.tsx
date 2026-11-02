@@ -156,6 +156,12 @@ export function useFinanceCustomers() {
       value: member.user_id,
       label: member.full_name ?? member.email,
     })),
+    coachOptions: customers
+      .filter((member) => member.roles.includes("COACH"))
+      .map((member) => ({
+        value: member.user_id,
+        label: member.full_name ?? member.email,
+      })),
     customerName: (userId: string | null | undefined) => {
       const member = customers.find(
         (item: MemberPublic) => item.user_id === userId,

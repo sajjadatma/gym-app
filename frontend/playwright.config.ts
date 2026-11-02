@@ -18,6 +18,7 @@ export default defineConfig({
   projects: [
     { name: "admin-setup", testMatch: /admin\.setup\.ts/ },
     { name: "athlete-setup", testMatch: /athlete\.setup\.ts/ },
+    { name: "coach-setup", testMatch: /coach\.setup\.ts/ },
     {
       name: "chromium",
       use: {
@@ -27,6 +28,7 @@ export default defineConfig({
       dependencies: ["admin-setup"],
       testIgnore: [
         /athlete(-finance)?\.spec\.ts/,
+        /coach-finance\.spec\.ts/,
         /superuser-context\.spec\.ts/,
       ],
     },
@@ -48,6 +50,15 @@ export default defineConfig({
       },
       dependencies: ["admin-setup"],
       testMatch: /athlete-(archive|import)\.spec\.ts/,
+    },
+    {
+      name: "coach",
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "playwright/.auth/coach.json",
+      },
+      dependencies: ["coach-setup"],
+      testMatch: /coach-finance\.spec\.ts/,
     },
     {
       name: "mobile",
