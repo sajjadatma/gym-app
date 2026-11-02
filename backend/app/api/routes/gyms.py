@@ -40,6 +40,7 @@ from app.models import (
     User,
 )
 from app.services.access import get_membership_roles
+from app.services.finance import ensure_accounts
 from app.services.membership import (
     activate_user,
     add_roles,
@@ -183,6 +184,7 @@ def create_gym(
     session.add(gym)
     session.flush()
     ensure_membership(session, gym_id=gym.id, user_id=existing.id)
+    ensure_accounts(session, gym.id)
     session.flush()
 
     if not existing.hashed_password:

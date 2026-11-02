@@ -1,26 +1,36 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
-from typing import Any, Literal
+from datetime import date, datetime
+from typing import Any, Final, Literal
 
-from sqlalchemy import CheckConstraint, Column
+from pydantic import model_validator
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Column,
+    Index,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.types import JSON
 from sqlmodel import Field, SQLModel
 
 from app.models import get_datetime_utc
 
 FinanceDisplayUnit = Literal["RIAL", "TOMAN"]
-
-FINANCE_VIEW = "finance.view"
-FINANCE_OPENING_MANAGE = "finance.opening.manage"
-FINANCE_PERIOD_MANAGE = "finance.period.manage"
+FinanceAccountType = Literal["ASSET", "LIABILITY", "EQUITY", "INCOME", "EXPENSE"]
+FinanceJournalEvent = Literal["OPENING_BALANCE", "CORRECTION"]
 
 FinancePermissionName = Literal[
     "finance.view",
     "finance.opening.manage",
     "finance.period.manage",
 ]
+
+FINANCE_VIEW: Final[FinancePermissionName] = "finance.view"
+FINANCE_OPENING_MANAGE: Final[FinancePermissionName] = "finance.opening.manage"
+FINANCE_PERIOD_MANAGE: Final[FinancePermissionName] = "finance.period.manage"
 
 # Guardrail for the JavaScript-safe integer transport. 10^15 IRR is one
 # hundred trillion toman, far above any gym amount and below 2^53.
@@ -44,7 +54,7 @@ class FinanceSettings(SQLModel, table=True):
     display_unit: str = Field(default="RIAL", max_length=10)
     timezone: str = Field(default="Asia/Tehran", max_length=64)
     updated_by_id: uuid.UUID | None = Field(
-        default=None, foreign_key="user.id", ondelete="SET NULL"
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
     )
     updated_at: datetime = Field(default_factory=get_datetime_utc)
 
@@ -63,7 +73,7 @@ class FinanceAudit(SQLModel, table=True):
         foreign_key="gym.id", ondelete="CASCADE", index=True
     )
     actor_id: uuid.UUID | None = Field(
-        default=None, foreign_key="user.id", ondelete="SET NULL", index=True
+        default=None, foreign_key="user.id", ondelete="RESTRICT", index=True
     )
     action: str = Field(max_length=64, index=True)
     target_type: str = Field(max_length=32)
@@ -88,3 +98,236 @@ class FinanceSettingsPublic(SQLModel):
     can_manage: bool
     can_toggle: bool
     permissions: list[str]
+
+
+# ---------------------------------------------------------------------------
+# Chart of accounts, periods and sequence
+# ---------------------------------------------------------------------------
+
+
+class FinanceAccount(SQLModel, table=True):
+    __tablename__ = "finance_account"
+    __table_args__ = (
+        UniqueConstraint("gym_id", "code", name="uq_finance_account_gym_code"),
+        CheckConstraint(
+            "type IN ('ASSET', 'LIABILITY', 'EQUITY', 'INCOME', 'EXPENSE')",
+            name="ck_finance_account_type",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    code: str = Field(max_length=20)
+    name: str = Field(max_length=100)
+    type: str = Field(max_length=20)
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+class FinancePeriod(SQLModel, table=True):
+    """A running accounting period. Closing it starts the next one lazily."""
+
+    __tablename__ = "finance_period"
+    __table_args__ = (
+        Index(
+            "uq_finance_period_open",
+            "gym_id",
+            unique=True,
+            postgresql_where=text("closed_at IS NULL"),
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    opened_at: datetime = Field(default_factory=get_datetime_utc)
+    closed_at: datetime | None = Field(default=None)
+    closed_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+class FinanceSequence(SQLModel, table=True):
+    __tablename__ = "finance_sequence"
+    __table_args__ = (
+        UniqueConstraint("gym_id", "doc_type", name="uq_finance_sequence_doc"),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    doc_type: str = Field(max_length=20)
+    last_value: int = Field(default=0)
+
+
+# ---------------------------------------------------------------------------
+# Journal
+# ---------------------------------------------------------------------------
+
+
+class FinanceJournal(SQLModel, table=True):
+    __tablename__ = "finance_journal"
+    __table_args__ = (
+        UniqueConstraint(
+            "gym_id", "entry_number", name="uq_finance_journal_number"
+        ),
+        Index(
+            "uq_finance_journal_opening",
+            "gym_id",
+            unique=True,
+            postgresql_where=text("event_type = 'OPENING_BALANCE'"),
+        ),
+        Index(
+            "uq_finance_journal_reversal",
+            "reversal_of_id",
+            unique=True,
+            postgresql_where=text("reversal_of_id IS NOT NULL"),
+        ),
+        CheckConstraint(
+            "event_type IN ('OPENING_BALANCE', 'CORRECTION')",
+            name="ck_finance_journal_event",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    period_id: uuid.UUID = Field(
+        foreign_key="finance_period.id", ondelete="RESTRICT", index=True
+    )
+    entry_number: int
+    posting_date: date
+    event_type: str = Field(max_length=20)
+    description: str | None = Field(default=None, max_length=500)
+    reversal_of_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_journal.id", ondelete="RESTRICT"
+    )
+    created_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+class FinanceJournalLine(SQLModel, table=True):
+    __tablename__ = "finance_journal_line"
+    __table_args__ = (
+        CheckConstraint(
+            "debit_irr >= 0 AND credit_irr >= 0",
+            name="ck_finance_line_nonnegative",
+        ),
+        CheckConstraint(
+            "(debit_irr > 0) <> (credit_irr > 0)",
+            name="ck_finance_line_single_side",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    journal_id: uuid.UUID = Field(
+        foreign_key="finance_journal.id", ondelete="CASCADE", index=True
+    )
+    account_id: uuid.UUID = Field(
+        foreign_key="finance_account.id", ondelete="RESTRICT", index=True
+    )
+    debit_irr: int = Field(default=0, sa_column=Column(BigInteger, nullable=False))
+    credit_irr: int = Field(default=0, sa_column=Column(BigInteger, nullable=False))
+    memo: str | None = Field(default=None, max_length=200)
+
+
+class FinanceOperation(SQLModel, table=True):
+    """Idempotency record: one stored result per gym and client key."""
+
+    __tablename__ = "finance_operation"
+    __table_args__ = (
+        UniqueConstraint(
+            "gym_id", "operation_key", name="uq_finance_operation_key"
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    operation_key: str = Field(max_length=100)
+    request_hash: str = Field(max_length=64)
+    result_type: str = Field(max_length=32)
+    result_id: uuid.UUID
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+# ---------------------------------------------------------------------------
+# Public/input models
+# ---------------------------------------------------------------------------
+
+
+class FinanceAccountPublic(SQLModel):
+    id: uuid.UUID
+    code: str
+    name: str
+    type: FinanceAccountType
+
+
+class FinanceAccountsPublic(SQLModel):
+    data: list[FinanceAccountPublic]
+    count: int
+
+
+class FinanceJournalLinePublic(SQLModel):
+    id: uuid.UUID
+    account_code: str
+    account_name: str
+    debit_irr: int
+    credit_irr: int
+    memo: str | None = None
+
+
+class FinanceJournalPublic(SQLModel):
+    id: uuid.UUID
+    entry_number: int
+    posting_date: date
+    event_type: FinanceJournalEvent
+    description: str | None = None
+    reversal_of_id: uuid.UUID | None = None
+    period_id: uuid.UUID
+    created_by_id: uuid.UUID | None = None
+    created_by_name: str | None = None
+    created_at: datetime
+    lines: list[FinanceJournalLinePublic]
+
+
+class FinanceJournalsPublic(SQLModel):
+    data: list[FinanceJournalPublic]
+    count: int
+
+
+class FinanceOpeningBalanceLine(SQLModel):
+    account_code: str = Field(min_length=1, max_length=20)
+    debit_irr: int = Field(default=0, ge=0, le=MAX_FINANCE_IRR)
+    credit_irr: int = Field(default=0, ge=0, le=MAX_FINANCE_IRR)
+    memo: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def exactly_one_side(self) -> FinanceOpeningBalanceLine:
+        if (self.debit_irr > 0) == (self.credit_irr > 0):
+            raise ValueError(
+                "exactly one of debit_irr or credit_irr must be positive"
+            )
+        return self
+
+
+class FinanceOpeningBalanceCreate(SQLModel):
+    posting_date: date
+    description: str | None = Field(default=None, max_length=500)
+    lines: list[FinanceOpeningBalanceLine] = Field(min_length=2)
+
+
+class FinanceJournalCorrectionCreate(SQLModel):
+    reason: str = Field(min_length=3, max_length=500)
+    posting_date: date | None = None
+
+
+class FinancePeriodPublic(SQLModel):
+    id: uuid.UUID
+    opened_at: datetime
+    closed_at: datetime | None = None
+    status: Literal["OPEN", "CLOSED"]
+
+
+class FinancePeriodsPublic(SQLModel):
+    data: list[FinancePeriodPublic]
+    count: int
+
