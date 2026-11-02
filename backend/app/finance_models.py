@@ -225,7 +225,7 @@ class FinanceJournal(SQLModel, table=True):
             "'INVOICE_ISSUED', 'INVOICE_VOID', 'RECEIPT_CONFIRMED', "
             "'ADVANCE_APPLIED', 'REFUND_RECORDED', 'EXPENSE_RECORDED', "
             "'EXPENSE_PAID', 'COACH_ALLOCATION', 'COACH_SETTLEMENT', "
-            "'COACH_REFUND_ADJUSTMENT')",
+            "'COACH_ADJUSTMENT')",
             name="ck_finance_journal_event",
         ),
     )
@@ -1548,6 +1548,7 @@ class FinanceCoachEarningPublic(SQLModel):
     calculated_irr: int
     vested_irr: int
     settled_irr: int
+    adjusted_irr: int = 0
     eligible_irr: int
     status: FinanceCoachEarningViewStatus
     unresolved_reason: str | None = None
@@ -1658,4 +1659,103 @@ class FinanceCoachSettlementPublic(SQLModel):
 
 class FinanceCoachSettlementsPublic(SQLModel):
     data: list[FinanceCoachSettlementPublic]
+    count: int
+
+
+class FinanceCoachEarningAdjustment(SQLModel, table=True):
+    __tablename__ = "finance_coach_earning_adjustment"
+    __table_args__ = (
+        UniqueConstraint(
+            "earning_id",
+            "refund_id",
+            name="uq_finance_coach_adjustment_refund",
+        ),
+        CheckConstraint(
+            "amount_irr >= 0 AND applied_irr >= 0 AND discrepancy_irr >= 0 "
+            "AND applied_irr + discrepancy_irr = amount_irr",
+            name="ck_finance_coach_adjustment_amounts",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    earning_id: uuid.UUID = Field(
+        foreign_key="finance_coach_earning.id",
+        ondelete="RESTRICT",
+        index=True,
+    )
+    refund_id: uuid.UUID = Field(
+        foreign_key="finance_refund.id", ondelete="RESTRICT", index=True
+    )
+    amount_irr: int = Field(sa_column=Column(BigInteger, nullable=False))
+    applied_irr: int = Field(default=0, sa_column=Column(BigInteger, nullable=False))
+    discrepancy_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    journal_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_journal.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+FinanceCoachDiscrepancyStatus = Literal["OPEN", "RESOLVED"]
+
+
+class FinanceCoachDiscrepancy(SQLModel, table=True):
+    __tablename__ = "finance_coach_discrepancy"
+    __table_args__ = (
+        CheckConstraint(
+            "amount_irr > 0", name="ck_finance_coach_discrepancy_amount"
+        ),
+        CheckConstraint(
+            "status IN ('OPEN', 'RESOLVED')",
+            name="ck_finance_coach_discrepancy_status",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    coach_user_id: uuid.UUID = Field(
+        foreign_key="user.id", ondelete="RESTRICT", index=True
+    )
+    invoice_id: uuid.UUID = Field(
+        foreign_key="finance_invoice.id", ondelete="RESTRICT", index=True
+    )
+    earning_id: uuid.UUID = Field(
+        foreign_key="finance_coach_earning.id", ondelete="RESTRICT"
+    )
+    refund_id: uuid.UUID = Field(
+        foreign_key="finance_refund.id", ondelete="RESTRICT"
+    )
+    amount_irr: int = Field(sa_column=Column(BigInteger, nullable=False))
+    status: str = Field(default="OPEN", max_length=20)
+    resolution_note: str | None = Field(default=None, max_length=1000)
+    resolved_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    resolved_at: datetime | None = Field(default=None)
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+class FinanceCoachDiscrepancyResolve(SQLModel):
+    resolution_note: str = Field(min_length=3, max_length=1000)
+
+
+class FinanceCoachDiscrepancyPublic(SQLModel):
+    id: uuid.UUID
+    coach_user_id: uuid.UUID
+    coach_name: str | None = None
+    invoice_id: uuid.UUID
+    invoice_number: int | None = None
+    earning_id: uuid.UUID
+    refund_id: uuid.UUID
+    amount_irr: int
+    status: FinanceCoachDiscrepancyStatus
+    resolution_note: str | None = None
+    resolved_at: datetime | None = None
+    created_at: datetime
+
+
+class FinanceCoachDiscrepanciesPublic(SQLModel):
+    data: list[FinanceCoachDiscrepancyPublic]
     count: int

@@ -20,6 +20,9 @@ from app.finance_models import (
     FinanceCoachAgreementCreate,
     FinanceCoachAgreementPublic,
     FinanceCoachAgreementsPublic,
+    FinanceCoachDiscrepanciesPublic,
+    FinanceCoachDiscrepancyPublic,
+    FinanceCoachDiscrepancyResolve,
     FinanceCoachEarningPublic,
     FinanceCoachEarningsPublic,
     FinanceCoachSettlementCreate,
@@ -100,6 +103,7 @@ from app.services.finance import (
     issue_invoice,
     list_catalog,
     list_coach_agreements,
+    list_coach_discrepancies,
     list_coach_earnings,
     list_coach_settlements,
     list_credits,
@@ -125,6 +129,7 @@ from app.services.finance import (
     replace_grants,
     request_my_refund,
     request_refund,
+    resolve_coach_discrepancy,
     resolve_finance_scope,
     resume_membership,
     settings_public,
@@ -1259,4 +1264,41 @@ def read_my_coach_settlements(
         raise HTTPException(status_code=403, detail="coach_access_required")
     return list_coach_settlements(
         session, gym_id=ctx.gym.id, coach_user_id=current_user.id
+    )
+
+
+@router.get(
+    "/coach-discrepancies", response_model=FinanceCoachDiscrepanciesPublic
+)
+def read_coach_discrepancies(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    status: str | None = None,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return list_coach_discrepancies(session, gym_id=ctx.gym.id, status=status)
+
+
+@router.post(
+    "/coach-discrepancies/{discrepancy_id}/resolve",
+    response_model=FinanceCoachDiscrepancyPublic,
+)
+def resolve_finance_coach_discrepancy(
+    *,
+    discrepancy_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceCoachDiscrepancyResolve,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return resolve_coach_discrepancy(
+        session,
+        scope=scope,
+        actor=current_user,
+        discrepancy_id=discrepancy_id,
+        body=body,
     )

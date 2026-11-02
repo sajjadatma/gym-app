@@ -39,7 +39,12 @@ from app.finance_models import (
     FinanceCoachAgreementsPublic,
     FinanceCoachAgreementTerm,
     FinanceCoachAgreementTermPublic,
+    FinanceCoachDiscrepanciesPublic,
+    FinanceCoachDiscrepancy,
+    FinanceCoachDiscrepancyPublic,
+    FinanceCoachDiscrepancyResolve,
     FinanceCoachEarning,
+    FinanceCoachEarningAdjustment,
     FinanceCoachEarningPublic,
     FinanceCoachEarningsPublic,
     FinanceCoachSettlement,
@@ -2821,6 +2826,9 @@ def record_refund(
     refund.journal_id = journal.id
     refund.recorded_at = utcnow()
     session.add(refund)
+    _apply_coach_refund(
+        session, scope=scope, actor=actor, refund=refund
+    )
     record_audit(
         session,
         gym_id=scope.gym_id,
@@ -3767,6 +3775,7 @@ def _earning_public(
         else None
     )
     settled = _earning_settled_irr(session, earning.id)
+    adjusted = _earning_adjustment_irr(session, earning.id)
     if earning.status == "UNRESOLVED":
         status = "UNRESOLVED"
         vested = False
@@ -3804,7 +3813,8 @@ def _earning_public(
         calculated_irr=earning.coach_share_irr,
         vested_irr=vested_irr,
         settled_irr=settled,
-        eligible_irr=max(vested_irr - settled, 0),
+        adjusted_irr=adjusted,
+        eligible_irr=max(vested_irr - settled - adjusted, 0),
         status=status,  # type: ignore[arg-type]
         unresolved_reason=earning.unresolved_reason,
         vesting_mode=earning.vesting_mode,
@@ -3878,6 +3888,17 @@ def vest_coach_earning(
     return _earning_public(session, earning)
 
 
+def _earning_adjustment_irr(session: Session, earning_id: uuid.UUID) -> int:
+    value = session.exec(
+        select(
+            func.coalesce(
+                func.sum(FinanceCoachEarningAdjustment.applied_irr), 0
+            )
+        ).where(FinanceCoachEarningAdjustment.earning_id == earning_id)
+    ).one()
+    return int(value)
+
+
 def _settlement_public(
     session: Session, settlement: FinanceCoachSettlement
 ) -> FinanceCoachSettlementPublic:
@@ -3945,7 +3966,11 @@ def _eligible_earnings(
         )
         if not vested:
             continue
-        remaining = row.coach_share_irr - _earning_settled_irr(session, row.id)
+        remaining = (
+            row.coach_share_irr
+            - _earning_settled_irr(session, row.id)
+            - _earning_adjustment_irr(session, row.id)
+        )
         if remaining > 0:
             eligible.append((row, remaining))
     return eligible
@@ -4117,6 +4142,181 @@ def get_coach_settlement(
     if settlement is None or settlement.gym_id != gym_id:
         raise HTTPException(status_code=404, detail="settlement_not_found")
     return _settlement_public(session, settlement)
+
+
+def _apply_coach_refund(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    refund: FinanceRefund,
+) -> int:
+    if refund.source != "INVOICE" or refund.invoice_id is None:
+        return 0
+    paid = _invoice_paid_irr(session, refund.invoice_id)
+    if paid <= 0:
+        return 0
+    earnings = session.exec(
+        select(FinanceCoachEarning)
+        .where(
+            FinanceCoachEarning.gym_id == scope.gym_id,
+            FinanceCoachEarning.invoice_id == refund.invoice_id,
+            FinanceCoachEarning.coach_share_irr > 0,
+        )
+        .order_by(col(FinanceCoachEarning.created_at))
+    ).all()
+    if not earnings:
+        return 0
+    shares = [row.coach_share_irr for row in earnings]
+    total_share = sum(shares)
+    reversal_total = total_share * refund.amount_irr // paid
+    if reversal_total <= 0:
+        return 0
+    reversals = _split_proportional(reversal_total, shares)
+    adjustments: list[FinanceCoachEarningAdjustment] = []
+    applied_total = 0
+    for earning, reversal in zip(earnings, reversals, strict=True):
+        if reversal <= 0:
+            continue
+        settled = _earning_settled_irr(session, earning.id)
+        previous = _earning_adjustment_irr(session, earning.id)
+        unsettled = max(earning.coach_share_irr - settled - previous, 0)
+        applied = min(reversal, unsettled)
+        discrepancy = reversal - applied
+        adjustment = FinanceCoachEarningAdjustment(
+            gym_id=scope.gym_id,
+            earning_id=earning.id,
+            refund_id=refund.id,
+            amount_irr=reversal,
+            applied_irr=applied,
+            discrepancy_irr=discrepancy,
+        )
+        session.add(adjustment)
+        adjustments.append(adjustment)
+        applied_total += applied
+        if discrepancy > 0:
+            session.add(
+                FinanceCoachDiscrepancy(
+                    gym_id=scope.gym_id,
+                    coach_user_id=earning.coach_user_id,
+                    invoice_id=earning.invoice_id,
+                    earning_id=earning.id,
+                    refund_id=refund.id,
+                    amount_irr=discrepancy,
+                    status="OPEN",
+                )
+            )
+    if not adjustments:
+        return 0
+    session.flush()
+    if applied_total > 0:
+        accounts = ensure_accounts(session, scope.gym_id)
+        journal = post_journal(
+            session,
+            gym_id=scope.gym_id,
+            posting_date=refund.recorded_at.date() if refund.recorded_at else utcnow().date(),
+            event_type="COACH_ADJUSTMENT",
+            description=f"Coach refund adjustment: {refund.reason}",
+            lines=[
+                (accounts["2100"].id, applied_total, 0, "Coach payable reversal"),
+                (accounts["5100"].id, 0, applied_total, "Coach share reversal"),
+            ],
+            created_by_id=actor.id,
+            source_type="finance_refund",
+            source_id=refund.id,
+        )
+        for adjustment in adjustments:
+            if adjustment.applied_irr > 0:
+                adjustment.journal_id = journal.id
+                session.add(adjustment)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.coach_refund.adjusted",
+        target_type="finance_refund",
+        target_id=refund.id,
+        detail={
+            "reversal_irr": reversal_total,
+            "applied_irr": applied_total,
+            "discrepancy_irr": reversal_total - applied_total,
+        },
+    )
+    return reversal_total - applied_total
+
+
+def _discrepancy_public(
+    session: Session, row: FinanceCoachDiscrepancy
+) -> FinanceCoachDiscrepancyPublic:
+    coach = session.get(User, row.coach_user_id)
+    invoice = session.get(FinanceInvoice, row.invoice_id)
+    return FinanceCoachDiscrepancyPublic(
+        id=row.id,
+        coach_user_id=row.coach_user_id,
+        coach_name=(coach.full_name or coach.email) if coach else None,
+        invoice_id=row.invoice_id,
+        invoice_number=invoice.invoice_number if invoice else None,
+        earning_id=row.earning_id,
+        refund_id=row.refund_id,
+        amount_irr=row.amount_irr,
+        status=row.status,  # type: ignore[arg-type]
+        resolution_note=row.resolution_note,
+        resolved_at=row.resolved_at,
+        created_at=row.created_at,
+    )
+
+
+def list_coach_discrepancies(
+    session: Session, *, gym_id: uuid.UUID, status: str | None = None
+) -> FinanceCoachDiscrepanciesPublic:
+    filters: list[Any] = [FinanceCoachDiscrepancy.gym_id == gym_id]
+    if status is not None:
+        filters.append(FinanceCoachDiscrepancy.status == status)
+    rows = session.exec(
+        select(FinanceCoachDiscrepancy)
+        .where(*filters)
+        .order_by(col(FinanceCoachDiscrepancy.created_at).desc())
+    ).all()
+    return FinanceCoachDiscrepanciesPublic(
+        data=[_discrepancy_public(session, row) for row in rows],
+        count=len(rows),
+    )
+
+
+def resolve_coach_discrepancy(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    discrepancy_id: uuid.UUID,
+    body: FinanceCoachDiscrepancyResolve,
+) -> FinanceCoachDiscrepancyPublic:
+    scope.require(FINANCE_SETTLEMENT_MANAGE)
+    row = session.get(FinanceCoachDiscrepancy, discrepancy_id)
+    if row is None or row.gym_id != scope.gym_id:
+        raise HTTPException(status_code=404, detail="coach_discrepancy_not_found")
+    if row.status == "RESOLVED":
+        raise HTTPException(
+            status_code=409, detail="coach_discrepancy_already_resolved"
+        )
+    row.status = "RESOLVED"
+    row.resolution_note = body.resolution_note
+    row.resolved_by_id = actor.id
+    row.resolved_at = utcnow()
+    session.add(row)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.coach_discrepancy.resolved",
+        target_type="finance_coach_discrepancy",
+        target_id=row.id,
+        reason=body.resolution_note,
+        detail={"amount_irr": row.amount_irr},
+    )
+    session.commit()
+    session.refresh(row)
+    return _discrepancy_public(session, row)
 
 
 def list_reminders(
