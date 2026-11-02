@@ -10,7 +10,7 @@ from sqlalchemy import CheckConstraint, Column, Index, Text, UniqueConstraint, t
 from sqlalchemy.types import JSON
 from sqlmodel import Field, SQLModel
 
-GymRole = Literal["GYM_ADMIN", "COACH", "ATHLETE"]
+GymRole = Literal["GYM_ADMIN", "COACH", "ATHLETE", "FINANCE_STAFF"]
 ProgramStatus = Literal["DRAFT", "ACTIVE", "ARCHIVED"]
 ActivationMethod = Literal["invite", "password"]
 
@@ -239,7 +239,7 @@ class GymMembershipRole(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("membership_id", "role", name="uq_membership_role"),
         CheckConstraint(
-            "role IN ('GYM_ADMIN', 'COACH', 'ATHLETE')",
+            "role IN ('GYM_ADMIN', 'COACH', 'ATHLETE', 'FINANCE_STAFF')",
             name="ck_membership_role",
         ),
     )
@@ -1228,3 +1228,7 @@ class PersonOverview(SQLModel):
 # Resolve forward references used by athlete response models.
 for _model in (AthleteDetail, AthleteSelfDetail, AthleteCreated):
     _model.model_rebuild()
+
+# Register finance tables with the shared metadata. Imported last because the
+# finance models reuse ``get_datetime_utc`` from this module.
+from app import finance_models  # noqa: E402,F401  # isort: skip

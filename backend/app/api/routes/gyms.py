@@ -474,7 +474,7 @@ def list_members(
                 col(GymMembership.id).in_(
                     select(GymMembershipRole.membership_id).where(
                         col(GymMembershipRole.role).in_(
-                            ("GYM_ADMIN", "COACH")
+                            ("GYM_ADMIN", "COACH", "FINANCE_STAFF")
                         )
                     )
                 ),

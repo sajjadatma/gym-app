@@ -4,6 +4,7 @@ from app.api.routes import (
     athletes,
     exercise_categories,
     exercises,
+    finance,
     gyms,
     login,
     people,
@@ -27,4 +28,5 @@ api_router.include_router(exercises.router)
 api_router.include_router(exercise_categories.router)
 api_router.include_router(programs.router)
 api_router.include_router(templates.router)
+api_router.include_router(finance.router)
 api_router.include_router(utils.router)
