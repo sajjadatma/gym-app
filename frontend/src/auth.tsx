@@ -25,6 +25,7 @@ type AuthContextValue = {
   isSuperuser: boolean
   isAdmin: boolean
   isCoach: boolean
+  isFinanceStaff: boolean
   isAthlete: boolean
   isOwner: boolean
   mustChangePassword: boolean
@@ -194,6 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isSuperuser = Boolean(me?.is_superuser)
   const isAdmin = isSuperuser || effectiveRole === "GYM_ADMIN"
   const isCoach = effectiveRole === "COACH"
+  const isFinanceStaff = effectiveRole === "FINANCE_STAFF"
   const isAthlete = effectiveRole === "ATHLETE"
 
   const value: AuthContextValue = {
@@ -207,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isSuperuser,
     isAdmin,
     isCoach,
+    isFinanceStaff,
     isAthlete,
     isOwner: Boolean(activeGym?.is_owner),
     mustChangePassword: Boolean(me?.must_change_password),

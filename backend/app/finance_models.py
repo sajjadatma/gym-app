@@ -174,12 +174,9 @@ class FinanceJournal(SQLModel, table=True):
         UniqueConstraint(
             "gym_id", "entry_number", name="uq_finance_journal_number"
         ),
-        Index(
-            "uq_finance_journal_opening",
-            "gym_id",
-            unique=True,
-            postgresql_where=text("event_type = 'OPENING_BALANCE'"),
-        ),
+        # A gym may have several opening journals across corrections. Only
+        # one may be un-reversed at a time; the service enforces that under
+        # the per-gym finance lock because SQL cannot express it here.
         Index(
             "uq_finance_journal_reversal",
             "reversal_of_id",
@@ -359,7 +356,10 @@ class FinanceOpeningBalanceCreate(SQLModel):
 
 class FinanceJournalCorrectionCreate(SQLModel):
     reason: str = Field(min_length=3, max_length=500)
-    posting_date: date | None = None
+    # Posting dates are explicit gym-local calendar dates supplied by the
+    # authorized operator; instants stay in UTC. Reporting-range conversion
+    # using the gym timezone arrives with Phase 4 reports.
+    posting_date: date
 
 
 class FinanceGrantItem(SQLModel):

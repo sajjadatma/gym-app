@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime
 from typing import Any, cast
 
@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
 from app.api.deps import GymContext
+from app.core.audit import audit
 from app.finance_models import (
     FINANCE_OPENING_MANAGE,
     FINANCE_PERIOD_MANAGE,
@@ -109,6 +110,7 @@ def resolve_finance_scope(
     if current_user.is_superuser or ctx.is_admin:
         return FinanceScope(
             gym_id=ctx.gym.id,
+            user_id=current_user.id,
             settings=settings,
             is_admin=True,
             is_superuser=current_user.is_superuser,
@@ -117,6 +119,7 @@ def resolve_finance_scope(
     if "FINANCE_STAFF" in ctx.roles:
         return FinanceScope(
             gym_id=ctx.gym.id,
+            user_id=current_user.id,
             settings=settings,
             is_admin=False,
             is_superuser=False,
@@ -128,6 +131,7 @@ def resolve_finance_scope(
 @dataclass(frozen=True)
 class FinanceScope:
     gym_id: uuid.UUID
+    user_id: uuid.UUID
     settings: FinanceSettings | None
     is_admin: bool
     is_superuser: bool
@@ -172,6 +176,24 @@ class FinanceScope:
         if self.is_admin:
             return None
         return self.grants.get(permission)
+
+
+def reload_finance_scope(session: Session, scope: FinanceScope) -> FinanceScope:
+    """Re-read finance controls after taking the per-gym write lock.
+
+    Settings and grants are changed outside that lock, so a posting must not
+    trust a scope resolved before it acquired the lock.
+    """
+    grants = (
+        {}
+        if scope.is_admin
+        else _grants_for(session, scope.gym_id, scope.user_id)
+    )
+    return replace(
+        scope,
+        settings=get_finance_settings(session, scope.gym_id),
+        grants=grants,
+    )
 
 
 def settings_public(scope: FinanceScope) -> FinanceSettingsPublic:
@@ -279,7 +301,7 @@ def ensure_accounts(
     return by_code
 
 
-def _lock_finance_gym(session: Session, gym_id: uuid.UUID) -> None:
+def lock_finance_gym(session: Session, gym_id: uuid.UUID) -> None:
     """Serialize finance writes for one gym for the current transaction."""
     session.connection().execute(
         text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
@@ -341,7 +363,7 @@ def post_journal(
     created_by_id: uuid.UUID | None,
     reversal_of_id: uuid.UUID | None = None,
 ) -> FinanceJournal:
-    _lock_finance_gym(session, gym_id)
+    lock_finance_gym(session, gym_id)
     total_debit = sum(line[1] for line in lines)
     total_credit = sum(line[2] for line in lines)
     if total_debit != total_credit or total_debit <= 0:
@@ -433,6 +455,29 @@ def _remember(
     )
 
 
+def active_opening_balance(
+    session: Session, gym_id: uuid.UUID
+) -> FinanceJournal | None:
+    """The latest opening journal that has not been reversed."""
+    openings = session.exec(
+        select(FinanceJournal)
+        .where(
+            FinanceJournal.gym_id == gym_id,
+            FinanceJournal.event_type == "OPENING_BALANCE",
+        )
+        .order_by(col(FinanceJournal.entry_number).desc())
+    ).all()
+    for opening in openings:
+        reversal = session.exec(
+            select(FinanceJournal.id).where(
+                FinanceJournal.reversal_of_id == opening.id
+            )
+        ).first()
+        if reversal is None:
+            return opening
+    return None
+
+
 def post_opening_balance(
     session: Session,
     *,
@@ -441,9 +486,11 @@ def post_opening_balance(
     body: FinanceOpeningBalanceCreate,
     operation_key: str,
 ) -> FinanceJournalPublic:
+    scope.require(FINANCE_OPENING_MANAGE)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
     scope.require_enabled()
     scope.require(FINANCE_OPENING_MANAGE)
-    _lock_finance_gym(session, scope.gym_id)
     payload = body.model_dump(mode="json")
     replay = _replay(
         session,
@@ -454,12 +501,7 @@ def post_opening_balance(
     if replay is not None:
         return journal_public(session, replay)
 
-    existing = session.exec(
-        select(FinanceJournal).where(
-            FinanceJournal.gym_id == scope.gym_id,
-            FinanceJournal.event_type == "OPENING_BALANCE",
-        )
-    ).first()
+    existing = active_opening_balance(session, scope.gym_id)
     if existing is not None:
         raise HTTPException(
             status_code=409, detail="finance_opening_balance_exists"
@@ -503,6 +545,13 @@ def post_opening_balance(
             "posting_date": body.posting_date.isoformat(),
         },
     )
+    audit(
+        "finance.opening_balance.posted",
+        actor_id=actor.id,
+        gym_id=scope.gym_id,
+        target_id=journal.id,
+        detail=f"entry={journal.entry_number}",
+    )
     _remember(
         session,
         gym_id=scope.gym_id,
@@ -522,17 +571,18 @@ def post_correction(
     actor: User,
     journal_id: uuid.UUID,
     reason: str,
-    posting_date: date | None,
+    posting_date: date,
     operation_key: str,
 ) -> FinanceJournalPublic:
-    scope.require_enabled()
     if not actor.is_superuser:
         raise HTTPException(status_code=403, detail="superuser_required")
-    _lock_finance_gym(session, scope.gym_id)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
     payload = {
         "journal_id": str(journal_id),
         "reason": reason,
-        "posting_date": posting_date.isoformat() if posting_date else None,
+        "posting_date": posting_date.isoformat(),
     }
     replay = _replay(
         session,
@@ -572,7 +622,7 @@ def post_correction(
     reversal = post_journal(
         session,
         gym_id=scope.gym_id,
-        posting_date=posting_date or utcnow().date(),
+        posting_date=posting_date,
         event_type="CORRECTION",
         description=reason,
         lines=lines,
@@ -593,6 +643,13 @@ def post_correction(
             "reversed_entry_number": journal.entry_number,
         },
     )
+    audit(
+        "finance.journal.corrected",
+        actor_id=actor.id,
+        gym_id=scope.gym_id,
+        target_id=reversal.id,
+        detail=str(journal.id),
+    )
     _remember(
         session,
         gym_id=scope.gym_id,
@@ -608,9 +665,10 @@ def post_correction(
 def close_period(
     session: Session, *, scope: FinanceScope, actor: User
 ) -> FinancePeriodPublic:
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
     scope.require_enabled()
     scope.require(FINANCE_PERIOD_MANAGE)
-    _lock_finance_gym(session, scope.gym_id)
     period = get_open_period(session, scope.gym_id)
     if period is None:
         raise HTTPException(status_code=409, detail="finance_no_open_period")
@@ -827,12 +885,11 @@ def replace_grants(
     target = session.get(User, target_user_id)
     if target is None:
         raise HTTPException(status_code=404, detail="user_not_found")
+    lock_finance_gym(session, scope.gym_id)
     if not active_finance_staff(
         session, gym_id=scope.gym_id, user_id=target_user_id
     ):
         raise HTTPException(status_code=400, detail="finance_staff_required")
-
-    _lock_finance_gym(session, scope.gym_id)
     current = {
         row.permission: row
         for row in _active_grant_rows(
@@ -880,3 +937,35 @@ def replace_grants(
         session, gym_id=scope.gym_id, user_id=target_user_id
     )
     return _grant_row(session, rows=rows, user_id=target_user_id)
+
+
+def revoke_grants_for_user(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    user_id: uuid.UUID,
+    actor_id: uuid.UUID | None,
+    reason: str,
+) -> list[str]:
+    """Revoke every active grant when finance access is taken away."""
+    lock_finance_gym(session, gym_id)
+    rows = _active_grant_rows(session, gym_id=gym_id, user_id=user_id)
+    if not rows:
+        return []
+    now = utcnow()
+    permissions = sorted(row.permission for row in rows)
+    for row in rows:
+        row.revoked_at = now
+        session.add(row)
+    session.flush()
+    record_audit(
+        session,
+        gym_id=gym_id,
+        actor_id=actor_id,
+        action="finance.grants.revoked",
+        target_type="user",
+        target_id=user_id,
+        reason=reason,
+        detail={"permissions": permissions},
+    )
+    return permissions

@@ -123,8 +123,9 @@ used locally.
    same amount in each, and save. The journal shows **سند ۱** with balanced
    debit/credit lines.
 3. Try posting a second opening balance: the action is no longer offered, and
-   the API refuses a duplicate. Only the global superuser can post a linked
-   correction; the original entry stays unchanged.
+   the API refuses a duplicate. A global superuser can correct a wrong opening
+   by reversing it and then posting the restated amount; the original stays
+   unchanged and both documents stay linked.
 4. As the local superuser, turn **مالی باشگاه فعال باشد** off. The gym keeps
    read access to its history, but new postings are refused until it is
    re-enabled.

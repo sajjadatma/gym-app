@@ -182,6 +182,9 @@ const fa = {
   "dashboard.adminSubtitle": "اعضای تیم، ورزشکاران و برنامه‌ها را مدیریت کنید.",
   "dashboard.coachTitle": "میز مربی",
   "dashboard.coachSubtitle": "ورزشکاران تخصیص‌یافته و قالب‌های تمرینی شما.",
+  "dashboard.financeSubtitle": "دفتر مالی، اسناد و دوره‌های مالی این باشگاه.",
+  "finance.openingReversed":
+    "موجودی افتتاحیه قبلی برگشت خورده است؛ موجودی اصلاح‌شده را ثبت کنید.",
   "dashboard.athleteTitle": "فضای ورزشکار",
   "dashboard.athleteSubtitle": "برنامه فعال و پرونده تمرینی شما.",
   "dashboard.gyms": "باشگاه‌ها",
@@ -1241,6 +1244,10 @@ const en: Record<TranslationKey, string> = {
   "dashboard.adminSubtitle": "Manage the team, athletes and programs.",
   "dashboard.coachTitle": "Coach desk",
   "dashboard.coachSubtitle": "Your assigned athletes and reusable templates.",
+  "dashboard.financeSubtitle":
+    "This gym's ledger, documents and accounting periods.",
+  "finance.openingReversed":
+    "The previous opening balance was reversed; post the corrected one.",
   "dashboard.athleteTitle": "Athlete space",
   "dashboard.athleteSubtitle": "Your active program and training profile.",
   "dashboard.gyms": "Gyms",

@@ -61,6 +61,10 @@ SELECT gen_random_uuid(), journal.id, account.id,
 FROM journal
 JOIN finance_account account
   ON account.gym_id = journal.gym_id AND account.code IN ('1000', '3000');
+INSERT INTO finance_sequence (id, gym_id, doc_type, last_value)
+VALUES (gen_random_uuid(), '$finance_gym', 'JOURNAL', 1)
+ON CONFLICT (gym_id, doc_type) DO UPDATE
+  SET last_value = GREATEST(finance_sequence.last_value, 1);
 SQL
 
 output="$(BACKUP_DIR="$TMP/backups" bash scripts/backup_compose.sh)"

@@ -9,6 +9,7 @@ from tests.utils.helpers import (
     add_member,
     auth_headers,
     change_password,
+    create_athlete,
     create_gym,
     gym_headers,
     unique_email,
@@ -235,3 +236,30 @@ def test_coaches_and_athletes_have_no_gym_finance_access(
     coach_response = client.get("/api/v1/finance/settings", headers=coach)
     assert coach_response.status_code == 403, coach_response.text
     assert coach_response.json()["detail"] == "finance_access_denied"
+
+    coach_id = client.get("/api/v1/users/me", headers=coach).json()["id"]
+    athlete_email = unique_email("finance-athlete")
+    create_athlete(
+        client,
+        coach,
+        email=athlete_email,
+        coach_user_id=coach_id,
+        password="athlete-pass-123",
+    )
+    raw = auth_headers(client, athlete_email, "athlete-pass-123")
+    change_password(
+        client,
+        raw,
+        current_password="athlete-pass-123",
+        new_password="athlete-pass-456",
+    )
+    athlete = gym_headers(
+        client,
+        email=athlete_email,
+        password="athlete-pass-456",
+        gym_id=gym_id,
+    )
+    athlete_response = client.get("/api/v1/finance/settings", headers=athlete)
+    assert athlete_response.status_code == 403, athlete_response.text
+    assert athlete_response.json()["detail"] == "finance_access_denied"
+    assert client.get("/api/v1/finance/journal", headers=athlete).status_code == 403

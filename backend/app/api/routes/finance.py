@@ -32,6 +32,7 @@ from app.services.finance import (
     list_grants,
     list_journals,
     list_periods,
+    lock_finance_gym,
     post_correction,
     post_opening_balance,
     record_audit,
@@ -103,6 +104,9 @@ def update_finance_settings(
     if not data:
         return settings_public(scope)
 
+    # Serialize enable/disable with postings so a disable cannot be overtaken
+    # by a posting that resolved the old state.
+    lock_finance_gym(session, ctx.gym.id)
     settings = ensure_settings(session, ctx.gym.id, current_user)
     changes: dict[str, Any] = {}
     if "enabled" in data:
@@ -224,7 +228,7 @@ def correct_finance_journal(
 ) -> Any:
     scope = resolve_finance_scope(session, ctx, current_user)
     try:
-        journal = post_correction(
+        return post_correction(
             session,
             scope=scope,
             actor=current_user,
@@ -235,14 +239,6 @@ def correct_finance_journal(
         )
     except IntegrityError as exc:
         raise _commit_conflict(session, exc) from exc
-    audit(
-        "finance.journal.corrected",
-        actor_id=current_user.id,
-        gym_id=ctx.gym.id,
-        target_id=journal.id,
-        detail=str(journal.reversal_of_id),
-    )
-    return journal
 
 
 @router.get("/grants", response_model=FinanceGrantsPublic)

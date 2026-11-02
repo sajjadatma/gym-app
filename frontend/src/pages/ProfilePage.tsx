@@ -248,7 +248,9 @@ export function ProfilePage() {
                           ? t("context.gymAdmin")
                           : role === "COACH"
                             ? t("context.coach")
-                            : t("context.athlete"),
+                            : role === "FINANCE_STAFF"
+                              ? t("members.financeStaff")
+                              : t("context.athlete"),
                       )
                       .join(" · ")}
                   </span>

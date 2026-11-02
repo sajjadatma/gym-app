@@ -33,7 +33,7 @@ import {
   TextField,
 } from "@/components/M3"
 import { useI18n } from "@/i18n"
-import { formatIrr, parseAmountInUnit } from "@/lib/money"
+import { formatIrr, parseAmountInUnit, parseIrrInput } from "@/lib/money"
 import { useSnackbar } from "@/snackbar"
 
 type OpeningLine = {
@@ -156,9 +156,19 @@ export function FinancePage() {
   const entryNumbers = new Map(
     entries.map((entry) => [entry.id, entry.entry_number]),
   )
+  const reversedIds = new Set(
+    entries
+      .filter((entry) => entry.reversal_of_id)
+      .map((entry) => entry.reversal_of_id as string),
+  )
+  // The latest opening balance that has not been reversed is the active one;
+  // a superuser may restate it by reversing and posting a corrected opening.
   const openingEntry = entries.find(
     (entry) =>
-      entry.event_type === "OPENING_BALANCE" && entry.reversal_of_id === null,
+      entry.event_type === "OPENING_BALANCE" && !reversedIds.has(entry.id),
+  )
+  const hadOpening = entries.some(
+    (entry) => entry.event_type === "OPENING_BALANCE",
   )
   const canPost =
     settings.enabled &&
@@ -321,9 +331,7 @@ export function FinancePage() {
     if (!grantTarget) return
     const grants: FinanceGrantItem[] = []
     if (grantOpening) {
-      const limit = grantLimit.trim()
-        ? parseAmountInUnit(grantLimit, "RIAL")
-        : null
+      const limit = grantLimit.trim() ? parseIrrInput(grantLimit) : null
       if (grantLimit.trim() && limit === null) {
         setFormError(t("finance.invalidAmount"))
         return
@@ -431,8 +439,17 @@ export function FinancePage() {
             </div>
           </div>
         ) : (
-          <p className="muted">{t("finance.journalEmptyHint")}</p>
+          <p className="muted">
+            {hadOpening
+              ? t("finance.openingReversed")
+              : t("finance.journalEmptyHint")}
+          </p>
         )}
+        {accountsQuery.isError ? (
+          <div className="m3-inline-alert" role="alert">
+            {translateApiError(accountsQuery.error, t)}
+          </div>
+        ) : null}
       </SectionCard>
 
       <div style={{ height: 16 }} />
@@ -443,6 +460,12 @@ export function FinancePage() {
       >
         {journalQuery.isLoading ? (
           <Spinner label={t("common.loading")} />
+        ) : journalQuery.isError ? (
+          <ErrorState
+            message={translateApiError(journalQuery.error, t)}
+            retryLabel={t("common.retry")}
+            onRetry={() => journalQuery.refetch()}
+          />
         ) : entries.length === 0 ? (
           <EmptyState
             icon={<BookOpen size={24} />}
@@ -482,8 +505,8 @@ export function FinancePage() {
                       <p className="muted">{entry.description}</p>
                     ) : null}
                   </div>
-                  {entry.event_type === "OPENING_BALANCE" &&
-                  entry.reversal_of_id === null &&
+                  {entry.id === openingEntry?.id &&
+                  settings.enabled &&
                   settings.can_toggle ? (
                     <Button
                       variant="text"
@@ -553,7 +576,13 @@ export function FinancePage() {
           ) : null
         }
       >
-        {periods.length === 0 ? (
+        {periodsQuery.isError ? (
+          <ErrorState
+            message={translateApiError(periodsQuery.error, t)}
+            retryLabel={t("common.retry")}
+            onRetry={() => periodsQuery.refetch()}
+          />
+        ) : periods.length === 0 ? (
           <p className="muted">{t("finance.noPeriods")}</p>
         ) : (
           <div className="stack">

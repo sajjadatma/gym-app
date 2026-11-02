@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-import json
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -13,7 +11,6 @@ from sqlmodel import Session, select
 
 from app.finance_models import FinanceAudit
 from tests.api.routes.test_finance_foundation import make_owner
-from tests.utils.helpers import unique_email
 
 pytestmark = pytest.mark.usefixtures("client")
 
@@ -235,10 +232,7 @@ def test_only_superuser_can_correct_an_opening_balance(
     assert reversal["event_type"] == "CORRECTION"
     assert reversal["entry_number"] == 2
     assert reversal["reversal_of_id"] == created["id"]
-    assert reversed(
-        (line["account_code"], line["debit_irr"], line["credit_irr"])
-        for line in reversal["lines"]
-    )
+    assert reversal_lines_are_swapped(reversal["lines"])
 
     twice = correct(
         client,
@@ -252,15 +246,17 @@ def test_only_superuser_can_correct_an_opening_balance(
     missing = client.post(
         f"/api/v1/finance/journal/{uuid.uuid4()}/correct",
         headers={**superuser_gym(superuser_headers, str(gym["id"])), **idem()},
-        json={"reason": "not there"},
+        json={"reason": "not there", "posting_date": "2026-11-02"},
     )
     assert missing.status_code == 404, missing.text
 
 
-def reversed(lines: Any) -> bool:
-    entries = list(lines)
+def reversal_lines_are_swapped(lines: list[dict[str, Any]]) -> bool:
     expected = {("1000", 0, 500_000), ("3000", 500_000, 0)}
-    return set(entries) == expected
+    return {
+        (line["account_code"], line["debit_irr"], line["credit_irr"])
+        for line in lines
+    } == expected
 
 
 def test_correction_is_idempotent_for_the_same_key(
@@ -280,7 +276,10 @@ def test_correction_is_idempotent_for_the_same_key(
     reused = client.post(
         f"/api/v1/finance/journal/{created['id']}/correct",
         headers={**headers, **idem(key)},
-        json={"reason": "Different reason with the same key"},
+        json={
+            "reason": "Different reason with the same key",
+            "posting_date": "2026-11-02",
+        },
     )
     assert reused.status_code == 409, reused.text
     assert reused.json()["detail"] == "idempotency_key_reused"
@@ -497,12 +496,6 @@ def test_opening_balance_request_hash_covers_the_payload(
     assert changed.json()["detail"] == "idempotency_key_reused"
 
 
-def canonical_hash(payload: dict[str, Any]) -> str:
-    return hashlib.sha256(
-        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
-
-
 def test_superuser_can_disable_and_read_history_for_a_gym_with_no_settings_row(
     client: TestClient, superuser_headers: dict[str, str]
 ) -> None:
@@ -519,5 +512,98 @@ def test_superuser_can_disable_and_read_history_for_a_gym_with_no_settings_row(
         is False
     )
 
-    email = unique_email("unused")
-    assert email
+
+
+def test_a_reversed_opening_balance_can_be_reposted_with_corrected_amounts(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Restated Opening Gym")
+    first = post_opening(client, owner, opening_payload(debit=500_000))
+    assert first.status_code == 200, first.text
+
+    corrected = correct(
+        client,
+        superuser_gym(superuser_headers, str(gym["id"])),
+        first.json()["id"],
+        reason="Wrong opening amount",
+    )
+    assert corrected.status_code == 200, corrected.text
+
+    restated = post_opening(
+        client,
+        owner,
+        opening_payload(debit=700_000),
+        key=uuid.uuid4().hex,
+    )
+    assert restated.status_code == 200, restated.text
+    assert restated.json()["entry_number"] == 3
+
+    entries = client.get("/api/v1/finance/journal", headers=owner).json()["data"]
+    assert [entry["event_type"] for entry in entries] == [
+        "OPENING_BALANCE",
+        "CORRECTION",
+        "OPENING_BALANCE",
+    ]
+    active = entries[0]
+    assert {
+        (line["account_code"], line["debit_irr"], line["credit_irr"])
+        for line in active["lines"]
+    } == {("1000", 700_000, 0), ("3000", 0, 700_000)}
+
+    # Only one opening may be active at a time.
+    assert post_opening(
+        client, owner, opening_payload(debit=900_000), key=uuid.uuid4().hex
+    ).status_code == 409
+
+
+def test_settings_and_period_changes_are_audited(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Audit Coverage Gym")
+    headers = superuser_gym(superuser_headers, str(gym["id"]))
+
+    assert (
+        client.patch(
+            "/api/v1/finance/settings",
+            headers=owner,
+            json={"display_unit": "TOMAN"},
+        ).status_code
+        == 200
+    )
+    assert (
+        client.patch(
+            "/api/v1/finance/settings", headers=headers, json={"enabled": False}
+        ).status_code
+        == 200
+    )
+    assert (
+        client.patch(
+            "/api/v1/finance/settings", headers=headers, json={"enabled": True}
+        ).status_code
+        == 200
+    )
+    assert post_opening(client, owner).status_code == 200
+    assert client.post("/api/v1/finance/periods/close", headers=owner).status_code == 200
+
+    from app.finance_models import FinanceAudit
+
+    rows = db_session.exec(
+        select(FinanceAudit)
+        .where(FinanceAudit.gym_id == uuid.UUID(str(gym["id"])))
+        .order_by(FinanceAudit.created_at)
+    ).all()
+    actions = [row.action for row in rows]
+    assert actions.count("finance.settings.updated") == 3
+    assert "finance.period.closed" in actions
+
+    settings_rows = [row for row in rows if row.action == "finance.settings.updated"]
+    assert settings_rows[0].detail["changes"]["display_unit"]["to"] == "TOMAN"
+    assert settings_rows[1].detail["changes"]["enabled"] == {
+        "from": True,
+        "to": False,
+    }
+    closed = next(row for row in rows if row.action == "finance.period.closed")
+    assert closed.target_type == "finance_period"
+    assert closed.target_id is not None

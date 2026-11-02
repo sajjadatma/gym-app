@@ -111,11 +111,33 @@ explicit action grants. No generic RBAC layer was built.
 | Permissions | staff/coach/athlete denial, grant allow-list, IRR cap, disabled mode |
 | Default flag | enabled with no settings row; only Superuser toggles |
 | Concurrency | concurrent opening balance and concurrent correction each post once |
+| Control changes | settings/grant changes are re-read under the same per-gym lock, so a disable or lowered cap cannot be overtaken by an in-flight posting |
 | Idempotency | same key replays the same journal; changed payload is rejected |
-| Audit | actor, action, reason, linkage asserted from `finance_audit` |
-| Migration | upgrade/downgrade/re-upgrade, metadata check, real-Postgres constraints |
-| Restore | backup/restore drill with a posted journal and balance verification |
+| Audit | actor, action, reason, linkage asserted from `finance_audit` for settings, opening, correction, grants and period close |
+| Migration | full upgrade → downgrade to pre-finance → upgrade; metadata check; real-Postgres constraints and deferred balance trigger |
+| Restore | backup/restore drill with a posted journal and balance/line-count verification |
+| Retention | a user with finance history is refused a hard delete with `409 user_has_finance_history` instead of a server error |
 | No regression | full backend, frontend, unit and Playwright suites pass |
+
+### Corrections semantics
+
+A correction is an immutable reversal that references the original. So the
+original is voided but never edited. Because only one opening balance may be
+*active* per gym, a superuser who entered a wrong opening corrects it by
+reversing it and then posting the restated opening; the journal keeps both
+documents linked. `uq_finance_journal_reversal` guarantees a journal can be
+reversed once, and the "one active opening" rule is enforced under the per-gym
+finance lock (SQL cannot express "not referenced by a reversal" without
+mutating posted rows).
+
+### Date policy
+
+Instants are stored in UTC. Journal `posting_date` is an explicit gym-local
+calendar date supplied by the authorized operator, and it is required for both
+opening balances and corrections. Reporting-range conversion using the stored
+gym timezone arrives with the Phase 4 reports; until then the setting is
+recorded but not used for calculations.
+
 
 ## Remaining phases
 

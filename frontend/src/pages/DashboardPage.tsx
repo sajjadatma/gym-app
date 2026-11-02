@@ -37,6 +37,7 @@ export function DashboardPage() {
     isSuperuser,
     isAdmin,
     isCoach,
+    isFinanceStaff,
     isAthlete,
     gyms,
   } = useAuth()
@@ -209,7 +210,9 @@ export function DashboardPage() {
               ? "dashboard.athleteSubtitle"
               : isCoach
                 ? "dashboard.coachSubtitle"
-                : "dashboard.adminSubtitle",
+                : isFinanceStaff
+                  ? "dashboard.financeSubtitle"
+                  : "dashboard.adminSubtitle",
         )}
       />
 
@@ -231,7 +234,9 @@ export function DashboardPage() {
                   ? "context.adminMode"
                   : activeRole === "COACH"
                     ? "context.coachMode"
-                    : "context.athleteMode",
+                    : activeRole === "FINANCE_STAFF"
+                      ? "context.financeMode"
+                      : "context.athleteMode",
               )}
             </span>
           ) : null}

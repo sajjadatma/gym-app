@@ -40,7 +40,7 @@ from app.models import (
     User,
 )
 from app.services.access import get_membership_roles
-from app.services.finance import ensure_accounts
+from app.services.finance import ensure_accounts, revoke_grants_for_user
 from app.services.membership import (
     activate_user,
     add_roles,
@@ -594,6 +594,22 @@ def update_member(
     if body.is_active is not None:
         membership.is_active = body.is_active
         session.add(membership)
+    if body.is_active is False:
+        revoke_grants_for_user(
+            session,
+            gym_id=gym_id,
+            user_id=membership.user_id,
+            actor_id=current_user.id,
+            reason="membership_deactivated",
+        )
+    elif body.roles is not None and "FINANCE_STAFF" not in body.roles:
+        revoke_grants_for_user(
+            session,
+            gym_id=gym_id,
+            user_id=membership.user_id,
+            actor_id=current_user.id,
+            reason="finance_role_removed",
+        )
     session.commit()
     audit(
         "membership.updated",

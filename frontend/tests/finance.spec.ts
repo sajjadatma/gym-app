@@ -1,5 +1,9 @@
 import { expect, test } from "@playwright/test"
 
+// The CI docker stack starts from a fresh seeded database, so the posting
+// branch below always runs there. Against a reused local database the gym may
+// already have an opening balance, in which case the test still asserts the
+// posted state that the feature produces.
 test("gym admin posts and reviews the opening balance journal", async ({
   page,
 }) => {
@@ -27,7 +31,10 @@ test("gym admin posts and reviews the opening balance journal", async ({
     await expect(dialog).toBeHidden()
   }
 
-  // The posted journal is visible with its balanced lines.
+  // The gym has an active opening journal with its balanced lines.
+  await expect(
+    page.getByText("موجودی افتتاحیه ثبت شده است.", { exact: false }).first(),
+  ).toBeVisible()
   await expect(page.getByText("سند ۱").first()).toBeVisible()
   await expect(page.getByText("نقد و بانک").first()).toBeVisible()
 })

@@ -9,7 +9,6 @@ from sqlmodel import Session, col, select
 from app.finance_models import FinanceAudit, FinanceGrant
 from tests.api.routes.test_finance_foundation import add_staff, make_owner
 from tests.api.routes.test_finance_journal import opening_payload, post_opening
-from tests.utils.helpers import unique_email
 
 pytestmark = pytest.mark.usefixtures("client")
 
@@ -319,5 +318,97 @@ def test_grant_changes_leave_an_audit_trail(
     ).all()
     assert active == []
 
-    email = unique_email("unused")
-    assert email
+
+def _membership_id(
+    client: TestClient, owner: dict[str, str], gym_id: str, user_id: str
+) -> str:
+    return next(
+        row["membership_id"]
+        for row in client.get(
+            f"/api/v1/gyms/{gym_id}/members?staff_only=true", headers=owner
+        ).json()["data"]
+        if row["user_id"] == user_id
+    )
+
+
+def test_removing_the_finance_role_revokes_active_grants(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Role Removal Gym")
+    gym_id = str(gym["id"])
+    staff = add_staff(client, owner, gym_id, roles=["FINANCE_STAFF"])
+    staff_id = client.get("/api/v1/users/me", headers=staff).json()["id"]
+    assert (
+        grant(
+            client,
+            owner,
+            staff_id,
+            [{"permission": "finance.opening.manage"}],
+        ).status_code
+        == 200
+    )
+
+    updated = client.patch(
+        f"/api/v1/gyms/{gym_id}/members/{_membership_id(client, owner, gym_id, staff_id)}",
+        headers=owner,
+        json={"roles": ["COACH"]},
+    )
+    assert updated.status_code == 200, updated.text
+
+    assert client.get("/api/v1/finance/grants", headers=owner).json()["count"] == 0
+    denied = client.get("/api/v1/finance/settings", headers=staff)
+    assert denied.status_code == 403, denied.text
+    assert denied.json()["detail"] == "finance_access_denied"
+
+    rows = db_session.exec(
+        select(FinanceAudit)
+        .where(FinanceAudit.gym_id == uuid.UUID(gym_id))
+        .order_by(FinanceAudit.created_at)
+    ).all()
+    revoked = [row for row in rows if row.action == "finance.grants.revoked"]
+    assert len(revoked) == 1
+    assert revoked[0].target_id == uuid.UUID(staff_id)
+    assert revoked[0].detail["permissions"] == ["finance.opening.manage"]
+
+    # Re-adding the role later must not silently restore the old grant.
+    readded = client.patch(
+        f"/api/v1/gyms/{gym_id}/members/{_membership_id(client, owner, gym_id, staff_id)}",
+        headers=owner,
+        json={"roles": ["FINANCE_STAFF"]},
+    )
+    assert readded.status_code == 200, readded.text
+    settings = client.get("/api/v1/finance/settings", headers=staff)
+    assert settings.status_code == 200, settings.text
+    assert settings.json()["permissions"] == ["finance.view"]
+    assert client.get("/api/v1/finance/grants", headers=owner).json()["count"] == 0
+
+
+def test_deactivating_a_finance_membership_revokes_active_grants(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Deactivate Grants Gym")
+    gym_id = str(gym["id"])
+    staff = add_staff(client, owner, gym_id, roles=["FINANCE_STAFF"])
+    staff_id = client.get("/api/v1/users/me", headers=staff).json()["id"]
+    assert (
+        grant(
+            client,
+            owner,
+            staff_id,
+            [{"permission": "finance.period.manage"}],
+        ).status_code
+        == 200
+    )
+
+    deactivated = client.patch(
+        f"/api/v1/gyms/{gym_id}/members/{_membership_id(client, owner, gym_id, staff_id)}",
+        headers=owner,
+        json={"is_active": False},
+    )
+    assert deactivated.status_code == 200, deactivated.text
+
+    assert client.get("/api/v1/finance/grants", headers=owner).json()["count"] == 0
+    blocked = client.get("/api/v1/finance/settings", headers=staff)
+    assert blocked.status_code == 403, blocked.text

@@ -20,6 +20,7 @@ from tests.test_migrations import (
 pytestmark = pytest.mark.migrations
 
 FOUNDATION_REVISION = "b2d4e6f8a0c1"
+PRE_FINANCE_REVISION = "c1d2e3f4a5b6"
 
 
 @pytest.fixture()
@@ -78,7 +79,8 @@ def _post_journal(
     """Insert a balanced opening journal directly, returning (journal, line)."""
     period_id = uuid.uuid4()
     journal_id = uuid.uuid4()
-    line_id = uuid.uuid4()
+    debit_line_id = uuid.uuid4()
+    credit_line_id = uuid.uuid4()
     insert = create_engine(engine)
     try:
         with insert.begin() as connection:
@@ -118,17 +120,20 @@ def _post_journal(
                 text(
                     """INSERT INTO finance_journal_line
                        (id, journal_id, account_id, debit_irr, credit_irr, memo)
-                       VALUES (:id, :journal, :account, 500000, 0, NULL)"""
+                       VALUES (:debit_id, :journal, :debit_account, 500000, 0, NULL),
+                              (:credit_id, :journal, :credit_account, 0, 500000, NULL)"""
                 ),
                 {
-                    "id": line_id,
+                    "debit_id": debit_line_id,
+                    "credit_id": credit_line_id,
                     "journal": journal_id,
-                    "account": accounts["1000"],
+                    "debit_account": accounts["1000"],
+                    "credit_account": accounts["3000"],
                 },
             )
     finally:
         insert.dispose()
-    return journal_id, line_id
+    return journal_id, debit_line_id
 
 
 def test_finance_migration_creates_schema_and_role_then_rolls_back(
@@ -297,100 +302,82 @@ def test_journal_line_requires_exactly_one_positive_side(
         engine.dispose()
 
 
-def test_database_prevents_two_opening_balances_for_one_gym(
+def test_database_rejects_an_unbalanced_journal(
     migrated_database: URL, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _set_alembic_database(monkeypatch, migrated_database)
-    gym_id, user_id = _gym_at_head(migrated_database, monkeypatch)
-    _journal_id, _line_id = _post_journal(
-        migrated_database, gym_id=gym_id, user_id=user_id
-    )
+    gym_id, _user_id = _gym_at_head(migrated_database, monkeypatch)
 
     engine = create_engine(migrated_database)
     try:
         with engine.connect() as connection:
-            period_id = connection.execute(
-                text("SELECT id FROM finance_period WHERE gym_id = :gym"),
+            cash_id = connection.execute(
+                text(
+                    """SELECT id FROM finance_account
+                       WHERE gym_id = :gym AND code = '1000'"""
+                ),
                 {"gym": gym_id},
             ).scalar_one()
 
         with pytest.raises(DBAPIError) as failure:
             with engine.begin() as connection:
-                connection.execute(
+                period_id = connection.execute(
+                    text(
+                        """INSERT INTO finance_period
+                           (id, gym_id, opened_at, created_at)
+                           VALUES (gen_random_uuid(), :gym, now(), now())
+                           RETURNING id"""
+                    ),
+                    {"gym": gym_id},
+                ).scalar_one()
+                journal_id = connection.execute(
                     text(
                         """INSERT INTO finance_journal
                            (id, gym_id, period_id, entry_number, posting_date,
-                            event_type, description, reversal_of_id,
-                            created_by_id, created_at)
-                           VALUES (:id, :gym, :period, 2, DATE '2026-11-02',
-                                   'OPENING_BALANCE', 'Second', NULL, :actor, now())"""
+                            event_type, description, created_at)
+                           VALUES (gen_random_uuid(), :gym, :period, 1,
+                                   current_date, 'OPENING_BALANCE', 'bad', now())
+                           RETURNING id"""
                     ),
-                    {
-                        "id": uuid.uuid4(),
-                        "gym": gym_id,
-                        "period": period_id,
-                        "actor": user_id,
-                    },
+                    {"gym": gym_id, "period": period_id},
+                ).scalar_one()
+                connection.execute(
+                    text(
+                        """INSERT INTO finance_journal_line
+                           (id, journal_id, account_id, debit_irr, credit_irr,
+                            memo)
+                           VALUES (gen_random_uuid(), :journal, :account,
+                                   1000, 0, NULL)"""
+                    ),
+                    {"journal": journal_id, "account": cash_id},
                 )
-        assert "uq_finance_journal_opening" in str(failure.value)
+        assert "not balanced" in str(failure.value)
     finally:
         engine.dispose()
 
 
-def test_database_allows_only_one_active_grant_per_permission(
+def test_finance_migrations_downgrade_to_pre_finance_and_back(
     migrated_database: URL, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _set_alembic_database(monkeypatch, migrated_database)
     config = _alembic_config()
     command.upgrade(config, "head")
-    gym_id, user_id = _gym_at_head(migrated_database, monkeypatch)
+    command.downgrade(config, PRE_FINANCE_REVISION)
 
     engine = create_engine(migrated_database)
     try:
-        first_id = uuid.uuid4()
-        with engine.begin() as connection:
-            connection.execute(
+        tables = set(inspect(engine).get_table_names())
+        assert {table for table in tables if table.startswith("finance_")} == set()
+        with engine.connect() as connection:
+            definition = connection.execute(
                 text(
-                    """INSERT INTO finance_grant
-                       (id, gym_id, user_id, permission, amount_limit_irr,
-                        granted_by_id, created_at, revoked_at)
-                       VALUES (:id, :gym, :user, 'finance.opening.manage',
-                               NULL, :user, now(), NULL)"""
-                ),
-                {"id": first_id, "gym": gym_id, "user": user_id},
-            )
-
-        with pytest.raises(DBAPIError) as failure:
-            with engine.begin() as connection:
-                connection.execute(
-                    text(
-                        """INSERT INTO finance_grant
-                           (id, gym_id, user_id, permission, amount_limit_irr,
-                            granted_by_id, created_at, revoked_at)
-                           VALUES (:id, :gym, :user, 'finance.opening.manage',
-                                   NULL, :user, now(), NULL)"""
-                    ),
-                    {"id": uuid.uuid4(), "gym": gym_id, "user": user_id},
+                    """SELECT pg_get_constraintdef(oid)
+                       FROM pg_constraint
+                       WHERE conname = 'ck_membership_role'"""
                 )
-        assert "uq_finance_grant_active" in str(failure.value)
-
-        with engine.begin() as connection:
-            connection.execute(
-                text(
-                    "UPDATE finance_grant SET revoked_at = now() WHERE id = :id"
-                ),
-                {"id": first_id},
-            )
-        with engine.begin() as connection:
-            connection.execute(
-                text(
-                    """INSERT INTO finance_grant
-                       (id, gym_id, user_id, permission, amount_limit_irr,
-                        granted_by_id, created_at, revoked_at)
-                       VALUES (:id, :gym, :user, 'finance.opening.manage',
-                               NULL, :user, now(), NULL)"""
-                ),
-                {"id": uuid.uuid4(), "gym": gym_id, "user": user_id},
-            )
+            ).scalar_one()
+        assert "FINANCE_STAFF" not in definition
     finally:
         engine.dispose()
+
+    command.upgrade(config, "head")
+    command.check(config)

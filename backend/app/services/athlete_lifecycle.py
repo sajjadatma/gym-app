@@ -4,6 +4,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
 from app.api.deps import (
@@ -322,7 +323,15 @@ def delete_athlete_record(
     ).all()
     if not memberships and not owns_a_gym:
         session.delete(access.user)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        # Finance history references the actor with ON DELETE RESTRICT.
+        # Refuse the whole deletion rather than erasing financial evidence.
+        session.rollback()
+        raise HTTPException(
+            status_code=409, detail="user_has_finance_history"
+        ) from exc
     audit(
         "athlete.deleted",
         actor_id=current_user.id,

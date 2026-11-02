@@ -1176,7 +1176,7 @@ export type FinanceJournalCorrectionCreate = {
     /**
      * Posting Date
      */
-    posting_date?: string | null;
+    posting_date: string;
 };
 
 /**
