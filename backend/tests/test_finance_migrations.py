@@ -150,6 +150,7 @@ def test_finance_migration_creates_schema_and_role_then_rolls_back(
             "finance_sequence",
             "finance_journal",
             "finance_journal_line",
+            "finance_grant",
             "finance_operation",
         }.issubset(tables)
 
@@ -332,5 +333,64 @@ def test_database_prevents_two_opening_balances_for_one_gym(
                     },
                 )
         assert "uq_finance_journal_opening" in str(failure.value)
+    finally:
+        engine.dispose()
+
+
+def test_database_allows_only_one_active_grant_per_permission(
+    migrated_database: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_alembic_database(monkeypatch, migrated_database)
+    config = _alembic_config()
+    command.upgrade(config, "head")
+    gym_id, user_id = _gym_at_head(migrated_database, monkeypatch)
+
+    engine = create_engine(migrated_database)
+    try:
+        first_id = uuid.uuid4()
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO finance_grant
+                       (id, gym_id, user_id, permission, amount_limit_irr,
+                        granted_by_id, created_at, revoked_at)
+                       VALUES (:id, :gym, :user, 'finance.opening.manage',
+                               NULL, :user, now(), NULL)"""
+                ),
+                {"id": first_id, "gym": gym_id, "user": user_id},
+            )
+
+        with pytest.raises(DBAPIError) as failure:
+            with engine.begin() as connection:
+                connection.execute(
+                    text(
+                        """INSERT INTO finance_grant
+                           (id, gym_id, user_id, permission, amount_limit_irr,
+                            granted_by_id, created_at, revoked_at)
+                           VALUES (:id, :gym, :user, 'finance.opening.manage',
+                                   NULL, :user, now(), NULL)"""
+                    ),
+                    {"id": uuid.uuid4(), "gym": gym_id, "user": user_id},
+                )
+        assert "uq_finance_grant_active" in str(failure.value)
+
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "UPDATE finance_grant SET revoked_at = now() WHERE id = :id"
+                ),
+                {"id": first_id},
+            )
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO finance_grant
+                       (id, gym_id, user_id, permission, amount_limit_irr,
+                        granted_by_id, created_at, revoked_at)
+                       VALUES (:id, :gym, :user, 'finance.opening.manage',
+                               NULL, :user, now(), NULL)"""
+                ),
+                {"id": uuid.uuid4(), "gym": gym_id, "user": user_id},
+            )
     finally:
         engine.dispose()

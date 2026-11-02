@@ -12,6 +12,9 @@ from app.finance_models import (
     FINANCE_VIEW,
     FinanceAccountPublic,
     FinanceAccountsPublic,
+    FinanceGrantRow,
+    FinanceGrantsPublic,
+    FinanceGrantUpdate,
     FinanceJournalCorrectionCreate,
     FinanceJournalPublic,
     FinanceJournalsPublic,
@@ -26,11 +29,13 @@ from app.services.finance import (
     close_period,
     ensure_settings,
     get_journal,
+    list_grants,
     list_journals,
     list_periods,
     post_correction,
     post_opening_balance,
     record_audit,
+    replace_grants,
     resolve_finance_scope,
     settings_public,
     utcnow,
@@ -238,6 +243,42 @@ def correct_finance_journal(
         detail=str(journal.reversal_of_id),
     )
     return journal
+
+
+@router.get("/grants", response_model=FinanceGrantsPublic)
+def read_finance_grants(
+    *, session: SessionDep, ctx: GymContextDep, current_user: CurrentUser
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require_admin()
+    return list_grants(session, gym_id=ctx.gym.id)
+
+
+@router.put("/grants/{user_id}", response_model=FinanceGrantRow)
+def update_finance_grants(
+    *,
+    user_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceGrantUpdate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    row = replace_grants(
+        session,
+        scope=scope,
+        actor=current_user,
+        target_user_id=user_id,
+        body=body,
+    )
+    audit(
+        "finance.grants.updated",
+        actor_id=current_user.id,
+        gym_id=ctx.gym.id,
+        target_id=user_id,
+        detail=",".join(item.permission for item in body.grants),
+    )
+    return row
 
 
 @router.get("/periods", response_model=FinancePeriodsPublic)

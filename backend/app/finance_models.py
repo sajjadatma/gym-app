@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import Any, Final, Literal
 
-from pydantic import model_validator
+from pydantic import EmailStr, model_validator
 from sqlalchemy import (
     BigInteger,
     CheckConstraint,
@@ -24,6 +24,11 @@ FinanceJournalEvent = Literal["OPENING_BALANCE", "CORRECTION"]
 
 FinancePermissionName = Literal[
     "finance.view",
+    "finance.opening.manage",
+    "finance.period.manage",
+]
+
+GrantableFinancePermission = Literal[
     "finance.opening.manage",
     "finance.period.manage",
 ]
@@ -230,6 +235,43 @@ class FinanceJournalLine(SQLModel, table=True):
     memo: str | None = Field(default=None, max_length=200)
 
 
+class FinanceGrant(SQLModel, table=True):
+    """A gym-scoped finance action grant for a finance staff member.
+
+    ``finance.view`` is implicit for the role; only actions are granted, with
+    an optional per-grant IRR ceiling.
+    """
+
+    __tablename__ = "finance_grant"
+    __table_args__ = (
+        Index(
+            "uq_finance_grant_active",
+            "gym_id",
+            "user_id",
+            "permission",
+            unique=True,
+            postgresql_where=text("revoked_at IS NULL"),
+        ),
+        CheckConstraint(
+            "permission IN ('finance.opening.manage', 'finance.period.manage')",
+            name="ck_finance_grant_permission",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id", ondelete="CASCADE", index=True)
+    permission: str = Field(max_length=40)
+    amount_limit_irr: int | None = Field(
+        default=None, sa_column=Column(BigInteger, nullable=True)
+    )
+    granted_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+    revoked_at: datetime | None = Field(default=None)
+
+
 class FinanceOperation(SQLModel, table=True):
     """Idempotency record: one stored result per gym and client key."""
 
@@ -318,6 +360,36 @@ class FinanceOpeningBalanceCreate(SQLModel):
 class FinanceJournalCorrectionCreate(SQLModel):
     reason: str = Field(min_length=3, max_length=500)
     posting_date: date | None = None
+
+
+class FinanceGrantItem(SQLModel):
+    permission: GrantableFinancePermission
+    amount_limit_irr: int | None = Field(
+        default=None, ge=0, le=MAX_FINANCE_IRR
+    )
+
+
+class FinanceGrantUpdate(SQLModel):
+    grants: list[FinanceGrantItem]
+
+    @model_validator(mode="after")
+    def unique_permissions(self) -> FinanceGrantUpdate:
+        permissions = [item.permission for item in self.grants]
+        if len(permissions) != len(set(permissions)):
+            raise ValueError("duplicate finance permission")
+        return self
+
+
+class FinanceGrantRow(SQLModel):
+    user_id: uuid.UUID
+    email: EmailStr
+    full_name: str | None = None
+    grants: list[FinanceGrantItem]
+
+
+class FinanceGrantsPublic(SQLModel):
+    data: list[FinanceGrantRow]
+    count: int
 
 
 class FinancePeriodPublic(SQLModel):

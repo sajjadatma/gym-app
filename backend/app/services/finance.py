@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
-from typing import Any
+from typing import Any, cast
 
 from fastapi import HTTPException
 from sqlalchemy import func, text
@@ -18,6 +18,11 @@ from app.finance_models import (
     FINANCE_VIEW,
     FinanceAccount,
     FinanceAudit,
+    FinanceGrant,
+    FinanceGrantItem,
+    FinanceGrantRow,
+    FinanceGrantsPublic,
+    FinanceGrantUpdate,
     FinanceJournal,
     FinanceJournalLine,
     FinanceJournalLinePublic,
@@ -32,6 +37,7 @@ from app.finance_models import (
     FinanceSequence,
     FinanceSettings,
     FinanceSettingsPublic,
+    GrantableFinancePermission,
 )
 from app.models import User
 
@@ -80,6 +86,22 @@ def finance_enabled(session: Session, gym_id: uuid.UUID) -> bool:
     return settings.enabled if settings else True
 
 
+def _grants_for(
+    session: Session, gym_id: uuid.UUID, user_id: uuid.UUID
+) -> dict[FinancePermissionName, int | None]:
+    rows = session.exec(
+        select(FinanceGrant).where(
+            FinanceGrant.gym_id == gym_id,
+            FinanceGrant.user_id == user_id,
+            col(FinanceGrant.revoked_at).is_(None),
+        )
+    ).all()
+    return {
+        cast(FinancePermissionName, row.permission): row.amount_limit_irr
+        for row in rows
+    }
+
+
 def resolve_finance_scope(
     session: Session, ctx: GymContext, current_user: User
 ) -> FinanceScope:
@@ -93,14 +115,12 @@ def resolve_finance_scope(
             grants={},
         )
     if "FINANCE_STAFF" in ctx.roles:
-        # Action grants arrive with the grant slice; a finance staff member
-        # sees read-only finance until an explicit grant exists.
         return FinanceScope(
             gym_id=ctx.gym.id,
             settings=settings,
             is_admin=False,
             is_superuser=False,
-            grants={},
+            grants=_grants_for(session, ctx.gym.id, current_user.id),
         )
     raise HTTPException(status_code=403, detail="finance_access_denied")
 
@@ -715,3 +735,148 @@ def list_periods(session: Session, *, gym_id: uuid.UUID) -> FinancePeriodsPublic
         data=[period_public(period) for period in periods],
         count=len(periods),
     )
+
+
+# ---------------------------------------------------------------------------
+# Finance staff action grants
+# ---------------------------------------------------------------------------
+
+
+def active_finance_staff(
+    session: Session, *, gym_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    from app.models import GymMembership, GymMembershipRole
+
+    membership = session.exec(
+        select(GymMembership).where(
+            GymMembership.gym_id == gym_id,
+            GymMembership.user_id == user_id,
+            col(GymMembership.is_active).is_(True),
+        )
+    ).first()
+    if membership is None:
+        return False
+    role = session.exec(
+        select(GymMembershipRole).where(
+            GymMembershipRole.membership_id == membership.id,
+            GymMembershipRole.role == "FINANCE_STAFF",
+        )
+    ).first()
+    return role is not None
+
+
+def _active_grant_rows(
+    session: Session, *, gym_id: uuid.UUID, user_id: uuid.UUID | None = None
+) -> list[FinanceGrant]:
+    statement = select(FinanceGrant).where(
+        FinanceGrant.gym_id == gym_id,
+        col(FinanceGrant.revoked_at).is_(None),
+    )
+    if user_id is not None:
+        statement = statement.where(FinanceGrant.user_id == user_id)
+    return list(
+        session.exec(statement.order_by(col(FinanceGrant.created_at))).all()
+    )
+
+
+def _grant_items(rows: list[FinanceGrant]) -> list[FinanceGrantItem]:
+    return [
+        FinanceGrantItem(
+            permission=cast(GrantableFinancePermission, row.permission),
+            amount_limit_irr=row.amount_limit_irr,
+        )
+        for row in rows
+    ]
+
+
+def _grant_row(
+    session: Session, *, rows: list[FinanceGrant], user_id: uuid.UUID
+) -> FinanceGrantRow:
+    user = session.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="user_not_found")
+    return FinanceGrantRow(
+        user_id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        grants=_grant_items(rows),
+    )
+
+
+def list_grants(session: Session, *, gym_id: uuid.UUID) -> FinanceGrantsPublic:
+    rows = _active_grant_rows(session, gym_id=gym_id)
+    grouped: dict[uuid.UUID, list[FinanceGrant]] = {}
+    for row in rows:
+        grouped.setdefault(row.user_id, []).append(row)
+    data = [
+        _grant_row(session, rows=items, user_id=user_id)
+        for user_id, items in grouped.items()
+    ]
+    return FinanceGrantsPublic(data=data, count=len(data))
+
+
+def replace_grants(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    target_user_id: uuid.UUID,
+    body: FinanceGrantUpdate,
+) -> FinanceGrantRow:
+    scope.require_admin()
+    target = session.get(User, target_user_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="user_not_found")
+    if not active_finance_staff(
+        session, gym_id=scope.gym_id, user_id=target_user_id
+    ):
+        raise HTTPException(status_code=400, detail="finance_staff_required")
+
+    _lock_finance_gym(session, scope.gym_id)
+    current = {
+        row.permission: row
+        for row in _active_grant_rows(
+            session, gym_id=scope.gym_id, user_id=target_user_id
+        )
+    }
+    desired = {item.permission: item.amount_limit_irr for item in body.grants}
+    now = utcnow()
+    revoked: list[str] = []
+    for permission, row in current.items():
+        if permission not in desired or row.amount_limit_irr != desired[permission]:
+            row.revoked_at = now
+            session.add(row)
+            revoked.append(permission)
+    session.flush()
+
+    granted: list[dict[str, Any]] = []
+    for permission, limit in desired.items():
+        existing = current.get(permission)
+        if existing is not None and existing.amount_limit_irr == limit:
+            continue
+        session.add(
+            FinanceGrant(
+                gym_id=scope.gym_id,
+                user_id=target_user_id,
+                permission=permission,
+                amount_limit_irr=limit,
+                granted_by_id=actor.id,
+            )
+        )
+        granted.append({"permission": permission, "amount_limit_irr": limit})
+    session.flush()
+
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.grants.updated",
+        target_type="user",
+        target_id=target_user_id,
+        detail={"granted": granted, "revoked": revoked},
+    )
+    session.commit()
+    rows = _active_grant_rows(
+        session, gym_id=scope.gym_id, user_id=target_user_id
+    )
+    return _grant_row(session, rows=rows, user_id=target_user_id)
