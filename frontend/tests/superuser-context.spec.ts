@@ -571,3 +571,20 @@ test("global list state is restored from the URL and Back works", async ({
   expect(requests.at(-1)).toContain("offset=0")
   expect(requests.at(-1)).toContain("limit=10")
 })
+
+test("superuser reaches club finance and sees superuser-only controls", async ({
+  page,
+}) => {
+  await loginAsSuperuser(page)
+  await page.getByRole("button", { name: "ورود به باشگاه" }).first().click()
+  await page.waitForURL(/\/gyms\/[0-9a-f-]+/)
+  const gymId = page.url().match(/\/gyms\/([0-9a-f-]{36})/)?.[1]
+  expect(gymId).toBeTruthy()
+
+  await page.goto(`/gyms/${gymId}/finance`)
+  await expect(page.getByRole("heading", { name: "مالی باشگاه" })).toBeVisible()
+  // Only a global superuser can enable or disable the module.
+  await expect(
+    page.getByRole("switch", { name: "مالی باشگاه فعال باشد" }),
+  ).toBeVisible()
+})
