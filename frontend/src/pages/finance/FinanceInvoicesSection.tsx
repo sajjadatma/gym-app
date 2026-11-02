@@ -44,6 +44,7 @@ type LineRow = {
   quantity: string
   unitPrice: string
   lineDiscount: string
+  bundleDiscount: string
 }
 
 type InstallmentRow = {
@@ -71,6 +72,7 @@ function emptyLine(): LineRow {
     quantity: "1",
     unitPrice: "",
     lineDiscount: "",
+    bundleDiscount: "",
   }
 }
 
@@ -188,6 +190,9 @@ export function FinanceInvoicesSection({
         lineDiscount: line.line_discount_irr
           ? amountInput(line.line_discount_irr, unit)
           : "",
+        bundleDiscount: line.discount_share_irr
+          ? amountInput(line.discount_share_irr, unit)
+          : "",
       })),
     )
     setInstallments(
@@ -269,16 +274,23 @@ export function FinanceInvoicesSection({
       setFormError(t("finance.chooseCustomer"))
       return null
     }
+    const explicitBundle = lines.some((line) => line.bundleDiscount.trim())
     const parsedLines = lines.map((line) => {
       const price = parse(line.unitPrice)
       const quantity = Number(normalizeDigits(line.quantity))
       const lineDiscount = line.lineDiscount ? parse(line.lineDiscount) : 0
+      const bundleDiscount = line.bundleDiscount
+        ? parse(line.bundleDiscount)
+        : explicitBundle
+          ? null
+          : 0
       if (
         !line.description.trim() ||
         price === null ||
         !Number.isSafeInteger(quantity) ||
         quantity < 1 ||
-        lineDiscount === null
+        lineDiscount === null ||
+        bundleDiscount === null
       ) {
         return null
       }
@@ -289,6 +301,7 @@ export function FinanceInvoicesSection({
         quantity,
         unit_price_irr: price,
         line_discount_irr: lineDiscount,
+        bundle_discount_irr: explicitBundle ? bundleDiscount : null,
       }
     })
     if (parsedLines.some((line) => line === null)) {
@@ -762,6 +775,20 @@ export function FinanceInvoicesSection({
                       })
                     }
                   />
+                  {total() > 0 || parse(discount) ? (
+                    <TextField
+                      label={t("finance.invoice.bundleDiscount")}
+                      helper={t("finance.invoice.bundleDiscountHint")}
+                      value={line.bundleDiscount}
+                      inputMode="decimal"
+                      dir="auto"
+                      onChange={(event) =>
+                        updateLine(line.key, {
+                          bundleDiscount: normalizeDigits(event.target.value),
+                        })
+                      }
+                    />
+                  ) : null}
                   <span className="muted">{money(lineNet(line))}</span>
                   {lines.length > 1 ? (
                     <Button

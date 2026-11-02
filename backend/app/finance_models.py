@@ -641,6 +641,9 @@ class FinanceInvoiceLineInput(SQLModel):
     quantity: int = Field(default=1, ge=1, le=10_000)
     unit_price_irr: int = Field(ge=0, le=MAX_FINANCE_IRR)
     line_discount_irr: int = Field(default=0, ge=0, le=MAX_FINANCE_IRR)
+    # Optional explicit share of the invoice-level bundle discount. When one
+    # line provides it, every line must, and the shares must sum exactly.
+    bundle_discount_irr: int | None = Field(default=None, ge=0, le=MAX_FINANCE_IRR)
 
 
 class FinanceInstallmentInput(SQLModel):

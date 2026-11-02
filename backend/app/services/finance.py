@@ -1220,20 +1220,41 @@ def _invoice_lines(
         raise HTTPException(
             status_code=400, detail="finance_discount_exceeds_total"
         )
-    shares = [body.discount_irr * net // subtotal for net in nets] if subtotal else [0] * len(nets)
-    remainder = body.discount_irr - sum(shares)
-    # Deterministic residual: fill the largest lines first, then line order,
-    # so every share stays inside its own line and the total is exact.
-    for index in sorted(range(len(nets)), key=lambda i: (-nets[i], i)):
-        if remainder == 0:
-            break
-        take = min(nets[index] - shares[index], remainder)
-        shares[index] += take
-        remainder -= take
-    if remainder != 0:
-        raise HTTPException(
-            status_code=400, detail="finance_discount_exceeds_total"
+    explicit = [item.bundle_discount_irr for item in body.lines]
+    if any(value is not None for value in explicit):
+        if any(value is None for value in explicit):
+            raise HTTPException(
+                status_code=400,
+                detail="finance_discount_allocation_mismatch",
+            )
+        shares = [int(value) for value in explicit if value is not None]
+        if any(
+            share > net for share, net in zip(shares, nets, strict=True)
+        ) or sum(shares) != body.discount_irr:
+            raise HTTPException(
+                status_code=400,
+                detail="finance_discount_allocation_mismatch",
+            )
+    else:
+        shares = (
+            [body.discount_irr * net // subtotal for net in nets]
+            if subtotal
+            else [0] * len(nets)
         )
+        remainder = body.discount_irr - sum(shares)
+        # Deterministic residual: fill the largest lines first, then line
+        # order, so every share stays inside its own line and the total is
+        # exact.
+        for index in sorted(range(len(nets)), key=lambda i: (-nets[i], i)):
+            if remainder == 0:
+                break
+            take = min(nets[index] - shares[index], remainder)
+            shares[index] += take
+            remainder -= take
+        if remainder != 0:
+            raise HTTPException(
+                status_code=400, detail="finance_discount_exceeds_total"
+            )
     rows = [
         {
             "line_number": index + 1,

@@ -1006,6 +1006,9 @@ const fa = {
     "اگر مبلغی تعیین شود، دسترسی فقط با پرداخت این حداقل فعال می‌شود.",
   "finance.membership.unusedDays": "روزهای استفاده‌نشده",
   "finance.days": "روز",
+  "finance.invoice.bundleDiscount": "تخصیص تخفیف بسته",
+  "finance.invoice.bundleDiscountHint":
+    "خالی بگذارید تا به نسبت مبلغ ردیف‌ها تقسیم شود.",
   "finance.tabOverview": "نمای کلی",
   "finance.tabInvoices": "فاکتورها",
   "finance.tabCatalog": "فروش و خدمات",
@@ -2305,6 +2308,9 @@ const en: Record<TranslationKey, string> = {
     "When set, access activates only after this minimum is paid.",
   "finance.membership.unusedDays": "Unused days",
   "finance.days": "days",
+  "finance.invoice.bundleDiscount": "Bundle discount share",
+  "finance.invoice.bundleDiscountHint":
+    "Leave blank to split proportionally by line amount.",
   "finance.tabOverview": "Overview",
   "finance.tabInvoices": "Invoices",
   "finance.tabCatalog": "Catalog",

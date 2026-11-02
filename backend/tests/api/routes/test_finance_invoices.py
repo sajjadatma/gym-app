@@ -342,6 +342,86 @@ def test_bundle_discount_proration_is_exact_to_the_rial(
     assert negative_line.status_code == 400, negative_line.text
 
 
+def test_bundle_discount_can_be_allocated_per_line(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Allocation Gym")
+    customer = make_customer(client, owner, str(gym["id"]))
+    lines = [
+        {
+            "kind": "CUSTOM",
+            "description": "first",
+            "quantity": 1,
+            "unit_price_irr": 10_000,
+            "bundle_discount_irr": 5_000,
+        },
+        {
+            "kind": "CUSTOM",
+            "description": "second",
+            "quantity": 1,
+            "unit_price_irr": 10_000,
+            "bundle_discount_irr": 1_000,
+        },
+    ]
+
+    draft = create_draft(
+        client, owner, invoice_payload(customer, discount=6_000, lines=lines)
+    )
+    assert draft.status_code == 200, draft.text
+    body = draft.json()
+    assert [line["discount_share_irr"] for line in body["lines"]] == [5_000, 1_000]
+    assert [line["payable_irr"] for line in body["lines"]] == [5_000, 9_000]
+    assert body["total_irr"] == 14_000
+
+    issued = issue(client, owner, body["id"])
+    assert issued.status_code == 200, issued.text
+    assert [
+        line["discount_share_irr"] for line in issued.json()["lines"]
+    ] == [5_000, 1_000]
+
+    asymmetric = create_draft(
+        client,
+        owner,
+        invoice_payload(
+            customer,
+            discount=6_000,
+            lines=[lines[0], {**lines[1], "bundle_discount_irr": None}],
+        ),
+    )
+    assert asymmetric.status_code == 400, asymmetric.text
+    assert asymmetric.json()["detail"] == "finance_discount_allocation_mismatch"
+
+    wrong_total = create_draft(
+        client,
+        owner,
+        invoice_payload(
+            customer,
+            discount=6_000,
+            lines=[
+                {**lines[0], "bundle_discount_irr": 4_000},
+                {**lines[1], "bundle_discount_irr": 1_000},
+            ],
+        ),
+    )
+    assert wrong_total.status_code == 400, wrong_total.text
+    assert wrong_total.json()["detail"] == "finance_discount_allocation_mismatch"
+
+    over_line = create_draft(
+        client,
+        owner,
+        invoice_payload(
+            customer,
+            discount=20_000,
+            lines=[
+                {**lines[0], "bundle_discount_irr": 20_000},
+                {**lines[1], "bundle_discount_irr": 0},
+            ],
+        ),
+    )
+    assert over_line.status_code == 400, over_line.text
+    assert over_line.json()["detail"] == "finance_discount_allocation_mismatch"
+
+
 def test_installments_must_match_the_invoice_total(
     client: TestClient, superuser_headers: dict[str, str]
 ) -> None:
