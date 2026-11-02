@@ -277,7 +277,7 @@ export function FinanceMembershipsSection({
                       </span>
                       <span>
                         {t("finance.invoice.paid")}:{" "}
-                        {formatNumber(membership.paid_irr)}
+                        {money(membership.paid_irr)}
                       </span>
                       <span
                         className="m3-chip"

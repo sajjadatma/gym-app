@@ -19,6 +19,7 @@ import {
 import { useI18n } from "@/i18n"
 import { useSnackbar } from "@/snackbar"
 import {
+  amountInput,
   type FinanceSectionProps,
   methodLabel,
   newKey,
@@ -406,11 +407,7 @@ export function FinanceRefundsSection({ settings, unit }: FinanceSectionProps) {
                 setInvoiceId(value)
                 const invoice = invoices.find((item) => item.id === value)
                 if (invoice) {
-                  setAmount(
-                    unit === "TOMAN"
-                      ? String(Math.trunc(invoice.balance_irr / 10))
-                      : String(invoice.balance_irr),
-                  )
+                  setAmount(amountInput(invoice.balance_irr, unit))
                 }
               }}
               options={invoices.map((invoice) => ({
