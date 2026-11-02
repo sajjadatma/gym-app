@@ -1552,6 +1552,20 @@ export type FinanceCoachEarningPublic = {
 };
 
 /**
+ * FinanceCoachEarningResolve
+ */
+export type FinanceCoachEarningResolve = {
+    /**
+     * Agreement Id
+     */
+    agreement_id: string;
+    /**
+     * Reason
+     */
+    reason: string;
+};
+
+/**
  * FinanceCoachEarningsPublic
  */
 export type FinanceCoachEarningsPublic = {
@@ -9305,6 +9319,42 @@ export type financeResolveFinanceCoachDiscrepancyResponses = {
 };
 
 export type financeResolveFinanceCoachDiscrepancyResponse = financeResolveFinanceCoachDiscrepancyResponses[keyof financeResolveFinanceCoachDiscrepancyResponses];
+
+export type financeResolveFinanceCoachEarningData = {
+    body: FinanceCoachEarningResolve;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Earning Id
+         */
+        earning_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/coach-earnings/{earning_id}/resolve';
+};
+
+export type financeResolveFinanceCoachEarningErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeResolveFinanceCoachEarningError = financeResolveFinanceCoachEarningErrors[keyof financeResolveFinanceCoachEarningErrors];
+
+export type financeResolveFinanceCoachEarningResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachEarningPublic;
+};
+
+export type financeResolveFinanceCoachEarningResponse = financeResolveFinanceCoachEarningResponses[keyof financeResolveFinanceCoachEarningResponses];
 
 export type utilsHealthCheckData = {
     body?: never;

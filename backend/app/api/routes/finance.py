@@ -24,6 +24,7 @@ from app.finance_models import (
     FinanceCoachDiscrepancyPublic,
     FinanceCoachDiscrepancyResolve,
     FinanceCoachEarningPublic,
+    FinanceCoachEarningResolve,
     FinanceCoachEarningsPublic,
     FinanceCoachSettlementCreate,
     FinanceCoachSettlementPublic,
@@ -130,6 +131,7 @@ from app.services.finance import (
     request_my_refund,
     request_refund,
     resolve_coach_discrepancy,
+    resolve_coach_earning,
     resolve_finance_scope,
     resume_membership,
     settings_public,
@@ -1300,5 +1302,27 @@ def resolve_finance_coach_discrepancy(
         scope=scope,
         actor=current_user,
         discrepancy_id=discrepancy_id,
+        body=body,
+    )
+
+
+@router.post(
+    "/coach-earnings/{earning_id}/resolve",
+    response_model=FinanceCoachEarningPublic,
+)
+def resolve_finance_coach_earning(
+    *,
+    earning_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceCoachEarningResolve,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return resolve_coach_earning(
+        session,
+        scope=scope,
+        actor=current_user,
+        earning_id=earning_id,
         body=body,
     )

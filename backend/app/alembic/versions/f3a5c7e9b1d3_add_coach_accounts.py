@@ -46,8 +46,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
-        sa.text(
-            "DELETE FROM finance_account WHERE code IN ('2100', '5100')"
-        )
-    )
+    # Keep the accounts: coach journals/earnings may still reference them and
+    # account rows are harmless in an older schema. Deleting them would make
+    # the downgrade fail on the RESTRICT foreign keys.
+    pass

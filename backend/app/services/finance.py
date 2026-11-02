@@ -7,7 +7,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
 
 from fastapi import HTTPException
-from sqlalchemy import func, text
+from sqlalchemy import func, or_, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
@@ -46,6 +46,7 @@ from app.finance_models import (
     FinanceCoachEarning,
     FinanceCoachEarningAdjustment,
     FinanceCoachEarningPublic,
+    FinanceCoachEarningResolve,
     FinanceCoachEarningsPublic,
     FinanceCoachSettlement,
     FinanceCoachSettlementCreate,
@@ -1698,6 +1699,20 @@ def _create_coach_earnings(
             if line.coach_allocation_status == "SNAPSHOTTED"
             else None
         )
+        resolved = None
+        if snapshot is None:
+            resolved = session.exec(
+                select(FinanceCoachEarning)
+                .where(
+                    FinanceCoachEarning.invoice_line_id == line.id,
+                    col(FinanceCoachEarning.agreement_id).is_not(None),
+                )
+                .order_by(col(FinanceCoachEarning.created_at).desc())
+            ).first()
+        if snapshot is None and resolved is not None:
+            agreement_row = session.get(FinanceCoachAgreement, resolved.agreement_id)
+            if agreement_row is not None:
+                snapshot = _agreement_snapshot(session, agreement_row)
         discount_portion = (
             line.discount_share_irr * portion // line.payable_irr
             if line.payable_irr > 0
@@ -1717,6 +1732,26 @@ def _create_coach_earnings(
                 discount_irr=discount_portion,
                 discount_funding=invoice.discount_funding,
             )
+            scheduled_coach, _, _ = _allocate_coach_shares(
+                snapshot,
+                base_irr=line.net_irr,
+                discount_irr=line.discount_share_irr,
+                discount_funding=invoice.discount_funding,
+            )
+            prior_coach = session.exec(
+                select(
+                    func.coalesce(
+                        func.sum(FinanceCoachEarning.coach_share_irr), 0
+                    )
+                ).where(
+                    FinanceCoachEarning.gym_id == scope.gym_id,
+                    FinanceCoachEarning.invoice_line_id == line.id,
+                )
+            ).one()
+            remaining_coach = max(scheduled_coach - int(prior_coach), 0)
+            if coach > remaining_coach:
+                gym += coach - remaining_coach
+                coach = remaining_coach
             status = "CALCULATED"
             reason = None
             vesting_mode = snapshot.get("vesting_mode", "MANUAL")
@@ -1775,6 +1810,40 @@ def _create_coach_earnings(
     return coach_total
 
 
+def _agreement_snapshot(
+    session: Session, agreement: FinanceCoachAgreement
+) -> dict[str, Any]:
+    terms = session.exec(
+        select(FinanceCoachAgreementTerm)
+        .where(FinanceCoachAgreementTerm.agreement_id == agreement.id)
+        .order_by(col(FinanceCoachAgreementTerm.sequence))
+    ).all()
+    return {
+        "agreement_id": str(agreement.id),
+        "version": agreement.version,
+        "mode": agreement.mode,
+        "vesting_mode": agreement.vesting_mode,
+        "vesting_days": agreement.vesting_days,
+        "effective_from": agreement.effective_from.isoformat(),
+        "effective_to": (
+            agreement.effective_to.isoformat()
+            if agreement.effective_to
+            else None
+        ),
+        "terms": [
+            {
+                "sequence": term.sequence,
+                "recipient": term.recipient,
+                "basis": term.basis,
+                "percent_bp": term.percent_bp,
+                "fixed_irr": term.fixed_irr,
+                "label": term.label,
+            }
+            for term in terms
+        ],
+    }
+
+
 def _snapshot_invoice_coaches(
     session: Session, *, invoice: FinanceInvoice, issue_date: date
 ) -> None:
@@ -1798,6 +1867,10 @@ def _snapshot_invoice_coaches(
                 FinanceCoachAgreement.coach_user_id == line.coach_user_id,
                 FinanceCoachAgreement.status == "ACTIVE",
                 FinanceCoachAgreement.effective_from <= issue_date,
+                or_(
+                    col(FinanceCoachAgreement.effective_to).is_(None),
+                    col(FinanceCoachAgreement.effective_to) >= issue_date,
+                ),
             )
             .order_by(col(FinanceCoachAgreement.version).desc())
         ).first()
@@ -1814,40 +1887,10 @@ def _snapshot_invoice_coaches(
             line.agreement_snapshot = None
             session.add(line)
             continue
-        terms = session.exec(
-            select(FinanceCoachAgreementTerm)
-            .where(
-                FinanceCoachAgreementTerm.agreement_id == agreement.id
-            )
-            .order_by(col(FinanceCoachAgreementTerm.sequence))
-        ).all()
         line.coach_allocation_status = "SNAPSHOTTED"
         line.coach_agreement_id = agreement.id
         line.coach_agreement_version = agreement.version
-        line.agreement_snapshot = {
-            "agreement_id": str(agreement.id),
-            "version": agreement.version,
-            "mode": agreement.mode,
-            "vesting_mode": agreement.vesting_mode,
-            "vesting_days": agreement.vesting_days,
-            "effective_from": agreement.effective_from.isoformat(),
-            "effective_to": (
-                agreement.effective_to.isoformat()
-                if agreement.effective_to
-                else None
-            ),
-            "terms": [
-                {
-                    "sequence": term.sequence,
-                    "recipient": term.recipient,
-                    "basis": term.basis,
-                    "percent_bp": term.percent_bp,
-                    "fixed_irr": term.fixed_irr,
-                    "label": term.label,
-                }
-                for term in terms
-            ],
-        }
+        line.agreement_snapshot = _agreement_snapshot(session, agreement)
         session.add(line)
 
 
@@ -2828,7 +2871,11 @@ def record_refund(
     refund.recorded_at = utcnow()
     session.add(refund)
     _apply_coach_refund(
-        session, scope=scope, actor=actor, refund=refund
+        session,
+        scope=scope,
+        actor=actor,
+        refund=refund,
+        posting_date=posting_date,
     )
     record_audit(
         session,
@@ -3869,6 +3916,10 @@ def vest_coach_earning(
         raise HTTPException(status_code=404, detail="coach_earning_not_found")
     if earning.status == "UNRESOLVED":
         raise HTTPException(status_code=409, detail="coach_earning_unresolved")
+    if earning.vesting_mode == "ON_DATE" and earning.vested_at is None:
+        raise HTTPException(
+            status_code=409, detail="coach_earning_not_manual_vesting"
+        )
     if earning.vested_at is None:
         earning.vested_at = utcnow()
         earning.vested_by_id = actor.id
@@ -4154,6 +4205,7 @@ def _apply_coach_refund(
     scope: FinanceScope,
     actor: User,
     refund: FinanceRefund,
+    posting_date: date,
 ) -> int:
     if refund.source != "INVOICE" or refund.invoice_id is None:
         return 0
@@ -4218,7 +4270,7 @@ def _apply_coach_refund(
         journal = post_journal(
             session,
             gym_id=scope.gym_id,
-            posting_date=refund.recorded_at.date() if refund.recorded_at else utcnow().date(),
+            posting_date=posting_date,
             event_type="COACH_ADJUSTMENT",
             description=f"Coach refund adjustment: {refund.reason}",
             lines=[
@@ -4321,6 +4373,82 @@ def resolve_coach_discrepancy(
     session.commit()
     session.refresh(row)
     return _discrepancy_public(session, row)
+
+
+def resolve_coach_earning(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    earning_id: uuid.UUID,
+    body: FinanceCoachEarningResolve,
+) -> FinanceCoachEarningPublic:
+    scope.require(FINANCE_COACH_AGREEMENT_MANAGE)
+    earning = session.get(FinanceCoachEarning, earning_id)
+    if earning is None or earning.gym_id != scope.gym_id:
+        raise HTTPException(status_code=404, detail="coach_earning_not_found")
+    if earning.status != "UNRESOLVED":
+        raise HTTPException(status_code=409, detail="coach_earning_not_unresolved")
+    agreement = session.get(FinanceCoachAgreement, body.agreement_id)
+    if (
+        agreement is None
+        or agreement.gym_id != scope.gym_id
+        or agreement.coach_user_id != earning.coach_user_id
+        or agreement.status != "ACTIVE"
+    ):
+        raise HTTPException(status_code=400, detail="invalid_coach_agreement")
+    snapshot = _agreement_snapshot(session, agreement)
+    coach, platform, gym = _allocate_coach_shares(
+        snapshot,
+        base_irr=earning.base_irr,
+        discount_irr=earning.discount_irr,
+        discount_funding=earning.discount_funding,
+    )
+    earning.agreement_id = agreement.id
+    earning.agreement_version = agreement.version
+    earning.coach_share_irr = coach
+    earning.platform_share_irr = platform
+    earning.gym_share_irr = gym
+    earning.status = "CALCULATED"
+    earning.unresolved_reason = None
+    earning.vesting_mode = agreement.vesting_mode
+    earning.vesting_date = (
+        earning.created_at.date() + timedelta(days=agreement.vesting_days)
+        if agreement.vesting_mode == "ON_DATE"
+        else None
+    )
+    session.add(earning)
+    if coach > 0:
+        accounts = ensure_accounts(session, scope.gym_id)
+        journal = post_journal(
+            session,
+            gym_id=scope.gym_id,
+            posting_date=earning.created_at.date(),
+            event_type="COACH_ALLOCATION",
+            description="Coach allocation resolved manually",
+            lines=[
+                (accounts["5100"].id, coach, 0, "Coach share"),
+                (accounts["2100"].id, 0, coach, "Coach payable"),
+            ],
+            created_by_id=actor.id,
+            source_type="finance_coach_earning",
+            source_id=earning.id,
+        )
+        earning.journal_id = journal.id
+        session.add(earning)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.coach_earning.resolved",
+        target_type="finance_coach_earning",
+        target_id=earning.id,
+        reason=body.reason,
+        detail={"agreement_id": str(agreement.id), "coach_share_irr": coach},
+    )
+    session.commit()
+    session.refresh(earning)
+    return _earning_public(session, earning)
 
 
 def list_reminders(

@@ -154,6 +154,12 @@ def test_refund_reverses_unsettled_coach_share_and_posts_balanced_journal(
         "/api/v1/finance/coach-discrepancies", headers=owner
     ).json()
     assert discrepancies["count"] == 0
+    journal_list = client.get("/api/v1/finance/journal?limit=50", headers=owner)
+    assert journal_list.status_code == 200, journal_list.text
+    assert any(
+        entry["event_type"] == "COACH_ADJUSTMENT"
+        for entry in journal_list.json()["data"]
+    )
 
 
 def test_overpaid_refund_creates_a_manual_discrepancy_not_a_clawback(

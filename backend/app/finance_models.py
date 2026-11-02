@@ -32,7 +32,7 @@ FinanceJournalEvent = Literal[
     "EXPENSE_PAID",
     "COACH_ALLOCATION",
     "COACH_SETTLEMENT",
-    "COACH_REFUND_ADJUSTMENT",
+    "COACH_ADJUSTMENT",
 ]
 
 FinancePermissionName = Literal[
@@ -297,7 +297,8 @@ class FinanceGrant(SQLModel, table=True):
             "'finance.period.manage', 'finance.catalog.manage', "
             "'finance.invoice.manage', 'finance.payment.record', "
             "'finance.refund.manage', 'finance.expense.manage', "
-            "'finance.membership.manage')",
+            "'finance.membership.manage', "
+            "'finance.coach_agreement.manage', 'finance.settlement.manage')",
             name="ck_finance_grant_permission",
         ),
     )
@@ -1759,3 +1760,8 @@ class FinanceCoachDiscrepancyPublic(SQLModel):
 class FinanceCoachDiscrepanciesPublic(SQLModel):
     data: list[FinanceCoachDiscrepancyPublic]
     count: int
+
+
+class FinanceCoachEarningResolve(SQLModel):
+    agreement_id: uuid.UUID
+    reason: str = Field(min_length=3, max_length=500)

@@ -301,3 +301,48 @@ def test_applied_customer_advance_also_creates_coach_earnings(
     assert earning.base_irr == 100_000
     assert earning.coach_share_irr == 30_000
     assert earning.status == "CALCULATED"
+
+
+def test_fixed_compensation_is_not_reapplied_on_partial_receipts(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Fixed Cap Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+    coach_id, _ = make_coach(client, owner, gym_id)
+    created = client.post(
+        "/api/v1/finance/coach-agreements",
+        headers=owner,
+        json=agreement_payload(
+            coach_id,
+            mode="WATERFALL",
+            terms=[
+                {"recipient": "COACH", "basis": "FIXED", "fixed_irr": 250_000},
+                {"recipient": "GYM", "basis": "PERCENT", "percent_bp": 10000},
+            ],
+        ),
+    )
+    assert created.status_code == 200, created.text
+    activated = client.post(
+        f"/api/v1/finance/coach-agreements/{created.json()['id']}/activate",
+        headers=owner,
+    )
+    assert activated.status_code == 200
+    invoice = coached_invoice(client, owner, customer, coach_id, amount=1_000_000)
+    for _ in range(2):
+        receipt = record_receipt(
+            client,
+            owner,
+            receipt_payload(
+                customer, amount=500_000, allocations=[(invoice["id"], 500_000)]
+            ),
+        )
+        assert receipt.status_code == 200, receipt.text
+    rows = db_session.exec(
+        select(FinanceCoachEarning).where(
+            FinanceCoachEarning.invoice_id == uuid.UUID(invoice["id"])
+        )
+    ).all()
+    assert sum(row.coach_share_irr for row in rows) == 250_000

@@ -192,9 +192,10 @@ export function FinanceInvoicesSection({
         lineDiscount: line.line_discount_irr
           ? amountInput(line.line_discount_irr, unit)
           : "",
-        bundleDiscount: line.discount_share_irr
-          ? amountInput(line.discount_share_irr, unit)
-          : "",
+        bundleDiscount:
+          invoice.discount_irr > 0
+            ? amountInput(line.discount_share_irr, unit)
+            : "",
         coachUserId: line.coach_user_id ?? "",
       })),
     )

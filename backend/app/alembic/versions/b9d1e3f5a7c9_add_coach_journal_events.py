@@ -33,6 +33,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # Coach journals must be removed before narrowing the event check,
+    # otherwise PostgreSQL rejects the constraint swap. Journal lines cascade.
+    op.execute(
+        "DELETE FROM finance_journal WHERE event_type IN "
+        "('COACH_ALLOCATION', 'COACH_SETTLEMENT', 'COACH_ADJUSTMENT')"
+    )
     op.drop_constraint(
         "ck_finance_journal_event", "finance_journal", type_="check"
     )

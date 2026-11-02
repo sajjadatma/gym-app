@@ -273,3 +273,75 @@ def test_issue_snapshots_the_effective_agreement_and_marks_missing_ones(
     )
     assert rejected.status_code == 400, rejected.text
     assert rejected.json()["detail"] == "invalid_invoice_coach"
+
+
+def test_expired_agreement_is_not_selected_over_a_valid_version(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Effective Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+    coach_id, _ = make_coach(client, owner, gym_id)
+    first = client.post(
+        "/api/v1/finance/coach-agreements",
+        headers=owner,
+        json=agreement_payload(coach_id),
+    )
+    assert first.status_code == 200
+    client.post(
+        f"/api/v1/finance/coach-agreements/{first.json()['id']}/activate",
+        headers=owner,
+    )
+    expired = client.post(
+        "/api/v1/finance/coach-agreements",
+        headers=owner,
+        json=agreement_payload(
+            coach_id,
+            effective_from="2026-01-01",
+            effective_to="2026-03-31",
+        ),
+    )
+    assert expired.status_code == 200
+    client.post(
+        f"/api/v1/finance/coach-agreements/{expired.json()['id']}/activate",
+        headers=owner,
+    )
+    draft = create_draft(
+        client,
+        owner,
+        invoice_payload(
+            customer,
+            lines=[
+                {
+                    "kind": "PROGRAM",
+                    "description": "effective date",
+                    "quantity": 1,
+                    "unit_price_irr": 1_000,
+                    "coach_user_id": coach_id,
+                }
+            ],
+        ),
+    )
+    issued = issue(client, owner, draft.json()["id"])
+    assert issued.status_code == 200
+    line = issued.json()["lines"][0]
+    assert line["coach_allocation_status"] == "SNAPSHOTTED"
+    assert line["coach_agreement_version"] == 1
+
+    staff_email = unique_email("coach-grant")
+    add_staff(client, owner, gym_id, roles=["FINANCE_STAFF"], email=staff_email)
+    staff_headers = gym_headers(
+        client, email=staff_email, password="staff-pass-456", gym_id=gym_id
+    )
+    staff_id = client.get("/api/v1/users/me", headers=staff_headers).json()["id"]
+    granted = client.put(
+        f"/api/v1/finance/grants/{staff_id}",
+        headers=owner,
+        json={
+            "grants": [
+                {"permission": "finance.coach_agreement.manage"},
+                {"permission": "finance.settlement.manage"},
+            ]
+        },
+    )
+    assert granted.status_code == 200, granted.text

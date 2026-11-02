@@ -87,6 +87,10 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
     amount_irr: number
   } | null>(null)
   const [resolveNote, setResolveNote] = useState("")
+  const [earningResolveTarget, setEarningResolveTarget] =
+    useState<FinanceCoachEarningPublic | null>(null)
+  const [earningAgreementId, setEarningAgreementId] = useState("")
+  const [earningResolveReason, setEarningResolveReason] = useState("")
 
   const agreementsQuery = useQuery({
     queryKey: ["finance", scope, "coach-agreements"],
@@ -292,6 +296,29 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
     }
   }
 
+  async function resolveEarning() {
+    if (!earningResolveTarget || !earningAgreementId) return
+    setSaving(true)
+    try {
+      await FinanceService.resolveFinanceCoachEarning({
+        path: { earning_id: earningResolveTarget.id },
+        body: {
+          agreement_id: earningAgreementId,
+          reason: earningResolveReason.trim(),
+        },
+      })
+      await invalidate()
+      setEarningResolveTarget(null)
+      setEarningAgreementId("")
+      setEarningResolveReason("")
+      show(t("finance.coaches.earningResolved"), "success")
+    } catch (err) {
+      show(translateApiError(err, t), "error")
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function resolveDiscrepancy() {
     if (!resolveTarget) return
     setSaving(true)
@@ -445,6 +472,7 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
                   </div>
                   {canSettle &&
                   earning.status === "CALCULATED" &&
+                  earning.vesting_mode === "MANUAL" &&
                   earning.coach_share_irr > 0 ? (
                     <Button
                       variant="text"
@@ -455,6 +483,19 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
                       }}
                     >
                       {t("finance.coaches.vest")}
+                    </Button>
+                  ) : null}
+                  {canAgree && earning.status === "UNRESOLVED" ? (
+                    <Button
+                      variant="text"
+                      size="sm"
+                      onClick={() => {
+                        setEarningAgreementId("")
+                        setEarningResolveReason("")
+                        setEarningResolveTarget(earning)
+                      }}
+                    >
+                      {t("finance.coaches.resolveEarning")}
                     </Button>
                   ) : null}
                 </div>
@@ -816,6 +857,60 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
           multiline
           required
         />
+      </Dialog>
+
+      <Dialog
+        open={earningResolveTarget !== null}
+        title={t("finance.coaches.resolveEarning")}
+        onClose={() => setEarningResolveTarget(null)}
+        footer={
+          <>
+            <Button
+              variant="text"
+              onClick={() => setEarningResolveTarget(null)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              loading={saving}
+              disabled={
+                !earningAgreementId || earningResolveReason.trim().length < 3
+              }
+              onClick={() => void resolveEarning()}
+            >
+              {t("common.confirm")}
+            </Button>
+          </>
+        }
+      >
+        <div className="stack">
+          <SelectField
+            label={t("finance.coaches.selectAgreement")}
+            value={earningAgreementId}
+            onChange={setEarningAgreementId}
+            options={agreements
+              .filter(
+                (agreement) =>
+                  agreement.status === "ACTIVE" &&
+                  agreement.coach_user_id ===
+                    earningResolveTarget?.coach_user_id,
+              )
+              .map((agreement) => ({
+                value: agreement.id,
+                label: `v${formatNumber(agreement.version)} · ${formatDate(
+                  agreement.effective_from,
+                )}`,
+              }))}
+            required
+          />
+          <TextField
+            label={t("finance.coaches.resolveReason")}
+            value={earningResolveReason}
+            onChange={(event) => setEarningResolveReason(event.target.value)}
+            multiline
+            required
+          />
+        </div>
       </Dialog>
 
       <Dialog

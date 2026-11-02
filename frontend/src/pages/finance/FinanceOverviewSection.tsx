@@ -52,6 +52,17 @@ const DEFAULT_LINES: OpeningLine[] = [
 const GRANT_PERMISSIONS = [
   { permission: "finance.opening.manage", label: "finance.grantOpening" },
   { permission: "finance.period.manage", label: "finance.grantPeriod" },
+  { permission: "finance.catalog.manage", label: "finance.grantCatalog" },
+  { permission: "finance.invoice.manage", label: "finance.grantInvoice" },
+  { permission: "finance.payment.record", label: "finance.grantPayment" },
+  { permission: "finance.refund.manage", label: "finance.grantRefund" },
+  { permission: "finance.expense.manage", label: "finance.grantExpense" },
+  { permission: "finance.membership.manage", label: "finance.grantMembership" },
+  {
+    permission: "finance.coach_agreement.manage",
+    label: "finance.grantCoachAgreement",
+  },
+  { permission: "finance.settlement.manage", label: "finance.grantSettlement" },
 ] as const
 
 function newKey() {
@@ -88,8 +99,9 @@ export function FinanceOverviewSection({
   )
   const [correctionReason, setCorrectionReason] = useState("")
   const [grantTarget, setGrantTarget] = useState<MemberPublic | null>(null)
-  const [grantOpening, setGrantOpening] = useState(false)
-  const [grantPeriod, setGrantPeriod] = useState(false)
+  const [grantSelected, setGrantSelected] = useState<Record<string, boolean>>(
+    {},
+  )
   const [grantLimit, setGrantLimit] = useState("")
 
   const scope = activeGymId ?? ""
@@ -301,11 +313,8 @@ export function FinanceOverviewSection({
   function openGrantDialog(member: MemberPublic) {
     const grants = grantsByUser.get(member.user_id) ?? []
     setGrantTarget(member)
-    setGrantOpening(
-      grants.some((item) => item.permission === "finance.opening.manage"),
-    )
-    setGrantPeriod(
-      grants.some((item) => item.permission === "finance.period.manage"),
+    setGrantSelected(
+      Object.fromEntries(grants.map((item) => [item.permission, true])),
     )
     const opening = grants.find(
       (item) => item.permission === "finance.opening.manage",
@@ -319,19 +328,23 @@ export function FinanceOverviewSection({
   async function saveGrants() {
     if (!grantTarget) return
     const grants: FinanceGrantItem[] = []
-    if (grantOpening) {
-      const limit = grantLimit.trim() ? parseIrrInput(grantLimit) : null
-      if (grantLimit.trim() && limit === null) {
-        setFormError(t("finance.invalidAmount"))
-        return
+    for (const item of GRANT_PERMISSIONS) {
+      if (!grantSelected[item.permission]) continue
+      if (item.permission === "finance.opening.manage") {
+        const limit = grantLimit.trim() ? parseIrrInput(grantLimit) : null
+        if (grantLimit.trim() && limit === null) {
+          setFormError(t("finance.invalidAmount"))
+          return
+        }
+        grants.push({
+          permission: "finance.opening.manage",
+          amount_limit_irr: limit,
+        })
+      } else {
+        grants.push({
+          permission: item.permission as FinanceGrantItem["permission"],
+        })
       }
-      grants.push({
-        permission: "finance.opening.manage",
-        amount_limit_irr: limit,
-      })
-    }
-    if (grantPeriod) {
-      grants.push({ permission: "finance.period.manage" })
     }
     setSaving(true)
     setFormError(null)
@@ -896,19 +909,16 @@ export function FinanceOverviewSection({
             <Switch
               key={item.permission}
               label={t(item.label)}
-              checked={
-                item.permission === "finance.opening.manage"
-                  ? grantOpening
-                  : grantPeriod
-              }
+              checked={Boolean(grantSelected[item.permission])}
               onChange={(checked) =>
-                item.permission === "finance.opening.manage"
-                  ? setGrantOpening(checked)
-                  : setGrantPeriod(checked)
+                setGrantSelected((current) => ({
+                  ...current,
+                  [item.permission]: checked,
+                }))
               }
             />
           ))}
-          {grantOpening ? (
+          {grantSelected["finance.opening.manage"] ? (
             <TextField
               label={t("finance.limit")}
               helper={t("finance.limitHint")}

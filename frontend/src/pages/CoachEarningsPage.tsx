@@ -98,6 +98,13 @@ export function CoachEarningsPage() {
         <Card variant="outlined">
           <div className="m3-entity-card__meta">
             <HandCoins size={16} />
+            <span>{t("finance.coaches.vestedAmount")}</span>
+          </div>
+          <strong>{money(totals.vested)}</strong>
+        </Card>
+        <Card variant="outlined">
+          <div className="m3-entity-card__meta">
+            <HandCoins size={16} />
             <span>{t("finance.coaches.eligible")}</span>
           </div>
           <strong>{money(totals.eligible)}</strong>
@@ -145,6 +152,10 @@ export function CoachEarningsPage() {
                     <div>
                       {t("finance.coaches.calculated")}:{" "}
                       {money(earning.calculated_irr)}
+                    </div>
+                    <div className="muted">
+                      {t("finance.coaches.vestedAmount")}:{" "}
+                      {money(earning.vested_irr)}
                     </div>
                     <div className="muted">
                       {t("finance.coaches.eligible")}:{" "}
