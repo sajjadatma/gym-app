@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "generate-client": "openapi-ts",
     "test": "bunx playwright test",
+    "test:unit": "node --test tests-unit/*.test.mjs",
     "test:ui": "bunx playwright test --ui"
   },
   "dependencies": {

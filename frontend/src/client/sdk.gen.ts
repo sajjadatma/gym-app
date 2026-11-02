@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { athletesArchiveAthleteData, athletesArchiveAthleteErrors, athletesArchiveAthleteResponses, athletesBulkImportAthletesData, athletesBulkImportAthletesErrors, athletesBulkImportAthletesResponses, athletesCreateAthleteData, athletesCreateAthleteErrors, athletesCreateAthleteResponses, athletesDeleteAthleteData, athletesDeleteAthleteErrors, athletesDeleteAthleteResponses, athletesDownloadAthleteImportTemplateData, athletesDownloadAthleteImportTemplateErrors, athletesDownloadAthleteImportTemplateResponses, athletesDownloadBodyFileData, athletesDownloadBodyFileErrors, athletesDownloadBodyFileResponses, athletesListAthletesData, athletesListAthletesErrors, athletesListAthletesResponses, athletesListBodyFilesData, athletesListBodyFilesErrors, athletesListBodyFilesResponses, athletesPreviewAthleteImportData, athletesPreviewAthleteImportErrors, athletesPreviewAthleteImportResponses, athletesReadAthleteData, athletesReadAthleteErrors, athletesReadAthleteResponses, athletesReadMyAthleteProfileData, athletesReadMyAthleteProfileErrors, athletesReadMyAthleteProfileResponses, athletesReassignCoachData, athletesReassignCoachErrors, athletesReassignCoachResponses, athletesRestoreAthleteData, athletesRestoreAthleteErrors, athletesRestoreAthleteResponses, athletesUpdateAthleteData, athletesUpdateAthleteErrors, athletesUpdateAthleteResponses, athletesUpdateMyAthleteProfileData, athletesUpdateMyAthleteProfileErrors, athletesUpdateMyAthleteProfileResponses, athletesUploadBodyFileData, athletesUploadBodyFileErrors, athletesUploadBodyFileResponses, exerciseCategoriesCreateExerciseCategoryData, exerciseCategoriesCreateExerciseCategoryErrors, exerciseCategoriesCreateExerciseCategoryResponses, exerciseCategoriesListExerciseCategoriesData, exerciseCategoriesListExerciseCategoriesErrors, exerciseCategoriesListExerciseCategoriesResponses, exercisesCreateExerciseData, exercisesCreateExerciseErrors, exercisesCreateExerciseResponses, exercisesListExercisesData, exercisesListExercisesErrors, exercisesListExercisesResponses, exercisesUpdateExerciseData, exercisesUpdateExerciseErrors, exercisesUpdateExerciseResponses, gymsCreateGymData, gymsCreateGymErrors, gymsCreateGymResponses, gymsCreateMemberData, gymsCreateMemberErrors, gymsCreateMemberResponses, gymsDeleteGymBrandingLogoData, gymsDeleteGymBrandingLogoErrors, gymsDeleteGymBrandingLogoResponses, gymsListCoachesData, gymsListCoachesErrors, gymsListCoachesResponses, gymsListGymsData, gymsListGymsResponses, gymsListMembersData, gymsListMembersErrors, gymsListMembersResponses, gymsReadGymData, gymsReadGymErrors, gymsReadGymResponses, gymsTransferOwnershipData, gymsTransferOwnershipErrors, gymsTransferOwnershipResponses, gymsUpdateGymData, gymsUpdateGymErrors, gymsUpdateGymResponses, gymsUpdateMemberData, gymsUpdateMemberErrors, gymsUpdateMemberResponses, gymsUploadBrandingLogoData, gymsUploadBrandingLogoErrors, gymsUploadBrandingLogoResponses, loginAcceptInvitationData, loginAcceptInvitationErrors, loginAcceptInvitationResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginLogoutData, loginLogoutResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, peopleDownloadPersonBodyFileData, peopleDownloadPersonBodyFileErrors, peopleDownloadPersonBodyFileResponses, peopleReadPersonOverviewData, peopleReadPersonOverviewErrors, peopleReadPersonOverviewResponses, programsArchiveProgramVersionData, programsArchiveProgramVersionErrors, programsArchiveProgramVersionResponses, programsCreateNewDraftData, programsCreateNewDraftErrors, programsCreateNewDraftResponses, programsCreateProgramData, programsCreateProgramErrors, programsCreateProgramResponses, programsDeleteProgramVersionData, programsDeleteProgramVersionErrors, programsDeleteProgramVersionResponses, programsListProgramsData, programsListProgramsErrors, programsListProgramsResponses, programsPublishProgramVersionData, programsPublishProgramVersionErrors, programsPublishProgramVersionResponses, programsReadProgramVersionData, programsReadProgramVersionErrors, programsReadProgramVersionResponses, programsSaveAsTemplateData, programsSaveAsTemplateErrors, programsSaveAsTemplateResponses, programsUpdateProgramVersionData, programsUpdateProgramVersionErrors, programsUpdateProgramVersionResponses, superuserAthletesArchiveAthleteData, superuserAthletesArchiveAthleteErrors, superuserAthletesArchiveAthleteResponses, superuserAthletesCreateAthleteData, superuserAthletesCreateAthleteErrors, superuserAthletesCreateAthleteResponses, superuserAthletesDeleteAthleteData, superuserAthletesDeleteAthleteErrors, superuserAthletesDeleteAthleteResponses, superuserAthletesListAthletesData, superuserAthletesListAthletesErrors, superuserAthletesListAthletesResponses, superuserAthletesRestoreAthleteData, superuserAthletesRestoreAthleteErrors, superuserAthletesRestoreAthleteResponses, superuserAthletesTransferAthleteData, superuserAthletesTransferAthleteErrors, superuserAthletesTransferAthleteResponses, superuserAthletesUpdateAthleteData, superuserAthletesUpdateAthleteErrors, superuserAthletesUpdateAthleteResponses, superuserCoachesArchiveCoachData, superuserCoachesArchiveCoachErrors, superuserCoachesArchiveCoachResponses, superuserCoachesCreateCoachData, superuserCoachesCreateCoachErrors, superuserCoachesCreateCoachResponses, superuserCoachesDeleteCoachData, superuserCoachesDeleteCoachErrors, superuserCoachesDeleteCoachResponses, superuserCoachesListCoachesData, superuserCoachesListCoachesErrors, superuserCoachesListCoachesResponses, superuserCoachesRestoreCoachData, superuserCoachesRestoreCoachErrors, superuserCoachesRestoreCoachResponses, superuserCoachesTransferCoachData, superuserCoachesTransferCoachErrors, superuserCoachesTransferCoachResponses, superuserCoachesUpdateCoachData, superuserCoachesUpdateCoachErrors, superuserCoachesUpdateCoachResponses, templatesApplyTemplateData, templatesApplyTemplateErrors, templatesApplyTemplateResponses, templatesCreateTemplateData, templatesCreateTemplateErrors, templatesCreateTemplateResponses, templatesListTemplatesData, templatesListTemplatesErrors, templatesListTemplatesResponses, templatesReadTemplateData, templatesReadTemplateErrors, templatesReadTemplateResponses, templatesUpdateTemplateData, templatesUpdateTemplateErrors, templatesUpdateTemplateResponses, usersReadUserMeData, usersReadUserMeResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsReadinessCheckData, utilsReadinessCheckResponses } from './types.gen';
+import type { athletesArchiveAthleteData, athletesArchiveAthleteErrors, athletesArchiveAthleteResponses, athletesBulkImportAthletesData, athletesBulkImportAthletesErrors, athletesBulkImportAthletesResponses, athletesCreateAthleteData, athletesCreateAthleteErrors, athletesCreateAthleteResponses, athletesDeleteAthleteData, athletesDeleteAthleteErrors, athletesDeleteAthleteResponses, athletesDownloadAthleteImportTemplateData, athletesDownloadAthleteImportTemplateErrors, athletesDownloadAthleteImportTemplateResponses, athletesDownloadBodyFileData, athletesDownloadBodyFileErrors, athletesDownloadBodyFileResponses, athletesListAthletesData, athletesListAthletesErrors, athletesListAthletesResponses, athletesListBodyFilesData, athletesListBodyFilesErrors, athletesListBodyFilesResponses, athletesPreviewAthleteImportData, athletesPreviewAthleteImportErrors, athletesPreviewAthleteImportResponses, athletesReadAthleteData, athletesReadAthleteErrors, athletesReadAthleteResponses, athletesReadMyAthleteProfileData, athletesReadMyAthleteProfileErrors, athletesReadMyAthleteProfileResponses, athletesReassignCoachData, athletesReassignCoachErrors, athletesReassignCoachResponses, athletesRestoreAthleteData, athletesRestoreAthleteErrors, athletesRestoreAthleteResponses, athletesUpdateAthleteData, athletesUpdateAthleteErrors, athletesUpdateAthleteResponses, athletesUpdateMyAthleteProfileData, athletesUpdateMyAthleteProfileErrors, athletesUpdateMyAthleteProfileResponses, athletesUploadBodyFileData, athletesUploadBodyFileErrors, athletesUploadBodyFileResponses, exerciseCategoriesCreateExerciseCategoryData, exerciseCategoriesCreateExerciseCategoryErrors, exerciseCategoriesCreateExerciseCategoryResponses, exerciseCategoriesListExerciseCategoriesData, exerciseCategoriesListExerciseCategoriesErrors, exerciseCategoriesListExerciseCategoriesResponses, exercisesCreateExerciseData, exercisesCreateExerciseErrors, exercisesCreateExerciseResponses, exercisesListExercisesData, exercisesListExercisesErrors, exercisesListExercisesResponses, exercisesUpdateExerciseData, exercisesUpdateExerciseErrors, exercisesUpdateExerciseResponses, financeCloseFinancePeriodData, financeCloseFinancePeriodErrors, financeCloseFinancePeriodResponses, financeCorrectFinanceJournalData, financeCorrectFinanceJournalErrors, financeCorrectFinanceJournalResponses, financeListFinanceAccountsData, financeListFinanceAccountsErrors, financeListFinanceAccountsResponses, financePostFinanceOpeningBalanceData, financePostFinanceOpeningBalanceErrors, financePostFinanceOpeningBalanceResponses, financeReadFinanceGrantsData, financeReadFinanceGrantsErrors, financeReadFinanceGrantsResponses, financeReadFinanceJournalData, financeReadFinanceJournalEntryData, financeReadFinanceJournalEntryErrors, financeReadFinanceJournalEntryResponses, financeReadFinanceJournalErrors, financeReadFinanceJournalResponses, financeReadFinancePeriodsData, financeReadFinancePeriodsErrors, financeReadFinancePeriodsResponses, financeReadFinanceSettingsData, financeReadFinanceSettingsErrors, financeReadFinanceSettingsResponses, financeUpdateFinanceGrantsData, financeUpdateFinanceGrantsErrors, financeUpdateFinanceGrantsResponses, financeUpdateFinanceSettingsData, financeUpdateFinanceSettingsErrors, financeUpdateFinanceSettingsResponses, gymsCreateGymData, gymsCreateGymErrors, gymsCreateGymResponses, gymsCreateMemberData, gymsCreateMemberErrors, gymsCreateMemberResponses, gymsDeleteGymBrandingLogoData, gymsDeleteGymBrandingLogoErrors, gymsDeleteGymBrandingLogoResponses, gymsListCoachesData, gymsListCoachesErrors, gymsListCoachesResponses, gymsListGymsData, gymsListGymsResponses, gymsListMembersData, gymsListMembersErrors, gymsListMembersResponses, gymsReadGymData, gymsReadGymErrors, gymsReadGymResponses, gymsTransferOwnershipData, gymsTransferOwnershipErrors, gymsTransferOwnershipResponses, gymsUpdateGymData, gymsUpdateGymErrors, gymsUpdateGymResponses, gymsUpdateMemberData, gymsUpdateMemberErrors, gymsUpdateMemberResponses, gymsUploadBrandingLogoData, gymsUploadBrandingLogoErrors, gymsUploadBrandingLogoResponses, loginAcceptInvitationData, loginAcceptInvitationErrors, loginAcceptInvitationResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginLogoutData, loginLogoutResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, peopleDownloadPersonBodyFileData, peopleDownloadPersonBodyFileErrors, peopleDownloadPersonBodyFileResponses, peopleReadPersonOverviewData, peopleReadPersonOverviewErrors, peopleReadPersonOverviewResponses, programsArchiveProgramVersionData, programsArchiveProgramVersionErrors, programsArchiveProgramVersionResponses, programsCreateNewDraftData, programsCreateNewDraftErrors, programsCreateNewDraftResponses, programsCreateProgramData, programsCreateProgramErrors, programsCreateProgramResponses, programsDeleteProgramVersionData, programsDeleteProgramVersionErrors, programsDeleteProgramVersionResponses, programsListProgramsData, programsListProgramsErrors, programsListProgramsResponses, programsPublishProgramVersionData, programsPublishProgramVersionErrors, programsPublishProgramVersionResponses, programsReadProgramVersionData, programsReadProgramVersionErrors, programsReadProgramVersionResponses, programsSaveAsTemplateData, programsSaveAsTemplateErrors, programsSaveAsTemplateResponses, programsUpdateProgramVersionData, programsUpdateProgramVersionErrors, programsUpdateProgramVersionResponses, superuserAthletesArchiveAthleteData, superuserAthletesArchiveAthleteErrors, superuserAthletesArchiveAthleteResponses, superuserAthletesCreateAthleteData, superuserAthletesCreateAthleteErrors, superuserAthletesCreateAthleteResponses, superuserAthletesDeleteAthleteData, superuserAthletesDeleteAthleteErrors, superuserAthletesDeleteAthleteResponses, superuserAthletesListAthletesData, superuserAthletesListAthletesErrors, superuserAthletesListAthletesResponses, superuserAthletesRestoreAthleteData, superuserAthletesRestoreAthleteErrors, superuserAthletesRestoreAthleteResponses, superuserAthletesTransferAthleteData, superuserAthletesTransferAthleteErrors, superuserAthletesTransferAthleteResponses, superuserAthletesUpdateAthleteData, superuserAthletesUpdateAthleteErrors, superuserAthletesUpdateAthleteResponses, superuserCoachesArchiveCoachData, superuserCoachesArchiveCoachErrors, superuserCoachesArchiveCoachResponses, superuserCoachesCreateCoachData, superuserCoachesCreateCoachErrors, superuserCoachesCreateCoachResponses, superuserCoachesDeleteCoachData, superuserCoachesDeleteCoachErrors, superuserCoachesDeleteCoachResponses, superuserCoachesListCoachesData, superuserCoachesListCoachesErrors, superuserCoachesListCoachesResponses, superuserCoachesRestoreCoachData, superuserCoachesRestoreCoachErrors, superuserCoachesRestoreCoachResponses, superuserCoachesTransferCoachData, superuserCoachesTransferCoachErrors, superuserCoachesTransferCoachResponses, superuserCoachesUpdateCoachData, superuserCoachesUpdateCoachErrors, superuserCoachesUpdateCoachResponses, templatesApplyTemplateData, templatesApplyTemplateErrors, templatesApplyTemplateResponses, templatesCreateTemplateData, templatesCreateTemplateErrors, templatesCreateTemplateResponses, templatesListTemplatesData, templatesListTemplatesErrors, templatesListTemplatesResponses, templatesReadTemplateData, templatesReadTemplateErrors, templatesReadTemplateResponses, templatesUpdateTemplateData, templatesUpdateTemplateErrors, templatesUpdateTemplateResponses, usersReadUserMeData, usersReadUserMeResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsReadinessCheckData, utilsReadinessCheckResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -34,7 +34,7 @@ export class LoginService {
             }
         });
     }
-
+    
     /**
      * Logout
      */
@@ -46,7 +46,7 @@ export class LoginService {
             ...options
         });
     }
-
+    
     /**
      * Recover Password
      */
@@ -57,7 +57,7 @@ export class LoginService {
             ...options
         });
     }
-
+    
     /**
      * Reset Password
      */
@@ -72,7 +72,7 @@ export class LoginService {
             }
         });
     }
-
+    
     /**
      * Accept Invitation
      */
@@ -101,7 +101,7 @@ export class UsersService {
             ...options
         });
     }
-
+    
     /**
      * Update User Me
      */
@@ -117,7 +117,7 @@ export class UsersService {
             }
         });
     }
-
+    
     /**
      * Update Password Me
      */
@@ -147,7 +147,7 @@ export class GymsService {
             ...options
         });
     }
-
+    
     /**
      * Create Gym
      */
@@ -163,7 +163,7 @@ export class GymsService {
             }
         });
     }
-
+    
     /**
      * Read Gym
      */
@@ -175,7 +175,7 @@ export class GymsService {
             ...options
         });
     }
-
+    
     /**
      * Update Gym
      */
@@ -191,7 +191,7 @@ export class GymsService {
             }
         });
     }
-
+    
     /**
      * Delete Gym Branding Logo
      */
@@ -203,7 +203,7 @@ export class GymsService {
             ...options
         });
     }
-
+    
     /**
      * Upload Branding Logo
      */
@@ -220,7 +220,7 @@ export class GymsService {
             }
         });
     }
-
+    
     /**
      * Transfer Ownership
      */
@@ -236,7 +236,7 @@ export class GymsService {
             }
         });
     }
-
+    
     /**
      * List Members
      */
@@ -248,7 +248,7 @@ export class GymsService {
             ...options
         });
     }
-
+    
     /**
      * Create Member
      */
@@ -264,7 +264,7 @@ export class GymsService {
             }
         });
     }
-
+    
     /**
      * Update Member
      */
@@ -280,7 +280,7 @@ export class GymsService {
             }
         });
     }
-
+    
     /**
      * List Coaches
      */
@@ -306,7 +306,7 @@ export class AthletesService {
             ...options
         });
     }
-
+    
     /**
      * Create Athlete
      */
@@ -322,7 +322,7 @@ export class AthletesService {
             }
         });
     }
-
+    
     /**
      * Read My Athlete Profile
      */
@@ -334,7 +334,7 @@ export class AthletesService {
             ...options
         });
     }
-
+    
     /**
      * Update My Athlete Profile
      */
@@ -350,7 +350,7 @@ export class AthletesService {
             }
         });
     }
-
+    
     /**
      * Download Athlete Import Template
      */
@@ -362,7 +362,7 @@ export class AthletesService {
             ...options
         });
     }
-
+    
     /**
      * Preview Athlete Import
      */
@@ -379,7 +379,7 @@ export class AthletesService {
             }
         });
     }
-
+    
     /**
      * Bulk Import Athletes
      */
@@ -396,7 +396,7 @@ export class AthletesService {
             }
         });
     }
-
+    
     /**
      * Delete Athlete
      */
@@ -408,7 +408,7 @@ export class AthletesService {
             ...options
         });
     }
-
+    
     /**
      * Read Athlete
      */
@@ -420,7 +420,7 @@ export class AthletesService {
             ...options
         });
     }
-
+    
     /**
      * Update Athlete
      */
@@ -436,7 +436,7 @@ export class AthletesService {
             }
         });
     }
-
+    
     /**
      * Reassign Coach
      */
@@ -452,7 +452,7 @@ export class AthletesService {
             }
         });
     }
-
+    
     /**
      * Archive Athlete
      */
@@ -464,7 +464,7 @@ export class AthletesService {
             ...options
         });
     }
-
+    
     /**
      * Restore Athlete
      */
@@ -480,7 +480,7 @@ export class AthletesService {
             }
         });
     }
-
+    
     /**
      * List Body Files
      */
@@ -492,7 +492,7 @@ export class AthletesService {
             ...options
         });
     }
-
+    
     /**
      * Upload Body File
      */
@@ -509,7 +509,7 @@ export class AthletesService {
             }
         });
     }
-
+    
     /**
      * Download Body File
      */
@@ -535,7 +535,7 @@ export class SuperuserCoachesService {
             ...options
         });
     }
-
+    
     /**
      * Create Coach
      */
@@ -551,7 +551,7 @@ export class SuperuserCoachesService {
             }
         });
     }
-
+    
     /**
      * Delete Coach
      */
@@ -563,7 +563,7 @@ export class SuperuserCoachesService {
             ...options
         });
     }
-
+    
     /**
      * Update Coach
      */
@@ -579,7 +579,7 @@ export class SuperuserCoachesService {
             }
         });
     }
-
+    
     /**
      * Transfer Coach
      */
@@ -595,7 +595,7 @@ export class SuperuserCoachesService {
             }
         });
     }
-
+    
     /**
      * Archive Coach
      */
@@ -607,7 +607,7 @@ export class SuperuserCoachesService {
             ...options
         });
     }
-
+    
     /**
      * Restore Coach
      */
@@ -633,7 +633,7 @@ export class SuperuserAthletesService {
             ...options
         });
     }
-
+    
     /**
      * Create Athlete
      */
@@ -649,7 +649,7 @@ export class SuperuserAthletesService {
             }
         });
     }
-
+    
     /**
      * Delete Athlete
      */
@@ -661,7 +661,7 @@ export class SuperuserAthletesService {
             ...options
         });
     }
-
+    
     /**
      * Update Athlete
      */
@@ -677,7 +677,7 @@ export class SuperuserAthletesService {
             }
         });
     }
-
+    
     /**
      * Transfer Athlete
      */
@@ -693,7 +693,7 @@ export class SuperuserAthletesService {
             }
         });
     }
-
+    
     /**
      * Archive Athlete
      */
@@ -705,7 +705,7 @@ export class SuperuserAthletesService {
             ...options
         });
     }
-
+    
     /**
      * Restore Athlete
      */
@@ -735,7 +735,7 @@ export class PeopleService {
             ...options
         });
     }
-
+    
     /**
      * Download Person Body File
      */
@@ -761,7 +761,7 @@ export class ExercisesService {
             ...options
         });
     }
-
+    
     /**
      * Create Exercise
      */
@@ -777,7 +777,7 @@ export class ExercisesService {
             }
         });
     }
-
+    
     /**
      * Update Exercise
      */
@@ -807,7 +807,7 @@ export class ExerciseCategoriesService {
             ...options
         });
     }
-
+    
     /**
      * Create Exercise Category
      */
@@ -837,7 +837,7 @@ export class ProgramsService {
             ...options
         });
     }
-
+    
     /**
      * Create Program
      */
@@ -853,7 +853,7 @@ export class ProgramsService {
             }
         });
     }
-
+    
     /**
      * Delete Program Version
      */
@@ -865,7 +865,7 @@ export class ProgramsService {
             ...options
         });
     }
-
+    
     /**
      * Read Program Version
      */
@@ -877,7 +877,7 @@ export class ProgramsService {
             ...options
         });
     }
-
+    
     /**
      * Update Program Version
      */
@@ -893,7 +893,7 @@ export class ProgramsService {
             }
         });
     }
-
+    
     /**
      * Create New Draft
      */
@@ -905,7 +905,7 @@ export class ProgramsService {
             ...options
         });
     }
-
+    
     /**
      * Publish Program Version
      */
@@ -917,7 +917,7 @@ export class ProgramsService {
             ...options
         });
     }
-
+    
     /**
      * Archive Program Version
      */
@@ -929,7 +929,7 @@ export class ProgramsService {
             ...options
         });
     }
-
+    
     /**
      * Save As Template
      */
@@ -959,7 +959,7 @@ export class TemplatesService {
             ...options
         });
     }
-
+    
     /**
      * Create Template
      */
@@ -975,7 +975,7 @@ export class TemplatesService {
             }
         });
     }
-
+    
     /**
      * Read Template
      */
@@ -987,7 +987,7 @@ export class TemplatesService {
             ...options
         });
     }
-
+    
     /**
      * Update Template
      */
@@ -1003,7 +1003,7 @@ export class TemplatesService {
             }
         });
     }
-
+    
     /**
      * Apply Template
      */
@@ -1021,6 +1021,156 @@ export class TemplatesService {
     }
 }
 
+export class FinanceService {
+    /**
+     * Read Finance Settings
+     */
+    public static readFinanceSettings<ThrowOnError extends boolean = true>(options?: Options<financeReadFinanceSettingsData, ThrowOnError>) {
+        return (options?.client ?? client).get<financeReadFinanceSettingsResponses, financeReadFinanceSettingsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/settings',
+            ...options
+        });
+    }
+    
+    /**
+     * Update Finance Settings
+     */
+    public static updateFinanceSettings<ThrowOnError extends boolean = true>(options: Options<financeUpdateFinanceSettingsData, ThrowOnError>) {
+        return (options.client ?? client).patch<financeUpdateFinanceSettingsResponses, financeUpdateFinanceSettingsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/settings',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * List Finance Accounts
+     */
+    public static listFinanceAccounts<ThrowOnError extends boolean = true>(options?: Options<financeListFinanceAccountsData, ThrowOnError>) {
+        return (options?.client ?? client).get<financeListFinanceAccountsResponses, financeListFinanceAccountsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/accounts',
+            ...options
+        });
+    }
+    
+    /**
+     * Read Finance Journal
+     */
+    public static readFinanceJournal<ThrowOnError extends boolean = true>(options?: Options<financeReadFinanceJournalData, ThrowOnError>) {
+        return (options?.client ?? client).get<financeReadFinanceJournalResponses, financeReadFinanceJournalErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/journal',
+            ...options
+        });
+    }
+    
+    /**
+     * Read Finance Journal Entry
+     */
+    public static readFinanceJournalEntry<ThrowOnError extends boolean = true>(options: Options<financeReadFinanceJournalEntryData, ThrowOnError>) {
+        return (options.client ?? client).get<financeReadFinanceJournalEntryResponses, financeReadFinanceJournalEntryErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/journal/{journal_id}',
+            ...options
+        });
+    }
+    
+    /**
+     * Post Finance Opening Balance
+     */
+    public static postFinanceOpeningBalance<ThrowOnError extends boolean = true>(options: Options<financePostFinanceOpeningBalanceData, ThrowOnError>) {
+        return (options.client ?? client).post<financePostFinanceOpeningBalanceResponses, financePostFinanceOpeningBalanceErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/opening-balance',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Correct Finance Journal
+     */
+    public static correctFinanceJournal<ThrowOnError extends boolean = true>(options: Options<financeCorrectFinanceJournalData, ThrowOnError>) {
+        return (options.client ?? client).post<financeCorrectFinanceJournalResponses, financeCorrectFinanceJournalErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/journal/{journal_id}/correct',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Read Finance Grants
+     */
+    public static readFinanceGrants<ThrowOnError extends boolean = true>(options?: Options<financeReadFinanceGrantsData, ThrowOnError>) {
+        return (options?.client ?? client).get<financeReadFinanceGrantsResponses, financeReadFinanceGrantsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/grants',
+            ...options
+        });
+    }
+    
+    /**
+     * Update Finance Grants
+     */
+    public static updateFinanceGrants<ThrowOnError extends boolean = true>(options: Options<financeUpdateFinanceGrantsData, ThrowOnError>) {
+        return (options.client ?? client).put<financeUpdateFinanceGrantsResponses, financeUpdateFinanceGrantsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/grants/{user_id}',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Read Finance Periods
+     */
+    public static readFinancePeriods<ThrowOnError extends boolean = true>(options?: Options<financeReadFinancePeriodsData, ThrowOnError>) {
+        return (options?.client ?? client).get<financeReadFinancePeriodsResponses, financeReadFinancePeriodsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/periods',
+            ...options
+        });
+    }
+    
+    /**
+     * Close Finance Period
+     */
+    public static closeFinancePeriod<ThrowOnError extends boolean = true>(options?: Options<financeCloseFinancePeriodData, ThrowOnError>) {
+        return (options?.client ?? client).post<financeCloseFinancePeriodResponses, financeCloseFinancePeriodErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/periods/close',
+            ...options
+        });
+    }
+}
+
 export class UtilsService {
     /**
      * Health Check
@@ -1034,7 +1184,7 @@ export class UtilsService {
             ...options
         });
     }
-
+    
     /**
      * Readiness Check
      *

@@ -49,9 +49,11 @@ function ClubLayout() {
         ? isAthlete
         : section === "members"
           ? isAdmin
-          : STAFF_SECTIONS.has(section)
-            ? isStaff
-            : true
+          : section === "finance"
+            ? isAdmin || Boolean(gym?.my_roles.includes("FINANCE_STAFF"))
+            : STAFF_SECTIONS.has(section)
+              ? isStaff
+              : true
 
   useEffect(() => {
     if (isLoading || !gym || activeGymId !== gymId || allowed) return

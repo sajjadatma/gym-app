@@ -8,6 +8,8 @@ import {
   useState,
 } from "react"
 
+import { normalizeDigits } from "./lib/money"
+
 export type Locale = "fa" | "en"
 
 const fa = {
@@ -43,6 +45,7 @@ const fa = {
     "برای ادامه، اتصال اینترنت را بررسی کنید. داده‌های ذخیره‌شده ممکن است قدیمی باشند.",
   "common.saving": "در حال ذخیره…",
   "common.save": "ذخیره",
+  "common.saved": "ذخیره شد.",
   "common.cancel": "انصراف",
   "common.close": "بستن",
   "common.add": "افزودن",
@@ -967,6 +970,95 @@ const fa = {
   "validation.selectCoach": "مربی مسئول را انتخاب کنید.",
   "validation.selectAthlete": "ورزشکار مقصد را انتخاب کنید.",
   "validation.initialPassword": "رمز عبور اولیه باید حداقل ۸ نویسه باشد.",
+  "nav.finance": "مالی",
+  "context.financeMode": "حالت مالی",
+  "members.financeStaff": "کارشناس مالی",
+  "finance.title": "مالی باشگاه",
+  "finance.subtitle": "دفتر مالی، اسناد و دوره‌های حسابداری این باشگاه",
+  "finance.enabled": "فعال",
+  "finance.disabled": "غیرفعال",
+  "finance.disabledHint":
+    "مالی این باشگاه توسط مدیر کل غیرفعال شده است. سوابق فقط قابل مشاهده و خروجی است.",
+  "finance.settings": "تنظیمات مالی",
+  "finance.displayUnit": "واحد نمایش",
+  "finance.unitRial": "ریال",
+  "finance.unitToman": "تومان",
+  "finance.enableFinance": "مالی باشگاه فعال باشد",
+  "finance.enableHint":
+    "فقط مدیر کل می‌تواند مالی را غیرفعال یا دوباره فعال کند.",
+  "finance.openingBalance": "موجودی افتتاحیه",
+  "finance.openingHint":
+    "اولین سند هر باشگاه؛ جمع بدهکار و بستانکار باید برابر باشد.",
+  "finance.openingPosted": "موجودی افتتاحیه ثبت شده است.",
+  "finance.postOpening": "ثبت موجودی افتتاحیه",
+  "finance.postingDate": "تاریخ ثبت",
+  "finance.description": "شرح",
+  "finance.account": "حساب",
+  "finance.debit": "بدهکار",
+  "finance.credit": "بستانکار",
+  "finance.amount": "مبلغ",
+  "finance.amountIn": "مبلغ ({unit})",
+  "finance.addLine": "افزودن ردیف",
+  "finance.removeLine": "حذف ردیف",
+  "finance.totalDebit": "جمع بدهکار",
+  "finance.totalCredit": "جمع بستانکار",
+  "finance.unbalanced": "جمع بدهکار و بستانکار برابر نیست.",
+  "finance.invalidAmount": "مبلغ باید یک عدد صحیح و بزرگ‌تر از صفر باشد.",
+  "finance.posted": "سند با موفقیت ثبت شد.",
+  "finance.journal": "دفتر روزنامه",
+  "finance.journalEmpty": "هنوز سندی ثبت نشده است",
+  "finance.journalEmptyHint":
+    "با ثبت موجودی افتتاحیه، اولین سند این دفتر ایجاد می‌شود.",
+  "finance.entry": "سند {number}",
+  "finance.opening": "افتتاحیه",
+  "finance.correction": "اصلاح",
+  "finance.reverses": "برگشت سند {number}",
+  "finance.periods": "دوره‌های مالی",
+  "finance.periodOpen": "باز",
+  "finance.periodClosed": "بسته",
+  "finance.closePeriod": "بستن دوره",
+  "finance.periodNotice": "سند جدید در دوره باز بعدی ثبت می‌شود.",
+  "finance.noPeriods": "هنوز دوره‌ای ایجاد نشده است.",
+  "finance.grants": "دسترسی کارشناسان مالی",
+  "finance.grantsHint":
+    "مشاهده برای نقش مالی همیشه فعال است؛ اقدام‌ها را جداگانه واگذار کنید.",
+  "finance.manageAccess": "مدیریت دسترسی",
+  "finance.grantOpening": "ثبت موجودی افتتاحیه",
+  "finance.grantPeriod": "بستن دوره مالی",
+  "finance.limit": "سقف مبلغ (ریال)",
+  "finance.limitHint": "خالی بگذارید تا محدودیتی نباشد.",
+  "finance.saveGrants": "ذخیره دسترسی",
+  "finance.grantsSaved": "دسترسی‌ها به‌روزرسانی شد.",
+  "finance.noFinanceStaff": "کارشناس مالی ندارد",
+  "finance.noFinanceStaffHint":
+    "ابتدا از بخش تیم باشگاه یک عضو با نقش کارشناس مالی بسازید.",
+  "finance.readOnly": "فقط مشاهده",
+  "finance.correct": "اصلاح سند",
+  "finance.correctReason": "دلیل اصلاح",
+  "finance.correctHint":
+    "اصلاح یک سند برگشت جدید می‌سازد و سند اصلی را تغییر نمی‌دهد.",
+  "finance.corrected": "سند اصلاحی ثبت شد.",
+  "finance.onlySuperuserCorrect": "اصلاح اسناد فقط توسط مدیر کل انجام می‌شود.",
+  "errors.finance_access_denied": "دسترسی به مالی این باشگاه ندارید.",
+  "errors.finance_disabled":
+    "مالی این باشگاه غیرفعال است؛ ثبت سند جدید ممکن نیست.",
+  "errors.finance_amount_limit_exceeded": "مبلغ از سقف مجاز شما بیشتر است.",
+  "errors.finance_unbalanced_journal": "جمع بدهکار و بستانکار برابر نیست.",
+  "errors.invalid_finance_account": "حساب انتخاب‌شده معتبر نیست.",
+  "errors.finance_opening_balance_exists": "موجودی افتتاحیه قبلاً ثبت شده است.",
+  "errors.finance_already_corrected": "این سند قبلاً اصلاح شده است.",
+  "errors.finance_journal_not_found": "سند پیدا نشد.",
+  "errors.finance_journal_not_correctable": "این سند قابل اصلاح نیست.",
+  "errors.finance_no_open_period": "دوره مالی بازی وجود ندارد.",
+  "errors.finance_staff_required": "عضو انتخاب‌شده کارشناس مالی فعال نیست.",
+  "errors.finance_manage_required":
+    "این عملیات به دسترسی مدیریت مالی نیاز دارد.",
+  "errors.idempotency_key_required":
+    "درخواست بدون شناسه یکتا ارسال شد؛ دوباره تلاش کنید.",
+  "errors.idempotency_key_reused":
+    "این درخواست قبلاً با محتوای دیگری ثبت شده است.",
+  "errors.superuser_required": "این عملیات فقط برای مدیر کل مجاز است.",
+  "errors.finance_conflict": "سند هم‌زمان تغییر کرده است؛ دوباره تلاش کنید.",
   "weekday.sat": "شنبه",
   "weekday.sun": "یکشنبه",
   "weekday.mon": "دوشنبه",
@@ -1011,6 +1103,7 @@ const en: Record<TranslationKey, string> = {
     "Check your internet connection to continue. Cached data may be out of date.",
   "common.saving": "Saving…",
   "common.save": "Save",
+  "common.saved": "Saved.",
   "common.cancel": "Cancel",
   "common.close": "Close",
   "common.add": "Add",
@@ -1943,6 +2036,101 @@ const en: Record<TranslationKey, string> = {
   "validation.selectAthlete": "Choose the destination athlete.",
   "validation.initialPassword":
     "The initial password must be at least 8 characters.",
+  "nav.finance": "Finance",
+  "context.financeMode": "Finance mode",
+  "members.financeStaff": "Finance staff",
+  "finance.title": "Gym finance",
+  "finance.subtitle": "Ledger, documents and accounting periods for this gym",
+  "finance.enabled": "Enabled",
+  "finance.disabled": "Disabled",
+  "finance.disabledHint":
+    "A global superuser disabled finance for this gym. Records stay readable and exportable.",
+  "finance.settings": "Finance settings",
+  "finance.displayUnit": "Display unit",
+  "finance.unitRial": "Rial",
+  "finance.unitToman": "Toman",
+  "finance.enableFinance": "Gym finance enabled",
+  "finance.enableHint":
+    "Only a global superuser can disable or re-enable finance.",
+  "finance.openingBalance": "Opening balance",
+  "finance.openingHint":
+    "The first journal for a gym; debits and credits must balance.",
+  "finance.openingPosted": "The opening balance is posted.",
+  "finance.postOpening": "Post opening balance",
+  "finance.postingDate": "Posting date",
+  "finance.description": "Description",
+  "finance.account": "Account",
+  "finance.debit": "Debit",
+  "finance.credit": "Credit",
+  "finance.amount": "Amount",
+  "finance.amountIn": "Amount ({unit})",
+  "finance.addLine": "Add line",
+  "finance.removeLine": "Remove line",
+  "finance.totalDebit": "Total debit",
+  "finance.totalCredit": "Total credit",
+  "finance.unbalanced": "Total debits and credits do not match.",
+  "finance.invalidAmount": "Enter a whole amount greater than zero.",
+  "finance.posted": "The journal was posted.",
+  "finance.journal": "General journal",
+  "finance.journalEmpty": "No journals yet",
+  "finance.journalEmptyHint":
+    "Posting an opening balance creates the first journal.",
+  "finance.entry": "Journal {number}",
+  "finance.opening": "Opening",
+  "finance.correction": "Correction",
+  "finance.reverses": "Reverses journal {number}",
+  "finance.periods": "Accounting periods",
+  "finance.periodOpen": "Open",
+  "finance.periodClosed": "Closed",
+  "finance.closePeriod": "Close period",
+  "finance.periodNotice": "New journals post into the next open period.",
+  "finance.noPeriods": "No period has been opened yet.",
+  "finance.grants": "Finance staff access",
+  "finance.grantsHint":
+    "Viewing is always available to the finance role; delegate actions separately.",
+  "finance.manageAccess": "Manage access",
+  "finance.grantOpening": "Post opening balance",
+  "finance.grantPeriod": "Close accounting period",
+  "finance.limit": "Amount cap (IRR)",
+  "finance.limitHint": "Leave empty for no cap.",
+  "finance.saveGrants": "Save access",
+  "finance.grantsSaved": "Access updated.",
+  "finance.noFinanceStaff": "No finance staff",
+  "finance.noFinanceStaffHint":
+    "Create a member with the finance staff role in the gym team first.",
+  "finance.readOnly": "Read only",
+  "finance.correct": "Correct journal",
+  "finance.correctReason": "Correction reason",
+  "finance.correctHint":
+    "A correction posts a new reversal and never edits the original.",
+  "finance.corrected": "The correction was posted.",
+  "finance.onlySuperuserCorrect":
+    "Only a global superuser can correct journals.",
+  "errors.finance_access_denied":
+    "You do not have access to this gym's finance.",
+  "errors.finance_disabled":
+    "This gym's finance is disabled; new journals cannot be posted.",
+  "errors.finance_amount_limit_exceeded":
+    "The amount exceeds your allowed cap.",
+  "errors.finance_unbalanced_journal": "Total debits and credits do not match.",
+  "errors.invalid_finance_account": "The selected account is not valid.",
+  "errors.finance_opening_balance_exists":
+    "The opening balance is already posted.",
+  "errors.finance_already_corrected": "This journal is already corrected.",
+  "errors.finance_journal_not_found": "Journal not found.",
+  "errors.finance_journal_not_correctable": "This journal cannot be corrected.",
+  "errors.finance_no_open_period": "There is no open accounting period.",
+  "errors.finance_staff_required":
+    "The selected member is not active finance staff.",
+  "errors.finance_manage_required":
+    "This action requires finance management access.",
+  "errors.idempotency_key_required":
+    "The request had no unique key; please retry.",
+  "errors.idempotency_key_reused":
+    "This request key was already used with different content.",
+  "errors.superuser_required":
+    "This action is restricted to a global superuser.",
+  "errors.finance_conflict": "The journal changed concurrently; please retry.",
   "weekday.sat": "Saturday",
   "weekday.sun": "Sunday",
   "weekday.mon": "Monday",
@@ -2047,10 +2235,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         }).format(date)
       },
       localizeDigits,
-      normalizeDigits: (input) =>
-        input
-          .replace(/[۰-۹]/g, (digit) => String(FA_DIGITS.indexOf(digit)))
-          .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit))),
+      normalizeDigits,
     }
   }, [locale, setLocale])
 

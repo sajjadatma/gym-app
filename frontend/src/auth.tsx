@@ -12,7 +12,7 @@ import {
 import type { GymPublic, UserMePublic } from "./client"
 import { GymsService, LoginService, UsersService } from "./client"
 
-type RoleMode = "GYM_ADMIN" | "COACH" | "ATHLETE"
+type RoleMode = "GYM_ADMIN" | "COACH" | "FINANCE_STAFF" | "ATHLETE"
 
 type AuthContextValue = {
   me: UserMePublic | null
@@ -37,7 +37,12 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-const ROLE_ORDER: RoleMode[] = ["GYM_ADMIN", "COACH", "ATHLETE"]
+const ROLE_ORDER: RoleMode[] = [
+  "GYM_ADMIN",
+  "COACH",
+  "FINANCE_STAFF",
+  "ATHLETE",
+]
 
 function pickDefaultRole(gym: GymPublic | null): RoleMode | null {
   if (!gym) return null

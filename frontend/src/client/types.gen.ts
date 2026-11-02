@@ -744,7 +744,7 @@ export type CoachOverviewPublic = {
     /**
      * Roles
      */
-    roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE'>;
+    roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE' | 'FINANCE_STAFF'>;
     /**
      * Is Active
      */
@@ -1070,6 +1070,330 @@ export type ExercisesPublic = {
 };
 
 /**
+ * FinanceAccountPublic
+ */
+export type FinanceAccountPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Type
+     */
+    type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'INCOME' | 'EXPENSE';
+};
+
+/**
+ * FinanceAccountsPublic
+ */
+export type FinanceAccountsPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceAccountPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * FinanceGrantItem
+ */
+export type FinanceGrantItem = {
+    /**
+     * Permission
+     */
+    permission: 'finance.opening.manage' | 'finance.period.manage';
+    /**
+     * Amount Limit Irr
+     */
+    amount_limit_irr?: number | null;
+};
+
+/**
+ * FinanceGrantRow
+ */
+export type FinanceGrantRow = {
+    /**
+     * User Id
+     */
+    user_id: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Full Name
+     */
+    full_name?: string | null;
+    /**
+     * Grants
+     */
+    grants: Array<FinanceGrantItem>;
+};
+
+/**
+ * FinanceGrantUpdate
+ */
+export type FinanceGrantUpdate = {
+    /**
+     * Grants
+     */
+    grants: Array<FinanceGrantItem>;
+};
+
+/**
+ * FinanceGrantsPublic
+ */
+export type FinanceGrantsPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceGrantRow>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * FinanceJournalCorrectionCreate
+ */
+export type FinanceJournalCorrectionCreate = {
+    /**
+     * Reason
+     */
+    reason: string;
+    /**
+     * Posting Date
+     */
+    posting_date?: string | null;
+};
+
+/**
+ * FinanceJournalLinePublic
+ */
+export type FinanceJournalLinePublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Account Code
+     */
+    account_code: string;
+    /**
+     * Account Name
+     */
+    account_name: string;
+    /**
+     * Debit Irr
+     */
+    debit_irr: number;
+    /**
+     * Credit Irr
+     */
+    credit_irr: number;
+    /**
+     * Memo
+     */
+    memo?: string | null;
+};
+
+/**
+ * FinanceJournalPublic
+ */
+export type FinanceJournalPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Entry Number
+     */
+    entry_number: number;
+    /**
+     * Posting Date
+     */
+    posting_date: string;
+    /**
+     * Event Type
+     */
+    event_type: 'OPENING_BALANCE' | 'CORRECTION';
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Reversal Of Id
+     */
+    reversal_of_id?: string | null;
+    /**
+     * Period Id
+     */
+    period_id: string;
+    /**
+     * Created By Id
+     */
+    created_by_id?: string | null;
+    /**
+     * Created By Name
+     */
+    created_by_name?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Lines
+     */
+    lines: Array<FinanceJournalLinePublic>;
+};
+
+/**
+ * FinanceJournalsPublic
+ */
+export type FinanceJournalsPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceJournalPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * FinanceOpeningBalanceCreate
+ */
+export type FinanceOpeningBalanceCreate = {
+    /**
+     * Posting Date
+     */
+    posting_date: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Lines
+     */
+    lines: Array<FinanceOpeningBalanceLine>;
+};
+
+/**
+ * FinanceOpeningBalanceLine
+ */
+export type FinanceOpeningBalanceLine = {
+    /**
+     * Account Code
+     */
+    account_code: string;
+    /**
+     * Debit Irr
+     */
+    debit_irr?: number;
+    /**
+     * Credit Irr
+     */
+    credit_irr?: number;
+    /**
+     * Memo
+     */
+    memo?: string | null;
+};
+
+/**
+ * FinancePeriodPublic
+ */
+export type FinancePeriodPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Opened At
+     */
+    opened_at: string;
+    /**
+     * Closed At
+     */
+    closed_at?: string | null;
+    /**
+     * Status
+     */
+    status: 'OPEN' | 'CLOSED';
+};
+
+/**
+ * FinancePeriodsPublic
+ */
+export type FinancePeriodsPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinancePeriodPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * FinanceSettingsPublic
+ */
+export type FinanceSettingsPublic = {
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Display Unit
+     */
+    display_unit: 'RIAL' | 'TOMAN';
+    /**
+     * Timezone
+     */
+    timezone: string;
+    /**
+     * Can Manage
+     */
+    can_manage: boolean;
+    /**
+     * Can Toggle
+     */
+    can_toggle: boolean;
+    /**
+     * Permissions
+     */
+    permissions: Array<string>;
+};
+
+/**
+ * FinanceSettingsUpdate
+ */
+export type FinanceSettingsUpdate = {
+    /**
+     * Enabled
+     */
+    enabled?: boolean | null;
+    /**
+     * Display Unit
+     */
+    display_unit?: 'RIAL' | 'TOMAN' | null;
+};
+
+/**
  * GymAccessPublic
  */
 export type GymAccessPublic = {
@@ -1084,7 +1408,7 @@ export type GymAccessPublic = {
     /**
      * Roles
      */
-    roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE'>;
+    roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE' | 'FINANCE_STAFF'>;
     /**
      * Is Owner
      */
@@ -1203,7 +1527,7 @@ export type GymPublic = {
     /**
      * My Roles
      */
-    my_roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE'>;
+    my_roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE' | 'FINANCE_STAFF'>;
     stats?: GymStaffCounts | null;
 };
 
@@ -1314,7 +1638,7 @@ export type MemberCreate = {
     /**
      * Roles
      */
-    roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE'>;
+    roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE' | 'FINANCE_STAFF'>;
     /**
      * Activation Method
      */
@@ -1367,7 +1691,7 @@ export type MemberPublic = {
     /**
      * Roles
      */
-    roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE'>;
+    roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE' | 'FINANCE_STAFF'>;
     /**
      * Is Active
      */
@@ -1389,7 +1713,7 @@ export type MemberUpdate = {
     /**
      * Roles
      */
-    roles?: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE'> | null;
+    roles?: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE' | 'FINANCE_STAFF'> | null;
     /**
      * Is Active
      */
@@ -1648,7 +1972,7 @@ export type PersonMembershipPublic = {
     /**
      * Roles
      */
-    roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE'>;
+    roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE' | 'FINANCE_STAFF'>;
     /**
      * Is Active
      */
@@ -2545,7 +2869,7 @@ export type SuperuserCoachRow = {
     /**
      * Roles
      */
-    roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE'>;
+    roles: Array<'GYM_ADMIN' | 'COACH' | 'ATHLETE' | 'FINANCE_STAFF'>;
     /**
      * Is Active
      */
@@ -5085,6 +5409,379 @@ export type templatesApplyTemplateResponses = {
 };
 
 export type templatesApplyTemplateResponse = templatesApplyTemplateResponses[keyof templatesApplyTemplateResponses];
+
+export type financeReadFinanceSettingsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/settings';
+};
+
+export type financeReadFinanceSettingsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceSettingsError = financeReadFinanceSettingsErrors[keyof financeReadFinanceSettingsErrors];
+
+export type financeReadFinanceSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceSettingsPublic;
+};
+
+export type financeReadFinanceSettingsResponse = financeReadFinanceSettingsResponses[keyof financeReadFinanceSettingsResponses];
+
+export type financeUpdateFinanceSettingsData = {
+    body: FinanceSettingsUpdate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/settings';
+};
+
+export type financeUpdateFinanceSettingsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeUpdateFinanceSettingsError = financeUpdateFinanceSettingsErrors[keyof financeUpdateFinanceSettingsErrors];
+
+export type financeUpdateFinanceSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceSettingsPublic;
+};
+
+export type financeUpdateFinanceSettingsResponse = financeUpdateFinanceSettingsResponses[keyof financeUpdateFinanceSettingsResponses];
+
+export type financeListFinanceAccountsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/accounts';
+};
+
+export type financeListFinanceAccountsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeListFinanceAccountsError = financeListFinanceAccountsErrors[keyof financeListFinanceAccountsErrors];
+
+export type financeListFinanceAccountsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceAccountsPublic;
+};
+
+export type financeListFinanceAccountsResponse = financeListFinanceAccountsResponses[keyof financeListFinanceAccountsResponses];
+
+export type financeReadFinanceJournalData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/finance/journal';
+};
+
+export type financeReadFinanceJournalErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceJournalError = financeReadFinanceJournalErrors[keyof financeReadFinanceJournalErrors];
+
+export type financeReadFinanceJournalResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceJournalsPublic;
+};
+
+export type financeReadFinanceJournalResponse = financeReadFinanceJournalResponses[keyof financeReadFinanceJournalResponses];
+
+export type financeReadFinanceJournalEntryData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Journal Id
+         */
+        journal_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/journal/{journal_id}';
+};
+
+export type financeReadFinanceJournalEntryErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceJournalEntryError = financeReadFinanceJournalEntryErrors[keyof financeReadFinanceJournalEntryErrors];
+
+export type financeReadFinanceJournalEntryResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceJournalPublic;
+};
+
+export type financeReadFinanceJournalEntryResponse = financeReadFinanceJournalEntryResponses[keyof financeReadFinanceJournalEntryResponses];
+
+export type financePostFinanceOpeningBalanceData = {
+    body: FinanceOpeningBalanceCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/opening-balance';
+};
+
+export type financePostFinanceOpeningBalanceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financePostFinanceOpeningBalanceError = financePostFinanceOpeningBalanceErrors[keyof financePostFinanceOpeningBalanceErrors];
+
+export type financePostFinanceOpeningBalanceResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceJournalPublic;
+};
+
+export type financePostFinanceOpeningBalanceResponse = financePostFinanceOpeningBalanceResponses[keyof financePostFinanceOpeningBalanceResponses];
+
+export type financeCorrectFinanceJournalData = {
+    body: FinanceJournalCorrectionCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Journal Id
+         */
+        journal_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/journal/{journal_id}/correct';
+};
+
+export type financeCorrectFinanceJournalErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeCorrectFinanceJournalError = financeCorrectFinanceJournalErrors[keyof financeCorrectFinanceJournalErrors];
+
+export type financeCorrectFinanceJournalResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceJournalPublic;
+};
+
+export type financeCorrectFinanceJournalResponse = financeCorrectFinanceJournalResponses[keyof financeCorrectFinanceJournalResponses];
+
+export type financeReadFinanceGrantsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/grants';
+};
+
+export type financeReadFinanceGrantsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceGrantsError = financeReadFinanceGrantsErrors[keyof financeReadFinanceGrantsErrors];
+
+export type financeReadFinanceGrantsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceGrantsPublic;
+};
+
+export type financeReadFinanceGrantsResponse = financeReadFinanceGrantsResponses[keyof financeReadFinanceGrantsResponses];
+
+export type financeUpdateFinanceGrantsData = {
+    body: FinanceGrantUpdate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * User Id
+         */
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/grants/{user_id}';
+};
+
+export type financeUpdateFinanceGrantsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeUpdateFinanceGrantsError = financeUpdateFinanceGrantsErrors[keyof financeUpdateFinanceGrantsErrors];
+
+export type financeUpdateFinanceGrantsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceGrantRow;
+};
+
+export type financeUpdateFinanceGrantsResponse = financeUpdateFinanceGrantsResponses[keyof financeUpdateFinanceGrantsResponses];
+
+export type financeReadFinancePeriodsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/periods';
+};
+
+export type financeReadFinancePeriodsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinancePeriodsError = financeReadFinancePeriodsErrors[keyof financeReadFinancePeriodsErrors];
+
+export type financeReadFinancePeriodsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinancePeriodsPublic;
+};
+
+export type financeReadFinancePeriodsResponse = financeReadFinancePeriodsResponses[keyof financeReadFinancePeriodsResponses];
+
+export type financeCloseFinancePeriodData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/periods/close';
+};
+
+export type financeCloseFinancePeriodErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeCloseFinancePeriodError = financeCloseFinancePeriodErrors[keyof financeCloseFinancePeriodErrors];
+
+export type financeCloseFinancePeriodResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinancePeriodPublic;
+};
+
+export type financeCloseFinancePeriodResponse = financeCloseFinancePeriodResponses[keyof financeCloseFinancePeriodResponses];
 
 export type utilsHealthCheckData = {
     body?: never;

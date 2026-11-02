@@ -36,7 +36,7 @@ import { useServerPage } from "@/lib/server-page"
 import { useMobileViewport } from "@/lib/useMobileViewport"
 import { useSnackbar } from "@/snackbar"
 
-type StaffRole = "GYM_ADMIN" | "COACH"
+type StaffRole = "GYM_ADMIN" | "COACH" | "FINANCE_STAFF"
 
 export function MembersPage() {
   const { t, formatDate } = useI18n()
@@ -127,7 +127,11 @@ export function MembersPage() {
           .filter((role) => role !== "ATHLETE")
           .map((role) => (
             <span key={role} className="m3-chip">
-              {role === "GYM_ADMIN" ? t("members.admin") : t("members.coach")}
+              {role === "GYM_ADMIN"
+                ? t("members.admin")
+                : role === "FINANCE_STAFF"
+                  ? t("members.financeStaff")
+                  : t("members.coach")}
             </span>
           ))}
         {!member.is_owner &&
@@ -538,6 +542,12 @@ export function MembersPage() {
               >
                 {t("members.admin")}
               </Chip>
+              <Chip
+                selected={roles.includes("FINANCE_STAFF")}
+                onClick={() => toggleRole("FINANCE_STAFF")}
+              >
+                {t("members.financeStaff")}
+              </Chip>
             </div>
           </div>
           <SelectField
@@ -604,6 +614,12 @@ export function MembersPage() {
               icon={<ShieldCheck size={14} />}
             >
               {t("members.admin")}
+            </Chip>
+            <Chip
+              selected={roles.includes("FINANCE_STAFF")}
+              onClick={() => toggleRole("FINANCE_STAFF")}
+            >
+              {t("members.financeStaff")}
             </Chip>
           </div>
           {!roles.length ? (

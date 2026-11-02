@@ -18,6 +18,7 @@ import {
   Sun,
   UserRound,
   Users,
+  Wallet,
   X,
 } from "lucide-react"
 import {
@@ -48,6 +49,7 @@ type NavItem = {
 const ROLE_MODE_LABELS: Record<RoleMode, TranslationKey> = {
   GYM_ADMIN: "context.adminMode",
   COACH: "context.coachMode",
+  FINANCE_STAFF: "context.financeMode",
   ATHLETE: "context.athleteMode",
 }
 
@@ -267,6 +269,21 @@ export function AppShell() {
         icon: UserRound,
       },
     ]
+  } else if (activeRole === "FINANCE_STAFF") {
+    navItems = [
+      {
+        to: clubPath(""),
+        params: clubParams,
+        label: "nav.dashboard",
+        icon: LayoutDashboard,
+      },
+      {
+        to: clubPath("/finance"),
+        params: clubParams,
+        label: "nav.finance",
+        icon: Wallet,
+      },
+    ]
   } else if (activeRole === "COACH") {
     navItems = [
       {
@@ -316,6 +333,12 @@ export function AppShell() {
         params: clubParams,
         label: "nav.members",
         icon: UserRound,
+      },
+      {
+        to: clubPath("/finance"),
+        params: clubParams,
+        label: "nav.finance",
+        icon: Wallet,
       },
       {
         to: clubPath("/exercises"),

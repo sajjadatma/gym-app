@@ -154,6 +154,9 @@ jobs:
       - name: TypeScript
         working-directory: frontend
         run: bunx tsc -p tsconfig.build.json --noEmit
+      - name: Unit tests
+        working-directory: frontend
+        run: bun run test:unit
       - name: Build
         working-directory: frontend
         run: bun run build
