@@ -12,9 +12,19 @@ from app.finance_models import (
     FINANCE_VIEW,
     FinanceAccountPublic,
     FinanceAccountsPublic,
+    FinanceCatalogItemCreate,
+    FinanceCatalogItemPublic,
+    FinanceCatalogItemUpdate,
+    FinanceCatalogPublic,
     FinanceGrantRow,
     FinanceGrantsPublic,
     FinanceGrantUpdate,
+    FinanceInvoiceCreate,
+    FinanceInvoiceIssueCreate,
+    FinanceInvoicePublic,
+    FinanceInvoicesPublic,
+    FinanceInvoiceUpdate,
+    FinanceInvoiceVoidCreate,
     FinanceJournalCorrectionCreate,
     FinanceJournalPublic,
     FinanceJournalsPublic,
@@ -24,12 +34,20 @@ from app.finance_models import (
     FinanceSettingsPublic,
     FinanceSettingsUpdate,
 )
+from app.models import Message
 from app.services.finance import (
     accounts_public,
     close_period,
+    create_catalog_item,
+    create_invoice,
+    delete_invoice,
     ensure_settings,
+    get_invoice,
     get_journal,
+    issue_invoice,
+    list_catalog,
     list_grants,
+    list_invoices,
     list_journals,
     list_periods,
     lock_finance_gym,
@@ -39,7 +57,10 @@ from app.services.finance import (
     replace_grants,
     resolve_finance_scope,
     settings_public,
+    update_catalog_item,
+    update_invoice,
     utcnow,
+    void_invoice,
 )
 from app.services.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 
@@ -289,3 +310,187 @@ def close_finance_period(
         target_id=period.id,
     )
     return period
+
+
+# ---------------------------------------------------------------------------
+# Catalog and invoices (Phase 2)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/catalog", response_model=FinanceCatalogPublic)
+def read_finance_catalog(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    active_only: bool = False,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return list_catalog(
+        session, gym_id=ctx.gym.id, active_only=active_only
+    )
+
+
+@router.post("/catalog", response_model=FinanceCatalogItemPublic)
+def create_finance_catalog_item(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceCatalogItemCreate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return create_catalog_item(
+        session, scope=scope, actor=current_user, body=body
+    )
+
+
+@router.patch("/catalog/{item_id}", response_model=FinanceCatalogItemPublic)
+def update_finance_catalog_item(
+    *,
+    item_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceCatalogItemUpdate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return update_catalog_item(
+        session,
+        scope=scope,
+        actor=current_user,
+        item_id=item_id,
+        body=body,
+    )
+
+
+@router.get("/invoices", response_model=FinanceInvoicesPublic)
+def read_finance_invoices(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    status: str | None = Query(default=None, max_length=20),
+    customer_user_id: uuid.UUID | None = None,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return list_invoices(
+        session,
+        gym_id=ctx.gym.id,
+        status=status,
+        customer_user_id=customer_user_id,
+        offset=offset,
+        limit=limit,
+    )
+
+
+@router.post("/invoices", response_model=FinanceInvoicePublic)
+def create_finance_invoice(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceInvoiceCreate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return create_invoice(session, scope=scope, actor=current_user, body=body)
+
+
+@router.get("/invoices/{invoice_id}", response_model=FinanceInvoicePublic)
+def read_finance_invoice(
+    *,
+    invoice_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return get_invoice(session, gym_id=ctx.gym.id, invoice_id=invoice_id)
+
+
+@router.patch("/invoices/{invoice_id}", response_model=FinanceInvoicePublic)
+def update_finance_invoice(
+    *,
+    invoice_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceInvoiceUpdate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return update_invoice(
+        session,
+        scope=scope,
+        actor=current_user,
+        invoice_id=invoice_id,
+        body=body,
+    )
+
+
+@router.delete("/invoices/{invoice_id}", response_model=Message)
+def delete_finance_invoice(
+    *,
+    invoice_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    delete_invoice(
+        session, scope=scope, actor=current_user, invoice_id=invoice_id
+    )
+    return Message(message="invoice_deleted")
+
+
+@router.post("/invoices/{invoice_id}/issue", response_model=FinanceInvoicePublic)
+def issue_finance_invoice(
+    *,
+    invoice_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceInvoiceIssueCreate,
+    idempotency_key: IdempotencyKey,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    try:
+        return issue_invoice(
+            session,
+            scope=scope,
+            actor=current_user,
+            invoice_id=invoice_id,
+            posting_date=body.posting_date,
+            operation_key=idempotency_key,
+        )
+    except IntegrityError as exc:
+        raise _commit_conflict(session, exc) from exc
+
+
+@router.post("/invoices/{invoice_id}/void", response_model=FinanceInvoicePublic)
+def void_finance_invoice(
+    *,
+    invoice_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceInvoiceVoidCreate,
+    idempotency_key: IdempotencyKey,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    try:
+        return void_invoice(
+            session,
+            scope=scope,
+            actor=current_user,
+            invoice_id=invoice_id,
+            reason=body.reason,
+            posting_date=body.posting_date,
+            operation_key=idempotency_key,
+        )
+    except IntegrityError as exc:
+        raise _commit_conflict(session, exc) from exc

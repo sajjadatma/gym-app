@@ -20,22 +20,33 @@ from app.models import get_datetime_utc
 
 FinanceDisplayUnit = Literal["RIAL", "TOMAN"]
 FinanceAccountType = Literal["ASSET", "LIABILITY", "EQUITY", "INCOME", "EXPENSE"]
-FinanceJournalEvent = Literal["OPENING_BALANCE", "CORRECTION"]
+FinanceJournalEvent = Literal[
+    "OPENING_BALANCE",
+    "CORRECTION",
+    "INVOICE_ISSUED",
+    "INVOICE_VOID",
+]
 
 FinancePermissionName = Literal[
     "finance.view",
     "finance.opening.manage",
     "finance.period.manage",
+    "finance.catalog.manage",
+    "finance.invoice.manage",
 ]
 
 GrantableFinancePermission = Literal[
     "finance.opening.manage",
     "finance.period.manage",
+    "finance.catalog.manage",
+    "finance.invoice.manage",
 ]
 
 FINANCE_VIEW: Final[FinancePermissionName] = "finance.view"
 FINANCE_OPENING_MANAGE: Final[FinancePermissionName] = "finance.opening.manage"
 FINANCE_PERIOD_MANAGE: Final[FinancePermissionName] = "finance.period.manage"
+FINANCE_CATALOG_MANAGE: Final[FinancePermissionName] = "finance.catalog.manage"
+FINANCE_INVOICE_MANAGE: Final[FinancePermissionName] = "finance.invoice.manage"
 
 # Guardrail for the JavaScript-safe integer transport. 10^15 IRR is one
 # hundred trillion toman, far above any gym amount and below 2^53.
@@ -184,7 +195,8 @@ class FinanceJournal(SQLModel, table=True):
             postgresql_where=text("reversal_of_id IS NOT NULL"),
         ),
         CheckConstraint(
-            "event_type IN ('OPENING_BALANCE', 'CORRECTION')",
+            "event_type IN ('OPENING_BALANCE', 'CORRECTION', "
+            "'INVOICE_ISSUED', 'INVOICE_VOID')",
             name="ck_finance_journal_event",
         ),
     )
@@ -201,6 +213,8 @@ class FinanceJournal(SQLModel, table=True):
     reversal_of_id: uuid.UUID | None = Field(
         default=None, foreign_key="finance_journal.id", ondelete="RESTRICT"
     )
+    source_type: str | None = Field(default=None, max_length=32)
+    source_id: uuid.UUID | None = Field(default=None)
     created_by_id: uuid.UUID | None = Field(
         default=None, foreign_key="user.id", ondelete="RESTRICT"
     )
@@ -250,7 +264,9 @@ class FinanceGrant(SQLModel, table=True):
             postgresql_where=text("revoked_at IS NULL"),
         ),
         CheckConstraint(
-            "permission IN ('finance.opening.manage', 'finance.period.manage')",
+            "permission IN ('finance.opening.manage', "
+            "'finance.period.manage', 'finance.catalog.manage', "
+            "'finance.invoice.manage')",
             name="ck_finance_grant_permission",
         ),
     )
@@ -321,6 +337,8 @@ class FinanceJournalPublic(SQLModel):
     event_type: FinanceJournalEvent
     description: str | None = None
     reversal_of_id: uuid.UUID | None = None
+    source_type: str | None = None
+    source_id: uuid.UUID | None = None
     period_id: uuid.UUID
     created_by_id: uuid.UUID | None = None
     created_by_name: str | None = None
@@ -403,3 +421,264 @@ class FinancePeriodsPublic(SQLModel):
     data: list[FinancePeriodPublic]
     count: int
 
+
+
+# ---------------------------------------------------------------------------
+# Commercial catalog and customer invoices (Phase 2)
+# ---------------------------------------------------------------------------
+
+FinanceLineKind = Literal[
+    "MEMBERSHIP",
+    "PROGRAM",
+    "SESSION",
+    "PACK",
+    "PRODUCT",
+    "SERVICE",
+    "CUSTOM",
+]
+FinanceInvoiceStatus = Literal["DRAFT", "ISSUED", "VOID"]
+
+
+class FinanceCatalogItem(SQLModel, table=True):
+    __tablename__ = "finance_catalog_item"
+    __table_args__ = (
+        UniqueConstraint("gym_id", "name", name="uq_finance_catalog_gym_name"),
+        CheckConstraint(
+            "kind IN ('MEMBERSHIP', 'PROGRAM', 'SESSION', 'PACK', 'PRODUCT', "
+            "'SERVICE', 'CUSTOM')",
+            name="ck_finance_catalog_kind",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    name: str = Field(min_length=1, max_length=255)
+    kind: str = Field(max_length=20)
+    default_price_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    is_active: bool = Field(default=True)
+    created_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+class FinanceCatalogItemCreate(SQLModel):
+    name: str = Field(min_length=1, max_length=255)
+    kind: FinanceLineKind
+    default_price_irr: int = Field(default=0, ge=0, le=MAX_FINANCE_IRR)
+
+
+class FinanceCatalogItemUpdate(SQLModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    kind: FinanceLineKind | None = None
+    default_price_irr: int | None = Field(
+        default=None, ge=0, le=MAX_FINANCE_IRR
+    )
+    is_active: bool | None = None
+
+
+class FinanceCatalogItemPublic(SQLModel):
+    id: uuid.UUID
+    name: str
+    kind: FinanceLineKind
+    default_price_irr: int
+    is_active: bool
+
+
+class FinanceCatalogPublic(SQLModel):
+    data: list[FinanceCatalogItemPublic]
+    count: int
+
+
+class FinanceInvoice(SQLModel, table=True):
+    __tablename__ = "finance_invoice"
+    __table_args__ = (
+        UniqueConstraint(
+            "gym_id", "invoice_number", name="uq_finance_invoice_number"
+        ),
+        CheckConstraint(
+            "status IN ('DRAFT', 'ISSUED', 'VOID')",
+            name="ck_finance_invoice_status",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    customer_user_id: uuid.UUID = Field(
+        foreign_key="user.id", ondelete="RESTRICT", index=True
+    )
+    customer_name: str | None = Field(default=None, max_length=255)
+    status: str = Field(default="DRAFT", max_length=20, index=True)
+    invoice_number: int | None = Field(default=None)
+    issue_date: date | None = Field(default=None)
+    due_date: date | None = Field(default=None)
+    description: str | None = Field(default=None, max_length=1000)
+    subtotal_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    discount_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    total_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    void_reason: str | None = Field(default=None, max_length=500)
+    voided_at: datetime | None = Field(default=None)
+    journal_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_journal.id", ondelete="RESTRICT"
+    )
+    created_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+    issued_at: datetime | None = Field(default=None)
+
+
+class FinanceInvoiceLine(SQLModel, table=True):
+    __tablename__ = "finance_invoice_line"
+    __table_args__ = (
+        UniqueConstraint(
+            "invoice_id", "line_number", name="uq_finance_invoice_line_number"
+        ),
+        CheckConstraint("quantity > 0", name="ck_finance_invoice_line_qty"),
+        CheckConstraint(
+            "unit_price_irr >= 0 AND line_discount_irr >= 0 "
+            "AND net_irr >= 0 AND discount_share_irr >= 0 AND payable_irr >= 0",
+            name="ck_finance_invoice_line_amounts",
+        ),
+        CheckConstraint(
+            "kind IN ('MEMBERSHIP', 'PROGRAM', 'SESSION', 'PACK', 'PRODUCT', "
+            "'SERVICE', 'CUSTOM')",
+            name="ck_finance_invoice_line_kind",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    invoice_id: uuid.UUID = Field(
+        foreign_key="finance_invoice.id", ondelete="CASCADE", index=True
+    )
+    line_number: int
+    catalog_item_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_catalog_item.id", ondelete="RESTRICT"
+    )
+    kind: str = Field(max_length=20)
+    description: str = Field(max_length=255)
+    quantity: int = Field(default=1)
+    unit_price_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    line_discount_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    net_irr: int = Field(default=0, sa_column=Column(BigInteger, nullable=False))
+    discount_share_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    payable_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+
+
+class FinanceInstallment(SQLModel, table=True):
+    __tablename__ = "finance_installment"
+    __table_args__ = (
+        UniqueConstraint(
+            "invoice_id", "sequence", name="uq_finance_installment_sequence"
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    invoice_id: uuid.UUID = Field(
+        foreign_key="finance_invoice.id", ondelete="CASCADE", index=True
+    )
+    sequence: int
+    due_date: date
+    amount_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+
+
+class FinanceInvoiceLineInput(SQLModel):
+    catalog_item_id: uuid.UUID | None = None
+    kind: FinanceLineKind
+    description: str = Field(min_length=1, max_length=255)
+    quantity: int = Field(default=1, ge=1, le=10_000)
+    unit_price_irr: int = Field(ge=0, le=MAX_FINANCE_IRR)
+    line_discount_irr: int = Field(default=0, ge=0, le=MAX_FINANCE_IRR)
+
+
+class FinanceInstallmentInput(SQLModel):
+    due_date: date
+    amount_irr: int = Field(ge=1, le=MAX_FINANCE_IRR)
+
+
+class FinanceInvoiceCreate(SQLModel):
+    customer_user_id: uuid.UUID
+    description: str | None = Field(default=None, max_length=1000)
+    due_date: date | None = None
+    discount_irr: int = Field(default=0, ge=0, le=MAX_FINANCE_IRR)
+    lines: list[FinanceInvoiceLineInput] = Field(min_length=1)
+    installments: list[FinanceInstallmentInput] | None = None
+
+
+class FinanceInvoiceUpdate(FinanceInvoiceCreate):
+    pass
+
+
+class FinanceInvoiceIssueCreate(SQLModel):
+    posting_date: date
+
+
+class FinanceInvoiceVoidCreate(SQLModel):
+    reason: str = Field(min_length=3, max_length=500)
+    posting_date: date
+
+
+class FinanceInvoiceLinePublic(SQLModel):
+    id: uuid.UUID
+    line_number: int
+    catalog_item_id: uuid.UUID | None = None
+    kind: FinanceLineKind
+    description: str
+    quantity: int
+    unit_price_irr: int
+    line_discount_irr: int
+    net_irr: int
+    discount_share_irr: int
+    payable_irr: int
+
+
+class FinanceInstallmentPublic(SQLModel):
+    id: uuid.UUID
+    sequence: int
+    due_date: date
+    amount_irr: int
+
+
+class FinanceInvoicePublic(SQLModel):
+    id: uuid.UUID
+    status: FinanceInvoiceStatus
+    invoice_number: int | None = None
+    customer_user_id: uuid.UUID
+    customer_name: str | None = None
+    issue_date: date | None = None
+    due_date: date | None = None
+    description: str | None = None
+    subtotal_irr: int
+    discount_irr: int
+    total_irr: int
+    paid_irr: int
+    balance_irr: int
+    overdue: bool
+    void_reason: str | None = None
+    created_at: datetime
+    issued_at: datetime | None = None
+    lines: list[FinanceInvoiceLinePublic]
+    installments: list[FinanceInstallmentPublic]
+
+
+class FinanceInvoicesPublic(SQLModel):
+    data: list[FinanceInvoicePublic]
+    count: int

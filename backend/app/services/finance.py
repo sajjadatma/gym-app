@@ -14,16 +14,32 @@ from sqlmodel import Session, col, select
 from app.api.deps import GymContext
 from app.core.audit import audit
 from app.finance_models import (
+    FINANCE_CATALOG_MANAGE,
+    FINANCE_INVOICE_MANAGE,
     FINANCE_OPENING_MANAGE,
     FINANCE_PERIOD_MANAGE,
     FINANCE_VIEW,
     FinanceAccount,
     FinanceAudit,
+    FinanceCatalogItem,
+    FinanceCatalogItemCreate,
+    FinanceCatalogItemPublic,
+    FinanceCatalogItemUpdate,
+    FinanceCatalogPublic,
     FinanceGrant,
     FinanceGrantItem,
     FinanceGrantRow,
     FinanceGrantsPublic,
     FinanceGrantUpdate,
+    FinanceInstallment,
+    FinanceInstallmentPublic,
+    FinanceInvoice,
+    FinanceInvoiceCreate,
+    FinanceInvoiceLine,
+    FinanceInvoiceLinePublic,
+    FinanceInvoicePublic,
+    FinanceInvoicesPublic,
+    FinanceInvoiceUpdate,
     FinanceJournal,
     FinanceJournalLine,
     FinanceJournalLinePublic,
@@ -40,12 +56,14 @@ from app.finance_models import (
     FinanceSettingsPublic,
     GrantableFinancePermission,
 )
-from app.models import User
+from app.models import Gym, GymMembership, User
 
 ADMIN_PERMISSIONS: tuple[FinancePermissionName, ...] = (
     FINANCE_VIEW,
     FINANCE_OPENING_MANAGE,
     FINANCE_PERIOD_MANAGE,
+    FINANCE_CATALOG_MANAGE,
+    FINANCE_INVOICE_MANAGE,
 )
 
 DEFAULT_DISPLAY_UNIT = "RIAL"
@@ -328,16 +346,23 @@ def ensure_open_period(session: Session, gym_id: uuid.UUID) -> FinancePeriod:
     return period
 
 
-def _allocate_entry_number(session: Session, gym_id: uuid.UUID) -> int:
+def allocate_document_number(
+    session: Session, gym_id: uuid.UUID, doc_type: str
+) -> int:
+    """Allocate the next per-gym document number.
+
+    Callers must hold ``lock_finance_gym`` so two concurrent writers cannot
+    read the same last value.
+    """
     sequence = session.exec(
         select(FinanceSequence).where(
             FinanceSequence.gym_id == gym_id,
-            FinanceSequence.doc_type == JOURNAL_DOC_TYPE,
+            FinanceSequence.doc_type == doc_type,
         )
     ).first()
     if sequence is None:
         sequence = FinanceSequence(
-            gym_id=gym_id, doc_type=JOURNAL_DOC_TYPE, last_value=0
+            gym_id=gym_id, doc_type=doc_type, last_value=0
         )
         session.add(sequence)
         session.flush()
@@ -362,6 +387,8 @@ def post_journal(
     lines: list[tuple[uuid.UUID, int, int, str | None]],
     created_by_id: uuid.UUID | None,
     reversal_of_id: uuid.UUID | None = None,
+    source_type: str | None = None,
+    source_id: uuid.UUID | None = None,
 ) -> FinanceJournal:
     lock_finance_gym(session, gym_id)
     total_debit = sum(line[1] for line in lines)
@@ -386,11 +413,15 @@ def post_journal(
     journal = FinanceJournal(
         gym_id=gym_id,
         period_id=period.id,
-        entry_number=_allocate_entry_number(session, gym_id),
+        entry_number=allocate_document_number(
+            session, gym_id, JOURNAL_DOC_TYPE
+        ),
         posting_date=posting_date,
         event_type=event_type,
         description=description,
         reversal_of_id=reversal_of_id,
+        source_type=source_type,
+        source_id=source_id,
         created_by_id=created_by_id,
     )
     session.add(journal)
@@ -417,9 +448,9 @@ def _request_hash(payload: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode()).hexdigest()
 
 
-def _replay(
+def find_operation(
     session: Session, *, gym_id: uuid.UUID, operation_key: str, payload: dict[str, Any]
-) -> FinanceJournal | None:
+) -> FinanceOperation | None:
     operation = session.exec(
         select(FinanceOperation).where(
             FinanceOperation.gym_id == gym_id,
@@ -430,6 +461,37 @@ def _replay(
         return None
     if operation.request_hash != _request_hash(payload):
         raise HTTPException(status_code=409, detail="idempotency_key_reused")
+    return operation
+
+
+def remember_operation(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    operation_key: str,
+    payload: dict[str, Any],
+    result_type: str,
+    result_id: uuid.UUID,
+) -> None:
+    session.add(
+        FinanceOperation(
+            gym_id=gym_id,
+            operation_key=operation_key,
+            request_hash=_request_hash(payload),
+            result_type=result_type,
+            result_id=result_id,
+        )
+    )
+
+
+def _replay(
+    session: Session, *, gym_id: uuid.UUID, operation_key: str, payload: dict[str, Any]
+) -> FinanceJournal | None:
+    operation = find_operation(
+        session, gym_id=gym_id, operation_key=operation_key, payload=payload
+    )
+    if operation is None:
+        return None
     journal = session.get(FinanceJournal, operation.result_id)
     if journal is None or journal.gym_id != gym_id:
         raise HTTPException(status_code=409, detail="idempotency_key_reused")
@@ -444,14 +506,13 @@ def _remember(
     payload: dict[str, Any],
     journal: FinanceJournal,
 ) -> None:
-    session.add(
-        FinanceOperation(
-            gym_id=gym_id,
-            operation_key=operation_key,
-            request_hash=_request_hash(payload),
-            result_type="finance_journal",
-            result_id=journal.id,
-        )
+    remember_operation(
+        session,
+        gym_id=gym_id,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="finance_journal",
+        result_id=journal.id,
     )
 
 
@@ -714,6 +775,8 @@ def journal_public(
         event_type=journal.event_type,  # type: ignore[arg-type]
         description=journal.description,
         reversal_of_id=journal.reversal_of_id,
+        source_type=journal.source_type,
+        source_id=journal.source_id,
         period_id=journal.period_id,
         created_by_id=journal.created_by_id,
         created_by_name=(creator.full_name or creator.email) if creator else None,
@@ -969,3 +1032,651 @@ def revoke_grants_for_user(
         detail={"permissions": permissions},
     )
     return permissions
+
+
+# ---------------------------------------------------------------------------
+# Catalog and invoices (Phase 2)
+# ---------------------------------------------------------------------------
+
+INVOICE_DOC_TYPE = "INVOICE"
+
+
+def _catalog_public(item: FinanceCatalogItem) -> FinanceCatalogItemPublic:
+    return FinanceCatalogItemPublic(
+        id=item.id,
+        name=item.name,
+        kind=item.kind,  # type: ignore[arg-type]
+        default_price_irr=item.default_price_irr,
+        is_active=item.is_active,
+    )
+
+
+def list_catalog(
+    session: Session, *, gym_id: uuid.UUID, active_only: bool
+) -> FinanceCatalogPublic:
+    statement = select(FinanceCatalogItem).where(
+        FinanceCatalogItem.gym_id == gym_id
+    )
+    if active_only:
+        statement = statement.where(col(FinanceCatalogItem.is_active).is_(True))
+    items = session.exec(statement.order_by(col(FinanceCatalogItem.name))).all()
+    return FinanceCatalogPublic(
+        data=[_catalog_public(item) for item in items], count=len(items)
+    )
+
+
+def create_catalog_item(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    body: FinanceCatalogItemCreate,
+) -> FinanceCatalogItemPublic:
+    scope.require(FINANCE_CATALOG_MANAGE)
+    existing = session.exec(
+        select(FinanceCatalogItem).where(
+            FinanceCatalogItem.gym_id == scope.gym_id,
+            FinanceCatalogItem.name == body.name,
+        )
+    ).first()
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="catalog_item_exists")
+    item = FinanceCatalogItem(
+        gym_id=scope.gym_id,
+        name=body.name,
+        kind=body.kind,
+        default_price_irr=body.default_price_irr,
+        created_by_id=actor.id,
+    )
+    session.add(item)
+    session.flush()
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.catalog.created",
+        target_type="finance_catalog_item",
+        target_id=item.id,
+        detail={"name": item.name, "kind": item.kind},
+    )
+    session.commit()
+    session.refresh(item)
+    return _catalog_public(item)
+
+
+def update_catalog_item(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    item_id: uuid.UUID,
+    body: FinanceCatalogItemUpdate,
+) -> FinanceCatalogItemPublic:
+    scope.require(FINANCE_CATALOG_MANAGE)
+    item = session.get(FinanceCatalogItem, item_id)
+    if item is None or item.gym_id != scope.gym_id:
+        raise HTTPException(status_code=404, detail="catalog_item_not_found")
+    data = body.model_dump(exclude_unset=True, exclude_none=True)
+    if "name" in data:
+        duplicate = session.exec(
+            select(FinanceCatalogItem).where(
+                FinanceCatalogItem.gym_id == scope.gym_id,
+                FinanceCatalogItem.name == data["name"],
+                col(FinanceCatalogItem.id) != item.id,
+            )
+        ).first()
+        if duplicate is not None:
+            raise HTTPException(status_code=409, detail="catalog_item_exists")
+    changes = {
+        key: {"from": getattr(item, key), "to": value}
+        for key, value in data.items()
+    }
+    item.sqlmodel_update(data)
+    session.add(item)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.catalog.updated",
+        target_type="finance_catalog_item",
+        target_id=item.id,
+        detail={"changes": changes},
+    )
+    session.commit()
+    session.refresh(item)
+    return _catalog_public(item)
+
+
+def _invoice_customer(
+    session: Session, *, gym_id: uuid.UUID, user_id: uuid.UUID
+) -> User:
+    user = session.get(User, user_id)
+    gym = session.get(Gym, gym_id)
+    if user is None:
+        raise HTTPException(status_code=400, detail="invalid_invoice_customer")
+    membership = session.exec(
+        select(GymMembership).where(
+            GymMembership.gym_id == gym_id,
+            GymMembership.user_id == user_id,
+            col(GymMembership.is_active).is_(True),
+        )
+    ).first()
+    if membership is None and (gym is None or gym.owner_id != user_id):
+        raise HTTPException(status_code=400, detail="invalid_invoice_customer")
+    return user
+
+
+def _invoice_lines(
+    body: FinanceInvoiceCreate,
+) -> tuple[list[dict[str, Any]], int, int]:
+    nets: list[int] = []
+    for item in body.lines:
+        gross = item.quantity * item.unit_price_irr
+        if item.line_discount_irr > gross:
+            raise HTTPException(
+                status_code=400, detail="finance_invalid_line_discount"
+            )
+        nets.append(gross - item.line_discount_irr)
+    subtotal = sum(nets)
+    if body.discount_irr > subtotal:
+        raise HTTPException(
+            status_code=400, detail="finance_discount_exceeds_total"
+        )
+    shares = [body.discount_irr * net // subtotal for net in nets] if subtotal else [0] * len(nets)
+    remainder = body.discount_irr - sum(shares)
+    # Deterministic residual: fill the largest lines first, then line order,
+    # so every share stays inside its own line and the total is exact.
+    for index in sorted(range(len(nets)), key=lambda i: (-nets[i], i)):
+        if remainder == 0:
+            break
+        take = min(nets[index] - shares[index], remainder)
+        shares[index] += take
+        remainder -= take
+    if remainder != 0:
+        raise HTTPException(
+            status_code=400, detail="finance_discount_exceeds_total"
+        )
+    rows = [
+        {
+            "line_number": index + 1,
+            "net_irr": net,
+            "discount_share_irr": share,
+            "payable_irr": net - share,
+        }
+        for index, (net, share) in enumerate(zip(nets, shares, strict=True))
+    ]
+    return rows, subtotal, subtotal - body.discount_irr
+
+
+def _replace_invoice_body(
+    session: Session, *, invoice: FinanceInvoice, body: FinanceInvoiceCreate
+) -> None:
+    for line in session.exec(
+        select(FinanceInvoiceLine).where(
+            FinanceInvoiceLine.invoice_id == invoice.id
+        )
+    ).all():
+        session.delete(line)
+    for installment in session.exec(
+        select(FinanceInstallment).where(
+            FinanceInstallment.invoice_id == invoice.id
+        )
+    ).all():
+        session.delete(installment)
+    session.flush()
+
+    customer = _invoice_customer(
+        session, gym_id=invoice.gym_id, user_id=body.customer_user_id
+    )
+    rows, subtotal, total = _invoice_lines(body)
+    if body.installments is not None:
+        if sum(item.amount_irr for item in body.installments) != total:
+            raise HTTPException(
+                status_code=400, detail="finance_installments_mismatch"
+            )
+    for item, calculated in zip(body.lines, rows, strict=True):
+        if item.catalog_item_id is not None:
+            catalog_item = session.get(
+                FinanceCatalogItem, item.catalog_item_id
+            )
+            if catalog_item is None or catalog_item.gym_id != invoice.gym_id:
+                raise HTTPException(
+                    status_code=400, detail="invalid_catalog_item"
+                )
+        session.add(
+            FinanceInvoiceLine(
+                invoice_id=invoice.id,
+                line_number=calculated["line_number"],
+                catalog_item_id=item.catalog_item_id,
+                kind=item.kind,
+                description=item.description,
+                quantity=item.quantity,
+                unit_price_irr=item.unit_price_irr,
+                line_discount_irr=item.line_discount_irr,
+                net_irr=calculated["net_irr"],
+                discount_share_irr=calculated["discount_share_irr"],
+                payable_irr=calculated["payable_irr"],
+            )
+        )
+    if body.installments is not None:
+        for sequence, schedule in enumerate(body.installments, start=1):
+            session.add(
+                FinanceInstallment(
+                    invoice_id=invoice.id,
+                    sequence=sequence,
+                    due_date=schedule.due_date,
+                    amount_irr=schedule.amount_irr,
+                )
+            )
+    invoice.customer_user_id = customer.id
+    invoice.customer_name = customer.full_name or customer.email
+    invoice.description = body.description
+    invoice.due_date = body.due_date
+    invoice.subtotal_irr = subtotal
+    invoice.discount_irr = body.discount_irr
+    invoice.total_irr = total
+    session.add(invoice)
+    session.flush()
+
+
+def _get_invoice(
+    session: Session, *, gym_id: uuid.UUID, invoice_id: uuid.UUID
+) -> FinanceInvoice:
+    invoice = session.get(FinanceInvoice, invoice_id)
+    if invoice is None or invoice.gym_id != gym_id:
+        raise HTTPException(status_code=404, detail="invoice_not_found")
+    return invoice
+
+
+def _invoice_paid_irr(
+    session: Session,  # noqa: ARG001 - payments slice fills this in
+    invoice_id: uuid.UUID,  # noqa: ARG001
+) -> int:
+    # Receipts and advances arrive with the payments slice; until then an
+    # issued invoice has no confirmed collections.
+    return 0
+
+
+def invoice_public(
+    session: Session, invoice: FinanceInvoice
+) -> FinanceInvoicePublic:
+    lines = session.exec(
+        select(FinanceInvoiceLine)
+        .where(FinanceInvoiceLine.invoice_id == invoice.id)
+        .order_by(col(FinanceInvoiceLine.line_number))
+    ).all()
+    installments = session.exec(
+        select(FinanceInstallment)
+        .where(FinanceInstallment.invoice_id == invoice.id)
+        .order_by(col(FinanceInstallment.sequence))
+    ).all()
+    paid = 0 if invoice.status == "VOID" else _invoice_paid_irr(session, invoice.id)
+    balance = 0 if invoice.status == "VOID" else invoice.total_irr - paid
+    today = utcnow().date()
+    overdue = (
+        invoice.status == "ISSUED"
+        and balance > 0
+        and invoice.due_date is not None
+        and invoice.due_date < today
+    )
+    return FinanceInvoicePublic(
+        id=invoice.id,
+        status=invoice.status,  # type: ignore[arg-type]
+        invoice_number=invoice.invoice_number,
+        customer_user_id=invoice.customer_user_id,
+        customer_name=invoice.customer_name,
+        issue_date=invoice.issue_date,
+        due_date=invoice.due_date,
+        description=invoice.description,
+        subtotal_irr=invoice.subtotal_irr,
+        discount_irr=invoice.discount_irr,
+        total_irr=invoice.total_irr,
+        paid_irr=paid,
+        balance_irr=balance,
+        overdue=overdue,
+        void_reason=invoice.void_reason,
+        created_at=invoice.created_at,
+        issued_at=invoice.issued_at,
+        lines=[
+            FinanceInvoiceLinePublic(
+                id=line.id,
+                line_number=line.line_number,
+                catalog_item_id=line.catalog_item_id,
+                kind=line.kind,  # type: ignore[arg-type]
+                description=line.description,
+                quantity=line.quantity,
+                unit_price_irr=line.unit_price_irr,
+                line_discount_irr=line.line_discount_irr,
+                net_irr=line.net_irr,
+                discount_share_irr=line.discount_share_irr,
+                payable_irr=line.payable_irr,
+            )
+            for line in lines
+        ],
+        installments=[
+            FinanceInstallmentPublic(
+                id=installment.id,
+                sequence=installment.sequence,
+                due_date=installment.due_date,
+                amount_irr=installment.amount_irr,
+            )
+            for installment in installments
+        ],
+    )
+
+
+def list_invoices(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    status: str | None,
+    customer_user_id: uuid.UUID | None,
+    offset: int,
+    limit: int,
+) -> FinanceInvoicesPublic:
+    filters = [FinanceInvoice.gym_id == gym_id]
+    if status:
+        filters.append(FinanceInvoice.status == status)
+    if customer_user_id:
+        filters.append(FinanceInvoice.customer_user_id == customer_user_id)
+    total = session.exec(
+        select(func.count(col(FinanceInvoice.id))).where(*filters)
+    ).one()
+    invoices = session.exec(
+        select(FinanceInvoice)
+        .where(*filters)
+        .order_by(col(FinanceInvoice.created_at).desc())
+        .offset(offset)
+        .limit(limit)
+    ).all()
+    return FinanceInvoicesPublic(
+        data=[invoice_public(session, invoice) for invoice in invoices],
+        count=int(total),
+    )
+
+
+def get_invoice(
+    session: Session, *, gym_id: uuid.UUID, invoice_id: uuid.UUID
+) -> FinanceInvoicePublic:
+    return invoice_public(
+        session, _get_invoice(session, gym_id=gym_id, invoice_id=invoice_id)
+    )
+
+
+def create_invoice(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    body: FinanceInvoiceCreate,
+) -> FinanceInvoicePublic:
+    scope.require(FINANCE_INVOICE_MANAGE)
+    invoice = FinanceInvoice(
+        gym_id=scope.gym_id,
+        customer_user_id=body.customer_user_id,
+        status="DRAFT",
+        created_by_id=actor.id,
+        subtotal_irr=0,
+        discount_irr=0,
+        total_irr=0,
+    )
+    session.add(invoice)
+    session.flush()
+    _replace_invoice_body(session, invoice=invoice, body=body)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.invoice.drafted",
+        target_type="finance_invoice",
+        target_id=invoice.id,
+        detail={"total_irr": invoice.total_irr},
+    )
+    session.commit()
+    session.refresh(invoice)
+    return invoice_public(session, invoice)
+
+
+def update_invoice(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    invoice_id: uuid.UUID,
+    body: FinanceInvoiceUpdate,
+) -> FinanceInvoicePublic:
+    scope.require(FINANCE_INVOICE_MANAGE)
+    invoice = _get_invoice(session, gym_id=scope.gym_id, invoice_id=invoice_id)
+    if invoice.status != "DRAFT":
+        raise HTTPException(status_code=409, detail="invoice_not_draft")
+    _replace_invoice_body(session, invoice=invoice, body=body)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.invoice.updated",
+        target_type="finance_invoice",
+        target_id=invoice.id,
+        detail={"total_irr": invoice.total_irr},
+    )
+    session.commit()
+    session.refresh(invoice)
+    return invoice_public(session, invoice)
+
+
+def delete_invoice(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    invoice_id: uuid.UUID,
+) -> None:
+    scope.require(FINANCE_INVOICE_MANAGE)
+    invoice = _get_invoice(session, gym_id=scope.gym_id, invoice_id=invoice_id)
+    if invoice.status != "DRAFT":
+        raise HTTPException(status_code=409, detail="invoice_not_draft")
+    session.delete(invoice)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.invoice.discarded",
+        target_type="finance_invoice",
+        target_id=invoice_id,
+    )
+    session.commit()
+
+
+def issue_invoice(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    invoice_id: uuid.UUID,
+    posting_date: date,
+    operation_key: str,
+) -> FinanceInvoicePublic:
+    scope.require(FINANCE_INVOICE_MANAGE)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
+    scope.require(FINANCE_INVOICE_MANAGE)
+    payload = {"invoice_id": str(invoice_id), "posting_date": posting_date.isoformat()}
+    operation = find_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+    )
+    if operation is not None:
+        invoice = session.get(FinanceInvoice, operation.result_id)
+        if invoice is None or invoice.gym_id != scope.gym_id:
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
+        return invoice_public(session, invoice)
+
+    invoice = _get_invoice(session, gym_id=scope.gym_id, invoice_id=invoice_id)
+    if invoice.status != "DRAFT":
+        raise HTTPException(status_code=409, detail="invoice_not_draft")
+    if invoice.total_irr <= 0:
+        raise HTTPException(
+            status_code=400, detail="finance_invoice_total_required"
+        )
+
+    accounts = ensure_accounts(session, scope.gym_id)
+    number = allocate_document_number(
+        session, scope.gym_id, INVOICE_DOC_TYPE
+    )
+    journal = post_journal(
+        session,
+        gym_id=scope.gym_id,
+        posting_date=posting_date,
+        event_type="INVOICE_ISSUED",
+        description=f"Invoice {number}",
+        lines=[
+            (accounts["1100"].id, invoice.total_irr, 0, f"Invoice {number}"),
+            (accounts["4000"].id, 0, invoice.total_irr, f"Invoice {number}"),
+        ],
+        created_by_id=actor.id,
+        source_type="finance_invoice",
+        source_id=invoice.id,
+    )
+    invoice.invoice_number = number
+    invoice.status = "ISSUED"
+    invoice.issue_date = posting_date
+    invoice.issued_at = utcnow()
+    invoice.journal_id = journal.id
+    session.add(invoice)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.invoice.issued",
+        target_type="finance_invoice",
+        target_id=invoice.id,
+        detail={
+            "invoice_number": number,
+            "total_irr": invoice.total_irr,
+            "journal_id": str(journal.id),
+        },
+    )
+    audit(
+        "finance.invoice.issued",
+        actor_id=actor.id,
+        gym_id=scope.gym_id,
+        target_id=invoice.id,
+        detail=f"number={number}",
+    )
+    remember_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="finance_invoice",
+        result_id=invoice.id,
+    )
+    session.commit()
+    session.refresh(invoice)
+    return invoice_public(session, invoice)
+
+
+def void_invoice(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    invoice_id: uuid.UUID,
+    reason: str,
+    posting_date: date,
+    operation_key: str,
+) -> FinanceInvoicePublic:
+    scope.require(FINANCE_INVOICE_MANAGE)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
+    scope.require(FINANCE_INVOICE_MANAGE)
+    payload = {
+        "invoice_id": str(invoice_id),
+        "reason": reason,
+        "posting_date": posting_date.isoformat(),
+    }
+    operation = find_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+    )
+    if operation is not None:
+        invoice = session.get(FinanceInvoice, operation.result_id)
+        if invoice is None or invoice.gym_id != scope.gym_id:
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
+        return invoice_public(session, invoice)
+
+    invoice = _get_invoice(session, gym_id=scope.gym_id, invoice_id=invoice_id)
+    if invoice.status != "ISSUED":
+        raise HTTPException(status_code=409, detail="invoice_not_issued")
+    if _invoice_paid_irr(session, invoice.id) > 0:
+        raise HTTPException(status_code=409, detail="invoice_has_payments")
+    if invoice.journal_id is None:
+        raise HTTPException(
+            status_code=400, detail="finance_invoice_not_posted"
+        )
+    journal = session.get(FinanceJournal, invoice.journal_id)
+    if journal is None:
+        raise HTTPException(
+            status_code=400, detail="finance_invoice_not_posted"
+        )
+    original_lines = session.exec(
+        select(FinanceJournalLine).where(
+            FinanceJournalLine.journal_id == journal.id
+        )
+    ).all()
+    reversal = post_journal(
+        session,
+        gym_id=scope.gym_id,
+        posting_date=posting_date,
+        event_type="INVOICE_VOID",
+        description=f"Void invoice {invoice.invoice_number}: {reason}",
+        lines=[
+            (line.account_id, line.credit_irr, line.debit_irr, line.memo)
+            for line in original_lines
+        ],
+        created_by_id=actor.id,
+        reversal_of_id=journal.id,
+        source_type="finance_invoice",
+        source_id=invoice.id,
+    )
+    invoice.status = "VOID"
+    invoice.void_reason = reason
+    invoice.voided_at = utcnow()
+    session.add(invoice)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.invoice.voided",
+        target_type="finance_invoice",
+        target_id=invoice.id,
+        reason=reason,
+        detail={
+            "invoice_number": invoice.invoice_number,
+            "reversal_journal_id": str(reversal.id),
+        },
+    )
+    audit(
+        "finance.invoice.voided",
+        actor_id=actor.id,
+        gym_id=scope.gym_id,
+        target_id=invoice.id,
+        detail=f"number={invoice.invoice_number}",
+    )
+    remember_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="finance_invoice",
+        result_id=invoice.id,
+    )
+    session.commit()
+    session.refresh(invoice)
+    return invoice_public(session, invoice)
