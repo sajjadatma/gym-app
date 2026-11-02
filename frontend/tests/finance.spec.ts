@@ -20,6 +20,12 @@ test("gym admin posts and reviews the opening balance journal", async ({
     name: "ثبت موجودی افتتاحیه",
     exact: true,
   })
+  const posted = page.getByText("موجودی افتتاحیه ثبت شده است.", {
+    exact: false,
+  })
+  // The workspace loads its journal before deciding whether an opening can be
+  // posted, so wait for either stable state instead of sampling too early.
+  await expect(postButton.or(posted).first()).toBeVisible()
   if (await postButton.isVisible().catch(() => false)) {
     await postButton.click()
     const dialog = page.getByRole("dialog")
