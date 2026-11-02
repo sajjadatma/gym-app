@@ -42,6 +42,12 @@ from app.finance_models import (
     FinanceCoachEarning,
     FinanceCoachEarningPublic,
     FinanceCoachEarningsPublic,
+    FinanceCoachSettlement,
+    FinanceCoachSettlementCreate,
+    FinanceCoachSettlementItem,
+    FinanceCoachSettlementItemPublic,
+    FinanceCoachSettlementPublic,
+    FinanceCoachSettlementsPublic,
     FinanceCoachVestingCreate,
     FinanceCreditApplyCreate,
     FinanceCreditMovement,
@@ -3739,10 +3745,13 @@ def _invoice_reminder(
     )
 
 
-def _earning_settled_irr(_session: Session, _earning_id: uuid.UUID) -> int:
-    # Settlement items are added in the settlement slice; keep the read model
-    # stable until then.
-    return 0
+def _earning_settled_irr(session: Session, earning_id: uuid.UUID) -> int:
+    value = session.exec(
+        select(func.coalesce(func.sum(FinanceCoachSettlementItem.amount_irr), 0)).where(
+            FinanceCoachSettlementItem.earning_id == earning_id
+        )
+    ).one()
+    return int(value)
 
 
 def _earning_public(
@@ -3867,6 +3876,247 @@ def vest_coach_earning(
         session.commit()
         session.refresh(earning)
     return _earning_public(session, earning)
+
+
+def _settlement_public(
+    session: Session, settlement: FinanceCoachSettlement
+) -> FinanceCoachSettlementPublic:
+    coach = session.get(User, settlement.coach_user_id)
+    items = session.exec(
+        select(FinanceCoachSettlementItem).where(
+            FinanceCoachSettlementItem.settlement_id == settlement.id
+        )
+    ).all()
+    public_items: list[FinanceCoachSettlementItemPublic] = []
+    for item in items:
+        earning = session.get(FinanceCoachEarning, item.earning_id)
+        invoice = (
+            session.get(FinanceInvoice, earning.invoice_id) if earning else None
+        )
+        line = (
+            session.get(FinanceInvoiceLine, earning.invoice_line_id)
+            if earning
+            else None
+        )
+        public_items.append(
+            FinanceCoachSettlementItemPublic(
+                earning_id=item.earning_id,
+                invoice_id=earning.invoice_id if earning else item.earning_id,
+                invoice_number=invoice.invoice_number if invoice else None,
+                line_description=line.description if line else None,
+                amount_irr=item.amount_irr,
+            )
+        )
+    return FinanceCoachSettlementPublic(
+        id=settlement.id,
+        coach_user_id=settlement.coach_user_id,
+        coach_name=(coach.full_name or coach.email) if coach else None,
+        amount_irr=settlement.amount_irr,
+        method=settlement.method,  # type: ignore[arg-type]
+        reference=settlement.reference,
+        paid_on=settlement.paid_on,
+        notes=settlement.notes,
+        status=settlement.status,  # type: ignore[arg-type]
+        items=public_items,
+        created_at=settlement.created_at,
+        confirmed_at=settlement.confirmed_at,
+    )
+
+
+def _eligible_earnings(
+    session: Session, *, gym_id: uuid.UUID, coach_user_id: uuid.UUID
+) -> list[tuple[FinanceCoachEarning, int]]:
+    today = utcnow().date()
+    rows = session.exec(
+        select(FinanceCoachEarning)
+        .where(
+            FinanceCoachEarning.gym_id == gym_id,
+            FinanceCoachEarning.coach_user_id == coach_user_id,
+            FinanceCoachEarning.status == "CALCULATED",
+        )
+        .order_by(col(FinanceCoachEarning.created_at))
+    ).all()
+    eligible: list[tuple[FinanceCoachEarning, int]] = []
+    for row in rows:
+        vested = row.vested_at is not None or (
+            row.vesting_mode == "ON_DATE"
+            and row.vesting_date is not None
+            and row.vesting_date <= today
+        )
+        if not vested:
+            continue
+        remaining = row.coach_share_irr - _earning_settled_irr(session, row.id)
+        if remaining > 0:
+            eligible.append((row, remaining))
+    return eligible
+
+
+def create_coach_settlement(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    body: FinanceCoachSettlementCreate,
+    operation_key: str,
+) -> FinanceCoachSettlementPublic:
+    scope.require(FINANCE_SETTLEMENT_MANAGE)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
+    scope.require(FINANCE_SETTLEMENT_MANAGE)
+    if not _is_gym_coach(
+        session, gym_id=scope.gym_id, user_id=body.coach_user_id
+    ):
+        raise HTTPException(status_code=400, detail="invalid_settlement_coach")
+    payload = body.model_dump(mode="json")
+    operation = find_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+    )
+    if operation is not None:
+        settlement = session.get(FinanceCoachSettlement, operation.result_id)
+        if settlement is None or settlement.gym_id != scope.gym_id:
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
+        return _settlement_public(session, settlement)
+
+    eligible = _eligible_earnings(
+        session, gym_id=scope.gym_id, coach_user_id=body.coach_user_id
+    )
+    total = sum(value for _, value in eligible)
+    if body.amount_irr > total:
+        raise HTTPException(
+            status_code=400, detail="settlement_exceeds_eligible"
+        )
+
+    accounts = ensure_accounts(session, scope.gym_id)
+    settlement = FinanceCoachSettlement(
+        gym_id=scope.gym_id,
+        coach_user_id=body.coach_user_id,
+        amount_irr=body.amount_irr,
+        method=body.method,
+        reference=body.reference,
+        paid_on=body.paid_on,
+        notes=body.notes,
+        status="RECORDED",
+        created_by_id=actor.id,
+    )
+    session.add(settlement)
+    session.flush()
+    remaining = body.amount_irr
+    for earning, available in eligible:
+        if remaining == 0:
+            break
+        take = min(available, remaining)
+        session.add(
+            FinanceCoachSettlementItem(
+                settlement_id=settlement.id,
+                earning_id=earning.id,
+                amount_irr=take,
+            )
+        )
+        remaining -= take
+    if remaining:
+        raise HTTPException(
+            status_code=400, detail="settlement_exceeds_eligible"
+        )
+    journal = post_journal(
+        session,
+        gym_id=scope.gym_id,
+        posting_date=body.paid_on,
+        event_type="COACH_SETTLEMENT",
+        description="Coach settlement",
+        lines=[
+            (accounts["2100"].id, body.amount_irr, 0, "Coach payable"),
+            (accounts["1000"].id, 0, body.amount_irr, "Coach payout"),
+        ],
+        created_by_id=actor.id,
+        source_type="finance_coach_settlement",
+        source_id=settlement.id,
+    )
+    settlement.journal_id = journal.id
+    session.add(settlement)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.coach_settlement.recorded",
+        target_type="finance_coach_settlement",
+        target_id=settlement.id,
+        detail={
+            "coach_user_id": str(body.coach_user_id),
+            "amount_irr": body.amount_irr,
+            "journal_id": str(journal.id),
+        },
+    )
+    remember_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="finance_coach_settlement",
+        result_id=settlement.id,
+    )
+    session.commit()
+    session.refresh(settlement)
+    return _settlement_public(session, settlement)
+
+
+def confirm_coach_settlement(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    settlement_id: uuid.UUID,
+) -> FinanceCoachSettlementPublic:
+    scope.require(FINANCE_SETTLEMENT_MANAGE)
+    settlement = session.get(FinanceCoachSettlement, settlement_id)
+    if settlement is None or settlement.gym_id != scope.gym_id:
+        raise HTTPException(status_code=404, detail="settlement_not_found")
+    if settlement.status != "RECORDED":
+        raise HTTPException(status_code=409, detail="settlement_not_recorded")
+    settlement.status = "CONFIRMED"
+    settlement.confirmed_by_id = actor.id
+    settlement.confirmed_at = utcnow()
+    session.add(settlement)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.coach_settlement.confirmed",
+        target_type="finance_coach_settlement",
+        target_id=settlement.id,
+    )
+    session.commit()
+    session.refresh(settlement)
+    return _settlement_public(session, settlement)
+
+
+def list_coach_settlements(
+    session: Session, *, gym_id: uuid.UUID, coach_user_id: uuid.UUID
+) -> FinanceCoachSettlementsPublic:
+    rows = session.exec(
+        select(FinanceCoachSettlement)
+        .where(
+            FinanceCoachSettlement.gym_id == gym_id,
+            FinanceCoachSettlement.coach_user_id == coach_user_id,
+        )
+        .order_by(col(FinanceCoachSettlement.created_at).desc())
+    ).all()
+    return FinanceCoachSettlementsPublic(
+        data=[_settlement_public(session, row) for row in rows],
+        count=len(rows),
+    )
+
+
+def get_coach_settlement(
+    session: Session, *, gym_id: uuid.UUID, settlement_id: uuid.UUID
+) -> FinanceCoachSettlementPublic:
+    settlement = session.get(FinanceCoachSettlement, settlement_id)
+    if settlement is None or settlement.gym_id != gym_id:
+        raise HTTPException(status_code=404, detail="settlement_not_found")
+    return _settlement_public(session, settlement)
 
 
 def list_reminders(

@@ -1560,3 +1560,102 @@ class FinanceCoachEarningPublic(SQLModel):
 class FinanceCoachEarningsPublic(SQLModel):
     data: list[FinanceCoachEarningPublic]
     count: int
+
+
+FinanceCoachSettlementStatus = Literal["RECORDED", "CONFIRMED"]
+
+
+class FinanceCoachSettlement(SQLModel, table=True):
+    __tablename__ = "finance_coach_settlement"
+    __table_args__ = (
+        CheckConstraint("amount_irr > 0", name="ck_finance_coach_settlement_amount"),
+        CheckConstraint(
+            "status IN ('RECORDED', 'CONFIRMED')",
+            name="ck_finance_coach_settlement_status",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    coach_user_id: uuid.UUID = Field(
+        foreign_key="user.id", ondelete="RESTRICT", index=True
+    )
+    amount_irr: int = Field(sa_column=Column(BigInteger, nullable=False))
+    method: str = Field(max_length=20)
+    reference: str | None = Field(default=None, max_length=255)
+    paid_on: date
+    notes: str | None = Field(default=None, max_length=1000)
+    status: str = Field(default="RECORDED", max_length=20)
+    journal_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_journal.id", ondelete="RESTRICT"
+    )
+    created_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+    confirmed_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    confirmed_at: datetime | None = Field(default=None)
+
+
+class FinanceCoachSettlementItem(SQLModel, table=True):
+    __tablename__ = "finance_coach_settlement_item"
+    __table_args__ = (
+        UniqueConstraint(
+            "settlement_id", "earning_id", name="uq_finance_settlement_earning"
+        ),
+        CheckConstraint(
+            "amount_irr > 0", name="ck_finance_settlement_item_amount"
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    settlement_id: uuid.UUID = Field(
+        foreign_key="finance_coach_settlement.id",
+        ondelete="CASCADE",
+        index=True,
+    )
+    earning_id: uuid.UUID = Field(
+        foreign_key="finance_coach_earning.id",
+        ondelete="RESTRICT",
+        index=True,
+    )
+    amount_irr: int = Field(sa_column=Column(BigInteger, nullable=False))
+
+
+class FinanceCoachSettlementCreate(SQLModel):
+    coach_user_id: uuid.UUID
+    amount_irr: int = Field(ge=1, le=MAX_FINANCE_IRR)
+    method: FinancePaymentMethod
+    reference: str | None = Field(default=None, max_length=255)
+    paid_on: date
+    notes: str | None = Field(default=None, max_length=1000)
+
+
+class FinanceCoachSettlementItemPublic(SQLModel):
+    earning_id: uuid.UUID
+    invoice_id: uuid.UUID
+    invoice_number: int | None = None
+    line_description: str | None = None
+    amount_irr: int
+
+
+class FinanceCoachSettlementPublic(SQLModel):
+    id: uuid.UUID
+    coach_user_id: uuid.UUID
+    coach_name: str | None = None
+    amount_irr: int
+    method: FinancePaymentMethod
+    reference: str | None = None
+    paid_on: date
+    notes: str | None = None
+    status: FinanceCoachSettlementStatus
+    items: list[FinanceCoachSettlementItemPublic]
+    created_at: datetime
+    confirmed_at: datetime | None = None
+
+
+class FinanceCoachSettlementsPublic(SQLModel):
+    data: list[FinanceCoachSettlementPublic]
+    count: int

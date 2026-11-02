@@ -22,6 +22,9 @@ from app.finance_models import (
     FinanceCoachAgreementsPublic,
     FinanceCoachEarningPublic,
     FinanceCoachEarningsPublic,
+    FinanceCoachSettlementCreate,
+    FinanceCoachSettlementPublic,
+    FinanceCoachSettlementsPublic,
     FinanceCoachVestingCreate,
     FinanceCreditApplyCreate,
     FinanceCreditsPublic,
@@ -75,8 +78,10 @@ from app.services.finance import (
     approve_refund,
     cancel_membership,
     close_period,
+    confirm_coach_settlement,
     create_catalog_item,
     create_coach_agreement,
+    create_coach_settlement,
     create_expense,
     create_invoice,
     create_membership,
@@ -86,6 +91,7 @@ from app.services.finance import (
     freeze_membership,
     get_coach_agreement,
     get_coach_earning,
+    get_coach_settlement,
     get_expense,
     get_invoice,
     get_journal,
@@ -95,6 +101,7 @@ from app.services.finance import (
     list_catalog,
     list_coach_agreements,
     list_coach_earnings,
+    list_coach_settlements,
     list_credits,
     list_expenses,
     list_grants,
@@ -1164,5 +1171,92 @@ def read_my_coach_earnings(
     if not ctx.is_coach:
         raise HTTPException(status_code=403, detail="coach_access_required")
     return list_coach_earnings(
+        session, gym_id=ctx.gym.id, coach_user_id=current_user.id
+    )
+
+
+@router.post(
+    "/coach-settlements", response_model=FinanceCoachSettlementPublic
+)
+def create_finance_coach_settlement(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceCoachSettlementCreate,
+    idempotency_key: IdempotencyKey,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return create_coach_settlement(
+        session,
+        scope=scope,
+        actor=current_user,
+        body=body,
+        operation_key=idempotency_key,
+    )
+
+
+@router.get(
+    "/coach-settlements", response_model=FinanceCoachSettlementsPublic
+)
+def read_coach_settlements(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    coach_user_id: uuid.UUID,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return list_coach_settlements(
+        session, gym_id=ctx.gym.id, coach_user_id=coach_user_id
+    )
+
+
+@router.get(
+    "/coach-settlements/{settlement_id}",
+    response_model=FinanceCoachSettlementPublic,
+)
+def read_coach_settlement(
+    *,
+    settlement_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return get_coach_settlement(
+        session, gym_id=ctx.gym.id, settlement_id=settlement_id
+    )
+
+
+@router.post(
+    "/coach-settlements/{settlement_id}/confirm",
+    response_model=FinanceCoachSettlementPublic,
+)
+def confirm_finance_coach_settlement(
+    *,
+    settlement_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return confirm_coach_settlement(
+        session, scope=scope, actor=current_user, settlement_id=settlement_id
+    )
+
+
+@router.get("/my/settlements", response_model=FinanceCoachSettlementsPublic)
+def read_my_coach_settlements(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    if not ctx.is_coach:
+        raise HTTPException(status_code=403, detail="coach_access_required")
+    return list_coach_settlements(
         session, gym_id=ctx.gym.id, coach_user_id=current_user.id
     )
