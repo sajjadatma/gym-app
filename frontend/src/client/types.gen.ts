@@ -1462,6 +1462,44 @@ export type FinanceInstallmentPublic = {
 };
 
 /**
+ * FinanceInstallmentReminder
+ */
+export type FinanceInstallmentReminder = {
+    /**
+     * Invoice Id
+     */
+    invoice_id: string;
+    /**
+     * Invoice Number
+     */
+    invoice_number?: number | null;
+    /**
+     * Customer User Id
+     */
+    customer_user_id: string;
+    /**
+     * Customer Name
+     */
+    customer_name?: string | null;
+    /**
+     * Due Date
+     */
+    due_date: string;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Overdue
+     */
+    overdue: boolean;
+    /**
+     * Days Until
+     */
+    days_until: number;
+};
+
+/**
  * FinanceInvoiceCreate
  */
 export type FinanceInvoiceCreate = {
@@ -1469,6 +1507,14 @@ export type FinanceInvoiceCreate = {
      * Customer User Id
      */
     customer_user_id: string;
+    /**
+     * Acquisition Source
+     */
+    acquisition_source?: 'GYM' | 'ASCORA';
+    /**
+     * Discount Funding
+     */
+    discount_funding?: 'GYM' | 'COACH' | 'ASCORA' | 'MIXED';
     /**
      * Description
      */
@@ -1594,6 +1640,14 @@ export type FinanceInvoicePublic = {
      */
     status: 'DRAFT' | 'ISSUED' | 'VOID';
     /**
+     * Acquisition Source
+     */
+    acquisition_source?: 'GYM' | 'ASCORA';
+    /**
+     * Discount Funding
+     */
+    discount_funding?: 'GYM' | 'COACH' | 'ASCORA' | 'MIXED';
+    /**
      * Invoice Number
      */
     invoice_number?: number | null;
@@ -1671,6 +1725,14 @@ export type FinanceInvoiceUpdate = {
      * Customer User Id
      */
     customer_user_id: string;
+    /**
+     * Acquisition Source
+     */
+    acquisition_source?: 'GYM' | 'ASCORA';
+    /**
+     * Discount Funding
+     */
+    discount_funding?: 'GYM' | 'COACH' | 'ASCORA' | 'MIXED';
     /**
      * Description
      */
@@ -1996,9 +2058,14 @@ export type FinanceMyAccountPublic = {
      */
     memberships: Array<FinanceMembershipPublic>;
     /**
+     * Refunds
+     */
+    refunds: Array<FinanceRefundPublic>;
+    /**
      * Advance Balance Irr
      */
     advance_balance_irr: number;
+    reminders: FinanceRemindersPublic;
 };
 
 /**
@@ -2016,7 +2083,11 @@ export type FinanceMyRefundCreate = {
     /**
      * Method
      */
-    method: 'CASH' | 'POS' | 'TRANSFER';
+    method?: 'CASH' | 'POS' | 'TRANSFER' | null;
+    /**
+     * Method Override Reason
+     */
+    method_override_reason?: string | null;
     /**
      * Reason
      */
@@ -2264,7 +2335,11 @@ export type FinanceRefundCreate = {
     /**
      * Method
      */
-    method: 'CASH' | 'POS' | 'TRANSFER';
+    method?: 'CASH' | 'POS' | 'TRANSFER' | null;
+    /**
+     * Method Override Reason
+     */
+    method_override_reason?: string | null;
     /**
      * Reason
      */
@@ -2326,6 +2401,14 @@ export type FinanceRefundPublic = {
      */
     method: 'CASH' | 'POS' | 'TRANSFER';
     /**
+     * Original Method
+     */
+    original_method?: string | null;
+    /**
+     * Method Override Reason
+     */
+    method_override_reason?: string | null;
+    /**
      * Reason
      */
     reason: string;
@@ -2371,6 +2454,54 @@ export type FinanceRefundsPublic = {
      * Count
      */
     count: number;
+};
+
+/**
+ * FinanceRemindersPublic
+ */
+export type FinanceRemindersPublic = {
+    /**
+     * Within Days
+     */
+    within_days: number;
+    /**
+     * Installments
+     */
+    installments: Array<FinanceInstallmentReminder>;
+    /**
+     * Renewals
+     */
+    renewals: Array<FinanceRenewalReminder>;
+};
+
+/**
+ * FinanceRenewalReminder
+ */
+export type FinanceRenewalReminder = {
+    /**
+     * Membership Id
+     */
+    membership_id: string;
+    /**
+     * Athlete User Id
+     */
+    athlete_user_id: string;
+    /**
+     * Athlete Name
+     */
+    athlete_name?: string | null;
+    /**
+     * End Date
+     */
+    end_date: string;
+    /**
+     * Days Until
+     */
+    days_until: number;
+    /**
+     * Overdue
+     */
+    overdue: boolean;
 };
 
 /**
@@ -8076,6 +8207,42 @@ export type financeRequestMyFinanceRefundResponses = {
 };
 
 export type financeRequestMyFinanceRefundResponse = financeRequestMyFinanceRefundResponses[keyof financeRequestMyFinanceRefundResponses];
+
+export type financeReadFinanceRemindersData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Within Days
+         */
+        within_days?: number;
+    };
+    url: '/api/v1/finance/reminders';
+};
+
+export type financeReadFinanceRemindersErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceRemindersError = financeReadFinanceRemindersErrors[keyof financeReadFinanceRemindersErrors];
+
+export type financeReadFinanceRemindersResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceRemindersPublic;
+};
+
+export type financeReadFinanceRemindersResponse = financeReadFinanceRemindersResponses[keyof financeReadFinanceRemindersResponses];
 
 export type utilsHealthCheckData = {
     body?: never;
