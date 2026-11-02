@@ -6,6 +6,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.api.routes.test_finance_foundation import add_staff, make_owner
+from tests.api.routes.test_finance_invoices import (
+    create_draft,
+    invoice_payload,
+    issue,
+    make_customer,
+)
 from tests.utils.helpers import gym_headers, unique_email
 
 pytestmark = pytest.mark.usefixtures("client")
@@ -177,3 +183,93 @@ def test_coach_agreement_requires_a_coach_term(
         ),
     )
     assert invalid_percent.status_code == 422, invalid_percent.text
+
+
+def test_issue_snapshots_the_effective_agreement_and_marks_missing_ones(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Snapshot Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+    coach_id, _ = make_coach(client, owner, gym_id)
+    other_coach_id, _ = make_coach(client, owner, gym_id, prefix="unresolved")
+
+    created = client.post(
+        "/api/v1/finance/coach-agreements",
+        headers=owner,
+        json=agreement_payload(coach_id),
+    )
+    assert created.status_code == 200, created.text
+    activated = client.post(
+        f"/api/v1/finance/coach-agreements/{created.json()['id']}/activate",
+        headers=owner,
+    )
+    assert activated.status_code == 200, activated.text
+
+    draft = create_draft(
+        client,
+        owner,
+        invoice_payload(
+            customer,
+            lines=[
+                {
+                    "kind": "PROGRAM",
+                    "description": "coached program",
+                    "quantity": 1,
+                    "unit_price_irr": 1_000_000,
+                    "coach_user_id": coach_id,
+                },
+                {
+                    "kind": "PROGRAM",
+                    "description": "unresolved program",
+                    "quantity": 1,
+                    "unit_price_irr": 500_000,
+                    "coach_user_id": other_coach_id,
+                },
+                {
+                    "kind": "PRODUCT",
+                    "description": "gym product",
+                    "quantity": 1,
+                    "unit_price_irr": 100_000,
+                },
+            ],
+        ),
+    )
+    assert draft.status_code == 200, draft.text
+    issued = issue(client, owner, draft.json()["id"])
+    assert issued.status_code == 200, issued.text
+    rows = issued.json()["lines"]
+    assert rows[0]["coach_user_id"] == coach_id
+    assert rows[0]["coach_allocation_status"] == "SNAPSHOTTED"
+    assert rows[0]["coach_agreement_version"] == 1
+    assert rows[0]["coach_agreement_id"] == created.json()["id"]
+    assert rows[1]["coach_allocation_status"] == "UNRESOLVED"
+    assert rows[1]["coach_agreement_id"] is None
+    assert rows[2]["coach_allocation_status"] == "NOT_APPLICABLE"
+    assert rows[2]["coach_user_id"] is None
+
+    # A coach from another gym is not a valid sale owner.
+    other_gym, other_owner = make_owner(
+        client, superuser_headers, name="Snapshot Other Gym"
+    )
+    foreign_coach, _ = make_coach(
+        client, other_owner, str(other_gym["id"]), prefix="foreign"
+    )
+    rejected = create_draft(
+        client,
+        owner,
+        invoice_payload(
+            customer,
+            lines=[
+                {
+                    "kind": "PROGRAM",
+                    "description": "foreign coach",
+                    "quantity": 1,
+                    "unit_price_irr": 1_000,
+                    "coach_user_id": foreign_coach,
+                }
+            ],
+        ),
+    )
+    assert rejected.status_code == 400, rejected.text
+    assert rejected.json()["detail"] == "invalid_invoice_coach"

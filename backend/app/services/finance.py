@@ -1309,6 +1309,12 @@ def _replace_invoice_body(
                 status_code=400, detail="finance_installments_mismatch"
             )
     for item, calculated in zip(body.lines, rows, strict=True):
+        if item.coach_user_id is not None and not _is_gym_coach(
+            session, gym_id=invoice.gym_id, user_id=item.coach_user_id
+        ):
+            raise HTTPException(
+                status_code=400, detail="invalid_invoice_coach"
+            )
         if item.catalog_item_id is not None:
             catalog_item = session.get(
                 FinanceCatalogItem, item.catalog_item_id
@@ -1327,6 +1333,7 @@ def _replace_invoice_body(
                 quantity=item.quantity,
                 unit_price_irr=item.unit_price_irr,
                 line_discount_irr=item.line_discount_irr,
+                coach_user_id=item.coach_user_id,
                 net_irr=calculated["net_irr"],
                 discount_share_irr=calculated["discount_share_irr"],
                 payable_irr=calculated["payable_irr"],
@@ -1419,6 +1426,10 @@ def invoice_public(
                 net_irr=line.net_irr,
                 discount_share_irr=line.discount_share_irr,
                 payable_irr=line.payable_irr,
+                coach_user_id=line.coach_user_id,
+                coach_agreement_id=line.coach_agreement_id,
+                coach_agreement_version=line.coach_agreement_version,
+                coach_allocation_status=line.coach_allocation_status,
             )
             for line in lines
         ],
@@ -1556,6 +1567,82 @@ def delete_invoice(
     session.commit()
 
 
+def _snapshot_invoice_coaches(
+    session: Session, *, invoice: FinanceInvoice, issue_date: date
+) -> None:
+    lines = session.exec(
+        select(FinanceInvoiceLine).where(
+            FinanceInvoiceLine.invoice_id == invoice.id
+        )
+    ).all()
+    for line in lines:
+        if line.coach_user_id is None:
+            line.coach_allocation_status = "NOT_APPLICABLE"
+            line.coach_agreement_id = None
+            line.coach_agreement_version = None
+            line.agreement_snapshot = None
+            session.add(line)
+            continue
+        agreement = session.exec(
+            select(FinanceCoachAgreement)
+            .where(
+                FinanceCoachAgreement.gym_id == invoice.gym_id,
+                FinanceCoachAgreement.coach_user_id == line.coach_user_id,
+                FinanceCoachAgreement.status == "ACTIVE",
+                FinanceCoachAgreement.effective_from <= issue_date,
+            )
+            .order_by(col(FinanceCoachAgreement.version).desc())
+        ).first()
+        if (
+            agreement is None
+            or (
+                agreement.effective_to is not None
+                and agreement.effective_to < issue_date
+            )
+        ):
+            line.coach_allocation_status = "UNRESOLVED"
+            line.coach_agreement_id = None
+            line.coach_agreement_version = None
+            line.agreement_snapshot = None
+            session.add(line)
+            continue
+        terms = session.exec(
+            select(FinanceCoachAgreementTerm)
+            .where(
+                FinanceCoachAgreementTerm.agreement_id == agreement.id
+            )
+            .order_by(col(FinanceCoachAgreementTerm.sequence))
+        ).all()
+        line.coach_allocation_status = "SNAPSHOTTED"
+        line.coach_agreement_id = agreement.id
+        line.coach_agreement_version = agreement.version
+        line.agreement_snapshot = {
+            "agreement_id": str(agreement.id),
+            "version": agreement.version,
+            "mode": agreement.mode,
+            "vesting_mode": agreement.vesting_mode,
+            "vesting_days": agreement.vesting_days,
+            "effective_from": agreement.effective_from.isoformat(),
+            "effective_to": (
+                agreement.effective_to.isoformat()
+                if agreement.effective_to
+                else None
+            ),
+            "terms": [
+                {
+                    "sequence": term.sequence,
+                    "recipient": term.recipient,
+                    "basis": term.basis,
+                    "percent_bp": term.percent_bp,
+                    "fixed_irr": term.fixed_irr,
+                    "label": term.label,
+                }
+                for term in terms
+            ],
+        }
+        session.add(line)
+
+
 def issue_invoice(
     session: Session,
     *,
@@ -1591,6 +1678,7 @@ def issue_invoice(
             status_code=400, detail="finance_invoice_total_required"
         )
 
+    _snapshot_invoice_coaches(session, invoice=invoice, issue_date=posting_date)
     accounts = ensure_accounts(session, scope.gym_id)
     number = allocate_document_number(
         session, scope.gym_id, INVOICE_DOC_TYPE
