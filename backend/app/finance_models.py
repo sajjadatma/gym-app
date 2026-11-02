@@ -458,6 +458,8 @@ FinanceLineKind = Literal[
     "CUSTOM",
 ]
 FinanceInvoiceStatus = Literal["DRAFT", "ISSUED", "VOID"]
+FinanceAcquisitionSource = Literal["GYM", "ASCORA"]
+FinanceDiscountFunding = Literal["GYM", "COACH", "ASCORA", "MIXED"]
 
 
 class FinanceCatalogItem(SQLModel, table=True):
@@ -523,6 +525,14 @@ class FinanceInvoice(SQLModel, table=True):
             "status IN ('DRAFT', 'ISSUED', 'VOID')",
             name="ck_finance_invoice_status",
         ),
+        CheckConstraint(
+            "acquisition_source IN ('GYM', 'ASCORA')",
+            name="ck_finance_invoice_source",
+        ),
+        CheckConstraint(
+            "discount_funding IN ('GYM', 'COACH', 'ASCORA', 'MIXED')",
+            name="ck_finance_invoice_discount_funding",
+        ),
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -532,6 +542,9 @@ class FinanceInvoice(SQLModel, table=True):
     )
     customer_name: str | None = Field(default=None, max_length=255)
     status: str = Field(default="DRAFT", max_length=20, index=True)
+    # Snapshotted at sale time; Phase 3 uses these for allocation.
+    acquisition_source: str = Field(default="GYM", max_length=20)
+    discount_funding: str = Field(default="GYM", max_length=20)
     invoice_number: int | None = Field(default=None)
     issue_date: date | None = Field(default=None)
     due_date: date | None = Field(default=None)
@@ -637,6 +650,8 @@ class FinanceInstallmentInput(SQLModel):
 
 class FinanceInvoiceCreate(SQLModel):
     customer_user_id: uuid.UUID
+    acquisition_source: FinanceAcquisitionSource = "GYM"
+    discount_funding: FinanceDiscountFunding = "GYM"
     description: str | None = Field(default=None, max_length=1000)
     due_date: date | None = None
     discount_irr: int = Field(default=0, ge=0, le=MAX_FINANCE_IRR)
@@ -681,6 +696,8 @@ class FinanceInstallmentPublic(SQLModel):
 class FinanceInvoicePublic(SQLModel):
     id: uuid.UUID
     status: FinanceInvoiceStatus
+    acquisition_source: FinanceAcquisitionSource = "GYM"
+    discount_funding: FinanceDiscountFunding = "GYM"
     invoice_number: int | None = None
     customer_user_id: uuid.UUID
     customer_name: str | None = None
@@ -928,6 +945,8 @@ class FinanceRefund(SQLModel, table=True):
     )
     amount_irr: int = Field(sa_column=Column(BigInteger, nullable=False))
     method: str = Field(max_length=20)
+    original_method: str | None = Field(default=None, max_length=20)
+    method_override_reason: str | None = Field(default=None, max_length=500)
     reason: str = Field(max_length=500)
     status: str = Field(default="REQUESTED", max_length=20)
     requested_by_id: uuid.UUID | None = Field(
@@ -989,7 +1008,8 @@ class FinanceRefundCreate(SQLModel):
     customer_user_id: uuid.UUID
     invoice_id: uuid.UUID | None = None
     amount_irr: int = Field(ge=1, le=MAX_FINANCE_IRR)
-    method: FinancePaymentMethod
+    method: FinancePaymentMethod | None = None
+    method_override_reason: str | None = Field(default=None, max_length=500)
     reason: str = Field(min_length=3, max_length=500)
 
 
@@ -1029,6 +1049,8 @@ class FinanceRefundPublic(SQLModel):
     invoice_id: uuid.UUID | None = None
     amount_irr: int
     method: FinancePaymentMethod
+    original_method: str | None = None
+    method_override_reason: str | None = None
     reason: str
     created_at: datetime
     recorded_at: datetime | None = None
@@ -1186,10 +1208,43 @@ class FinanceMyAccountPublic(SQLModel):
     receipts: list[FinanceReceiptPublic]
     memberships: list[FinanceMembershipPublic]
     advance_balance_irr: int
+    reminders: FinanceRemindersPublic
 
 
 class FinanceMyRefundCreate(SQLModel):
     invoice_id: uuid.UUID
     amount_irr: int = Field(ge=1, le=MAX_FINANCE_IRR)
-    method: FinancePaymentMethod
+    method: FinancePaymentMethod | None = None
+    method_override_reason: str | None = Field(default=None, max_length=500)
     reason: str = Field(min_length=3, max_length=500)
+
+
+# ---------------------------------------------------------------------------
+# Reminders (computed; no scheduler or automation engine)
+# ---------------------------------------------------------------------------
+
+
+class FinanceInstallmentReminder(SQLModel):
+    invoice_id: uuid.UUID
+    invoice_number: int | None = None
+    customer_user_id: uuid.UUID
+    customer_name: str | None = None
+    due_date: date
+    amount_irr: int
+    overdue: bool
+    days_until: int
+
+
+class FinanceRenewalReminder(SQLModel):
+    membership_id: uuid.UUID
+    athlete_user_id: uuid.UUID
+    athlete_name: str | None = None
+    end_date: date
+    days_until: int
+    overdue: bool
+
+
+class FinanceRemindersPublic(SQLModel):
+    within_days: int
+    installments: list[FinanceInstallmentReminder]
+    renewals: list[FinanceRenewalReminder]

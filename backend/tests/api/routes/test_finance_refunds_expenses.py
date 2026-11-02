@@ -7,7 +7,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.api.routes.test_finance_foundation import add_staff, make_owner
-from tests.api.routes.test_finance_invoices import create_draft, invoice_payload, issue, make_customer
+from tests.api.routes.test_finance_invoices import (
+    make_customer,
+)
 from tests.api.routes.test_finance_receipts import (
     issued_invoice,
     receipt_payload,
@@ -72,12 +74,14 @@ def test_invoice_refund_records_a_linked_reversal_of_collected_money(
             "customer_user_id": customer,
             "invoice_id": invoice["id"],
             "amount_irr": 300_000,
-            "method": "TRANSFER",
             "reason": "Customer cancelled one session",
         },
     )
     assert requested.status_code == 200, requested.text
     assert requested.json()["status"] == "REQUESTED"
+    assert requested.json()["method"] == "CASH"
+    assert requested.json()["original_method"] == "CASH"
+    assert requested.json()["method_override_reason"] is None
 
     approved = refund_transition(client, owner, requested.json()["id"], "approve")
     assert approved.status_code == 200, approved.text

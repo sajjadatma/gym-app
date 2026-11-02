@@ -46,6 +46,7 @@ from app.finance_models import (
     FinanceGrantUpdate,
     FinanceInstallment,
     FinanceInstallmentPublic,
+    FinanceInstallmentReminder,
     FinanceInvoice,
     FinanceInvoiceCreate,
     FinanceInvoiceLine,
@@ -81,6 +82,8 @@ from app.finance_models import (
     FinanceRefundPreview,
     FinanceRefundPublic,
     FinanceRefundsPublic,
+    FinanceRemindersPublic,
+    FinanceRenewalReminder,
     FinanceSequence,
     FinanceSettings,
     FinanceSettingsPublic,
@@ -1305,6 +1308,8 @@ def _replace_invoice_body(
             )
     invoice.customer_user_id = customer.id
     invoice.customer_name = customer.full_name or customer.email
+    invoice.acquisition_source = body.acquisition_source
+    invoice.discount_funding = body.discount_funding
     invoice.description = body.description
     invoice.due_date = body.due_date
     invoice.subtotal_irr = subtotal
@@ -1348,6 +1353,8 @@ def invoice_public(
     return FinanceInvoicePublic(
         id=invoice.id,
         status=invoice.status,  # type: ignore[arg-type]
+        acquisition_source=invoice.acquisition_source,  # type: ignore[arg-type]
+        discount_funding=invoice.discount_funding,  # type: ignore[arg-type]
         invoice_number=invoice.invoice_number,
         customer_user_id=invoice.customer_user_id,
         customer_name=invoice.customer_name,
@@ -2138,6 +2145,8 @@ def _refund_public(refund: FinanceRefund) -> FinanceRefundPublic:
         invoice_id=refund.invoice_id,
         amount_irr=refund.amount_irr,
         method=refund.method,  # type: ignore[arg-type]
+        original_method=refund.original_method,
+        method_override_reason=refund.method_override_reason,
         reason=refund.reason,
         created_at=refund.created_at,
         recorded_at=refund.recorded_at,
@@ -2264,6 +2273,16 @@ def request_refund(
                 status_code=400, detail="refund_exceeds_advance"
             )
 
+    original_method = _refund_original_method(
+        session,
+        invoice_id=body.invoice_id if body.source == "INVOICE" else None,
+        credit_id=credit.id if credit else None,
+    )
+    method, override_reason = _resolve_refund_method(
+        requested_method=body.method,
+        original_method=original_method,
+        override_reason=body.method_override_reason,
+    )
     refund = FinanceRefund(
         gym_id=scope.gym_id,
         customer_user_id=customer.id,
@@ -2271,7 +2290,9 @@ def request_refund(
         invoice_id=body.invoice_id,
         credit_id=credit.id if credit else None,
         amount_irr=body.amount_irr,
-        method=body.method,
+        method=method,
+        original_method=original_method,
+        method_override_reason=override_reason,
         reason=body.reason,
         status="REQUESTED",
         requested_by_id=actor.id,
@@ -2286,7 +2307,13 @@ def request_refund(
         target_type="finance_refund",
         target_id=refund.id,
         reason=body.reason,
-        detail={"amount_irr": body.amount_irr, "source": body.source},
+        detail={
+            "amount_irr": body.amount_irr,
+            "source": body.source,
+            "method": method,
+            "original_method": original_method,
+            "method_override_reason": override_reason,
+        },
     )
     remember_operation(
         session,
@@ -3202,6 +3229,12 @@ def my_account(
         receipts=[receipt_public(session, receipt) for receipt in receipts],
         memberships=[membership_public(session, row) for row in memberships],
         advance_balance_irr=credit.balance_irr if credit else 0,
+        reminders=list_reminders(
+            session,
+            gym_id=gym_id,
+            within_days=7,
+            customer_user_id=user.id,
+        ),
     )
 
 
@@ -3221,13 +3254,23 @@ def request_my_refund(
         raise HTTPException(
             status_code=400, detail="refund_exceeds_refundable"
         )
+    original_method = _refund_original_method(
+        session, invoice_id=invoice.id, credit_id=None
+    )
+    method, override_reason = _resolve_refund_method(
+        requested_method=body.method,
+        original_method=original_method,
+        override_reason=body.method_override_reason,
+    )
     refund = FinanceRefund(
         gym_id=gym_id,
         customer_user_id=user.id,
         source="INVOICE",
         invoice_id=invoice.id,
         amount_irr=body.amount_irr,
-        method=body.method,
+        method=method,
+        original_method=original_method,
+        method_override_reason=override_reason,
         reason=body.reason,
         status="REQUESTED",
         requested_by_id=user.id,
@@ -3242,8 +3285,167 @@ def request_my_refund(
         target_type="finance_refund",
         target_id=refund.id,
         reason=body.reason,
-        detail={"amount_irr": body.amount_irr, "self_service": True},
+        detail={
+            "amount_irr": body.amount_irr,
+            "self_service": True,
+            "method": method,
+            "original_method": original_method,
+            "method_override_reason": override_reason,
+        },
     )
     session.commit()
     session.refresh(refund)
     return _refund_public(refund)
+
+
+def _refund_original_method(
+    session: Session,
+    *,
+    invoice_id: uuid.UUID | None,
+    credit_id: uuid.UUID | None,
+) -> str | None:
+    """The method that actually brought the money in, when identifiable."""
+    if invoice_id is not None:
+        receipt = session.exec(
+            select(FinanceReceipt)
+            .join(
+                FinanceReceiptAllocation,
+                col(FinanceReceiptAllocation.receipt_id) == col(FinanceReceipt.id),
+            )
+            .where(FinanceReceiptAllocation.invoice_id == invoice_id)
+            .order_by(col(FinanceReceipt.created_at).desc())
+        ).first()
+        if receipt is not None:
+            return receipt.method
+    if credit_id is not None:
+        movement = session.exec(
+            select(FinanceCreditMovement)
+            .where(
+                FinanceCreditMovement.credit_id == credit_id,
+                FinanceCreditMovement.kind == "RECEIPT_EXCESS",
+                col(FinanceCreditMovement.receipt_id).is_not(None),
+            )
+            .order_by(col(FinanceCreditMovement.created_at).desc())
+        ).first()
+        if movement is not None and movement.receipt_id is not None:
+            receipt = session.get(FinanceReceipt, movement.receipt_id)
+            if receipt is not None:
+                return receipt.method
+    return None
+
+
+def _resolve_refund_method(
+    *,
+    requested_method: str | None,
+    original_method: str | None,
+    override_reason: str | None,
+) -> tuple[str, str | None]:
+    method = requested_method or original_method
+    if method is None:
+        raise HTTPException(status_code=400, detail="refund_method_required")
+    if original_method is not None and method != original_method:
+        if not override_reason or not override_reason.strip():
+            raise HTTPException(
+                status_code=400, detail="refund_method_reason_required"
+            )
+        return method, override_reason.strip()
+    return method, None
+
+
+def _invoice_reminder(
+    session: Session, invoice: FinanceInvoice
+) -> FinanceInstallmentReminder | None:
+    today = utcnow().date()
+    balance = invoice.total_irr - _invoice_paid_irr(session, invoice.id)
+    if balance <= 0:
+        return None
+    installments = session.exec(
+        select(FinanceInstallment)
+        .where(FinanceInstallment.invoice_id == invoice.id)
+        .order_by(col(FinanceInstallment.sequence))
+    ).all()
+    if installments:
+        first = installments[0]
+        due_date = first.due_date
+        amount = min(first.amount_irr, balance)
+    else:
+        if invoice.due_date is None:
+            return None
+        due_date = invoice.due_date
+        amount = balance
+    customer = session.get(User, invoice.customer_user_id)
+    days_until = (due_date - today).days
+    return FinanceInstallmentReminder(
+        invoice_id=invoice.id,
+        invoice_number=invoice.invoice_number,
+        customer_user_id=invoice.customer_user_id,
+        customer_name=invoice.customer_name
+        or (customer.full_name or customer.email if customer else None),
+        due_date=due_date,
+        amount_irr=amount,
+        overdue=days_until < 0,
+        days_until=days_until,
+    )
+
+
+def list_reminders(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    within_days: int,
+    customer_user_id: uuid.UUID | None = None,
+) -> FinanceRemindersPublic:
+    """Compute due installments and renewals on read; no scheduler is used."""
+    today = utcnow().date()
+    horizon = today + timedelta(days=within_days)
+    invoice_filters: list[Any] = [
+        FinanceInvoice.gym_id == gym_id,
+        FinanceInvoice.status == "ISSUED",
+    ]
+    if customer_user_id is not None:
+        invoice_filters.append(
+            FinanceInvoice.customer_user_id == customer_user_id
+        )
+    invoices = session.exec(select(FinanceInvoice).where(*invoice_filters)).all()
+    installment_reminders: list[FinanceInstallmentReminder] = []
+    for invoice in invoices:
+        reminder = _invoice_reminder(session, invoice)
+        if reminder is not None and reminder.due_date <= horizon:
+            installment_reminders.append(reminder)
+
+    membership_filters: list[Any] = [
+        FinanceMembership.gym_id == gym_id,
+        FinanceMembership.status == "ACTIVE",
+        FinanceMembership.end_date <= horizon,
+    ]
+    if customer_user_id is not None:
+        membership_filters.append(
+            FinanceMembership.athlete_user_id == customer_user_id
+        )
+    memberships = session.exec(
+        select(FinanceMembership).where(*membership_filters)
+    ).all()
+    renewal_reminders: list[FinanceRenewalReminder] = []
+    for membership in memberships:
+        athlete = session.get(User, membership.athlete_user_id)
+        days_until = (membership.end_date - today).days
+        renewal_reminders.append(
+            FinanceRenewalReminder(
+                membership_id=membership.id,
+                athlete_user_id=membership.athlete_user_id,
+                athlete_name=(athlete.full_name or athlete.email)
+                if athlete
+                else None,
+                end_date=membership.end_date,
+                days_until=days_until,
+                overdue=days_until < 0,
+            )
+        )
+
+    installment_reminders.sort(key=lambda item: item.due_date)
+    renewal_reminders.sort(key=lambda item: item.end_date)
+    return FinanceRemindersPublic(
+        within_days=within_days,
+        installments=installment_reminders,
+        renewals=renewal_reminders,
+    )

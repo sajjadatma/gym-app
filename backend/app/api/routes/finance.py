@@ -57,6 +57,7 @@ from app.finance_models import (
     FinanceRefundRecordCreate,
     FinanceRefundRejectCreate,
     FinanceRefundsPublic,
+    FinanceRemindersPublic,
     FinanceSettingsPublic,
     FinanceSettingsUpdate,
 )
@@ -91,6 +92,7 @@ from app.services.finance import (
     list_periods,
     list_receipts,
     list_refunds,
+    list_reminders,
     lock_finance_gym,
     membership_refund_preview,
     my_account,
@@ -1012,3 +1014,16 @@ def request_my_finance_refund(
     return request_my_refund(
         session, gym_id=ctx.gym.id, user=current_user, body=body
     )
+
+
+@router.get("/reminders", response_model=FinanceRemindersPublic)
+def read_finance_reminders(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    within_days: int = Query(default=7, ge=0, le=90),
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return list_reminders(session, gym_id=ctx.gym.id, within_days=within_days)
