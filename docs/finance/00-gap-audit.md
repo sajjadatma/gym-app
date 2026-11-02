@@ -4,8 +4,8 @@
 - **Base:** `f3b37bce41ed25daa975a0927861b5c38b9b523b` (`origin/main`)
 - **Scope:** Phase 0 repository audit plus the Phase 1 authoritative financial
   foundation from `ASCORA-FINANCE-PRD.md`.
-- **Not in scope:** Phase 2+ (catalog, invoices, payments, coach settlements,
-  platform monetization). Production was not touched.
+- **Not in scope:** Phase 3+ (coach settlement/allocation, platform
+  monetization, reconciliation). Production was not touched.
 
 ## Baseline (Phase 0, before finance code)
 
@@ -159,7 +159,7 @@ recorded but not used for calculations.
 
 ## Phase 2 — operational gym finance (status)
 
-**Implemented and tested (backend):**
+**Implemented and tested (backend and UI):**
 
 1. **Catalog and invoices** — gym-scoped catalog items; draft/issue/void
    customer invoices; per-gym sequential numbers; immutable issued documents;
@@ -177,31 +177,50 @@ recorded but not used for calculations.
 4. **Paid membership and athlete self-service** — paid access periods separate
    from identity membership; derived access from a configured downpayment;
    freeze/resume/cancel/transfer; time-proportional refund preview; athletes
-   read only their own invoices, receipts, memberships and advance and can open
-   a capped refund request.
+   read only their own invoices, receipts, memberships, refunds and advance and
+   can open a capped refund request.
 5. **Permissions** — catalog, invoice, payment, refund, expense and membership
    actions are separate grantable permissions; admins hold them implicitly.
+6. **Gym-admin workspace** — one finance page with Overview, Invoices, Catalog,
+   Payments, Refunds, Expenses and Memberships tabs. The overview keeps the
+   Phase 1 settings/journal/periods/grants and adds due-installment and
+   renewal reminders. Every mutation uses the server-authoritative generated
+   client, Jalali dates, RTL Material 3 components and per-gym tenant context.
+7. **Athlete finance page** — `/gyms/$gymId/my/finance` (and the `/my/finance`
+   redirect) shows only the signed-in athlete's invoices, installments,
+   receipts, paid membership/access, advance balance, refund history and
+   refund requests.
+8. **Sale-time snapshots and refund method** — each sale records the
+   acquisition source (`GYM`/`ASCORA`) and the party funding any discount
+   (`GYM`/`COACH`/`ASCORA`/`MIXED`). Drafts may change them; issuing freezes
+   them so Phase 3 allocation never rewrites history. Refunds default to the
+   payment method that actually collected the money; a different method needs
+   `finance.refund.manage` and a recorded override reason.
+9. **Reminders** — computed on read, not scheduled: the next unpaid installment
+   per issued invoice plus active memberships ending inside the requested
+   horizon. The admin overview exposes 7/30/90-day horizons and the athlete
+   page reuses the same calculation for the athlete's own rows.
 
-**Not yet built for Phase 2 (no Phase 3 work started):**
+**Deliberate Phase 2 deferrals (no missing approved behaviour):**
 
-- Gym-admin screens for catalog, invoices, receipts, refunds, expenses and
-  memberships. The finance page still exposes only the Phase 1 workspace.
-- Athlete screens for bills, receipts, membership and refund requests. The
-  self-service API exists; the UI does not.
-- Optional recurring expense generation beyond the explicit monthly repeat,
-  and cash/bank reconciliation (Phase 3 scope).
-- Online payment remains disabled by design pending a verified provider.
+- **Receipt evidence files.** The PRD marks proof as optional. The existing
+  storage service is body-analysis-specific (`body-analysis` object prefix,
+  body-analysis upload limits and endpoints), so adding a second document
+  lifecycle only for receipts would duplicate infrastructure. The receipt
+  `reference` text remains the minimal evidence field; receipt reconciliation
+  and attachments stay with Phase 3 reconciliation.
+- **Recurring expenses beyond the explicit monthly repeat** and cash/bank
+  reconciliation are Phase 3 scope, as approved.
+- **Online payment** remains disabled by design pending a verified provider.
+- **Decision 18, 30 and 46** remain deferred exactly as recorded in the PRD.
 
-Phase 2 is therefore **backend-complete for the approved financial behaviours
-but not yet user-complete**; the remaining work is UI.
+Phase 2 is **user-complete for the approved scope**. Phase 3 has not started.
 
 ## Remaining phases
 
-2. Catalog, invoices, manual receipts, installments, advances, refunds,
-   expenses, paid membership policy, athlete screens.
 3. Coach agreements and allocation, vesting, settlements, reconciliation.
 4. Superuser plans/contracts, platform fees, dashboards, exports, limits.
 5. Readiness: gateway selection (only if enabled), restore/monitoring evidence,
    Iran legal/tax/provider checks, 3–5 gym pilot.
 
-Phase 2 must not start without explicit approval.
+Phase 3 must not start without explicit approval.
