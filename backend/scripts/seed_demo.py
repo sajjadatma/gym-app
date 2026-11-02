@@ -33,6 +33,7 @@ from app.models import (  # noqa: E402
     WorkoutProgram,
     WorkoutProgramVersion,
 )
+from app.services.finance import ensure_accounts  # noqa: E402
 from app.services.programs import insert_structure  # noqa: E402
 
 DEMO_PASSWORD = "DemoPass123!"
@@ -97,6 +98,7 @@ def ensure_gym(session: Session, name: str, owner: User) -> Gym:
         session.add(gym)
         session.flush()
     ensure_role(session, owner, gym)
+    ensure_accounts(session, gym.id)
     return gym
 
 

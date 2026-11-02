@@ -31,6 +31,38 @@ gym_id="$("${COMPOSE[@]}" exec -T db psql -U postgres -d app -Atc \
 "${COMPOSE[@]}" exec -T db psql -U postgres -d app -v ON_ERROR_STOP=1 -c \
   "INSERT INTO body_analysis_file (id,gym_id,athlete_user_id,uploaded_by_id,original_name,stored_name,content_type,size_bytes,created_at) VALUES (gen_random_uuid(),'$gym_id','$athlete_id',NULL,'ci-drill.pdf','ci-drill.pdf','application/pdf',15,now());"
 
+# A posted, balanced finance journal must survive the backup and restore.
+finance_gym="$("${COMPOSE[@]}" exec -T db psql -U postgres -d app -Atc \
+  "SELECT g.id FROM gym g WHERE NOT EXISTS (
+     SELECT 1 FROM finance_journal j
+     WHERE j.gym_id = g.id AND j.event_type = 'OPENING_BALANCE')
+   ORDER BY g.created_at LIMIT 1;")"
+[ -n "$finance_gym" ] || { echo "drill: FAIL no gym without an opening journal" >&2; exit 1; }
+"${COMPOSE[@]}" exec -T db psql -U postgres -d app -v ON_ERROR_STOP=1 <<SQL
+WITH period AS (
+  INSERT INTO finance_period (id, gym_id, opened_at, created_at)
+  VALUES (gen_random_uuid(), '$finance_gym', now(), now())
+  RETURNING id
+), journal AS (
+  INSERT INTO finance_journal
+    (id, gym_id, period_id, entry_number, posting_date, event_type,
+     description, created_at)
+  SELECT gen_random_uuid(), '$finance_gym', id, 1, current_date,
+         'OPENING_BALANCE', 'ci-drill', now()
+  FROM period
+  RETURNING id, gym_id
+)
+INSERT INTO finance_journal_line
+  (id, journal_id, account_id, debit_irr, credit_irr, memo)
+SELECT gen_random_uuid(), journal.id, account.id,
+       CASE WHEN account.code = '1000' THEN 1000 ELSE 0 END,
+       CASE WHEN account.code = '3000' THEN 1000 ELSE 0 END,
+       'ci-drill'
+FROM journal
+JOIN finance_account account
+  ON account.gym_id = journal.gym_id AND account.code IN ('1000', '3000');
+SQL
+
 output="$(BACKUP_DIR="$TMP/backups" bash scripts/backup_compose.sh)"
 backup_path="${output#backup_path=}"
 [ -d "$backup_path" ] || { echo "drill: FAIL backup was not produced" >&2; exit 1; }
@@ -51,6 +83,20 @@ docker run --rm --network "$NETWORK" \
   "$BACKEND_IMAGE" python /app/backend/scripts/verify_restore.py \
   --database-url "postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/app_restore" \
   --upload-dir /uploads --expected-counts /counts.txt
+
+restored_journals="$("${COMPOSE[@]}" exec -T db psql -U postgres -d app_restore -Atc \
+  'SELECT count(*) FROM finance_journal;')"
+[ "$restored_journals" = "1" ] || {
+  echo "drill: FAIL restored finance journals: $restored_journals" >&2
+  exit 1
+}
+restored_unbalanced="$("${COMPOSE[@]}" exec -T db psql -U postgres -d app_restore -Atc \
+  'SELECT count(*) FROM (SELECT journal_id FROM finance_journal_line
+     GROUP BY journal_id HAVING sum(debit_irr) <> sum(credit_irr)) AS bad;')"
+[ "$restored_unbalanced" = "0" ] || {
+  echo "drill: FAIL restored journals are unbalanced: $restored_unbalanced" >&2
+  exit 1
+}
 
 echo "drill: live restore through restore_compose.sh"
 victim="$("${COMPOSE[@]}" exec -T db psql -U postgres -d app -Atc \
