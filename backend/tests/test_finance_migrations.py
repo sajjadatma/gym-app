@@ -165,6 +165,8 @@ def test_finance_migration_creates_schema_and_role_then_rolls_back(
             "finance_receipt_allocation",
             "finance_customer_credit",
             "finance_credit_movement",
+            "finance_refund",
+            "finance_expense",
         }.issubset(tables)
 
         with engine.connect() as connection:
@@ -212,7 +214,7 @@ def test_existing_gyms_receive_the_minimal_chart(
             ]
     finally:
         engine.dispose()
-    assert codes == ["1000", "1100", "2000", "3000", "4000", "5000"]
+    assert codes == ["1000", "1100", "2000", "3000", "4000", "4100", "5000"]
 
 
 def test_posted_journal_and_audit_rows_are_immutable(

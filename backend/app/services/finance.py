@@ -15,10 +15,12 @@ from app.api.deps import GymContext
 from app.core.audit import audit
 from app.finance_models import (
     FINANCE_CATALOG_MANAGE,
+    FINANCE_EXPENSE_MANAGE,
     FINANCE_INVOICE_MANAGE,
     FINANCE_OPENING_MANAGE,
     FINANCE_PAYMENT_RECORD,
     FINANCE_PERIOD_MANAGE,
+    FINANCE_REFUND_MANAGE,
     FINANCE_VIEW,
     FinanceAccount,
     FinanceAudit,
@@ -32,6 +34,10 @@ from app.finance_models import (
     FinanceCreditPublic,
     FinanceCreditsPublic,
     FinanceCustomerCredit,
+    FinanceExpense,
+    FinanceExpenseCreate,
+    FinanceExpensePublic,
+    FinanceExpensesPublic,
     FinanceGrant,
     FinanceGrantItem,
     FinanceGrantRow,
@@ -63,6 +69,10 @@ from app.finance_models import (
     FinanceReceiptCreate,
     FinanceReceiptPublic,
     FinanceReceiptsPublic,
+    FinanceRefund,
+    FinanceRefundCreate,
+    FinanceRefundPublic,
+    FinanceRefundsPublic,
     FinanceSequence,
     FinanceSettings,
     FinanceSettingsPublic,
@@ -73,8 +83,10 @@ from app.models import Gym, GymMembership, User
 ADMIN_PERMISSIONS: tuple[FinancePermissionName, ...] = (
     FINANCE_VIEW,
     FINANCE_OPENING_MANAGE,
+    FINANCE_EXPENSE_MANAGE,
     FINANCE_PAYMENT_RECORD,
     FINANCE_PERIOD_MANAGE,
+    FINANCE_REFUND_MANAGE,
     FINANCE_CATALOG_MANAGE,
     FINANCE_INVOICE_MANAGE,
 )
@@ -91,6 +103,7 @@ DEFAULT_ACCOUNTS: tuple[tuple[str, str, str], ...] = (
     ("2000", "بدهی‌ها", "LIABILITY"),
     ("3000", "سرمایه افتتاحیه", "EQUITY"),
     ("4000", "درآمد", "INCOME"),
+    ("4100", "برگشت از فروش", "INCOME"),
     ("5000", "هزینه‌ها", "EXPENSE"),
 )
 
@@ -2100,3 +2113,671 @@ def apply_customer_credit(
     session.commit()
     session.refresh(invoice)
     return invoice_public(session, invoice)
+
+
+# ---------------------------------------------------------------------------
+# Refunds and operating expenses (Phase 2)
+# ---------------------------------------------------------------------------
+
+
+def _refund_public(refund: FinanceRefund) -> FinanceRefundPublic:
+    return FinanceRefundPublic(
+        id=refund.id,
+        source=refund.source,  # type: ignore[arg-type]
+        status=refund.status,  # type: ignore[arg-type]
+        customer_user_id=refund.customer_user_id,
+        invoice_id=refund.invoice_id,
+        amount_irr=refund.amount_irr,
+        method=refund.method,  # type: ignore[arg-type]
+        reason=refund.reason,
+        created_at=refund.created_at,
+        recorded_at=refund.recorded_at,
+    )
+
+
+def _get_refund(
+    session: Session, *, gym_id: uuid.UUID, refund_id: uuid.UUID
+) -> FinanceRefund:
+    refund = session.get(FinanceRefund, refund_id)
+    if refund is None or refund.gym_id != gym_id:
+        raise HTTPException(status_code=404, detail="refund_not_found")
+    return refund
+
+
+def _invoice_refundable_irr(
+    session: Session, invoice_id: uuid.UUID, *, exclude_refund_id: uuid.UUID | None = None
+) -> int:
+    allocated = _invoice_paid_irr(session, invoice_id)
+    filters: list[Any] = [
+        FinanceRefund.invoice_id == invoice_id,
+        FinanceRefund.source == "INVOICE",
+        FinanceRefund.status != "REJECTED",
+    ]
+    if exclude_refund_id is not None:
+        filters.append(col(FinanceRefund.id) != exclude_refund_id)
+    reserved = session.exec(
+        select(func.coalesce(func.sum(FinanceRefund.amount_irr), 0)).where(*filters)
+    ).one()
+    return allocated - int(reserved)
+
+
+def _advance_reserved_irr(
+    session: Session,
+    *,
+    credit_id: uuid.UUID,
+    exclude_refund_id: uuid.UUID | None = None,
+) -> int:
+    filters: list[Any] = [
+        FinanceRefund.credit_id == credit_id,
+        FinanceRefund.source == "ADVANCE",
+        FinanceRefund.status != "REJECTED",
+    ]
+    if exclude_refund_id is not None:
+        filters.append(col(FinanceRefund.id) != exclude_refund_id)
+    return int(
+        session.exec(
+            select(func.coalesce(func.sum(FinanceRefund.amount_irr), 0)).where(*filters)
+        ).one()
+    )
+
+
+def list_refunds(
+    session: Session, *, gym_id: uuid.UUID
+) -> FinanceRefundsPublic:
+    refunds = session.exec(
+        select(FinanceRefund)
+        .where(FinanceRefund.gym_id == gym_id)
+        .order_by(col(FinanceRefund.created_at).desc())
+    ).all()
+    return FinanceRefundsPublic(
+        data=[_refund_public(refund) for refund in refunds],
+        count=len(refunds),
+    )
+
+
+def request_refund(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    body: FinanceRefundCreate,
+    operation_key: str,
+) -> FinanceRefundPublic:
+    scope.require(FINANCE_REFUND_MANAGE)
+    lock_finance_gym(session, scope.gym_id)
+    payload = body.model_dump(mode="json")
+    operation = find_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+    )
+    if operation is not None:
+        refund = session.get(FinanceRefund, operation.result_id)
+        if refund is None or refund.gym_id != scope.gym_id:
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
+        return _refund_public(refund)
+
+    customer = _invoice_customer(
+        session, gym_id=scope.gym_id, user_id=body.customer_user_id
+    )
+    credit: FinanceCustomerCredit | None = None
+    if body.source == "INVOICE":
+        if body.invoice_id is None:
+            raise HTTPException(status_code=400, detail="invoice_required")
+        invoice = _get_invoice(
+            session, gym_id=scope.gym_id, invoice_id=body.invoice_id
+        )
+        if invoice.customer_user_id != customer.id:
+            raise HTTPException(
+                status_code=400, detail="receipt_customer_mismatch"
+            )
+        refundable = _invoice_refundable_irr(session, invoice.id)
+        if body.amount_irr > refundable:
+            raise HTTPException(
+                status_code=400, detail="refund_exceeds_refundable"
+            )
+    else:
+        if body.invoice_id is not None:
+            raise HTTPException(status_code=400, detail="invoice_not_allowed")
+        credit = _customer_credit(
+            session, gym_id=scope.gym_id, customer_user_id=customer.id
+        )
+        if credit is None:
+            raise HTTPException(
+                status_code=400, detail="insufficient_customer_credit"
+            )
+        available = credit.balance_irr - _advance_reserved_irr(
+            session, credit_id=credit.id
+        )
+        if body.amount_irr > available:
+            raise HTTPException(
+                status_code=400, detail="refund_exceeds_advance"
+            )
+
+    refund = FinanceRefund(
+        gym_id=scope.gym_id,
+        customer_user_id=customer.id,
+        source=body.source,
+        invoice_id=body.invoice_id,
+        credit_id=credit.id if credit else None,
+        amount_irr=body.amount_irr,
+        method=body.method,
+        reason=body.reason,
+        status="REQUESTED",
+        requested_by_id=actor.id,
+    )
+    session.add(refund)
+    session.flush()
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.refund.requested",
+        target_type="finance_refund",
+        target_id=refund.id,
+        reason=body.reason,
+        detail={"amount_irr": body.amount_irr, "source": body.source},
+    )
+    remember_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="finance_refund",
+        result_id=refund.id,
+    )
+    session.commit()
+    session.refresh(refund)
+    return _refund_public(refund)
+
+
+def approve_refund(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    refund_id: uuid.UUID,
+) -> FinanceRefundPublic:
+    scope.require(FINANCE_REFUND_MANAGE)
+    refund = _get_refund(session, gym_id=scope.gym_id, refund_id=refund_id)
+    if refund.status != "REQUESTED":
+        raise HTTPException(status_code=409, detail="refund_not_requested")
+    refund.status = "APPROVED"
+    refund.approved_by_id = actor.id
+    refund.approved_at = utcnow()
+    session.add(refund)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.refund.approved",
+        target_type="finance_refund",
+        target_id=refund.id,
+    )
+    session.commit()
+    session.refresh(refund)
+    return _refund_public(refund)
+
+
+def reject_refund(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    refund_id: uuid.UUID,
+    reason: str,
+) -> FinanceRefundPublic:
+    scope.require(FINANCE_REFUND_MANAGE)
+    refund = _get_refund(session, gym_id=scope.gym_id, refund_id=refund_id)
+    if refund.status != "REQUESTED":
+        raise HTTPException(status_code=409, detail="refund_not_requested")
+    refund.status = "REJECTED"
+    session.add(refund)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.refund.rejected",
+        target_type="finance_refund",
+        target_id=refund.id,
+        reason=reason,
+    )
+    session.commit()
+    session.refresh(refund)
+    return _refund_public(refund)
+
+
+def record_refund(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    refund_id: uuid.UUID,
+    posting_date: date,
+    operation_key: str,
+) -> FinanceRefundPublic:
+    scope.require(FINANCE_REFUND_MANAGE)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
+    scope.require(FINANCE_REFUND_MANAGE)
+    payload = {"refund_id": str(refund_id), "posting_date": posting_date.isoformat()}
+    operation = find_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+    )
+    if operation is not None:
+        refund = session.get(FinanceRefund, operation.result_id)
+        if refund is None or refund.gym_id != scope.gym_id:
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
+        return _refund_public(refund)
+
+    refund = _get_refund(session, gym_id=scope.gym_id, refund_id=refund_id)
+    if refund.status != "APPROVED":
+        raise HTTPException(status_code=409, detail="refund_not_approved")
+
+    accounts = ensure_accounts(session, scope.gym_id)
+    if refund.source == "INVOICE":
+        if refund.invoice_id is None:
+            raise HTTPException(
+                status_code=400, detail="finance_refund_not_postable"
+            )
+        available = _invoice_refundable_irr(
+            session, refund.invoice_id, exclude_refund_id=refund.id
+        )
+        if refund.amount_irr > available:
+            raise HTTPException(
+                status_code=400, detail="refund_exceeds_refundable"
+            )
+        lines: list[tuple[uuid.UUID, int, int, str | None]] = [
+            (accounts["4100"].id, refund.amount_irr, 0, refund.reason),
+            (accounts["1000"].id, 0, refund.amount_irr, refund.reason),
+        ]
+    else:
+        credit = session.get(FinanceCustomerCredit, refund.credit_id)
+        if credit is None:
+            raise HTTPException(
+                status_code=400, detail="finance_refund_not_postable"
+            )
+        if refund.amount_irr > credit.balance_irr:
+            raise HTTPException(
+                status_code=400, detail="refund_exceeds_advance"
+            )
+        credit.balance_irr -= refund.amount_irr
+        credit.updated_at = utcnow()
+        session.add(credit)
+        session.add(
+            FinanceCreditMovement(
+                credit_id=credit.id,
+                kind="REFUNDED",
+                amount_irr=refund.amount_irr,
+                created_by_id=actor.id,
+            )
+        )
+        lines = [
+            (accounts["2000"].id, refund.amount_irr, 0, refund.reason),
+            (accounts["1000"].id, 0, refund.amount_irr, refund.reason),
+        ]
+
+    journal = post_journal(
+        session,
+        gym_id=scope.gym_id,
+        posting_date=posting_date,
+        event_type="REFUND_RECORDED",
+        description=f"Refund: {refund.reason}",
+        lines=lines,
+        created_by_id=actor.id,
+        source_type="finance_refund",
+        source_id=refund.id,
+    )
+    refund.status = "RECORDED"
+    refund.journal_id = journal.id
+    refund.recorded_at = utcnow()
+    session.add(refund)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.refund.recorded",
+        target_type="finance_refund",
+        target_id=refund.id,
+        reason=refund.reason,
+        detail={
+            "amount_irr": refund.amount_irr,
+            "source": refund.source,
+            "journal_id": str(journal.id),
+        },
+    )
+    audit(
+        "finance.refund.recorded",
+        actor_id=actor.id,
+        gym_id=scope.gym_id,
+        target_id=refund.id,
+        detail=f"amount={refund.amount_irr}",
+    )
+    remember_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="finance_refund",
+        result_id=refund.id,
+    )
+    session.commit()
+    session.refresh(refund)
+    return _refund_public(refund)
+
+
+def _expense_public(expense: FinanceExpense) -> FinanceExpensePublic:
+    return FinanceExpensePublic(
+        id=expense.id,
+        category=expense.category,
+        counterparty=expense.counterparty,
+        description=expense.description,
+        amount_irr=expense.amount_irr,
+        spent_on=expense.spent_on,
+        status=expense.status,  # type: ignore[arg-type]
+        method=expense.method,  # type: ignore[arg-type]
+        paid_at=expense.paid_at,
+        recurrence_key=expense.recurrence_key,
+        created_at=expense.created_at,
+    )
+
+
+def _get_expense(
+    session: Session, *, gym_id: uuid.UUID, expense_id: uuid.UUID
+) -> FinanceExpense:
+    expense = session.get(FinanceExpense, expense_id)
+    if expense is None or expense.gym_id != gym_id:
+        raise HTTPException(status_code=404, detail="expense_not_found")
+    return expense
+
+
+def list_expenses(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    status: str | None,
+    offset: int,
+    limit: int,
+) -> FinanceExpensesPublic:
+    filters = [FinanceExpense.gym_id == gym_id]
+    if status:
+        filters.append(FinanceExpense.status == status)
+    total = session.exec(
+        select(func.count(col(FinanceExpense.id))).where(*filters)
+    ).one()
+    expenses = session.exec(
+        select(FinanceExpense)
+        .where(*filters)
+        .order_by(col(FinanceExpense.spent_on).desc())
+        .offset(offset)
+        .limit(limit)
+    ).all()
+    return FinanceExpensesPublic(
+        data=[_expense_public(expense) for expense in expenses],
+        count=int(total),
+    )
+
+
+def get_expense(
+    session: Session, *, gym_id: uuid.UUID, expense_id: uuid.UUID
+) -> FinanceExpensePublic:
+    return _expense_public(
+        _get_expense(session, gym_id=gym_id, expense_id=expense_id)
+    )
+
+
+def _post_expense_accrual(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    expense: FinanceExpense,
+) -> None:
+    accounts = ensure_accounts(session, scope.gym_id)
+    lines: list[tuple[uuid.UUID, int, int, str | None]]
+    if expense.status == "PAID":
+        lines = [
+            (accounts["5000"].id, expense.amount_irr, 0, expense.category),
+            (accounts["1000"].id, 0, expense.amount_irr, expense.category),
+        ]
+    else:
+        lines = [
+            (accounts["5000"].id, expense.amount_irr, 0, expense.category),
+            (accounts["2000"].id, 0, expense.amount_irr, expense.category),
+        ]
+    journal = post_journal(
+        session,
+        gym_id=scope.gym_id,
+        posting_date=expense.spent_on,
+        event_type="EXPENSE_RECORDED",
+        description=expense.description or expense.category,
+        lines=lines,
+        created_by_id=actor.id,
+        source_type="finance_expense",
+        source_id=expense.id,
+    )
+    expense.journal_id = journal.id
+    session.add(expense)
+
+
+def create_expense(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    body: FinanceExpenseCreate,
+    operation_key: str,
+) -> FinanceExpensePublic:
+    scope.require(FINANCE_EXPENSE_MANAGE)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
+    scope.require(FINANCE_EXPENSE_MANAGE)
+    payload = body.model_dump(mode="json")
+    operation = find_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+    )
+    if operation is not None:
+        expense = session.get(FinanceExpense, operation.result_id)
+        if expense is None or expense.gym_id != scope.gym_id:
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
+        return _expense_public(expense)
+    if body.paid and body.method is None:
+        raise HTTPException(
+            status_code=400, detail="finance_expense_method_required"
+        )
+    period_key = body.spent_on.strftime("%Y-%m") if body.recurrence_key else None
+    if body.recurrence_key is not None:
+        duplicate = session.exec(
+            select(FinanceExpense).where(
+                FinanceExpense.gym_id == scope.gym_id,
+                FinanceExpense.recurrence_key == body.recurrence_key,
+                FinanceExpense.period_key == period_key,
+            )
+        ).first()
+        if duplicate is not None:
+            raise HTTPException(
+                status_code=409, detail="expense_recurrence_exists"
+            )
+    expense = FinanceExpense(
+        gym_id=scope.gym_id,
+        category=body.category,
+        counterparty=body.counterparty,
+        description=body.description,
+        amount_irr=body.amount_irr,
+        spent_on=body.spent_on,
+        status="PAID" if body.paid else "UNPAID",
+        method=body.method,
+        paid_at=utcnow() if body.paid else None,
+        recurrence_key=body.recurrence_key,
+        period_key=period_key,
+        created_by_id=actor.id,
+    )
+    session.add(expense)
+    session.flush()
+    _post_expense_accrual(
+        session, scope=scope, actor=actor, expense=expense
+    )
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.expense.recorded",
+        target_type="finance_expense",
+        target_id=expense.id,
+        detail={
+            "amount_irr": expense.amount_irr,
+            "status": expense.status,
+            "category": expense.category,
+        },
+    )
+    remember_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="finance_expense",
+        result_id=expense.id,
+    )
+    session.commit()
+    session.refresh(expense)
+    return _expense_public(expense)
+
+
+def pay_expense(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    expense_id: uuid.UUID,
+    paid_on: date,
+    method: str,
+    operation_key: str,
+) -> FinanceExpensePublic:
+    scope.require(FINANCE_EXPENSE_MANAGE)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
+    scope.require(FINANCE_EXPENSE_MANAGE)
+    payload = {
+        "expense_id": str(expense_id),
+        "paid_on": paid_on.isoformat(),
+        "method": method,
+    }
+    operation = find_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+    )
+    if operation is not None:
+        expense = session.get(FinanceExpense, operation.result_id)
+        if expense is None or expense.gym_id != scope.gym_id:
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
+        return _expense_public(expense)
+
+    expense = _get_expense(session, gym_id=scope.gym_id, expense_id=expense_id)
+    if expense.status != "UNPAID":
+        raise HTTPException(status_code=409, detail="expense_not_unpaid")
+    accounts = ensure_accounts(session, scope.gym_id)
+    journal = post_journal(
+        session,
+        gym_id=scope.gym_id,
+        posting_date=paid_on,
+        event_type="EXPENSE_PAID",
+        description=expense.description or expense.category,
+        lines=[
+            (accounts["2000"].id, expense.amount_irr, 0, expense.category),
+            (accounts["1000"].id, 0, expense.amount_irr, expense.category),
+        ],
+        created_by_id=actor.id,
+        source_type="finance_expense",
+        source_id=expense.id,
+    )
+    expense.status = "PAID"
+    expense.method = method
+    expense.paid_at = utcnow()
+    expense.journal_id = journal.id
+    session.add(expense)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.expense.paid",
+        target_type="finance_expense",
+        target_id=expense.id,
+        detail={"amount_irr": expense.amount_irr, "journal_id": str(journal.id)},
+    )
+    remember_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="finance_expense",
+        result_id=expense.id,
+    )
+    session.commit()
+    session.refresh(expense)
+    return _expense_public(expense)
+
+
+def repeat_expense(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    expense_id: uuid.UUID,
+    spent_on: date,
+) -> FinanceExpensePublic:
+    scope.require(FINANCE_EXPENSE_MANAGE)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
+    scope.require(FINANCE_EXPENSE_MANAGE)
+    source = _get_expense(session, gym_id=scope.gym_id, expense_id=expense_id)
+    recurrence_key = source.recurrence_key or source.id
+    period_key = spent_on.strftime("%Y-%m")
+    duplicate = session.exec(
+        select(FinanceExpense).where(
+            FinanceExpense.gym_id == scope.gym_id,
+            FinanceExpense.recurrence_key == recurrence_key,
+            FinanceExpense.period_key == period_key,
+        )
+    ).first()
+    if duplicate is not None:
+        raise HTTPException(status_code=409, detail="expense_recurrence_exists")
+    expense = FinanceExpense(
+        gym_id=scope.gym_id,
+        category=source.category,
+        counterparty=source.counterparty,
+        description=source.description,
+        amount_irr=source.amount_irr,
+        spent_on=spent_on,
+        status="UNPAID",
+        recurrence_key=recurrence_key,
+        period_key=period_key,
+        created_by_id=actor.id,
+    )
+    session.add(expense)
+    session.flush()
+    _post_expense_accrual(session, scope=scope, actor=actor, expense=expense)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.expense.repeated",
+        target_type="finance_expense",
+        target_id=expense.id,
+        detail={"source_expense_id": str(source.id), "period_key": period_key},
+    )
+    session.commit()
+    session.refresh(expense)
+    return _expense_public(expense)

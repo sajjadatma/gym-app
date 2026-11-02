@@ -18,6 +18,11 @@ from app.finance_models import (
     FinanceCatalogPublic,
     FinanceCreditApplyCreate,
     FinanceCreditsPublic,
+    FinanceExpenseCreate,
+    FinanceExpensePayCreate,
+    FinanceExpensePublic,
+    FinanceExpenseRepeatCreate,
+    FinanceExpensesPublic,
     FinanceGrantRow,
     FinanceGrantsPublic,
     FinanceGrantUpdate,
@@ -36,6 +41,11 @@ from app.finance_models import (
     FinanceReceiptCreate,
     FinanceReceiptPublic,
     FinanceReceiptsPublic,
+    FinanceRefundCreate,
+    FinanceRefundPublic,
+    FinanceRefundRecordCreate,
+    FinanceRefundRejectCreate,
+    FinanceRefundsPublic,
     FinanceSettingsPublic,
     FinanceSettingsUpdate,
 )
@@ -43,28 +53,38 @@ from app.models import Message
 from app.services.finance import (
     accounts_public,
     apply_customer_credit,
+    approve_refund,
     close_period,
     create_catalog_item,
+    create_expense,
     create_invoice,
     create_receipt,
     delete_invoice,
     ensure_settings,
+    get_expense,
     get_invoice,
     get_journal,
     get_receipt,
     issue_invoice,
     list_catalog,
     list_credits,
+    list_expenses,
     list_grants,
     list_invoices,
     list_journals,
     list_periods,
     list_receipts,
+    list_refunds,
     lock_finance_gym,
+    pay_expense,
     post_correction,
     post_opening_balance,
     record_audit,
+    record_refund,
+    reject_refund,
+    repeat_expense,
     replace_grants,
+    request_refund,
     resolve_finance_scope,
     settings_public,
     update_catalog_item,
@@ -599,3 +619,196 @@ def apply_finance_credit(
         )
     except IntegrityError as exc:
         raise _commit_conflict(session, exc) from exc
+
+
+# ---------------------------------------------------------------------------
+# Refunds and operating expenses (Phase 2)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/refunds", response_model=FinanceRefundsPublic)
+def read_finance_refunds(
+    *, session: SessionDep, ctx: GymContextDep, current_user: CurrentUser
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return list_refunds(session, gym_id=ctx.gym.id)
+
+
+@router.post("/refunds", response_model=FinanceRefundPublic)
+def request_finance_refund(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceRefundCreate,
+    idempotency_key: IdempotencyKey,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    try:
+        return request_refund(
+            session,
+            scope=scope,
+            actor=current_user,
+            body=body,
+            operation_key=idempotency_key,
+        )
+    except IntegrityError as exc:
+        raise _commit_conflict(session, exc) from exc
+
+
+@router.post("/refunds/{refund_id}/approve", response_model=FinanceRefundPublic)
+def approve_finance_refund(
+    *,
+    refund_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return approve_refund(
+        session, scope=scope, actor=current_user, refund_id=refund_id
+    )
+
+
+@router.post("/refunds/{refund_id}/reject", response_model=FinanceRefundPublic)
+def reject_finance_refund(
+    *,
+    refund_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceRefundRejectCreate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return reject_refund(
+        session,
+        scope=scope,
+        actor=current_user,
+        refund_id=refund_id,
+        reason=body.reason,
+    )
+
+
+@router.post("/refunds/{refund_id}/record", response_model=FinanceRefundPublic)
+def record_finance_refund(
+    *,
+    refund_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceRefundRecordCreate,
+    idempotency_key: IdempotencyKey,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    try:
+        return record_refund(
+            session,
+            scope=scope,
+            actor=current_user,
+            refund_id=refund_id,
+            posting_date=body.posting_date,
+            operation_key=idempotency_key,
+        )
+    except IntegrityError as exc:
+        raise _commit_conflict(session, exc) from exc
+
+
+@router.get("/expenses", response_model=FinanceExpensesPublic)
+def read_finance_expenses(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    status: str | None = Query(default=None, max_length=20),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return list_expenses(
+        session,
+        gym_id=ctx.gym.id,
+        status=status,
+        offset=offset,
+        limit=limit,
+    )
+
+
+@router.post("/expenses", response_model=FinanceExpensePublic)
+def create_finance_expense(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceExpenseCreate,
+    idempotency_key: IdempotencyKey,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    try:
+        return create_expense(
+            session,
+            scope=scope,
+            actor=current_user,
+            body=body,
+            operation_key=idempotency_key,
+        )
+    except IntegrityError as exc:
+        raise _commit_conflict(session, exc) from exc
+
+
+@router.get("/expenses/{expense_id}", response_model=FinanceExpensePublic)
+def read_finance_expense(
+    *,
+    expense_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return get_expense(session, gym_id=ctx.gym.id, expense_id=expense_id)
+
+
+@router.post("/expenses/{expense_id}/pay", response_model=FinanceExpensePublic)
+def pay_finance_expense(
+    *,
+    expense_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceExpensePayCreate,
+    idempotency_key: IdempotencyKey,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    try:
+        return pay_expense(
+            session,
+            scope=scope,
+            actor=current_user,
+            expense_id=expense_id,
+            paid_on=body.paid_on,
+            method=body.method,
+            operation_key=idempotency_key,
+        )
+    except IntegrityError as exc:
+        raise _commit_conflict(session, exc) from exc
+
+
+@router.post("/expenses/{expense_id}/repeat", response_model=FinanceExpensePublic)
+def repeat_finance_expense(
+    *,
+    expense_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceExpenseRepeatCreate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return repeat_expense(
+        session,
+        scope=scope,
+        actor=current_user,
+        expense_id=expense_id,
+        spent_on=body.spent_on,
+    )

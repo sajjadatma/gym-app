@@ -27,6 +27,9 @@ FinanceJournalEvent = Literal[
     "INVOICE_VOID",
     "RECEIPT_CONFIRMED",
     "ADVANCE_APPLIED",
+    "REFUND_RECORDED",
+    "EXPENSE_RECORDED",
+    "EXPENSE_PAID",
 ]
 
 FinancePermissionName = Literal[
@@ -36,6 +39,8 @@ FinancePermissionName = Literal[
     "finance.catalog.manage",
     "finance.invoice.manage",
     "finance.payment.record",
+    "finance.refund.manage",
+    "finance.expense.manage",
 ]
 
 GrantableFinancePermission = Literal[
@@ -44,6 +49,8 @@ GrantableFinancePermission = Literal[
     "finance.catalog.manage",
     "finance.invoice.manage",
     "finance.payment.record",
+    "finance.refund.manage",
+    "finance.expense.manage",
 ]
 
 FINANCE_VIEW: Final[FinancePermissionName] = "finance.view"
@@ -52,6 +59,8 @@ FINANCE_PERIOD_MANAGE: Final[FinancePermissionName] = "finance.period.manage"
 FINANCE_CATALOG_MANAGE: Final[FinancePermissionName] = "finance.catalog.manage"
 FINANCE_INVOICE_MANAGE: Final[FinancePermissionName] = "finance.invoice.manage"
 FINANCE_PAYMENT_RECORD: Final[FinancePermissionName] = "finance.payment.record"
+FINANCE_REFUND_MANAGE: Final[FinancePermissionName] = "finance.refund.manage"
+FINANCE_EXPENSE_MANAGE: Final[FinancePermissionName] = "finance.expense.manage"
 
 # Guardrail for the JavaScript-safe integer transport. 10^15 IRR is one
 # hundred trillion toman, far above any gym amount and below 2^53.
@@ -202,7 +211,8 @@ class FinanceJournal(SQLModel, table=True):
         CheckConstraint(
             "event_type IN ('OPENING_BALANCE', 'CORRECTION', "
             "'INVOICE_ISSUED', 'INVOICE_VOID', 'RECEIPT_CONFIRMED', "
-            "'ADVANCE_APPLIED')",
+            "'ADVANCE_APPLIED', 'REFUND_RECORDED', 'EXPENSE_RECORDED', "
+            "'EXPENSE_PAID')",
             name="ck_finance_journal_event",
         ),
     )
@@ -272,7 +282,8 @@ class FinanceGrant(SQLModel, table=True):
         CheckConstraint(
             "permission IN ('finance.opening.manage', "
             "'finance.period.manage', 'finance.catalog.manage', "
-            "'finance.invoice.manage', 'finance.payment.record')",
+            "'finance.invoice.manage', 'finance.payment.record', "
+            "'finance.refund.manage', 'finance.expense.manage')",
             name="ck_finance_grant_permission",
         ),
     )
@@ -696,7 +707,7 @@ class FinanceInvoicesPublic(SQLModel):
 
 FinancePaymentMethod = Literal["CASH", "POS", "TRANSFER"]
 FinanceReceiptStatus = Literal["CONFIRMED", "REVERSED"]
-FinanceCreditMovementKind = Literal["RECEIPT_EXCESS", "APPLIED"]
+FinanceCreditMovementKind = Literal["RECEIPT_EXCESS", "APPLIED", "REFUNDED"]
 
 
 class FinanceReceipt(SQLModel, table=True):
@@ -786,7 +797,7 @@ class FinanceCreditMovement(SQLModel, table=True):
     __tablename__ = "finance_credit_movement"
     __table_args__ = (
         CheckConstraint(
-            "kind IN ('RECEIPT_EXCESS', 'APPLIED')",
+            "kind IN ('RECEIPT_EXCESS', 'APPLIED', 'REFUNDED')",
             name="ck_finance_credit_movement_kind",
         ),
         CheckConstraint("amount_irr > 0", name="ck_finance_credit_movement_amount"),
@@ -870,4 +881,174 @@ class FinanceCreditPublic(SQLModel):
 
 class FinanceCreditsPublic(SQLModel):
     data: list[FinanceCreditPublic]
+    count: int
+
+
+# ---------------------------------------------------------------------------
+# Refunds and operating expenses (Phase 2)
+# ---------------------------------------------------------------------------
+
+FinanceRefundSource = Literal["INVOICE", "ADVANCE"]
+FinanceRefundStatus = Literal["REQUESTED", "APPROVED", "RECORDED", "REJECTED"]
+FinanceExpenseStatus = Literal["UNPAID", "PAID"]
+
+
+class FinanceRefund(SQLModel, table=True):
+    __tablename__ = "finance_refund"
+    __table_args__ = (
+        CheckConstraint(
+            "source IN ('INVOICE', 'ADVANCE')", name="ck_finance_refund_source"
+        ),
+        CheckConstraint(
+            "status IN ('REQUESTED', 'APPROVED', 'RECORDED', 'REJECTED')",
+            name="ck_finance_refund_status",
+        ),
+        CheckConstraint("amount_irr > 0", name="ck_finance_refund_amount"),
+        CheckConstraint(
+            "method IN ('CASH', 'POS', 'TRANSFER')",
+            name="ck_finance_refund_method",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    customer_user_id: uuid.UUID = Field(
+        foreign_key="user.id", ondelete="RESTRICT", index=True
+    )
+    source: str = Field(max_length=20)
+    invoice_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_invoice.id", ondelete="RESTRICT"
+    )
+    credit_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_customer_credit.id", ondelete="RESTRICT"
+    )
+    amount_irr: int = Field(sa_column=Column(BigInteger, nullable=False))
+    method: str = Field(max_length=20)
+    reason: str = Field(max_length=500)
+    status: str = Field(default="REQUESTED", max_length=20)
+    requested_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    approved_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    approved_at: datetime | None = Field(default=None)
+    recorded_at: datetime | None = Field(default=None)
+    journal_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_journal.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+class FinanceExpense(SQLModel, table=True):
+    __tablename__ = "finance_expense"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('UNPAID', 'PAID')", name="ck_finance_expense_status"
+        ),
+        CheckConstraint("amount_irr > 0", name="ck_finance_expense_amount"),
+        CheckConstraint(
+            "method IS NULL OR method IN ('CASH', 'POS', 'TRANSFER')",
+            name="ck_finance_expense_method",
+        ),
+        UniqueConstraint(
+            "gym_id",
+            "recurrence_key",
+            "period_key",
+            name="uq_finance_expense_recurrence",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    category: str = Field(max_length=100)
+    counterparty: str | None = Field(default=None, max_length=255)
+    description: str | None = Field(default=None, max_length=1000)
+    amount_irr: int = Field(sa_column=Column(BigInteger, nullable=False))
+    spent_on: date
+    status: str = Field(default="UNPAID", max_length=20)
+    method: str | None = Field(default=None, max_length=20)
+    paid_at: datetime | None = Field(default=None)
+    recurrence_key: uuid.UUID | None = Field(default=None)
+    period_key: str | None = Field(default=None, max_length=7)
+    journal_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_journal.id", ondelete="RESTRICT"
+    )
+    created_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+class FinanceRefundCreate(SQLModel):
+    source: FinanceRefundSource
+    customer_user_id: uuid.UUID
+    invoice_id: uuid.UUID | None = None
+    amount_irr: int = Field(ge=1, le=MAX_FINANCE_IRR)
+    method: FinancePaymentMethod
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class FinanceRefundRecordCreate(SQLModel):
+    posting_date: date
+
+
+class FinanceRefundRejectCreate(SQLModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class FinanceExpenseCreate(SQLModel):
+    category: str = Field(min_length=1, max_length=100)
+    counterparty: str | None = Field(default=None, max_length=255)
+    description: str | None = Field(default=None, max_length=1000)
+    amount_irr: int = Field(ge=1, le=MAX_FINANCE_IRR)
+    spent_on: date
+    paid: bool = False
+    method: FinancePaymentMethod | None = None
+    recurrence_key: uuid.UUID | None = None
+
+
+class FinanceExpensePayCreate(SQLModel):
+    paid_on: date
+    method: FinancePaymentMethod
+
+
+class FinanceExpenseRepeatCreate(SQLModel):
+    spent_on: date
+
+
+class FinanceRefundPublic(SQLModel):
+    id: uuid.UUID
+    source: FinanceRefundSource
+    status: FinanceRefundStatus
+    customer_user_id: uuid.UUID
+    invoice_id: uuid.UUID | None = None
+    amount_irr: int
+    method: FinancePaymentMethod
+    reason: str
+    created_at: datetime
+    recorded_at: datetime | None = None
+
+
+class FinanceRefundsPublic(SQLModel):
+    data: list[FinanceRefundPublic]
+    count: int
+
+
+class FinanceExpensePublic(SQLModel):
+    id: uuid.UUID
+    category: str
+    counterparty: str | None = None
+    description: str | None = None
+    amount_irr: int
+    spent_on: date
+    status: FinanceExpenseStatus
+    method: FinancePaymentMethod | None = None
+    paid_at: datetime | None = None
+    recurrence_key: uuid.UUID | None = None
+    created_at: datetime
+
+
+class FinanceExpensesPublic(SQLModel):
+    data: list[FinanceExpensePublic]
     count: int
