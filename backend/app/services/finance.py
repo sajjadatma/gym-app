@@ -24,6 +24,7 @@ from app.finance_models import (
     FINANCE_PAYMENT_RECORD,
     FINANCE_PERIOD_MANAGE,
     FINANCE_REFUND_MANAGE,
+    FINANCE_SETTLEMENT_MANAGE,
     FINANCE_VIEW,
     FinanceAccount,
     FinanceAudit,
@@ -39,6 +40,9 @@ from app.finance_models import (
     FinanceCoachAgreementTerm,
     FinanceCoachAgreementTermPublic,
     FinanceCoachEarning,
+    FinanceCoachEarningPublic,
+    FinanceCoachEarningsPublic,
+    FinanceCoachVestingCreate,
     FinanceCreditApplyCreate,
     FinanceCreditMovement,
     FinanceCreditPublic,
@@ -3733,6 +3737,136 @@ def _invoice_reminder(
         overdue=days_until < 0,
         days_until=days_until,
     )
+
+
+def _earning_settled_irr(_session: Session, _earning_id: uuid.UUID) -> int:
+    # Settlement items are added in the settlement slice; keep the read model
+    # stable until then.
+    return 0
+
+
+def _earning_public(
+    session: Session, earning: FinanceCoachEarning, *, today: date | None = None
+) -> FinanceCoachEarningPublic:
+    today = today or utcnow().date()
+    coach = session.get(User, earning.coach_user_id)
+    invoice = session.get(FinanceInvoice, earning.invoice_id)
+    line = session.get(FinanceInvoiceLine, earning.invoice_line_id)
+    receipt = (
+        session.get(FinanceReceipt, earning.receipt_id)
+        if earning.receipt_id
+        else None
+    )
+    settled = _earning_settled_irr(session, earning.id)
+    if earning.status == "UNRESOLVED":
+        status = "UNRESOLVED"
+        vested = False
+    else:
+        vested = earning.vested_at is not None or (
+            earning.vesting_mode == "ON_DATE"
+            and earning.vesting_date is not None
+            and earning.vesting_date <= today
+        )
+        status = (
+            "SETTLED"
+            if settled >= earning.coach_share_irr > 0
+            else "VESTED"
+            if vested
+            else "CALCULATED"
+        )
+    vested_irr = earning.coach_share_irr if vested else 0
+    return FinanceCoachEarningPublic(
+        id=earning.id,
+        coach_user_id=earning.coach_user_id,
+        coach_name=(coach.full_name or coach.email) if coach else None,
+        invoice_id=earning.invoice_id,
+        invoice_number=invoice.invoice_number if invoice else None,
+        line_description=line.description if line else None,
+        receipt_id=earning.receipt_id,
+        receipt_number=receipt.receipt_number if receipt else None,
+        agreement_id=earning.agreement_id,
+        agreement_version=earning.agreement_version,
+        discount_funding=earning.discount_funding,
+        base_irr=earning.base_irr,
+        discount_irr=earning.discount_irr,
+        coach_share_irr=earning.coach_share_irr,
+        platform_share_irr=earning.platform_share_irr,
+        gym_share_irr=earning.gym_share_irr,
+        calculated_irr=earning.coach_share_irr,
+        vested_irr=vested_irr,
+        settled_irr=settled,
+        eligible_irr=max(vested_irr - settled, 0),
+        status=status,  # type: ignore[arg-type]
+        unresolved_reason=earning.unresolved_reason,
+        vesting_mode=earning.vesting_mode,
+        vesting_date=earning.vesting_date,
+        vested_at=earning.vested_at,
+        created_at=earning.created_at,
+    )
+
+
+def list_coach_earnings(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    coach_user_id: uuid.UUID | None = None,
+) -> FinanceCoachEarningsPublic:
+    filters: list[Any] = [FinanceCoachEarning.gym_id == gym_id]
+    if coach_user_id is not None:
+        filters.append(FinanceCoachEarning.coach_user_id == coach_user_id)
+    rows = session.exec(
+        select(FinanceCoachEarning)
+        .where(*filters)
+        .order_by(col(FinanceCoachEarning.created_at).desc())
+    ).all()
+    today = utcnow().date()
+    return FinanceCoachEarningsPublic(
+        data=[_earning_public(session, row, today=today) for row in rows],
+        count=len(rows),
+    )
+
+
+def get_coach_earning(
+    session: Session, *, gym_id: uuid.UUID, earning_id: uuid.UUID
+) -> FinanceCoachEarningPublic:
+    earning = session.get(FinanceCoachEarning, earning_id)
+    if earning is None or earning.gym_id != gym_id:
+        raise HTTPException(status_code=404, detail="coach_earning_not_found")
+    return _earning_public(session, earning)
+
+
+def vest_coach_earning(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    earning_id: uuid.UUID,
+    body: FinanceCoachVestingCreate,
+) -> FinanceCoachEarningPublic:
+    scope.require(FINANCE_SETTLEMENT_MANAGE)
+    earning = session.get(FinanceCoachEarning, earning_id)
+    if earning is None or earning.gym_id != scope.gym_id:
+        raise HTTPException(status_code=404, detail="coach_earning_not_found")
+    if earning.status == "UNRESOLVED":
+        raise HTTPException(status_code=409, detail="coach_earning_unresolved")
+    if earning.vested_at is None:
+        earning.vested_at = utcnow()
+        earning.vested_by_id = actor.id
+        earning.vesting_reason = body.reason
+        session.add(earning)
+        record_audit(
+            session,
+            gym_id=scope.gym_id,
+            actor_id=actor.id,
+            action="finance.coach_earning.vested",
+            target_type="finance_coach_earning",
+            target_id=earning.id,
+            reason=body.reason,
+            detail={"coach_share_irr": earning.coach_share_irr},
+        )
+        session.commit()
+        session.refresh(earning)
+    return _earning_public(session, earning)
 
 
 def list_reminders(

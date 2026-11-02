@@ -20,6 +20,9 @@ from app.finance_models import (
     FinanceCoachAgreementCreate,
     FinanceCoachAgreementPublic,
     FinanceCoachAgreementsPublic,
+    FinanceCoachEarningPublic,
+    FinanceCoachEarningsPublic,
+    FinanceCoachVestingCreate,
     FinanceCreditApplyCreate,
     FinanceCreditsPublic,
     FinanceExpenseCreate,
@@ -82,6 +85,7 @@ from app.services.finance import (
     ensure_settings,
     freeze_membership,
     get_coach_agreement,
+    get_coach_earning,
     get_expense,
     get_invoice,
     get_journal,
@@ -90,6 +94,7 @@ from app.services.finance import (
     issue_invoice,
     list_catalog,
     list_coach_agreements,
+    list_coach_earnings,
     list_credits,
     list_expenses,
     list_grants,
@@ -120,6 +125,7 @@ from app.services.finance import (
     update_catalog_item,
     update_invoice,
     utcnow,
+    vest_coach_earning,
     void_invoice,
 )
 from app.services.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
@@ -1097,4 +1103,66 @@ def activate_finance_coach_agreement(
     scope = resolve_finance_scope(session, ctx, current_user)
     return activate_coach_agreement(
         session, scope=scope, actor=current_user, agreement_id=agreement_id
+    )
+
+
+@router.get("/coach-earnings", response_model=FinanceCoachEarningsPublic)
+def read_coach_earnings(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    coach_user_id: uuid.UUID | None = None,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return list_coach_earnings(
+        session, gym_id=ctx.gym.id, coach_user_id=coach_user_id
+    )
+
+
+@router.get("/coach-earnings/{earning_id}", response_model=FinanceCoachEarningPublic)
+def read_coach_earning(
+    *,
+    earning_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return get_coach_earning(
+        session, gym_id=ctx.gym.id, earning_id=earning_id
+    )
+
+
+@router.post(
+    "/coach-earnings/{earning_id}/vest",
+    response_model=FinanceCoachEarningPublic,
+)
+def vest_finance_coach_earning(
+    *,
+    earning_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceCoachVestingCreate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return vest_coach_earning(
+        session, scope=scope, actor=current_user, earning_id=earning_id, body=body
+    )
+
+
+@router.get("/my/earnings", response_model=FinanceCoachEarningsPublic)
+def read_my_coach_earnings(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    if not ctx.is_coach:
+        raise HTTPException(status_code=403, detail="coach_access_required")
+    return list_coach_earnings(
+        session, gym_id=ctx.gym.id, coach_user_id=current_user.id
     )

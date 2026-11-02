@@ -1517,3 +1517,46 @@ class FinanceCoachEarning(SQLModel, table=True):
         ondelete="RESTRICT",
     )
     created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+FinanceCoachEarningViewStatus = Literal[
+    "CALCULATED", "VESTED", "UNRESOLVED", "SETTLED"
+]
+
+
+class FinanceCoachVestingCreate(SQLModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class FinanceCoachEarningPublic(SQLModel):
+    id: uuid.UUID
+    coach_user_id: uuid.UUID
+    coach_name: str | None = None
+    invoice_id: uuid.UUID
+    invoice_number: int | None = None
+    line_description: str | None = None
+    receipt_id: uuid.UUID | None = None
+    receipt_number: int | None = None
+    agreement_id: uuid.UUID | None = None
+    agreement_version: int | None = None
+    discount_funding: str
+    base_irr: int
+    discount_irr: int
+    coach_share_irr: int
+    platform_share_irr: int
+    gym_share_irr: int
+    calculated_irr: int
+    vested_irr: int
+    settled_irr: int
+    eligible_irr: int
+    status: FinanceCoachEarningViewStatus
+    unresolved_reason: str | None = None
+    vesting_mode: str
+    vesting_date: date | None = None
+    vested_at: datetime | None = None
+    created_at: datetime
+
+
+class FinanceCoachEarningsPublic(SQLModel):
+    data: list[FinanceCoachEarningPublic]
+    count: int
