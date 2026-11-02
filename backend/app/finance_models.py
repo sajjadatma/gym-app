@@ -41,6 +41,7 @@ FinancePermissionName = Literal[
     "finance.payment.record",
     "finance.refund.manage",
     "finance.expense.manage",
+    "finance.membership.manage",
 ]
 
 GrantableFinancePermission = Literal[
@@ -51,6 +52,7 @@ GrantableFinancePermission = Literal[
     "finance.payment.record",
     "finance.refund.manage",
     "finance.expense.manage",
+    "finance.membership.manage",
 ]
 
 FINANCE_VIEW: Final[FinancePermissionName] = "finance.view"
@@ -61,6 +63,7 @@ FINANCE_INVOICE_MANAGE: Final[FinancePermissionName] = "finance.invoice.manage"
 FINANCE_PAYMENT_RECORD: Final[FinancePermissionName] = "finance.payment.record"
 FINANCE_REFUND_MANAGE: Final[FinancePermissionName] = "finance.refund.manage"
 FINANCE_EXPENSE_MANAGE: Final[FinancePermissionName] = "finance.expense.manage"
+FINANCE_MEMBERSHIP_MANAGE: Final[FinancePermissionName] = "finance.membership.manage"
 
 # Guardrail for the JavaScript-safe integer transport. 10^15 IRR is one
 # hundred trillion toman, far above any gym amount and below 2^53.
@@ -283,7 +286,8 @@ class FinanceGrant(SQLModel, table=True):
             "permission IN ('finance.opening.manage', "
             "'finance.period.manage', 'finance.catalog.manage', "
             "'finance.invoice.manage', 'finance.payment.record', "
-            "'finance.refund.manage', 'finance.expense.manage')",
+            "'finance.refund.manage', 'finance.expense.manage', "
+            "'finance.membership.manage')",
             name="ck_finance_grant_permission",
         ),
     )
@@ -1052,3 +1056,140 @@ class FinanceExpensePublic(SQLModel):
 class FinanceExpensesPublic(SQLModel):
     data: list[FinanceExpensePublic]
     count: int
+
+
+# ---------------------------------------------------------------------------
+# Paid gym membership and athlete self-service (Phase 2)
+# ---------------------------------------------------------------------------
+
+FinanceMembershipStatus = Literal["ACTIVE", "FROZEN", "CANCELLED", "EXPIRED"]
+
+
+class FinanceMembership(SQLModel, table=True):
+    """A paid commercial membership period, separate from GymMembership."""
+
+    __tablename__ = "finance_membership"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('ACTIVE', 'FROZEN', 'CANCELLED', 'EXPIRED')",
+            name="ck_finance_membership_status",
+        ),
+        CheckConstraint(
+            "end_date >= start_date", name="ck_finance_membership_dates"
+        ),
+        CheckConstraint(
+            "access_required_irr >= 0",
+            name="ck_finance_membership_access_amount",
+        ),
+        Index(
+            "uq_finance_membership_active",
+            "gym_id",
+            "athlete_user_id",
+            unique=True,
+            postgresql_where=text("status IN ('ACTIVE', 'FROZEN')"),
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    athlete_user_id: uuid.UUID = Field(
+        foreign_key="user.id", ondelete="RESTRICT", index=True
+    )
+    invoice_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_invoice.id", ondelete="RESTRICT"
+    )
+    start_date: date
+    end_date: date
+    status: str = Field(default="ACTIVE", max_length=20)
+    access_required_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    frozen_at: date | None = Field(default=None)
+    frozen_days: int = Field(default=0)
+    cancelled_at: date | None = Field(default=None)
+    created_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+    updated_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+class FinanceMembershipCreate(SQLModel):
+    athlete_user_id: uuid.UUID
+    invoice_id: uuid.UUID | None = None
+    start_date: date
+    end_date: date
+    access_required_irr: int = Field(default=0, ge=0, le=MAX_FINANCE_IRR)
+
+
+class FinanceMembershipFreezeCreate(SQLModel):
+    frozen_on: date
+
+
+class FinanceMembershipResumeCreate(SQLModel):
+    resume_on: date
+
+
+class FinanceMembershipCancelCreate(SQLModel):
+    cancelled_on: date
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class FinanceMembershipTransferCreate(SQLModel):
+    athlete_user_id: uuid.UUID
+
+
+class FinanceMembershipPublic(SQLModel):
+    id: uuid.UUID
+    athlete_user_id: uuid.UUID
+    invoice_id: uuid.UUID | None = None
+    start_date: date
+    end_date: date
+    status: FinanceMembershipStatus
+    access_required_irr: int
+    paid_irr: int
+    access_granted: bool
+    frozen_at: date | None = None
+    frozen_days: int
+    cancelled_at: date | None = None
+    updated_at: datetime
+
+
+class FinanceMembershipsPublic(SQLModel):
+    data: list[FinanceMembershipPublic]
+    count: int
+
+
+class FinanceRefundPreview(SQLModel):
+    refundable_paid_irr: int
+    unused_days: int
+    total_days: int
+    proposed_refund_irr: int
+
+
+class FinanceMyInvoicePublic(FinanceInvoicePublic):
+    pass
+
+
+class FinanceMyInvoicesPublic(SQLModel):
+    data: list[FinanceInvoicePublic]
+    count: int
+
+
+class FinanceMyReceiptsPublic(SQLModel):
+    data: list[FinanceReceiptPublic]
+    count: int
+
+
+class FinanceMyAccountPublic(SQLModel):
+    invoices: list[FinanceInvoicePublic]
+    receipts: list[FinanceReceiptPublic]
+    memberships: list[FinanceMembershipPublic]
+    advance_balance_irr: int
+
+
+class FinanceMyRefundCreate(SQLModel):
+    invoice_id: uuid.UUID
+    amount_irr: int = Field(ge=1, le=MAX_FINANCE_IRR)
+    method: FinancePaymentMethod
+    reason: str = Field(min_length=3, max_length=500)

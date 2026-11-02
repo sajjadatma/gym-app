@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, HTTPException, Query
@@ -35,6 +36,15 @@ from app.finance_models import (
     FinanceJournalCorrectionCreate,
     FinanceJournalPublic,
     FinanceJournalsPublic,
+    FinanceMembershipCancelCreate,
+    FinanceMembershipCreate,
+    FinanceMembershipFreezeCreate,
+    FinanceMembershipPublic,
+    FinanceMembershipResumeCreate,
+    FinanceMembershipsPublic,
+    FinanceMembershipTransferCreate,
+    FinanceMyAccountPublic,
+    FinanceMyRefundCreate,
     FinanceOpeningBalanceCreate,
     FinancePeriodPublic,
     FinancePeriodsPublic,
@@ -42,6 +52,7 @@ from app.finance_models import (
     FinanceReceiptPublic,
     FinanceReceiptsPublic,
     FinanceRefundCreate,
+    FinanceRefundPreview,
     FinanceRefundPublic,
     FinanceRefundRecordCreate,
     FinanceRefundRejectCreate,
@@ -54,16 +65,20 @@ from app.services.finance import (
     accounts_public,
     apply_customer_credit,
     approve_refund,
+    cancel_membership,
     close_period,
     create_catalog_item,
     create_expense,
     create_invoice,
+    create_membership,
     create_receipt,
     delete_invoice,
     ensure_settings,
+    freeze_membership,
     get_expense,
     get_invoice,
     get_journal,
+    get_membership,
     get_receipt,
     issue_invoice,
     list_catalog,
@@ -72,10 +87,13 @@ from app.services.finance import (
     list_grants,
     list_invoices,
     list_journals,
+    list_memberships,
     list_periods,
     list_receipts,
     list_refunds,
     lock_finance_gym,
+    membership_refund_preview,
+    my_account,
     pay_expense,
     post_correction,
     post_opening_balance,
@@ -84,9 +102,12 @@ from app.services.finance import (
     reject_refund,
     repeat_expense,
     replace_grants,
+    request_my_refund,
     request_refund,
     resolve_finance_scope,
+    resume_membership,
     settings_public,
+    transfer_membership,
     update_catalog_item,
     update_invoice,
     utcnow,
@@ -811,4 +832,183 @@ def repeat_finance_expense(
         actor=current_user,
         expense_id=expense_id,
         spent_on=body.spent_on,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Paid membership and athlete self-service (Phase 2)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/memberships", response_model=FinanceMembershipsPublic)
+def read_finance_memberships(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    athlete_user_id: uuid.UUID | None = None,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return list_memberships(
+        session, gym_id=ctx.gym.id, athlete_user_id=athlete_user_id
+    )
+
+
+@router.post("/memberships", response_model=FinanceMembershipPublic)
+def create_finance_membership(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceMembershipCreate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    try:
+        return create_membership(
+            session, scope=scope, actor=current_user, body=body
+        )
+    except IntegrityError as exc:
+        raise _commit_conflict(session, exc) from exc
+
+
+@router.get(
+    "/memberships/{membership_id}", response_model=FinanceMembershipPublic
+)
+def read_finance_membership(
+    *,
+    membership_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return get_membership(
+        session, gym_id=ctx.gym.id, membership_id=membership_id
+    )
+
+
+@router.get(
+    "/memberships/{membership_id}/refund-preview",
+    response_model=FinanceRefundPreview,
+)
+def read_membership_refund_preview(
+    *,
+    membership_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    on_date: date = Query(alias="on"),
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return membership_refund_preview(
+        session, scope=scope, membership_id=membership_id, on_date=on_date
+    )
+
+
+@router.post(
+    "/memberships/{membership_id}/freeze", response_model=FinanceMembershipPublic
+)
+def freeze_finance_membership(
+    *,
+    membership_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceMembershipFreezeCreate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return freeze_membership(
+        session,
+        scope=scope,
+        actor=current_user,
+        membership_id=membership_id,
+        frozen_on=body.frozen_on,
+    )
+
+
+@router.post(
+    "/memberships/{membership_id}/resume", response_model=FinanceMembershipPublic
+)
+def resume_finance_membership(
+    *,
+    membership_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceMembershipResumeCreate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return resume_membership(
+        session,
+        scope=scope,
+        actor=current_user,
+        membership_id=membership_id,
+        resume_on=body.resume_on,
+    )
+
+
+@router.post(
+    "/memberships/{membership_id}/cancel", response_model=FinanceMembershipPublic
+)
+def cancel_finance_membership(
+    *,
+    membership_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceMembershipCancelCreate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return cancel_membership(
+        session,
+        scope=scope,
+        actor=current_user,
+        membership_id=membership_id,
+        cancelled_on=body.cancelled_on,
+        reason=body.reason,
+    )
+
+
+@router.post(
+    "/memberships/{membership_id}/transfer",
+    response_model=FinanceMembershipPublic,
+)
+def transfer_finance_membership(
+    *,
+    membership_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceMembershipTransferCreate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return transfer_membership(
+        session,
+        scope=scope,
+        actor=current_user,
+        membership_id=membership_id,
+        athlete_user_id=body.athlete_user_id,
+    )
+
+
+@router.get("/my/account", response_model=FinanceMyAccountPublic)
+def read_my_finance_account(
+    *, session: SessionDep, ctx: GymContextDep, current_user: CurrentUser
+) -> Any:
+    return my_account(session, gym_id=ctx.gym.id, user=current_user)
+
+
+@router.post("/my/refunds", response_model=FinanceRefundPublic)
+def request_my_finance_refund(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceMyRefundCreate,
+) -> Any:
+    return request_my_refund(
+        session, gym_id=ctx.gym.id, user=current_user, body=body
     )

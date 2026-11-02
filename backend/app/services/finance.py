@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, replace
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
 
 from fastapi import HTTPException
@@ -17,6 +17,7 @@ from app.finance_models import (
     FINANCE_CATALOG_MANAGE,
     FINANCE_EXPENSE_MANAGE,
     FINANCE_INVOICE_MANAGE,
+    FINANCE_MEMBERSHIP_MANAGE,
     FINANCE_OPENING_MANAGE,
     FINANCE_PAYMENT_RECORD,
     FINANCE_PERIOD_MANAGE,
@@ -57,6 +58,12 @@ from app.finance_models import (
     FinanceJournalLinePublic,
     FinanceJournalPublic,
     FinanceJournalsPublic,
+    FinanceMembership,
+    FinanceMembershipCreate,
+    FinanceMembershipPublic,
+    FinanceMembershipsPublic,
+    FinanceMyAccountPublic,
+    FinanceMyRefundCreate,
     FinanceOpeningBalanceCreate,
     FinanceOperation,
     FinancePeriod,
@@ -71,6 +78,7 @@ from app.finance_models import (
     FinanceReceiptsPublic,
     FinanceRefund,
     FinanceRefundCreate,
+    FinanceRefundPreview,
     FinanceRefundPublic,
     FinanceRefundsPublic,
     FinanceSequence,
@@ -78,12 +86,13 @@ from app.finance_models import (
     FinanceSettingsPublic,
     GrantableFinancePermission,
 )
-from app.models import Gym, GymMembership, User
+from app.models import AthleteProfile, Gym, GymMembership, User
 
 ADMIN_PERMISSIONS: tuple[FinancePermissionName, ...] = (
     FINANCE_VIEW,
     FINANCE_OPENING_MANAGE,
     FINANCE_EXPENSE_MANAGE,
+    FINANCE_MEMBERSHIP_MANAGE,
     FINANCE_PAYMENT_RECORD,
     FINANCE_PERIOD_MANAGE,
     FINANCE_REFUND_MANAGE,
@@ -2781,3 +2790,460 @@ def repeat_expense(
     session.commit()
     session.refresh(expense)
     return _expense_public(expense)
+
+
+# ---------------------------------------------------------------------------
+# Paid gym membership and athlete self-service (Phase 2)
+# ---------------------------------------------------------------------------
+
+
+def _athlete_profile(
+    session: Session, *, gym_id: uuid.UUID, user_id: uuid.UUID
+) -> AthleteProfile:
+    profile = session.exec(
+        select(AthleteProfile).where(
+            AthleteProfile.gym_id == gym_id,
+            AthleteProfile.user_id == user_id,
+        )
+    ).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="athlete_not_found")
+    return profile
+
+
+def _get_membership(
+    session: Session, *, gym_id: uuid.UUID, membership_id: uuid.UUID
+) -> FinanceMembership:
+    membership = session.get(FinanceMembership, membership_id)
+    if membership is None or membership.gym_id != gym_id:
+        raise HTTPException(status_code=404, detail="membership_not_found")
+    return membership
+
+
+def _membership_paid_irr(
+    session: Session, membership: FinanceMembership
+) -> int:
+    if membership.invoice_id is None:
+        return 0
+    return _invoice_paid_irr(session, membership.invoice_id)
+
+
+def _derived_membership_status(membership: FinanceMembership) -> str:
+    if (
+        membership.status in ("ACTIVE", "FROZEN")
+        and membership.end_date < utcnow().date()
+    ):
+        return "EXPIRED"
+    return membership.status
+
+
+def membership_public(
+    session: Session, membership: FinanceMembership
+) -> FinanceMembershipPublic:
+    paid = _membership_paid_irr(session, membership)
+    return FinanceMembershipPublic(
+        id=membership.id,
+        athlete_user_id=membership.athlete_user_id,
+        invoice_id=membership.invoice_id,
+        start_date=membership.start_date,
+        end_date=membership.end_date,
+        status=_derived_membership_status(membership),  # type: ignore[arg-type]
+        access_required_irr=membership.access_required_irr,
+        paid_irr=paid,
+        access_granted=paid >= membership.access_required_irr,
+        frozen_at=membership.frozen_at,
+        frozen_days=membership.frozen_days,
+        cancelled_at=membership.cancelled_at,
+        updated_at=membership.updated_at,
+    )
+
+
+def _expire_stale_memberships(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    athlete_user_id: uuid.UUID,
+    on_date: date,
+) -> None:
+    rows = session.exec(
+        select(FinanceMembership).where(
+            FinanceMembership.gym_id == gym_id,
+            FinanceMembership.athlete_user_id == athlete_user_id,
+            col(FinanceMembership.status).in_(("ACTIVE", "FROZEN")),
+            FinanceMembership.end_date < on_date,
+        )
+    ).all()
+    for row in rows:
+        row.status = "EXPIRED"
+        row.updated_at = utcnow()
+        session.add(row)
+
+
+def list_memberships(
+    session: Session, *, gym_id: uuid.UUID, athlete_user_id: uuid.UUID | None
+) -> FinanceMembershipsPublic:
+    statement = select(FinanceMembership).where(
+        FinanceMembership.gym_id == gym_id
+    )
+    if athlete_user_id is not None:
+        statement = statement.where(
+            FinanceMembership.athlete_user_id == athlete_user_id
+        )
+    rows = session.exec(
+        statement.order_by(col(FinanceMembership.start_date).desc())
+    ).all()
+    return FinanceMembershipsPublic(
+        data=[membership_public(session, row) for row in rows],
+        count=len(rows),
+    )
+
+
+def get_membership(
+    session: Session, *, gym_id: uuid.UUID, membership_id: uuid.UUID
+) -> FinanceMembershipPublic:
+    return membership_public(
+        session, _get_membership(session, gym_id=gym_id, membership_id=membership_id)
+    )
+
+
+def create_membership(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    body: FinanceMembershipCreate,
+) -> FinanceMembershipPublic:
+    scope.require(FINANCE_MEMBERSHIP_MANAGE)
+    if body.end_date < body.start_date:
+        raise HTTPException(status_code=400, detail="invalid_membership_dates")
+    _athlete_profile(
+        session, gym_id=scope.gym_id, user_id=body.athlete_user_id
+    )
+    if body.invoice_id is not None:
+        invoice = _get_invoice(
+            session, gym_id=scope.gym_id, invoice_id=body.invoice_id
+        )
+        if invoice.customer_user_id != body.athlete_user_id:
+            raise HTTPException(
+                status_code=400, detail="membership_invoice_mismatch"
+            )
+    elif body.access_required_irr > 0:
+        raise HTTPException(
+            status_code=400, detail="membership_invoice_required"
+        )
+
+    lock_finance_gym(session, scope.gym_id)
+    _expire_stale_memberships(
+        session,
+        gym_id=scope.gym_id,
+        athlete_user_id=body.athlete_user_id,
+        on_date=body.start_date,
+    )
+    session.flush()
+    existing = session.exec(
+        select(FinanceMembership).where(
+            FinanceMembership.gym_id == scope.gym_id,
+            FinanceMembership.athlete_user_id == body.athlete_user_id,
+            col(FinanceMembership.status).in_(("ACTIVE", "FROZEN")),
+        )
+    ).first()
+    if existing is not None:
+        raise HTTPException(
+            status_code=409, detail="membership_already_active"
+        )
+    membership = FinanceMembership(
+        gym_id=scope.gym_id,
+        athlete_user_id=body.athlete_user_id,
+        invoice_id=body.invoice_id,
+        start_date=body.start_date,
+        end_date=body.end_date,
+        status="ACTIVE",
+        access_required_irr=body.access_required_irr,
+        created_by_id=actor.id,
+    )
+    session.add(membership)
+    session.flush()
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.membership.created",
+        target_type="finance_membership",
+        target_id=membership.id,
+        detail={
+            "athlete_user_id": str(body.athlete_user_id),
+            "start_date": body.start_date.isoformat(),
+            "end_date": body.end_date.isoformat(),
+        },
+    )
+    session.commit()
+    session.refresh(membership)
+    return membership_public(session, membership)
+
+
+def freeze_membership(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    membership_id: uuid.UUID,
+    frozen_on: date,
+) -> FinanceMembershipPublic:
+    scope.require(FINANCE_MEMBERSHIP_MANAGE)
+    membership = _get_membership(
+        session, gym_id=scope.gym_id, membership_id=membership_id
+    )
+    if membership.status != "ACTIVE":
+        raise HTTPException(status_code=409, detail="membership_not_active")
+    if frozen_on > membership.end_date:
+        raise HTTPException(status_code=400, detail="invalid_membership_dates")
+    membership.status = "FROZEN"
+    membership.frozen_at = frozen_on
+    membership.updated_at = utcnow()
+    session.add(membership)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.membership.frozen",
+        target_type="finance_membership",
+        target_id=membership.id,
+        detail={"frozen_on": frozen_on.isoformat()},
+    )
+    session.commit()
+    session.refresh(membership)
+    return membership_public(session, membership)
+
+
+def resume_membership(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    membership_id: uuid.UUID,
+    resume_on: date,
+) -> FinanceMembershipPublic:
+    scope.require(FINANCE_MEMBERSHIP_MANAGE)
+    membership = _get_membership(
+        session, gym_id=scope.gym_id, membership_id=membership_id
+    )
+    if membership.status != "FROZEN" or membership.frozen_at is None:
+        raise HTTPException(status_code=409, detail="membership_not_frozen")
+    if resume_on < membership.frozen_at:
+        raise HTTPException(status_code=400, detail="invalid_membership_dates")
+    paused_days = (resume_on - membership.frozen_at).days
+    membership.end_date = membership.end_date + timedelta(days=paused_days)
+    membership.frozen_days += paused_days
+    membership.frozen_at = None
+    membership.status = "ACTIVE"
+    membership.updated_at = utcnow()
+    session.add(membership)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.membership.resumed",
+        target_type="finance_membership",
+        target_id=membership.id,
+        detail={"resume_on": resume_on.isoformat(), "paused_days": paused_days},
+    )
+    session.commit()
+    session.refresh(membership)
+    return membership_public(session, membership)
+
+
+def cancel_membership(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    membership_id: uuid.UUID,
+    cancelled_on: date,
+    reason: str | None,
+) -> FinanceMembershipPublic:
+    scope.require(FINANCE_MEMBERSHIP_MANAGE)
+    membership = _get_membership(
+        session, gym_id=scope.gym_id, membership_id=membership_id
+    )
+    if membership.status not in {"ACTIVE", "FROZEN"}:
+        raise HTTPException(status_code=409, detail="membership_not_active")
+    membership.status = "CANCELLED"
+    membership.cancelled_at = cancelled_on
+    membership.frozen_at = None
+    membership.updated_at = utcnow()
+    session.add(membership)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.membership.cancelled",
+        target_type="finance_membership",
+        target_id=membership.id,
+        reason=reason,
+        detail={"cancelled_on": cancelled_on.isoformat()},
+    )
+    session.commit()
+    session.refresh(membership)
+    return membership_public(session, membership)
+
+
+def transfer_membership(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    membership_id: uuid.UUID,
+    athlete_user_id: uuid.UUID,
+) -> FinanceMembershipPublic:
+    scope.require(FINANCE_MEMBERSHIP_MANAGE)
+    membership = _get_membership(
+        session, gym_id=scope.gym_id, membership_id=membership_id
+    )
+    if membership.status not in {"ACTIVE", "FROZEN"}:
+        raise HTTPException(status_code=409, detail="membership_not_active")
+    _athlete_profile(
+        session, gym_id=scope.gym_id, user_id=athlete_user_id
+    )
+    if athlete_user_id == membership.athlete_user_id:
+        raise HTTPException(status_code=400, detail="membership_same_athlete")
+    lock_finance_gym(session, scope.gym_id)
+    conflict = session.exec(
+        select(FinanceMembership).where(
+            FinanceMembership.gym_id == scope.gym_id,
+            FinanceMembership.athlete_user_id == athlete_user_id,
+            col(FinanceMembership.status).in_(("ACTIVE", "FROZEN")),
+        )
+    ).first()
+    if conflict is not None:
+        raise HTTPException(
+            status_code=409, detail="membership_already_active"
+        )
+    previous_athlete_id = membership.athlete_user_id
+    membership.athlete_user_id = athlete_user_id
+    membership.updated_at = utcnow()
+    session.add(membership)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.membership.transferred",
+        target_type="finance_membership",
+        target_id=membership.id,
+        detail={
+            "from_athlete_user_id": str(previous_athlete_id),
+            "to_athlete_user_id": str(athlete_user_id),
+        },
+    )
+    session.commit()
+    session.refresh(membership)
+    return membership_public(session, membership)
+
+
+def membership_refund_preview(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    membership_id: uuid.UUID,
+    on_date: date,
+) -> FinanceRefundPreview:
+    membership = _get_membership(
+        session, gym_id=scope.gym_id, membership_id=membership_id
+    )
+    if membership.invoice_id is None:
+        raise HTTPException(
+            status_code=400, detail="membership_invoice_required"
+        )
+    refundable = _invoice_refundable_irr(session, membership.invoice_id)
+    total_days = (membership.end_date - membership.start_date).days + 1
+    unused_days = max(0, min(total_days, (membership.end_date - on_date).days + 1))
+    proposed = refundable * unused_days // total_days if total_days else 0
+    return FinanceRefundPreview(
+        refundable_paid_irr=refundable,
+        unused_days=unused_days,
+        total_days=total_days,
+        proposed_refund_irr=proposed,
+    )
+
+
+def my_account(
+    session: Session, *, gym_id: uuid.UUID, user: User
+) -> FinanceMyAccountPublic:
+    _athlete_profile(session, gym_id=gym_id, user_id=user.id)
+    invoices = session.exec(
+        select(FinanceInvoice)
+        .where(
+            FinanceInvoice.gym_id == gym_id,
+            FinanceInvoice.customer_user_id == user.id,
+            col(FinanceInvoice.status).in_(("ISSUED", "VOID")),
+        )
+        .order_by(col(FinanceInvoice.created_at).desc())
+    ).all()
+    receipts = session.exec(
+        select(FinanceReceipt)
+        .where(
+            FinanceReceipt.gym_id == gym_id,
+            FinanceReceipt.customer_user_id == user.id,
+        )
+        .order_by(col(FinanceReceipt.created_at).desc())
+    ).all()
+    memberships = session.exec(
+        select(FinanceMembership)
+        .where(
+            FinanceMembership.gym_id == gym_id,
+            FinanceMembership.athlete_user_id == user.id,
+        )
+        .order_by(col(FinanceMembership.start_date).desc())
+    ).all()
+    credit = _customer_credit(
+        session, gym_id=gym_id, customer_user_id=user.id
+    )
+    return FinanceMyAccountPublic(
+        invoices=[invoice_public(session, invoice) for invoice in invoices],
+        receipts=[receipt_public(session, receipt) for receipt in receipts],
+        memberships=[membership_public(session, row) for row in memberships],
+        advance_balance_irr=credit.balance_irr if credit else 0,
+    )
+
+
+def request_my_refund(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    user: User,
+    body: FinanceMyRefundCreate,
+) -> FinanceRefundPublic:
+    _athlete_profile(session, gym_id=gym_id, user_id=user.id)
+    invoice = _get_invoice(session, gym_id=gym_id, invoice_id=body.invoice_id)
+    if invoice.customer_user_id != user.id:
+        raise HTTPException(status_code=404, detail="invoice_not_found")
+    refundable = _invoice_refundable_irr(session, invoice.id)
+    if body.amount_irr > refundable:
+        raise HTTPException(
+            status_code=400, detail="refund_exceeds_refundable"
+        )
+    refund = FinanceRefund(
+        gym_id=gym_id,
+        customer_user_id=user.id,
+        source="INVOICE",
+        invoice_id=invoice.id,
+        amount_irr=body.amount_irr,
+        method=body.method,
+        reason=body.reason,
+        status="REQUESTED",
+        requested_by_id=user.id,
+    )
+    session.add(refund)
+    session.flush()
+    record_audit(
+        session,
+        gym_id=gym_id,
+        actor_id=user.id,
+        action="finance.refund.requested",
+        target_type="finance_refund",
+        target_id=refund.id,
+        reason=body.reason,
+        detail={"amount_irr": body.amount_irr, "self_service": True},
+    )
+    session.commit()
+    session.refresh(refund)
+    return _refund_public(refund)

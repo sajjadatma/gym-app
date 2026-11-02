@@ -167,6 +167,7 @@ def test_finance_migration_creates_schema_and_role_then_rolls_back(
             "finance_credit_movement",
             "finance_refund",
             "finance_expense",
+            "finance_membership",
         }.issubset(tables)
 
         with engine.connect() as connection:
