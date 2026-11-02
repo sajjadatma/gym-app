@@ -1106,13 +1106,273 @@ export type FinanceAccountsPublic = {
 };
 
 /**
+ * FinanceCatalogItemCreate
+ */
+export type FinanceCatalogItemCreate = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Kind
+     */
+    kind: 'MEMBERSHIP' | 'PROGRAM' | 'SESSION' | 'PACK' | 'PRODUCT' | 'SERVICE' | 'CUSTOM';
+    /**
+     * Default Price Irr
+     */
+    default_price_irr?: number;
+};
+
+/**
+ * FinanceCatalogItemPublic
+ */
+export type FinanceCatalogItemPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Kind
+     */
+    kind: 'MEMBERSHIP' | 'PROGRAM' | 'SESSION' | 'PACK' | 'PRODUCT' | 'SERVICE' | 'CUSTOM';
+    /**
+     * Default Price Irr
+     */
+    default_price_irr: number;
+    /**
+     * Is Active
+     */
+    is_active: boolean;
+};
+
+/**
+ * FinanceCatalogItemUpdate
+ */
+export type FinanceCatalogItemUpdate = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Kind
+     */
+    kind?: 'MEMBERSHIP' | 'PROGRAM' | 'SESSION' | 'PACK' | 'PRODUCT' | 'SERVICE' | 'CUSTOM' | null;
+    /**
+     * Default Price Irr
+     */
+    default_price_irr?: number | null;
+    /**
+     * Is Active
+     */
+    is_active?: boolean | null;
+};
+
+/**
+ * FinanceCatalogPublic
+ */
+export type FinanceCatalogPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceCatalogItemPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * FinanceCreditApplyCreate
+ */
+export type FinanceCreditApplyCreate = {
+    /**
+     * Customer User Id
+     */
+    customer_user_id: string;
+    /**
+     * Invoice Id
+     */
+    invoice_id: string;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Received On
+     */
+    received_on: string;
+};
+
+/**
+ * FinanceCreditPublic
+ */
+export type FinanceCreditPublic = {
+    /**
+     * Customer User Id
+     */
+    customer_user_id: string;
+    /**
+     * Customer Name
+     */
+    customer_name?: string | null;
+    /**
+     * Balance Irr
+     */
+    balance_irr: number;
+};
+
+/**
+ * FinanceCreditsPublic
+ */
+export type FinanceCreditsPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceCreditPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * FinanceExpenseCreate
+ */
+export type FinanceExpenseCreate = {
+    /**
+     * Category
+     */
+    category: string;
+    /**
+     * Counterparty
+     */
+    counterparty?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Spent On
+     */
+    spent_on: string;
+    /**
+     * Paid
+     */
+    paid?: boolean;
+    /**
+     * Method
+     */
+    method?: 'CASH' | 'POS' | 'TRANSFER' | null;
+    /**
+     * Recurrence Key
+     */
+    recurrence_key?: string | null;
+};
+
+/**
+ * FinanceExpensePayCreate
+ */
+export type FinanceExpensePayCreate = {
+    /**
+     * Paid On
+     */
+    paid_on: string;
+    /**
+     * Method
+     */
+    method: 'CASH' | 'POS' | 'TRANSFER';
+};
+
+/**
+ * FinanceExpensePublic
+ */
+export type FinanceExpensePublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Category
+     */
+    category: string;
+    /**
+     * Counterparty
+     */
+    counterparty?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Spent On
+     */
+    spent_on: string;
+    /**
+     * Status
+     */
+    status: 'UNPAID' | 'PAID';
+    /**
+     * Method
+     */
+    method?: 'CASH' | 'POS' | 'TRANSFER' | null;
+    /**
+     * Paid At
+     */
+    paid_at?: string | null;
+    /**
+     * Recurrence Key
+     */
+    recurrence_key?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * FinanceExpenseRepeatCreate
+ */
+export type FinanceExpenseRepeatCreate = {
+    /**
+     * Spent On
+     */
+    spent_on: string;
+};
+
+/**
+ * FinanceExpensesPublic
+ */
+export type FinanceExpensesPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceExpensePublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
  * FinanceGrantItem
  */
 export type FinanceGrantItem = {
     /**
      * Permission
      */
-    permission: 'finance.opening.manage' | 'finance.period.manage';
+    permission: 'finance.opening.manage' | 'finance.period.manage' | 'finance.catalog.manage' | 'finance.invoice.manage' | 'finance.payment.record' | 'finance.refund.manage' | 'finance.expense.manage' | 'finance.membership.manage';
     /**
      * Amount Limit Irr
      */
@@ -1159,6 +1419,302 @@ export type FinanceGrantsPublic = {
      * Data
      */
     data: Array<FinanceGrantRow>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * FinanceInstallmentInput
+ */
+export type FinanceInstallmentInput = {
+    /**
+     * Due Date
+     */
+    due_date: string;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+};
+
+/**
+ * FinanceInstallmentPublic
+ */
+export type FinanceInstallmentPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Sequence
+     */
+    sequence: number;
+    /**
+     * Due Date
+     */
+    due_date: string;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+};
+
+/**
+ * FinanceInvoiceCreate
+ */
+export type FinanceInvoiceCreate = {
+    /**
+     * Customer User Id
+     */
+    customer_user_id: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Due Date
+     */
+    due_date?: string | null;
+    /**
+     * Discount Irr
+     */
+    discount_irr?: number;
+    /**
+     * Lines
+     */
+    lines: Array<FinanceInvoiceLineInput>;
+    /**
+     * Installments
+     */
+    installments?: Array<FinanceInstallmentInput> | null;
+};
+
+/**
+ * FinanceInvoiceIssueCreate
+ */
+export type FinanceInvoiceIssueCreate = {
+    /**
+     * Posting Date
+     */
+    posting_date: string;
+};
+
+/**
+ * FinanceInvoiceLineInput
+ */
+export type FinanceInvoiceLineInput = {
+    /**
+     * Catalog Item Id
+     */
+    catalog_item_id?: string | null;
+    /**
+     * Kind
+     */
+    kind: 'MEMBERSHIP' | 'PROGRAM' | 'SESSION' | 'PACK' | 'PRODUCT' | 'SERVICE' | 'CUSTOM';
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Quantity
+     */
+    quantity?: number;
+    /**
+     * Unit Price Irr
+     */
+    unit_price_irr: number;
+    /**
+     * Line Discount Irr
+     */
+    line_discount_irr?: number;
+};
+
+/**
+ * FinanceInvoiceLinePublic
+ */
+export type FinanceInvoiceLinePublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Line Number
+     */
+    line_number: number;
+    /**
+     * Catalog Item Id
+     */
+    catalog_item_id?: string | null;
+    /**
+     * Kind
+     */
+    kind: 'MEMBERSHIP' | 'PROGRAM' | 'SESSION' | 'PACK' | 'PRODUCT' | 'SERVICE' | 'CUSTOM';
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Quantity
+     */
+    quantity: number;
+    /**
+     * Unit Price Irr
+     */
+    unit_price_irr: number;
+    /**
+     * Line Discount Irr
+     */
+    line_discount_irr: number;
+    /**
+     * Net Irr
+     */
+    net_irr: number;
+    /**
+     * Discount Share Irr
+     */
+    discount_share_irr: number;
+    /**
+     * Payable Irr
+     */
+    payable_irr: number;
+};
+
+/**
+ * FinanceInvoicePublic
+ */
+export type FinanceInvoicePublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Status
+     */
+    status: 'DRAFT' | 'ISSUED' | 'VOID';
+    /**
+     * Invoice Number
+     */
+    invoice_number?: number | null;
+    /**
+     * Customer User Id
+     */
+    customer_user_id: string;
+    /**
+     * Customer Name
+     */
+    customer_name?: string | null;
+    /**
+     * Issue Date
+     */
+    issue_date?: string | null;
+    /**
+     * Due Date
+     */
+    due_date?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Subtotal Irr
+     */
+    subtotal_irr: number;
+    /**
+     * Discount Irr
+     */
+    discount_irr: number;
+    /**
+     * Total Irr
+     */
+    total_irr: number;
+    /**
+     * Paid Irr
+     */
+    paid_irr: number;
+    /**
+     * Balance Irr
+     */
+    balance_irr: number;
+    /**
+     * Overdue
+     */
+    overdue: boolean;
+    /**
+     * Void Reason
+     */
+    void_reason?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Issued At
+     */
+    issued_at?: string | null;
+    /**
+     * Lines
+     */
+    lines: Array<FinanceInvoiceLinePublic>;
+    /**
+     * Installments
+     */
+    installments: Array<FinanceInstallmentPublic>;
+};
+
+/**
+ * FinanceInvoiceUpdate
+ */
+export type FinanceInvoiceUpdate = {
+    /**
+     * Customer User Id
+     */
+    customer_user_id: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Due Date
+     */
+    due_date?: string | null;
+    /**
+     * Discount Irr
+     */
+    discount_irr?: number;
+    /**
+     * Lines
+     */
+    lines: Array<FinanceInvoiceLineInput>;
+    /**
+     * Installments
+     */
+    installments?: Array<FinanceInstallmentInput> | null;
+};
+
+/**
+ * FinanceInvoiceVoidCreate
+ */
+export type FinanceInvoiceVoidCreate = {
+    /**
+     * Reason
+     */
+    reason: string;
+    /**
+     * Posting Date
+     */
+    posting_date: string;
+};
+
+/**
+ * FinanceInvoicesPublic
+ */
+export type FinanceInvoicesPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceInvoicePublic>;
     /**
      * Count
      */
@@ -1228,7 +1784,7 @@ export type FinanceJournalPublic = {
     /**
      * Event Type
      */
-    event_type: 'OPENING_BALANCE' | 'CORRECTION';
+    event_type: 'OPENING_BALANCE' | 'CORRECTION' | 'INVOICE_ISSUED' | 'INVOICE_VOID' | 'RECEIPT_CONFIRMED' | 'ADVANCE_APPLIED' | 'REFUND_RECORDED' | 'EXPENSE_RECORDED' | 'EXPENSE_PAID';
     /**
      * Description
      */
@@ -1237,6 +1793,14 @@ export type FinanceJournalPublic = {
      * Reversal Of Id
      */
     reversal_of_id?: string | null;
+    /**
+     * Source Type
+     */
+    source_type?: string | null;
+    /**
+     * Source Id
+     */
+    source_id?: string | null;
     /**
      * Period Id
      */
@@ -1271,6 +1835,192 @@ export type FinanceJournalsPublic = {
      * Count
      */
     count: number;
+};
+
+/**
+ * FinanceMembershipCancelCreate
+ */
+export type FinanceMembershipCancelCreate = {
+    /**
+     * Cancelled On
+     */
+    cancelled_on: string;
+    /**
+     * Reason
+     */
+    reason?: string | null;
+};
+
+/**
+ * FinanceMembershipCreate
+ */
+export type FinanceMembershipCreate = {
+    /**
+     * Athlete User Id
+     */
+    athlete_user_id: string;
+    /**
+     * Invoice Id
+     */
+    invoice_id?: string | null;
+    /**
+     * Start Date
+     */
+    start_date: string;
+    /**
+     * End Date
+     */
+    end_date: string;
+    /**
+     * Access Required Irr
+     */
+    access_required_irr?: number;
+};
+
+/**
+ * FinanceMembershipFreezeCreate
+ */
+export type FinanceMembershipFreezeCreate = {
+    /**
+     * Frozen On
+     */
+    frozen_on: string;
+};
+
+/**
+ * FinanceMembershipPublic
+ */
+export type FinanceMembershipPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Athlete User Id
+     */
+    athlete_user_id: string;
+    /**
+     * Invoice Id
+     */
+    invoice_id?: string | null;
+    /**
+     * Start Date
+     */
+    start_date: string;
+    /**
+     * End Date
+     */
+    end_date: string;
+    /**
+     * Status
+     */
+    status: 'ACTIVE' | 'FROZEN' | 'CANCELLED' | 'EXPIRED';
+    /**
+     * Access Required Irr
+     */
+    access_required_irr: number;
+    /**
+     * Paid Irr
+     */
+    paid_irr: number;
+    /**
+     * Access Granted
+     */
+    access_granted: boolean;
+    /**
+     * Frozen At
+     */
+    frozen_at?: string | null;
+    /**
+     * Frozen Days
+     */
+    frozen_days: number;
+    /**
+     * Cancelled At
+     */
+    cancelled_at?: string | null;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
+ * FinanceMembershipResumeCreate
+ */
+export type FinanceMembershipResumeCreate = {
+    /**
+     * Resume On
+     */
+    resume_on: string;
+};
+
+/**
+ * FinanceMembershipTransferCreate
+ */
+export type FinanceMembershipTransferCreate = {
+    /**
+     * Athlete User Id
+     */
+    athlete_user_id: string;
+};
+
+/**
+ * FinanceMembershipsPublic
+ */
+export type FinanceMembershipsPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceMembershipPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * FinanceMyAccountPublic
+ */
+export type FinanceMyAccountPublic = {
+    /**
+     * Invoices
+     */
+    invoices: Array<FinanceInvoicePublic>;
+    /**
+     * Receipts
+     */
+    receipts: Array<FinanceReceiptPublic>;
+    /**
+     * Memberships
+     */
+    memberships: Array<FinanceMembershipPublic>;
+    /**
+     * Advance Balance Irr
+     */
+    advance_balance_irr: number;
+};
+
+/**
+ * FinanceMyRefundCreate
+ */
+export type FinanceMyRefundCreate = {
+    /**
+     * Invoice Id
+     */
+    invoice_id: string;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Method
+     */
+    method: 'CASH' | 'POS' | 'TRANSFER';
+    /**
+     * Reason
+     */
+    reason: string;
 };
 
 /**
@@ -1343,6 +2093,280 @@ export type FinancePeriodsPublic = {
      * Data
      */
     data: Array<FinancePeriodPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * FinanceReceiptAllocationInput
+ */
+export type FinanceReceiptAllocationInput = {
+    /**
+     * Invoice Id
+     */
+    invoice_id: string;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+};
+
+/**
+ * FinanceReceiptAllocationPublic
+ */
+export type FinanceReceiptAllocationPublic = {
+    /**
+     * Invoice Id
+     */
+    invoice_id: string;
+    /**
+     * Invoice Number
+     */
+    invoice_number?: number | null;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+};
+
+/**
+ * FinanceReceiptCreate
+ */
+export type FinanceReceiptCreate = {
+    /**
+     * Customer User Id
+     */
+    customer_user_id: string;
+    /**
+     * Method
+     */
+    method: 'CASH' | 'POS' | 'TRANSFER';
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Reference
+     */
+    reference?: string | null;
+    /**
+     * Received On
+     */
+    received_on: string;
+    /**
+     * Allocations
+     */
+    allocations?: Array<FinanceReceiptAllocationInput>;
+};
+
+/**
+ * FinanceReceiptPublic
+ */
+export type FinanceReceiptPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Receipt Number
+     */
+    receipt_number: number;
+    /**
+     * Customer User Id
+     */
+    customer_user_id: string;
+    /**
+     * Customer Name
+     */
+    customer_name?: string | null;
+    /**
+     * Method
+     */
+    method: 'CASH' | 'POS' | 'TRANSFER';
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Allocated Irr
+     */
+    allocated_irr: number;
+    /**
+     * Excess Irr
+     */
+    excess_irr: number;
+    /**
+     * Reference
+     */
+    reference?: string | null;
+    /**
+     * Received On
+     */
+    received_on: string;
+    /**
+     * Status
+     */
+    status: 'CONFIRMED' | 'REVERSED';
+    /**
+     * Verification Source
+     */
+    verification_source: string;
+    /**
+     * Reconciled
+     */
+    reconciled: boolean;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Allocations
+     */
+    allocations: Array<FinanceReceiptAllocationPublic>;
+};
+
+/**
+ * FinanceReceiptsPublic
+ */
+export type FinanceReceiptsPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceReceiptPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * FinanceRefundCreate
+ */
+export type FinanceRefundCreate = {
+    /**
+     * Source
+     */
+    source: 'INVOICE' | 'ADVANCE';
+    /**
+     * Customer User Id
+     */
+    customer_user_id: string;
+    /**
+     * Invoice Id
+     */
+    invoice_id?: string | null;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Method
+     */
+    method: 'CASH' | 'POS' | 'TRANSFER';
+    /**
+     * Reason
+     */
+    reason: string;
+};
+
+/**
+ * FinanceRefundPreview
+ */
+export type FinanceRefundPreview = {
+    /**
+     * Refundable Paid Irr
+     */
+    refundable_paid_irr: number;
+    /**
+     * Unused Days
+     */
+    unused_days: number;
+    /**
+     * Total Days
+     */
+    total_days: number;
+    /**
+     * Proposed Refund Irr
+     */
+    proposed_refund_irr: number;
+};
+
+/**
+ * FinanceRefundPublic
+ */
+export type FinanceRefundPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Source
+     */
+    source: 'INVOICE' | 'ADVANCE';
+    /**
+     * Status
+     */
+    status: 'REQUESTED' | 'APPROVED' | 'RECORDED' | 'REJECTED';
+    /**
+     * Customer User Id
+     */
+    customer_user_id: string;
+    /**
+     * Invoice Id
+     */
+    invoice_id?: string | null;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Method
+     */
+    method: 'CASH' | 'POS' | 'TRANSFER';
+    /**
+     * Reason
+     */
+    reason: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Recorded At
+     */
+    recorded_at?: string | null;
+};
+
+/**
+ * FinanceRefundRecordCreate
+ */
+export type FinanceRefundRecordCreate = {
+    /**
+     * Posting Date
+     */
+    posting_date: string;
+};
+
+/**
+ * FinanceRefundRejectCreate
+ */
+export type FinanceRefundRejectCreate = {
+    /**
+     * Reason
+     */
+    reason: string;
+};
+
+/**
+ * FinanceRefundsPublic
+ */
+export type FinanceRefundsPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceRefundPublic>;
     /**
      * Count
      */
@@ -5782,6 +6806,1276 @@ export type financeCloseFinancePeriodResponses = {
 };
 
 export type financeCloseFinancePeriodResponse = financeCloseFinancePeriodResponses[keyof financeCloseFinancePeriodResponses];
+
+export type financeReadFinanceCatalogData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Active Only
+         */
+        active_only?: boolean;
+    };
+    url: '/api/v1/finance/catalog';
+};
+
+export type financeReadFinanceCatalogErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceCatalogError = financeReadFinanceCatalogErrors[keyof financeReadFinanceCatalogErrors];
+
+export type financeReadFinanceCatalogResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCatalogPublic;
+};
+
+export type financeReadFinanceCatalogResponse = financeReadFinanceCatalogResponses[keyof financeReadFinanceCatalogResponses];
+
+export type financeCreateFinanceCatalogItemData = {
+    body: FinanceCatalogItemCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/catalog';
+};
+
+export type financeCreateFinanceCatalogItemErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeCreateFinanceCatalogItemError = financeCreateFinanceCatalogItemErrors[keyof financeCreateFinanceCatalogItemErrors];
+
+export type financeCreateFinanceCatalogItemResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCatalogItemPublic;
+};
+
+export type financeCreateFinanceCatalogItemResponse = financeCreateFinanceCatalogItemResponses[keyof financeCreateFinanceCatalogItemResponses];
+
+export type financeUpdateFinanceCatalogItemData = {
+    body: FinanceCatalogItemUpdate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/catalog/{item_id}';
+};
+
+export type financeUpdateFinanceCatalogItemErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeUpdateFinanceCatalogItemError = financeUpdateFinanceCatalogItemErrors[keyof financeUpdateFinanceCatalogItemErrors];
+
+export type financeUpdateFinanceCatalogItemResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCatalogItemPublic;
+};
+
+export type financeUpdateFinanceCatalogItemResponse = financeUpdateFinanceCatalogItemResponses[keyof financeUpdateFinanceCatalogItemResponses];
+
+export type financeReadFinanceInvoicesData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Status
+         */
+        status?: string | null;
+        /**
+         * Customer User Id
+         */
+        customer_user_id?: string | null;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/finance/invoices';
+};
+
+export type financeReadFinanceInvoicesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceInvoicesError = financeReadFinanceInvoicesErrors[keyof financeReadFinanceInvoicesErrors];
+
+export type financeReadFinanceInvoicesResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceInvoicesPublic;
+};
+
+export type financeReadFinanceInvoicesResponse = financeReadFinanceInvoicesResponses[keyof financeReadFinanceInvoicesResponses];
+
+export type financeCreateFinanceInvoiceData = {
+    body: FinanceInvoiceCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/invoices';
+};
+
+export type financeCreateFinanceInvoiceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeCreateFinanceInvoiceError = financeCreateFinanceInvoiceErrors[keyof financeCreateFinanceInvoiceErrors];
+
+export type financeCreateFinanceInvoiceResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceInvoicePublic;
+};
+
+export type financeCreateFinanceInvoiceResponse = financeCreateFinanceInvoiceResponses[keyof financeCreateFinanceInvoiceResponses];
+
+export type financeDeleteFinanceInvoiceData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Invoice Id
+         */
+        invoice_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/invoices/{invoice_id}';
+};
+
+export type financeDeleteFinanceInvoiceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeDeleteFinanceInvoiceError = financeDeleteFinanceInvoiceErrors[keyof financeDeleteFinanceInvoiceErrors];
+
+export type financeDeleteFinanceInvoiceResponses = {
+    /**
+     * Successful Response
+     */
+    200: Message;
+};
+
+export type financeDeleteFinanceInvoiceResponse = financeDeleteFinanceInvoiceResponses[keyof financeDeleteFinanceInvoiceResponses];
+
+export type financeReadFinanceInvoiceData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Invoice Id
+         */
+        invoice_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/invoices/{invoice_id}';
+};
+
+export type financeReadFinanceInvoiceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceInvoiceError = financeReadFinanceInvoiceErrors[keyof financeReadFinanceInvoiceErrors];
+
+export type financeReadFinanceInvoiceResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceInvoicePublic;
+};
+
+export type financeReadFinanceInvoiceResponse = financeReadFinanceInvoiceResponses[keyof financeReadFinanceInvoiceResponses];
+
+export type financeUpdateFinanceInvoiceData = {
+    body: FinanceInvoiceUpdate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Invoice Id
+         */
+        invoice_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/invoices/{invoice_id}';
+};
+
+export type financeUpdateFinanceInvoiceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeUpdateFinanceInvoiceError = financeUpdateFinanceInvoiceErrors[keyof financeUpdateFinanceInvoiceErrors];
+
+export type financeUpdateFinanceInvoiceResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceInvoicePublic;
+};
+
+export type financeUpdateFinanceInvoiceResponse = financeUpdateFinanceInvoiceResponses[keyof financeUpdateFinanceInvoiceResponses];
+
+export type financeIssueFinanceInvoiceData = {
+    body: FinanceInvoiceIssueCreate;
+    headers: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key': string;
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Invoice Id
+         */
+        invoice_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/invoices/{invoice_id}/issue';
+};
+
+export type financeIssueFinanceInvoiceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeIssueFinanceInvoiceError = financeIssueFinanceInvoiceErrors[keyof financeIssueFinanceInvoiceErrors];
+
+export type financeIssueFinanceInvoiceResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceInvoicePublic;
+};
+
+export type financeIssueFinanceInvoiceResponse = financeIssueFinanceInvoiceResponses[keyof financeIssueFinanceInvoiceResponses];
+
+export type financeVoidFinanceInvoiceData = {
+    body: FinanceInvoiceVoidCreate;
+    headers: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key': string;
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Invoice Id
+         */
+        invoice_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/invoices/{invoice_id}/void';
+};
+
+export type financeVoidFinanceInvoiceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeVoidFinanceInvoiceError = financeVoidFinanceInvoiceErrors[keyof financeVoidFinanceInvoiceErrors];
+
+export type financeVoidFinanceInvoiceResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceInvoicePublic;
+};
+
+export type financeVoidFinanceInvoiceResponse = financeVoidFinanceInvoiceResponses[keyof financeVoidFinanceInvoiceResponses];
+
+export type financeReadFinanceReceiptsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Customer User Id
+         */
+        customer_user_id?: string | null;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/finance/receipts';
+};
+
+export type financeReadFinanceReceiptsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceReceiptsError = financeReadFinanceReceiptsErrors[keyof financeReadFinanceReceiptsErrors];
+
+export type financeReadFinanceReceiptsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceReceiptsPublic;
+};
+
+export type financeReadFinanceReceiptsResponse = financeReadFinanceReceiptsResponses[keyof financeReadFinanceReceiptsResponses];
+
+export type financeRecordFinanceReceiptData = {
+    body: FinanceReceiptCreate;
+    headers: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key': string;
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/receipts';
+};
+
+export type financeRecordFinanceReceiptErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeRecordFinanceReceiptError = financeRecordFinanceReceiptErrors[keyof financeRecordFinanceReceiptErrors];
+
+export type financeRecordFinanceReceiptResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceReceiptPublic;
+};
+
+export type financeRecordFinanceReceiptResponse = financeRecordFinanceReceiptResponses[keyof financeRecordFinanceReceiptResponses];
+
+export type financeReadFinanceReceiptData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Receipt Id
+         */
+        receipt_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/receipts/{receipt_id}';
+};
+
+export type financeReadFinanceReceiptErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceReceiptError = financeReadFinanceReceiptErrors[keyof financeReadFinanceReceiptErrors];
+
+export type financeReadFinanceReceiptResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceReceiptPublic;
+};
+
+export type financeReadFinanceReceiptResponse = financeReadFinanceReceiptResponses[keyof financeReadFinanceReceiptResponses];
+
+export type financeReadFinanceCreditsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/credits';
+};
+
+export type financeReadFinanceCreditsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceCreditsError = financeReadFinanceCreditsErrors[keyof financeReadFinanceCreditsErrors];
+
+export type financeReadFinanceCreditsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCreditsPublic;
+};
+
+export type financeReadFinanceCreditsResponse = financeReadFinanceCreditsResponses[keyof financeReadFinanceCreditsResponses];
+
+export type financeApplyFinanceCreditData = {
+    body: FinanceCreditApplyCreate;
+    headers: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key': string;
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/credits/apply';
+};
+
+export type financeApplyFinanceCreditErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeApplyFinanceCreditError = financeApplyFinanceCreditErrors[keyof financeApplyFinanceCreditErrors];
+
+export type financeApplyFinanceCreditResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceInvoicePublic;
+};
+
+export type financeApplyFinanceCreditResponse = financeApplyFinanceCreditResponses[keyof financeApplyFinanceCreditResponses];
+
+export type financeReadFinanceRefundsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/refunds';
+};
+
+export type financeReadFinanceRefundsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceRefundsError = financeReadFinanceRefundsErrors[keyof financeReadFinanceRefundsErrors];
+
+export type financeReadFinanceRefundsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceRefundsPublic;
+};
+
+export type financeReadFinanceRefundsResponse = financeReadFinanceRefundsResponses[keyof financeReadFinanceRefundsResponses];
+
+export type financeRequestFinanceRefundData = {
+    body: FinanceRefundCreate;
+    headers: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key': string;
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/refunds';
+};
+
+export type financeRequestFinanceRefundErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeRequestFinanceRefundError = financeRequestFinanceRefundErrors[keyof financeRequestFinanceRefundErrors];
+
+export type financeRequestFinanceRefundResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceRefundPublic;
+};
+
+export type financeRequestFinanceRefundResponse = financeRequestFinanceRefundResponses[keyof financeRequestFinanceRefundResponses];
+
+export type financeApproveFinanceRefundData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Refund Id
+         */
+        refund_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/refunds/{refund_id}/approve';
+};
+
+export type financeApproveFinanceRefundErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeApproveFinanceRefundError = financeApproveFinanceRefundErrors[keyof financeApproveFinanceRefundErrors];
+
+export type financeApproveFinanceRefundResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceRefundPublic;
+};
+
+export type financeApproveFinanceRefundResponse = financeApproveFinanceRefundResponses[keyof financeApproveFinanceRefundResponses];
+
+export type financeRejectFinanceRefundData = {
+    body: FinanceRefundRejectCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Refund Id
+         */
+        refund_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/refunds/{refund_id}/reject';
+};
+
+export type financeRejectFinanceRefundErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeRejectFinanceRefundError = financeRejectFinanceRefundErrors[keyof financeRejectFinanceRefundErrors];
+
+export type financeRejectFinanceRefundResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceRefundPublic;
+};
+
+export type financeRejectFinanceRefundResponse = financeRejectFinanceRefundResponses[keyof financeRejectFinanceRefundResponses];
+
+export type financeRecordFinanceRefundData = {
+    body: FinanceRefundRecordCreate;
+    headers: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key': string;
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Refund Id
+         */
+        refund_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/refunds/{refund_id}/record';
+};
+
+export type financeRecordFinanceRefundErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeRecordFinanceRefundError = financeRecordFinanceRefundErrors[keyof financeRecordFinanceRefundErrors];
+
+export type financeRecordFinanceRefundResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceRefundPublic;
+};
+
+export type financeRecordFinanceRefundResponse = financeRecordFinanceRefundResponses[keyof financeRecordFinanceRefundResponses];
+
+export type financeReadFinanceExpensesData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Status
+         */
+        status?: string | null;
+        /**
+         * Offset
+         */
+        offset?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/finance/expenses';
+};
+
+export type financeReadFinanceExpensesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceExpensesError = financeReadFinanceExpensesErrors[keyof financeReadFinanceExpensesErrors];
+
+export type financeReadFinanceExpensesResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceExpensesPublic;
+};
+
+export type financeReadFinanceExpensesResponse = financeReadFinanceExpensesResponses[keyof financeReadFinanceExpensesResponses];
+
+export type financeCreateFinanceExpenseData = {
+    body: FinanceExpenseCreate;
+    headers: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key': string;
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/expenses';
+};
+
+export type financeCreateFinanceExpenseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeCreateFinanceExpenseError = financeCreateFinanceExpenseErrors[keyof financeCreateFinanceExpenseErrors];
+
+export type financeCreateFinanceExpenseResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceExpensePublic;
+};
+
+export type financeCreateFinanceExpenseResponse = financeCreateFinanceExpenseResponses[keyof financeCreateFinanceExpenseResponses];
+
+export type financeReadFinanceExpenseData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Expense Id
+         */
+        expense_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/expenses/{expense_id}';
+};
+
+export type financeReadFinanceExpenseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceExpenseError = financeReadFinanceExpenseErrors[keyof financeReadFinanceExpenseErrors];
+
+export type financeReadFinanceExpenseResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceExpensePublic;
+};
+
+export type financeReadFinanceExpenseResponse = financeReadFinanceExpenseResponses[keyof financeReadFinanceExpenseResponses];
+
+export type financePayFinanceExpenseData = {
+    body: FinanceExpensePayCreate;
+    headers: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key': string;
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Expense Id
+         */
+        expense_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/expenses/{expense_id}/pay';
+};
+
+export type financePayFinanceExpenseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financePayFinanceExpenseError = financePayFinanceExpenseErrors[keyof financePayFinanceExpenseErrors];
+
+export type financePayFinanceExpenseResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceExpensePublic;
+};
+
+export type financePayFinanceExpenseResponse = financePayFinanceExpenseResponses[keyof financePayFinanceExpenseResponses];
+
+export type financeRepeatFinanceExpenseData = {
+    body: FinanceExpenseRepeatCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Expense Id
+         */
+        expense_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/expenses/{expense_id}/repeat';
+};
+
+export type financeRepeatFinanceExpenseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeRepeatFinanceExpenseError = financeRepeatFinanceExpenseErrors[keyof financeRepeatFinanceExpenseErrors];
+
+export type financeRepeatFinanceExpenseResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceExpensePublic;
+};
+
+export type financeRepeatFinanceExpenseResponse = financeRepeatFinanceExpenseResponses[keyof financeRepeatFinanceExpenseResponses];
+
+export type financeReadFinanceMembershipsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Athlete User Id
+         */
+        athlete_user_id?: string | null;
+    };
+    url: '/api/v1/finance/memberships';
+};
+
+export type financeReadFinanceMembershipsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceMembershipsError = financeReadFinanceMembershipsErrors[keyof financeReadFinanceMembershipsErrors];
+
+export type financeReadFinanceMembershipsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceMembershipsPublic;
+};
+
+export type financeReadFinanceMembershipsResponse = financeReadFinanceMembershipsResponses[keyof financeReadFinanceMembershipsResponses];
+
+export type financeCreateFinanceMembershipData = {
+    body: FinanceMembershipCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/memberships';
+};
+
+export type financeCreateFinanceMembershipErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeCreateFinanceMembershipError = financeCreateFinanceMembershipErrors[keyof financeCreateFinanceMembershipErrors];
+
+export type financeCreateFinanceMembershipResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceMembershipPublic;
+};
+
+export type financeCreateFinanceMembershipResponse = financeCreateFinanceMembershipResponses[keyof financeCreateFinanceMembershipResponses];
+
+export type financeReadFinanceMembershipData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Membership Id
+         */
+        membership_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/memberships/{membership_id}';
+};
+
+export type financeReadFinanceMembershipErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceMembershipError = financeReadFinanceMembershipErrors[keyof financeReadFinanceMembershipErrors];
+
+export type financeReadFinanceMembershipResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceMembershipPublic;
+};
+
+export type financeReadFinanceMembershipResponse = financeReadFinanceMembershipResponses[keyof financeReadFinanceMembershipResponses];
+
+export type financeReadMembershipRefundPreviewData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Membership Id
+         */
+        membership_id: string;
+    };
+    query: {
+        /**
+         * On
+         */
+        on: string;
+    };
+    url: '/api/v1/finance/memberships/{membership_id}/refund-preview';
+};
+
+export type financeReadMembershipRefundPreviewErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadMembershipRefundPreviewError = financeReadMembershipRefundPreviewErrors[keyof financeReadMembershipRefundPreviewErrors];
+
+export type financeReadMembershipRefundPreviewResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceRefundPreview;
+};
+
+export type financeReadMembershipRefundPreviewResponse = financeReadMembershipRefundPreviewResponses[keyof financeReadMembershipRefundPreviewResponses];
+
+export type financeFreezeFinanceMembershipData = {
+    body: FinanceMembershipFreezeCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Membership Id
+         */
+        membership_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/memberships/{membership_id}/freeze';
+};
+
+export type financeFreezeFinanceMembershipErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeFreezeFinanceMembershipError = financeFreezeFinanceMembershipErrors[keyof financeFreezeFinanceMembershipErrors];
+
+export type financeFreezeFinanceMembershipResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceMembershipPublic;
+};
+
+export type financeFreezeFinanceMembershipResponse = financeFreezeFinanceMembershipResponses[keyof financeFreezeFinanceMembershipResponses];
+
+export type financeResumeFinanceMembershipData = {
+    body: FinanceMembershipResumeCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Membership Id
+         */
+        membership_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/memberships/{membership_id}/resume';
+};
+
+export type financeResumeFinanceMembershipErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeResumeFinanceMembershipError = financeResumeFinanceMembershipErrors[keyof financeResumeFinanceMembershipErrors];
+
+export type financeResumeFinanceMembershipResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceMembershipPublic;
+};
+
+export type financeResumeFinanceMembershipResponse = financeResumeFinanceMembershipResponses[keyof financeResumeFinanceMembershipResponses];
+
+export type financeCancelFinanceMembershipData = {
+    body: FinanceMembershipCancelCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Membership Id
+         */
+        membership_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/memberships/{membership_id}/cancel';
+};
+
+export type financeCancelFinanceMembershipErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeCancelFinanceMembershipError = financeCancelFinanceMembershipErrors[keyof financeCancelFinanceMembershipErrors];
+
+export type financeCancelFinanceMembershipResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceMembershipPublic;
+};
+
+export type financeCancelFinanceMembershipResponse = financeCancelFinanceMembershipResponses[keyof financeCancelFinanceMembershipResponses];
+
+export type financeTransferFinanceMembershipData = {
+    body: FinanceMembershipTransferCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Membership Id
+         */
+        membership_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/memberships/{membership_id}/transfer';
+};
+
+export type financeTransferFinanceMembershipErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeTransferFinanceMembershipError = financeTransferFinanceMembershipErrors[keyof financeTransferFinanceMembershipErrors];
+
+export type financeTransferFinanceMembershipResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceMembershipPublic;
+};
+
+export type financeTransferFinanceMembershipResponse = financeTransferFinanceMembershipResponses[keyof financeTransferFinanceMembershipResponses];
+
+export type financeReadMyFinanceAccountData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/my/account';
+};
+
+export type financeReadMyFinanceAccountErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadMyFinanceAccountError = financeReadMyFinanceAccountErrors[keyof financeReadMyFinanceAccountErrors];
+
+export type financeReadMyFinanceAccountResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceMyAccountPublic;
+};
+
+export type financeReadMyFinanceAccountResponse = financeReadMyFinanceAccountResponses[keyof financeReadMyFinanceAccountResponses];
+
+export type financeRequestMyFinanceRefundData = {
+    body: FinanceMyRefundCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/my/refunds';
+};
+
+export type financeRequestMyFinanceRefundErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeRequestMyFinanceRefundError = financeRequestMyFinanceRefundErrors[keyof financeRequestMyFinanceRefundErrors];
+
+export type financeRequestMyFinanceRefundResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceRefundPublic;
+};
+
+export type financeRequestMyFinanceRefundResponse = financeRequestMyFinanceRefundResponses[keyof financeRequestMyFinanceRefundResponses];
 
 export type utilsHealthCheckData = {
     body?: never;

@@ -157,6 +157,44 @@ gym timezone arrives with the Phase 4 reports; until then the setting is
 recorded but not used for calculations.
 
 
+## Phase 2 — operational gym finance (status)
+
+**Implemented and tested (backend):**
+
+1. **Catalog and invoices** — gym-scoped catalog items; draft/issue/void
+   customer invoices; per-gym sequential numbers; immutable issued documents;
+   line and bundle discounts with exact integer proration; installment
+   schedules; receivables/revenue posting linked by source reference.
+2. **Manual receipts and advances** — cash/POS/transfer receipts recorded by an
+   authorized operator; one receipt across several same-gym invoices of the
+   same customer; over-allocation and over-payment blocked; excess becomes a
+   same-gym customer advance; advances apply to later invoices; receipts are
+   sequential, idempotent and audited; paid invoices cannot be voided.
+3. **Refunds and expenses** — requested → approved → recorded refunds capped at
+   the collected/unrefunded amount or the remaining advance; sales-returns or
+   advance-liability postings; rejection never posts; unpaid/paid expenses,
+   accrual and settlement postings, and a duplicate-safe monthly repeat.
+4. **Paid membership and athlete self-service** — paid access periods separate
+   from identity membership; derived access from a configured downpayment;
+   freeze/resume/cancel/transfer; time-proportional refund preview; athletes
+   read only their own invoices, receipts, memberships and advance and can open
+   a capped refund request.
+5. **Permissions** — catalog, invoice, payment, refund, expense and membership
+   actions are separate grantable permissions; admins hold them implicitly.
+
+**Not yet built for Phase 2 (no Phase 3 work started):**
+
+- Gym-admin screens for catalog, invoices, receipts, refunds, expenses and
+  memberships. The finance page still exposes only the Phase 1 workspace.
+- Athlete screens for bills, receipts, membership and refund requests. The
+  self-service API exists; the UI does not.
+- Optional recurring expense generation beyond the explicit monthly repeat,
+  and cash/bank reconciliation (Phase 3 scope).
+- Online payment remains disabled by design pending a verified provider.
+
+Phase 2 is therefore **backend-complete for the approved financial behaviours
+but not yet user-complete**; the remaining work is UI.
+
 ## Remaining phases
 
 2. Catalog, invoices, manual receipts, installments, advances, refunds,
