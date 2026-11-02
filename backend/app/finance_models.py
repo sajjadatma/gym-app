@@ -1207,6 +1207,7 @@ class FinanceMyAccountPublic(SQLModel):
     invoices: list[FinanceInvoicePublic]
     receipts: list[FinanceReceiptPublic]
     memberships: list[FinanceMembershipPublic]
+    refunds: list[FinanceRefundPublic]
     advance_balance_irr: int
     reminders: FinanceRemindersPublic
 

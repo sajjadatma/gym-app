@@ -3224,10 +3224,19 @@ def my_account(
     credit = _customer_credit(
         session, gym_id=gym_id, customer_user_id=user.id
     )
+    refunds = session.exec(
+        select(FinanceRefund)
+        .where(
+            FinanceRefund.gym_id == gym_id,
+            FinanceRefund.customer_user_id == user.id,
+        )
+        .order_by(col(FinanceRefund.created_at).desc())
+    ).all()
     return FinanceMyAccountPublic(
         invoices=[invoice_public(session, invoice) for invoice in invoices],
         receipts=[receipt_public(session, receipt) for receipt in receipts],
         memberships=[membership_public(session, row) for row in memberships],
+        refunds=[_refund_public(refund) for refund in refunds],
         advance_balance_irr=credit.balance_irr if credit else 0,
         reminders=list_reminders(
             session,

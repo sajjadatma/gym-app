@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -165,7 +165,7 @@ def test_reminders_report_due_installments_and_renewals(
 ) -> None:
     gym, owner = make_owner(client, superuser_headers, name="Reminder Gym")
     customer = make_customer(client, owner, str(gym["id"]))
-    today = date.today()
+    today = datetime.now(UTC).date()
     past_due = (today - timedelta(days=2)).isoformat()
     later_due = (today + timedelta(days=20)).isoformat()
     draft = create_draft(
@@ -265,7 +265,7 @@ def test_athlete_account_includes_own_reminders_only(
         client, email=athlete_email, password="athlete-pass-456", gym_id=gym_id
     )
     other = make_customer(client, owner, gym_id, prefix="reminder-other")
-    due = (date.today() + timedelta(days=2)).isoformat()
+    due = (datetime.now(UTC).date() + timedelta(days=2)).isoformat()
     own = issue(
         client,
         owner,
@@ -294,4 +294,31 @@ def test_athlete_account_includes_own_reminders_only(
     assert body["reminders"]["within_days"] == 7
     assert [row["invoice_id"] for row in body["reminders"]["installments"]] == [
         own["id"]
+    ]
+    assert body["refunds"] == []
+
+    record_receipt(
+        client,
+        owner,
+        receipt_payload(
+            athlete["user_id"], amount=300_000, allocations=[(own["id"], 300_000)]
+        ),
+    )
+    requested = client.post(
+        "/api/v1/finance/my/refunds",
+        headers=athlete_headers,
+        json={
+            "invoice_id": own["id"],
+            "amount_irr": 50_000,
+            "reason": "Athlete requested a partial refund",
+        },
+    )
+    assert requested.status_code == 200, requested.text
+    assert requested.json()["status"] == "REQUESTED"
+    assert requested.json()["method"] == "CASH"
+
+    refreshed = client.get("/api/v1/finance/my/account", headers=athlete_headers)
+    assert refreshed.status_code == 200, refreshed.text
+    assert [row["id"] for row in refreshed.json()["refunds"]] == [
+        requested.json()["id"]
     ]
