@@ -695,3 +695,87 @@ class PlatformPlanUsagePublic(SQLModel):
     active_athletes: int
     staff_seats: int
     limit_status: str
+
+
+class PlatformCommissionTermInput(SQLModel):
+    kind: str = "ANY"
+    acquisition_source: str = "ANY"
+    basis: str
+    percent_bp: int = 0
+    fixed_irr: int = 0
+    max_fee_irr: int = 0
+
+
+class PlatformAgreementCreate(SQLModel):
+    gym_id: uuid.UUID | None = None
+    group_id: uuid.UUID | None = None
+    mode: PlatformMode
+    effective_from: date
+    effective_to: date | None = None
+    plan_version_id: uuid.UUID | None = None
+    subscription_amount_irr: int | None = None
+    volume_discount_bp: int = 0
+    grace_days: int = 7
+    restrict_after_days: int = 21
+    terms: list[PlatformCommissionTermInput] = Field(default_factory=list)
+
+
+class PlatformCommissionTermPublic(SQLModel):
+    id: uuid.UUID
+    kind: str
+    acquisition_source: str
+    basis: str
+    percent_bp: int
+    fixed_irr: int
+    max_fee_irr: int
+
+
+class PlatformAgreementPublic(SQLModel):
+    id: uuid.UUID
+    gym_id: uuid.UUID | None
+    group_id: uuid.UUID | None
+    version: int
+    supersedes_id: uuid.UUID | None
+    mode: str
+    status: str
+    effective_from: date
+    effective_to: date | None
+    plan_version_id: uuid.UUID | None
+    subscription_amount_irr: int
+    billing_interval: str
+    volume_discount_bp: int
+    grace_days: int
+    restrict_after_days: int
+    terms: list[PlatformCommissionTermPublic]
+    created_at: datetime
+    activated_at: datetime | None
+
+
+class PlatformAgreementsPublic(SQLModel):
+    data: list[PlatformAgreementPublic]
+
+
+class PlatformGroupMemberInput(SQLModel):
+    gym_id: uuid.UUID
+    allocation_bp: int = 10000
+
+
+class PlatformGroupCreate(SQLModel):
+    name: str = Field(min_length=2, max_length=255)
+    members: list[PlatformGroupMemberInput] = Field(default_factory=list)
+
+
+class PlatformGroupMemberPublic(SQLModel):
+    gym_id: uuid.UUID
+    allocation_bp: int
+
+
+class PlatformGroupPublic(SQLModel):
+    id: uuid.UUID
+    name: str
+    members: list[PlatformGroupMemberPublic]
+    created_at: datetime
+
+
+class PlatformGroupsPublic(SQLModel):
+    data: list[PlatformGroupPublic]

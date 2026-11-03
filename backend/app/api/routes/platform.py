@@ -7,6 +7,13 @@ from fastapi import APIRouter, Header, HTTPException
 
 from app.api.deps import CurrentSuperuser, SessionDep
 from app.platform_models import (
+    PlatformAgreementCreate,
+    PlatformAgreementPublic,
+    PlatformAgreementsPublic,
+    PlatformGroupCreate,
+    PlatformGroupMemberInput,
+    PlatformGroupPublic,
+    PlatformGroupsPublic,
     PlatformPlanCreate,
     PlatformPlanPublic,
     PlatformPlansPublic,
@@ -146,3 +153,115 @@ def read_platform_plan_usage(
             status_code=404, detail="platform_plan_version_not_found"
         )
     return platform_service.plan_usage(session, plan_version_id=version_id)
+
+
+@router.get("/groups", response_model=PlatformGroupsPublic)
+def read_platform_groups(
+    *, session: SessionDep, _current_user: CurrentSuperuser
+) -> Any:
+    return platform_service.list_groups(session)
+
+
+@router.post("/groups", response_model=PlatformGroupPublic)
+def create_platform_group(
+    *,
+    session: SessionDep,
+    current_user: CurrentSuperuser,
+    body: PlatformGroupCreate,
+    idempotency_key: Annotated[
+        str | None, Header(alias="Idempotency-Key")
+    ] = None,
+) -> Any:
+    return platform_service.create_group(
+        session,
+        actor=current_user,
+        body=body,
+        operation_key=_idempotency_key(idempotency_key),
+    )
+
+
+@router.post(
+    "/groups/{group_id}/members",
+    response_model=PlatformGroupPublic,
+)
+def update_platform_group_member(
+    *,
+    group_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentSuperuser,
+    body: PlatformGroupMemberInput,
+) -> Any:
+    return platform_service.add_group_member(
+        session,
+        actor=current_user,
+        group_id=group_id,
+        gym_id=body.gym_id,
+        allocation_bp=body.allocation_bp,
+    )
+
+
+@router.get("/agreements", response_model=PlatformAgreementsPublic)
+def read_platform_agreements(
+    *, session: SessionDep, _current_user: CurrentSuperuser
+) -> Any:
+    return platform_service.list_agreements(session)
+
+
+@router.post("/agreements", response_model=PlatformAgreementPublic)
+def create_platform_agreement(
+    *,
+    session: SessionDep,
+    current_user: CurrentSuperuser,
+    body: PlatformAgreementCreate,
+    idempotency_key: Annotated[
+        str | None, Header(alias="Idempotency-Key")
+    ] = None,
+) -> Any:
+    return platform_service.create_agreement(
+        session,
+        actor=current_user,
+        body=body,
+        operation_key=_idempotency_key(idempotency_key),
+    )
+
+
+@router.post(
+    "/agreements/{agreement_id}/activate",
+    response_model=PlatformAgreementPublic,
+)
+def activate_platform_agreement(
+    *,
+    agreement_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentSuperuser,
+    idempotency_key: Annotated[
+        str | None, Header(alias="Idempotency-Key")
+    ] = None,
+) -> Any:
+    return platform_service.activate_agreement(
+        session,
+        actor=current_user,
+        agreement_id=agreement_id,
+        operation_key=_idempotency_key(idempotency_key),
+    )
+
+
+@router.post(
+    "/agreements/{agreement_id}/disable",
+    response_model=PlatformAgreementPublic,
+)
+def disable_platform_agreement(
+    *,
+    agreement_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentSuperuser,
+    idempotency_key: Annotated[
+        str | None, Header(alias="Idempotency-Key")
+    ] = None,
+) -> Any:
+    return platform_service.disable_agreement(
+        session,
+        actor=current_user,
+        agreement_id=agreement_id,
+        operation_key=_idempotency_key(idempotency_key),
+    )
