@@ -172,13 +172,20 @@ def upgrade() -> None:
             "effective_to IS NULL OR effective_to >= effective_from",
             name="ck_platform_agreement_dates",
         ),
-        sa.UniqueConstraint(
-            "gym_id",
-            "group_id",
-            "effective_from",
-            "version",
-            name="uq_platform_agreement_scope_version",
-        ),
+    )
+    op.create_index(
+        "uq_platform_agreement_gym_scope_version",
+        "platform_agreement",
+        ["gym_id", "effective_from", "version"],
+        unique=True,
+        postgresql_where=sa.text("gym_id IS NOT NULL"),
+    )
+    op.create_index(
+        "uq_platform_agreement_group_scope_version",
+        "platform_agreement",
+        ["group_id", "effective_from", "version"],
+        unique=True,
+        postgresql_where=sa.text("group_id IS NOT NULL"),
     )
     op.create_table(
         "platform_commission_term",
@@ -232,7 +239,8 @@ def upgrade() -> None:
             ["agreement_id"], ["platform_agreement.id"], ondelete="RESTRICT"
         ),
         sa.CheckConstraint(
-            "amount_irr >= 0", name="ck_platform_receivable_amount"
+            "amount_irr >= 0 AND paid_irr >= 0 AND paid_irr <= amount_irr",
+            name="ck_platform_receivable_amount",
         ),
         sa.CheckConstraint(
             "status IN ('OPEN', 'INVOICED', 'PARTIAL', 'PAID', 'CREDITED', 'VOID')",
@@ -246,6 +254,7 @@ def upgrade() -> None:
         _uuid("gym_id"),
         _str("source_type", 30),
         _uuid("source_id", nullable=True),
+        _str("source_key", 200),
         _int("amount_irr", default=0),
         _str("reason", 500, nullable=True),
         _uuid("created_by_id", nullable=True),
@@ -253,6 +262,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["gym_id"], ["gym.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_by_id"], ["user.id"], ondelete="RESTRICT"),
         sa.CheckConstraint("amount_irr > 0", name="ck_platform_credit_amount"),
+        sa.UniqueConstraint("source_key", name="uq_platform_credit_source"),
     )
     op.create_table(
         "platform_invoice",
@@ -315,7 +325,7 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint(
             "gross_irr >= 0 AND discount_irr >= 0 AND credit_irr >= 0 "
-            "AND amount_irr >= 0",
+            "AND amount_irr >= 0 AND paid_irr >= 0 AND paid_irr <= amount_irr",
             name="ck_platform_invoice_line_amount",
         ),
     )
@@ -352,6 +362,11 @@ def upgrade() -> None:
         _dt("created_at"),
         sa.ForeignKeyConstraint(["created_by_id"], ["user.id"], ondelete="RESTRICT"),
         sa.UniqueConstraint("entry_number", name="uq_platform_journal_entry"),
+        sa.CheckConstraint(
+            "event_type IN ('PLATFORM_FEE', 'PLATFORM_FEE_REVERSAL', "
+            "'PLATFORM_PAYMENT', 'PLATFORM_INVOICE_CANCEL')",
+            name="ck_platform_journal_event",
+        ),
     )
     op.create_table(
         "platform_journal_line",
@@ -371,6 +386,10 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "(debit_irr = 0) <> (credit_irr = 0)",
             name="ck_platform_journal_line_side",
+        ),
+        sa.CheckConstraint(
+            "account_code IN ('1000', '1100', '4000', '4100', '4200')",
+            name="ck_platform_journal_account",
         ),
     )
     op.create_table(
@@ -474,9 +493,9 @@ def upgrade() -> None:
         _str("reason", 500, nullable=True),
         sa.Column("detail", sa.JSON(), nullable=False),
         _dt("created_at"),
-        sa.ForeignKeyConstraint(["gym_id"], ["gym.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["gym_id"], ["gym.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(
-            ["group_id"], ["platform_group.id"], ondelete="SET NULL"
+            ["group_id"], ["platform_group.id"], ondelete="RESTRICT"
         ),
         sa.ForeignKeyConstraint(["actor_id"], ["user.id"], ondelete="RESTRICT"),
     )
@@ -512,6 +531,341 @@ def upgrade() -> None:
         sa.UniqueConstraint("operation_key", name="uq_platform_operation_key"),
     )
 
+
+    # ------------------------------------------------------------------
+    # Platform ledger integrity and append-only guards
+    # ------------------------------------------------------------------
+    op.execute(
+        """
+        CREATE FUNCTION platform_check_journal_balance() RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        DECLARE
+            total_debit bigint;
+            total_credit bigint;
+            line_count integer;
+        BEGIN
+            SELECT COALESCE(SUM(debit_irr), 0),
+                   COALESCE(SUM(credit_irr), 0),
+                   COUNT(*)
+              INTO total_debit, total_credit, line_count
+              FROM platform_journal_line
+             WHERE journal_id = NEW.id;
+            IF total_debit <> total_credit
+               OR total_debit <= 0
+               OR line_count < 2 THEN
+                RAISE EXCEPTION
+                    'platform journal % is not balanced', NEW.id;
+            END IF;
+            RETURN NEW;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE CONSTRAINT TRIGGER platform_journal_balanced
+        AFTER INSERT ON platform_journal
+        DEFERRABLE INITIALLY DEFERRED
+        FOR EACH ROW EXECUTE FUNCTION platform_check_journal_balance();
+        """
+    )
+    op.execute(
+        """
+        CREATE FUNCTION platform_reject_mutation() RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        BEGIN
+            RAISE EXCEPTION 'platform posted records are immutable';
+        END;
+        $$;
+        """
+    )
+    for table_name in (
+        "platform_journal",
+        "platform_journal_line",
+        "platform_audit",
+        "platform_credit",
+        "platform_credit_application",
+        "platform_invoice_cancellation",
+        "platform_invoice_line_reversal",
+        "platform_payment",
+        "platform_payment_allocation",
+    ):
+        op.execute(
+            f"""
+            CREATE TRIGGER {table_name}_immutable
+            BEFORE UPDATE OR DELETE ON {table_name}
+            FOR EACH ROW EXECUTE FUNCTION platform_reject_mutation();
+            """
+        )
+    op.execute(
+        """
+        CREATE FUNCTION platform_reject_receivable_amount_mutation()
+        RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+            IF TG_OP = 'DELETE' THEN
+                RAISE EXCEPTION 'platform receivables are append-only';
+            END IF;
+            IF NEW.amount_irr <> OLD.amount_irr
+               OR NEW.gym_id IS DISTINCT FROM OLD.gym_id
+               OR NEW.agreement_id IS DISTINCT FROM OLD.agreement_id
+               OR NEW.source_type <> OLD.source_type
+               OR NEW.source_id IS DISTINCT FROM OLD.source_id
+               OR NEW.source_key <> OLD.source_key
+               OR NEW.due_on <> OLD.due_on
+               OR NEW.snapshot::text <> OLD.snapshot::text
+               OR NEW.created_at <> OLD.created_at THEN
+                RAISE EXCEPTION 'platform receivable amounts are immutable';
+            END IF;
+            RETURN NEW;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER platform_receivable_amount_immutable
+        BEFORE UPDATE OR DELETE ON platform_receivable
+        FOR EACH ROW EXECUTE FUNCTION platform_reject_receivable_amount_mutation();
+        """
+    )
+    op.execute(
+        """
+        CREATE FUNCTION platform_reject_invoice_amount_mutation()
+        RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+            IF TG_OP = 'DELETE' THEN
+                RAISE EXCEPTION 'platform invoices are append-only';
+            END IF;
+            IF NEW.gym_id IS DISTINCT FROM OLD.gym_id
+               OR NEW.group_id IS DISTINCT FROM OLD.group_id
+               OR NEW.invoice_number <> OLD.invoice_number
+               OR NEW.period_start <> OLD.period_start
+               OR NEW.period_end <> OLD.period_end
+               OR NEW.issued_on <> OLD.issued_on
+               OR NEW.due_on <> OLD.due_on
+               OR NEW.discount_irr <> OLD.discount_irr
+               OR NEW.total_irr <> OLD.total_irr
+               OR NEW.created_at <> OLD.created_at THEN
+                RAISE EXCEPTION 'platform invoice amounts are immutable';
+            END IF;
+            RETURN NEW;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER platform_invoice_amount_immutable
+        BEFORE UPDATE OR DELETE ON platform_invoice
+        FOR EACH ROW EXECUTE FUNCTION platform_reject_invoice_amount_mutation();
+        """
+    )
+    op.execute(
+        """
+        CREATE FUNCTION platform_reject_invoice_line_amount_mutation()
+        RETURNS trigger LANGUAGE plpgsql AS $$
+        BEGIN
+            IF TG_OP = 'DELETE' THEN
+                RAISE EXCEPTION 'platform invoice lines are append-only';
+            END IF;
+            IF NEW.invoice_id IS DISTINCT FROM OLD.invoice_id
+               OR NEW.gym_id IS DISTINCT FROM OLD.gym_id
+               OR NEW.receivable_id IS DISTINCT FROM OLD.receivable_id
+               OR NEW.source_key <> OLD.source_key
+               OR NEW.gross_irr <> OLD.gross_irr
+               OR NEW.discount_irr <> OLD.discount_irr
+               OR NEW.credit_irr <> OLD.credit_irr
+               OR NEW.amount_irr <> OLD.amount_irr THEN
+                RAISE EXCEPTION 'platform invoice line amounts are immutable';
+            END IF;
+            RETURN NEW;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER platform_invoice_line_amount_immutable
+        BEFORE UPDATE OR DELETE ON platform_invoice_line
+        FOR EACH ROW EXECUTE FUNCTION platform_reject_invoice_line_amount_mutation();
+        """
+    )
+    op.execute(
+        """
+        CREATE FUNCTION platform_check_invoice_line() RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        DECLARE
+            invoice_gym uuid;
+            invoice_group uuid;
+            receivable_gym uuid;
+        BEGIN
+            SELECT gym_id, group_id INTO invoice_gym, invoice_group
+              FROM platform_invoice WHERE id = NEW.invoice_id;
+            SELECT gym_id INTO receivable_gym
+              FROM platform_receivable WHERE id = NEW.receivable_id;
+            IF receivable_gym IS NULL OR receivable_gym <> NEW.gym_id THEN
+                RAISE EXCEPTION 'platform invoice line tenant mismatch';
+            END IF;
+            IF invoice_gym IS NOT NULL AND invoice_gym <> NEW.gym_id THEN
+                RAISE EXCEPTION 'platform invoice line gym mismatch';
+            END IF;
+            IF invoice_group IS NOT NULL AND NOT EXISTS (
+                SELECT 1 FROM platform_group_member
+                 WHERE group_id = invoice_group AND gym_id = NEW.gym_id
+            ) THEN
+                RAISE EXCEPTION 'platform invoice line not in group';
+            END IF;
+            RETURN NEW;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER platform_invoice_line_tenant
+        BEFORE INSERT OR UPDATE ON platform_invoice_line
+        FOR EACH ROW EXECUTE FUNCTION platform_check_invoice_line();
+        """
+    )
+    op.execute(
+        """
+        CREATE FUNCTION platform_check_credit_application() RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        DECLARE
+            credit_gym uuid;
+            line_gym uuid;
+        BEGIN
+            SELECT gym_id INTO credit_gym FROM platform_credit WHERE id = NEW.credit_id;
+            SELECT gym_id INTO line_gym FROM platform_invoice_line WHERE id = NEW.invoice_line_id;
+            IF credit_gym IS NULL OR line_gym IS NULL OR credit_gym <> line_gym THEN
+                RAISE EXCEPTION 'platform credit tenant mismatch';
+            END IF;
+            RETURN NEW;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER platform_credit_application_tenant
+        BEFORE INSERT ON platform_credit_application
+        FOR EACH ROW EXECUTE FUNCTION platform_check_credit_application();
+        """
+    )
+    op.execute(
+        """
+        CREATE FUNCTION platform_check_payment_allocation() RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        DECLARE
+            payment_invoice uuid;
+            line_invoice uuid;
+        BEGIN
+            SELECT invoice_id INTO payment_invoice FROM platform_payment WHERE id = NEW.payment_id;
+            SELECT invoice_id INTO line_invoice FROM platform_invoice_line WHERE id = NEW.invoice_line_id;
+            IF payment_invoice IS NULL OR line_invoice IS NULL OR payment_invoice <> line_invoice THEN
+                RAISE EXCEPTION 'platform payment allocation invoice mismatch';
+            END IF;
+            RETURN NEW;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER platform_payment_allocation_invoice
+        BEFORE INSERT ON platform_payment_allocation
+        FOR EACH ROW EXECUTE FUNCTION platform_check_payment_allocation();
+        """
+    )
+    op.execute(
+        """
+        CREATE FUNCTION platform_check_line_reversal() RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        DECLARE
+            cancellation_invoice uuid;
+            line_invoice uuid;
+        BEGIN
+            SELECT invoice_id INTO cancellation_invoice
+              FROM platform_invoice_cancellation WHERE id = NEW.cancellation_id;
+            SELECT invoice_id INTO line_invoice
+              FROM platform_invoice_line WHERE id = NEW.invoice_line_id;
+            IF cancellation_invoice IS NULL OR line_invoice IS NULL
+               OR cancellation_invoice <> line_invoice THEN
+                RAISE EXCEPTION 'platform cancellation line mismatch';
+            END IF;
+            RETURN NEW;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER platform_invoice_line_reversal_invoice
+        BEFORE INSERT ON platform_invoice_line_reversal
+        FOR EACH ROW EXECUTE FUNCTION platform_check_line_reversal();
+        """
+    )
+    op.execute(
+        """
+        CREATE FUNCTION platform_check_invoice_cancellation() RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        DECLARE
+            invoice_status text;
+        BEGIN
+            SELECT status INTO invoice_status
+              FROM platform_invoice WHERE id = NEW.invoice_id;
+            IF invoice_status <> 'ISSUED' OR EXISTS (
+                SELECT 1 FROM platform_payment WHERE invoice_id = NEW.invoice_id
+            ) THEN
+                RAISE EXCEPTION 'platform invoice is not cancellable';
+            END IF;
+            RETURN NEW;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER platform_invoice_cancellation_status
+        BEFORE INSERT ON platform_invoice_cancellation
+        FOR EACH ROW EXECUTE FUNCTION platform_check_invoice_cancellation();
+        """
+    )
+    op.execute(
+        """
+        CREATE FUNCTION platform_check_group_allocations() RETURNS trigger
+        LANGUAGE plpgsql AS $$
+        DECLARE
+            total_bp integer;
+            target_group uuid;
+        BEGIN
+            IF TG_OP = 'DELETE' THEN
+                target_group := OLD.group_id;
+            ELSE
+                target_group := NEW.group_id;
+            END IF;
+            SELECT COALESCE(SUM(allocation_bp), 0) INTO total_bp
+              FROM platform_group_member
+             WHERE group_id = target_group;
+            IF total_bp > 10000 THEN
+                RAISE EXCEPTION 'platform group allocation exceeds 10000 bp';
+            END IF;
+            IF TG_OP = 'DELETE' THEN
+                RETURN OLD;
+            END IF;
+            RETURN NEW;
+        END;
+        $$;
+        """
+    )
+    op.execute(
+        """
+        CREATE CONSTRAINT TRIGGER platform_group_allocations
+        AFTER INSERT OR UPDATE OR DELETE ON platform_group_member
+        DEFERRABLE INITIALLY DEFERRED
+        FOR EACH ROW EXECUTE FUNCTION platform_check_group_allocations();
+        """
+    )
     op.add_column(
         "finance_invoice_line",
         sa.Column("platform_agreement_id", sa.Uuid(), nullable=True),
@@ -562,6 +916,34 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute("DROP TRIGGER IF EXISTS platform_group_allocations ON platform_group_member")
+    op.execute("DROP FUNCTION IF EXISTS platform_check_group_allocations()")
+    op.execute("DROP TRIGGER IF EXISTS platform_invoice_cancellation_status ON platform_invoice_cancellation")
+    op.execute("DROP FUNCTION IF EXISTS platform_check_invoice_cancellation()")
+    op.execute("DROP TRIGGER IF EXISTS platform_invoice_line_reversal_invoice ON platform_invoice_line_reversal")
+    op.execute("DROP FUNCTION IF EXISTS platform_check_line_reversal()")
+    op.execute("DROP TRIGGER IF EXISTS platform_payment_allocation_invoice ON platform_payment_allocation")
+    op.execute("DROP FUNCTION IF EXISTS platform_check_payment_allocation()")
+    op.execute("DROP TRIGGER IF EXISTS platform_credit_application_tenant ON platform_credit_application")
+    op.execute("DROP FUNCTION IF EXISTS platform_check_credit_application()")
+    op.execute("DROP TRIGGER IF EXISTS platform_invoice_line_tenant ON platform_invoice_line")
+    op.execute("DROP FUNCTION IF EXISTS platform_check_invoice_line()")
+    op.execute("DROP TRIGGER IF EXISTS platform_invoice_line_amount_immutable ON platform_invoice_line")
+    op.execute("DROP FUNCTION IF EXISTS platform_reject_invoice_line_amount_mutation()")
+    op.execute("DROP TRIGGER IF EXISTS platform_invoice_amount_immutable ON platform_invoice")
+    op.execute("DROP FUNCTION IF EXISTS platform_reject_invoice_amount_mutation()")
+    op.execute("DROP TRIGGER IF EXISTS platform_receivable_amount_immutable ON platform_receivable")
+    op.execute("DROP FUNCTION IF EXISTS platform_reject_receivable_amount_mutation()")
+    for table_name in (
+        "platform_journal", "platform_journal_line", "platform_audit",
+        "platform_credit", "platform_credit_application",
+        "platform_invoice_cancellation", "platform_invoice_line_reversal",
+        "platform_payment", "platform_payment_allocation",
+    ):
+        op.execute(f"DROP TRIGGER IF EXISTS {table_name}_immutable ON {table_name}")
+    op.execute("DROP FUNCTION IF EXISTS platform_reject_mutation()")
+    op.execute("DROP TRIGGER IF EXISTS platform_journal_balanced ON platform_journal")
+    op.execute("DROP FUNCTION IF EXISTS platform_check_journal_balance()")
     op.drop_constraint(
         "fk_finance_invoice_line_platform_agreement",
         "finance_invoice_line",

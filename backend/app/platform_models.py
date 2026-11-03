@@ -4,7 +4,14 @@ import uuid
 from datetime import date, datetime
 from typing import Any, Final, Literal
 
-from sqlalchemy import BigInteger, CheckConstraint, Column, UniqueConstraint
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Column,
+    Index,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.types import JSON
 from sqlmodel import Field, SQLModel
 
@@ -147,12 +154,21 @@ class PlatformAgreement(SQLModel, table=True):
             "effective_to IS NULL OR effective_to >= effective_from",
             name="ck_platform_agreement_dates",
         ),
-        UniqueConstraint(
+        Index(
+            "uq_platform_agreement_gym_scope_version",
             "gym_id",
+            "effective_from",
+            "version",
+            unique=True,
+            postgresql_where=text("gym_id IS NOT NULL"),
+        ),
+        Index(
+            "uq_platform_agreement_group_scope_version",
             "group_id",
             "effective_from",
             "version",
-            name="uq_platform_agreement_scope_version",
+            unique=True,
+            postgresql_where=text("group_id IS NOT NULL"),
         ),
     )
 
@@ -235,7 +251,7 @@ class PlatformCommissionTerm(SQLModel, table=True):
 class PlatformReceivable(SQLModel, table=True):
     __tablename__ = "platform_receivable"
     __table_args__ = (
-        CheckConstraint("amount_irr >= 0", name="ck_platform_receivable_amount"),
+        CheckConstraint("amount_irr >= 0 AND paid_irr >= 0 AND paid_irr <= amount_irr", name="ck_platform_receivable_amount"),
         CheckConstraint(
             "status IN ('OPEN', 'INVOICED', 'PARTIAL', 'PAID', 'CREDITED', 'VOID')",
             name="ck_platform_receivable_status",
@@ -273,6 +289,7 @@ class PlatformCredit(SQLModel, table=True):
     __tablename__ = "platform_credit"
     __table_args__ = (
         CheckConstraint("amount_irr > 0", name="ck_platform_credit_amount"),
+        UniqueConstraint("source_key", name="uq_platform_credit_source"),
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -281,6 +298,7 @@ class PlatformCredit(SQLModel, table=True):
     )
     source_type: str = Field(max_length=30)
     source_id: uuid.UUID | None = Field(default=None)
+    source_key: str = Field(max_length=200)
     amount_irr: int = Field(
         default=0, sa_column=Column(BigInteger, nullable=False)
     )
@@ -369,7 +387,7 @@ class PlatformInvoiceLine(SQLModel, table=True):
         ),
         CheckConstraint(
             "gross_irr >= 0 AND discount_irr >= 0 AND credit_irr >= 0 "
-            "AND amount_irr >= 0",
+            "AND amount_irr >= 0 AND paid_irr >= 0 AND paid_irr <= amount_irr",
             name="ck_platform_invoice_line_amount",
         ),
     )
@@ -512,6 +530,11 @@ class PlatformJournal(SQLModel, table=True):
     __tablename__ = "platform_journal"
     __table_args__ = (
         UniqueConstraint("entry_number", name="uq_platform_journal_entry"),
+        CheckConstraint(
+            "event_type IN ('PLATFORM_FEE', 'PLATFORM_FEE_REVERSAL', "
+            "'PLATFORM_PAYMENT', 'PLATFORM_INVOICE_CANCEL')",
+            name="ck_platform_journal_event",
+        ),
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -538,6 +561,10 @@ class PlatformJournalLine(SQLModel, table=True):
             "(debit_irr = 0) <> (credit_irr = 0)",
             name="ck_platform_journal_line_side",
         ),
+        CheckConstraint(
+            "account_code IN ('1000', '1100', '4000', '4100', '4200')",
+            name="ck_platform_journal_account",
+        ),
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -559,12 +586,12 @@ class PlatformAudit(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     gym_id: uuid.UUID | None = Field(
-        default=None, foreign_key="gym.id", ondelete="SET NULL"
+        default=None, foreign_key="gym.id", ondelete="RESTRICT"
     )
     group_id: uuid.UUID | None = Field(
         default=None,
         foreign_key="platform_group.id",
-        ondelete="SET NULL",
+        ondelete="RESTRICT",
     )
     actor_id: uuid.UUID | None = Field(
         default=None, foreign_key="user.id", ondelete="RESTRICT"
