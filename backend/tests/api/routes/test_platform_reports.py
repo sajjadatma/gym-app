@@ -146,16 +146,11 @@ def test_gym_summary_separates_cashflow_and_accrual_profit(
             "counterparty": "مالک",
             "amount_irr": 50_000,
             "spent_on": "2026-11-02",
-            "paid": False,
+            "paid": True,
+            "method": "TRANSFER",
         },
     )
     assert expense.status_code == 200, expense.text
-    paid = client.post(
-        f"/api/v1/finance/expenses/{expense.json()['id']}/pay",
-        headers={**owner, "Idempotency-Key": uuid.uuid4().hex},
-        json={"paid_on": "2026-11-03", "method": "TRANSFER"},
-    )
-    assert paid.status_code == 200, paid.text
     summary = client.get(
         "/api/v1/finance/reports/summary",
         headers=owner,

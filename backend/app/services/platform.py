@@ -2805,9 +2805,19 @@ def create_platform_cost(
                 status_code=409, detail="idempotency_key_reused"
             )
         return _platform_cost_public(existing)
+    category = body.category.strip()
+    if len(category) < 2:
+        raise HTTPException(
+            status_code=422, detail="platform_cost_category_invalid"
+        )
+    if body.gym_id is not None:
+        from app.models import Gym
+
+        if session.get(Gym, body.gym_id) is None:
+            raise HTTPException(status_code=404, detail="gym_not_found")
     cost = PlatformCost(
         gym_id=body.gym_id,
-        category=body.category.strip(),
+        category=category,
         description=body.description,
         amount_irr=body.amount_irr,
         incurred_on=body.incurred_on,
@@ -2895,7 +2905,7 @@ def _platform_gym_reports(
 ) -> list[Any]:
     from app.platform_models import (
         PlatformCost,
-        PlatformInvoice,
+        PlatformCredit,
         PlatformInvoiceLine,
         PlatformPayment,
         PlatformPaymentAllocation,
@@ -2939,6 +2949,13 @@ def _platform_gym_reports(
             ).all()
             if from_date <= row.created_at.date() <= to_date
         )
+        recognized -= sum(
+            row.amount_irr
+            for row in session.exec(
+                select(PlatformCredit).where(PlatformCredit.gym_id == gym_id)
+            ).all()
+            if from_date <= row.created_at.date() <= to_date
+        )
         collected = session.exec(
             select(func.coalesce(func.sum(PlatformPaymentAllocation.amount_irr), 0))
             .join(
@@ -2955,25 +2972,27 @@ def _platform_gym_reports(
                 PlatformPayment.received_on <= to_date,
             )
         ).one()
-        invoice_lines = session.exec(
-            select(PlatformInvoiceLine)
-            .join(
-                PlatformInvoice,
-                col(PlatformInvoiceLine.invoice_id) == col(PlatformInvoice.id),
-            )
-            .where(
-                PlatformInvoiceLine.gym_id == gym_id,
-                col(PlatformInvoice.status).in_(("ISSUED", "PARTIALLY_PAID")),
-            )
-        ).all()
+        open_receivables = [
+            row
+            for row in session.exec(
+                select(PlatformReceivable).where(
+                    PlatformReceivable.gym_id == gym_id,
+                    col(PlatformReceivable.status).in_(
+                        ("OPEN", "INVOICED", "PARTIAL")
+                    ),
+                )
+            ).all()
+            if row.amount_irr > row.paid_irr
+        ]
         receivable = sum(
-            max(line.amount_irr - line.paid_irr, 0) for line in invoice_lines
+            max(row.amount_irr - row.paid_irr, 0)
+            for row in open_receivables
         )
-        overdue = 0
-        for line in invoice_lines:
-            invoice = session.get(PlatformInvoice, line.invoice_id)
-            if invoice is not None and invoice.due_on < date.today():
-                overdue += max(line.amount_irr - line.paid_irr, 0)
+        overdue = sum(
+            max(row.amount_irr - row.paid_irr, 0)
+            for row in open_receivables
+            if row.due_on < date.today()
+        )
         cost = session.exec(
             select(func.coalesce(func.sum(PlatformCost.amount_irr), 0)).where(
                 PlatformCost.gym_id == gym_id,
@@ -3018,14 +3037,26 @@ def platform_overview(
         event_type="PLATFORM_PAYMENT",
     )
     invoices = session.exec(select(PlatformInvoice)).all()
-    receivables = [
-        _invoice_public(session, invoice) for invoice in invoices
+    from app.platform_models import PlatformReceivable
+
+    open_receivables = [
+        row
+        for row in session.exec(
+            select(PlatformReceivable).where(
+                col(PlatformReceivable.status).in_(
+                    ("OPEN", "INVOICED", "PARTIAL")
+                )
+            )
+        ).all()
+        if row.amount_irr > row.paid_irr
     ]
-    open_balance = sum(row.balance_irr for row in receivables)
+    open_balance = sum(
+        max(row.amount_irr - row.paid_irr, 0) for row in open_receivables
+    )
     overdue = sum(
-        row.balance_irr
-        for row in receivables
-        if row.balance_irr > 0 and row.due_on < date.today()
+        max(row.amount_irr - row.paid_irr, 0)
+        for row in open_receivables
+        if row.due_on < date.today()
     )
     costs = session.exec(
         select(func.coalesce(func.sum(PlatformCost.amount_irr), 0)).where(
@@ -3038,7 +3069,12 @@ def platform_overview(
     )
     mrr = session.exec(
         select(func.coalesce(func.sum(PlatformAgreement.subscription_amount_irr), 0)).where(
-            PlatformAgreement.status == "EFFECTIVE"
+            PlatformAgreement.status == "EFFECTIVE",
+            PlatformAgreement.effective_from <= date.today(),
+            or_(
+                col(PlatformAgreement.effective_to).is_(None),
+                col(PlatformAgreement.effective_to) >= date.today(),
+            ),
         )
     ).one()
     active_plans = session.exec(
@@ -3049,7 +3085,14 @@ def platform_overview(
     active_agreements = session.exec(
         select(func.count())
         .select_from(PlatformAgreement)
-        .where(PlatformAgreement.status == "EFFECTIVE")
+        .where(
+            PlatformAgreement.status == "EFFECTIVE",
+            PlatformAgreement.effective_from <= date.today(),
+            or_(
+                col(PlatformAgreement.effective_to).is_(None),
+                col(PlatformAgreement.effective_to) >= date.today(),
+            ),
+        )
     ).one()
     return PlatformOverviewPublic(
         mrr_irr=int(mrr),

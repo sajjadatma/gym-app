@@ -7,8 +7,9 @@ from datetime import date
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, HTTPException, Query, Response
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.api.deps import CurrentUser, GymContextDep, SessionDep
 from app.core.audit import audit
@@ -48,6 +49,7 @@ from app.finance_models import (
     FinanceGrantRow,
     FinanceGrantsPublic,
     FinanceGrantUpdate,
+    FinanceGymSummaryPublic,
     FinanceInvoiceCreate,
     FinanceInvoiceIssueCreate,
     FinanceInvoicePublic,
@@ -1521,6 +1523,9 @@ def _gym_report_rows(
     )
     from app.platform_models import PlatformInvoiceLine
 
+    def in_range(value: date | None) -> bool:
+        return value is not None and from_date <= value <= to_date
+
     rows: list[list[Any]] = [
         ["metric_family", "row_type", "reference", "date", "amount_irr", "status"]
     ]
@@ -1567,6 +1572,8 @@ def _gym_report_rows(
     for invoice in session.exec(
         select(FinanceInvoice).where(FinanceInvoice.gym_id == gym_id)
     ).all():
+        if not in_range(invoice.issue_date):
+            continue
         rows.append(
             [
                 "BILLING",
@@ -1580,6 +1587,8 @@ def _gym_report_rows(
     for receipt in session.exec(
         select(FinanceReceipt).where(FinanceReceipt.gym_id == gym_id)
     ).all():
+        if not in_range(receipt.received_on):
+            continue
         rows.append(
             [
                 "CASHFLOW",
@@ -1593,6 +1602,8 @@ def _gym_report_rows(
     for refund in session.exec(
         select(FinanceRefund).where(FinanceRefund.gym_id == gym_id)
     ).all():
+        if not in_range(refund.created_at.date()):
+            continue
         rows.append(
             [
                 "CASHFLOW",
@@ -1606,6 +1617,8 @@ def _gym_report_rows(
     for expense in session.exec(
         select(FinanceExpense).where(FinanceExpense.gym_id == gym_id)
     ).all():
+        if not in_range(expense.spent_on):
+            continue
         rows.append(
             [
                 "CASHFLOW" if expense.status == "PAID" else "ACCRUAL",
@@ -1619,6 +1632,8 @@ def _gym_report_rows(
     for earning in session.exec(
         select(FinanceCoachEarning).where(FinanceCoachEarning.gym_id == gym_id)
     ).all():
+        if not in_range(earning.created_at.date()):
+            continue
         rows.append(
             [
                 "ACCRUAL",
@@ -1634,6 +1649,8 @@ def _gym_report_rows(
             FinanceCoachSettlement.gym_id == gym_id
         )
     ).all():
+        if not in_range(settlement.paid_on):
+            continue
         rows.append(
             [
                 "CASHFLOW" if settlement.status == "CONFIRMED" else "BALANCE",
@@ -1644,23 +1661,94 @@ def _gym_report_rows(
                 settlement.status,
             ]
         )
-    for line in session.exec(
-        select(PlatformInvoiceLine).where(PlatformInvoiceLine.gym_id == gym_id)
+    from app.platform_models import (
+        PlatformAgreement,
+        PlatformInvoice,
+        PlatformPayment,
+        PlatformReceivable,
+    )
+
+    for agreement in session.exec(
+        select(PlatformAgreement).where(PlatformAgreement.gym_id == gym_id)
     ).all():
+        rows.append(
+            [
+                "ACCRUAL",
+                "platform_agreement",
+                str(agreement.id),
+                agreement.effective_from.isoformat(),
+                agreement.subscription_amount_irr,
+                agreement.status,
+            ]
+        )
+    for receivable in session.exec(
+        select(PlatformReceivable).where(PlatformReceivable.gym_id == gym_id)
+    ).all():
+        rows.append(
+            [
+                "BALANCE",
+                "platform_receivable",
+                receivable.source_key,
+                receivable.due_on.isoformat(),
+                max(receivable.amount_irr - receivable.paid_irr, 0),
+                receivable.status,
+            ]
+        )
+    for payment in session.exec(
+        select(PlatformPayment)
+        .join(
+            PlatformInvoice,
+            col(PlatformPayment.invoice_id) == col(PlatformInvoice.id),
+        )
+        .where(
+            or_(
+                col(PlatformInvoice.gym_id) == gym_id,
+                col(PlatformInvoice.id).in_(
+                    select(col(PlatformInvoiceLine.invoice_id)).where(
+                        PlatformInvoiceLine.gym_id == gym_id
+                    )
+                ),
+            )
+        )
+    ).all():
+        rows.append(
+            [
+                "CASHFLOW",
+                "platform_payment",
+                str(payment.id),
+                payment.received_on.isoformat(),
+                payment.amount_irr,
+                "RECORDED",
+            ]
+        )
+
+    for line in session.exec(
+        select(PlatformInvoiceLine)
+        .join(
+            PlatformInvoice,
+            col(PlatformInvoiceLine.invoice_id) == col(PlatformInvoice.id),
+        )
+        .where(PlatformInvoiceLine.gym_id == gym_id)
+    ).all():
+        invoice = session.get(PlatformInvoice, line.invoice_id)
+        if invoice is None or invoice.status == "CANCELLED":
+            continue
+        if not in_range(invoice.issued_on):
+            continue
         rows.append(
             [
                 "BALANCE",
                 "platform_invoice_line",
                 line.source_key,
-                "",
-                line.amount_irr,
+                invoice.issued_on.isoformat(),
+                max(line.amount_irr - line.paid_irr, 0),
                 "PAID" if line.paid_irr >= line.amount_irr else "OPEN",
             ]
         )
     return rows
 
 
-@router.get("/reports/summary")
+@router.get("/reports/summary", response_model=FinanceGymSummaryPublic)
 def read_gym_summary(
     *,
     session: SessionDep,

@@ -5311,7 +5311,9 @@ def gym_summary(
                 col(FinanceAccount.code).in_(codes),
                 FinanceJournal.posting_date >= from_date,
                 FinanceJournal.posting_date <= to_date,
-                FinanceJournal.event_type != "OPENING_BALANCE",
+                col(FinanceJournal.event_type).not_in(
+                    ("OPENING_BALANCE", "CORRECTION")
+                ),
             )
         ).one()
         return int(rows[0]), int(rows[1])
@@ -5342,7 +5344,9 @@ def gym_summary(
 
     cash_collected = cash_event("RECEIPT_CONFIRMED")
     cash_refunded = -cash_event("REFUND_RECORDED")
-    cash_expenses = -cash_event("EXPENSE_PAID")
+    cash_expenses = -(
+        cash_event("EXPENSE_PAID") + cash_event("EXPENSE_RECORDED")
+    )
     cash_settlements = -cash_event("COACH_SETTLED")
 
     revenue_debit, revenue_credit = journal_totals(("4000", "4100"))
@@ -5351,12 +5355,37 @@ def gym_summary(
     platform_rows = session.exec(
         select(PlatformReceivable).where(PlatformReceivable.gym_id == gym_id)
     ).all()
+    from app.platform_models import PlatformCredit, PlatformInvoiceLine
+
     platform_accrued = sum(
         row.amount_irr
         for row in platform_rows
         if from_date <= row.created_at.date() <= to_date
     )
-    recognized_expenses = max(expense_debit - expense_credit, 0) + platform_accrued
+    platform_accrued -= sum(
+        row.amount_irr
+        for row in session.exec(select(PlatformCredit)).all()
+        if row.gym_id == gym_id
+        and from_date <= row.created_at.date() <= to_date
+    )
+    from app.platform_models import PlatformInvoice
+
+    platform_accrued -= sum(
+        row.discount_irr
+        for row in session.exec(
+            select(PlatformInvoiceLine)
+            .join(
+                PlatformInvoice,
+                col(PlatformInvoiceLine.invoice_id) == col(PlatformInvoice.id),
+            )
+            .where(
+                PlatformInvoiceLine.gym_id == gym_id,
+                PlatformInvoice.issued_on >= from_date,
+                PlatformInvoice.issued_on <= to_date,
+            )
+        ).all()
+    )
+    recognized_expenses = (expense_debit - expense_credit) + platform_accrued
     estimated_profit = recognized_revenue - recognized_expenses
 
     invoices = session.exec(
@@ -5383,6 +5412,16 @@ def gym_summary(
         receivable += balance
         if invoice.due_date is not None and invoice.due_date < today:
             overdue += balance
+        elif invoice.due_date is None:
+            from app.finance_models import FinanceInstallment
+
+            installments = session.exec(
+                select(FinanceInstallment).where(
+                    FinanceInstallment.invoice_id == invoice.id,
+                    FinanceInstallment.due_date < today,
+                )
+            ).all()
+            overdue += sum(row.amount_irr for row in installments)
     renewals = session.exec(
         select(FinanceMembership).where(
             FinanceMembership.gym_id == gym_id,

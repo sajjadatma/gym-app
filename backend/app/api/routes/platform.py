@@ -14,6 +14,7 @@ from app.platform_models import (
     PlatformAgreementPublic,
     PlatformAgreementsPublic,
     PlatformCostCreate,
+    PlatformCostPublic,
     PlatformCostsPublic,
     PlatformGroupCreate,
     PlatformGroupMemberInput,
@@ -551,7 +552,7 @@ def read_platform_costs(
     return platform_service.list_platform_costs(session)
 
 
-@router.post("/costs")
+@router.post("/costs", response_model=PlatformCostPublic)
 def create_platform_cost(
     *,
     session: SessionDep,
