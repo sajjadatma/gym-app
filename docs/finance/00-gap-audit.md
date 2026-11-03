@@ -297,18 +297,21 @@ platform monetization/settlement (Phase 4).
 5. Readiness: gateway selection (only if enabled), restore/monitoring evidence,
    Iran legal/tax/provider checks, 3–5 gym pilot.
 
-## Phase 4 — plan only (not started)
+## Phase 4 — implemented locally (not merged/deployed)
 
-The implementation plan is prepared at
-`docs/superpowers/plans/2026-11-03-ascora-finance-phase4.md`. It covers optional
-plans (including zero plans and agreements with no plan records), all five
-monetization modes, gym/group agreements, separate platform receivables and
-collections, append-only corrections and unpaid-invoice cancellation,
-single-recognition of ASCORA amounts, Superuser authority with owner read-only
-platform billing, separate cashflow/accrual reporting, role dashboards,
-CSV/offboarding exports and in-app reminders. **Proactive reminder delivery
-(#15/#71) remains an outstanding approved requirement**; in-app reminders alone
-do not close it. No Phase 4 code has been implemented, merged or deployed; the
-three deferred decisions (#18, #30, #46) remain deferred.
+Phase 4 is implemented on `feat/ascora-finance`; see
+`docs/finance/phase4-evidence.md` for evidence and deviations. It covers
+optional plans (including zero plans and agreements with no plan records),
+all five monetization modes, gym/group agreements, separate platform
+receivables/collections, append-only refunds/credits and unpaid-invoice
+cancellation, single ASCORA recognition, Superuser authority with owner
+read-only platform billing, separate cashflow/accrual reporting, role
+dashboards and CSV/offboarding exports.
+
+**Outstanding approved requirement:** proactive reminder delivery (#15/#71)
+is not implemented. In-app reminders are explicitly `IN_APP_ONLY`; they do
+not close the proactive requirement. Overdue `RESTRICTED` is informational
+only; no core-feature lockout was added. Plan limits are stored/surfaced but
+not enforced against core gym operations. #18, #30 and #46 remain deferred.
 
 Phase 4 must not start without explicit approval.
