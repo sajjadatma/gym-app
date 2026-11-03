@@ -1232,3 +1232,7 @@ for _model in (AthleteDetail, AthleteSelfDetail, AthleteCreated):
 # Register finance tables with the shared metadata. Imported last because the
 # finance models reuse ``get_datetime_utc`` from this module.
 from app import finance_models  # noqa: E402,F401  # isort: skip
+
+# Register platform billing tables with the shared metadata. Imported last for
+# the same reason as finance_models.
+from app import platform_models  # noqa: E402,F401  # isort: skip

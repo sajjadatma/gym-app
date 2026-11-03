@@ -641,6 +641,25 @@ class FinanceInvoiceLine(SQLModel, table=True):
     agreement_snapshot: dict[str, Any] | None = Field(
         default=None, sa_column=Column(JSON, nullable=True)
     )
+    # Phase 4 platform snapshot. Historical lines keep the defaults.
+    platform_agreement_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="platform_agreement.id",
+        ondelete="RESTRICT",
+    )
+    platform_agreement_version: int | None = Field(default=None)
+    platform_allocation_status: str = Field(
+        default="NOT_APPLICABLE", max_length=20
+    )
+    platform_snapshot: dict[str, Any] | None = Field(
+        default=None, sa_column=Column(JSON, nullable=True)
+    )
+    platform_fee_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    platform_ascora_term_share_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
 
 
 class FinanceInstallment(SQLModel, table=True):
