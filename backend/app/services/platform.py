@@ -1513,6 +1513,7 @@ def create_platform_ascora_receivable(
             prefix = f"ascora:{invoice.id}:{line.id}:"
             prior = session.exec(
                 select(func.coalesce(func.sum(PlatformReceivable.amount_irr), 0)).where(
+                    PlatformReceivable.gym_id == gym_id,
                     PlatformReceivable.source_type == "COACH_ASCORA_SHARE",
                     col(PlatformReceivable.source_key).like(f"{prefix}%"),
                 )
@@ -2071,13 +2072,14 @@ def issue_platform_invoice(
                 )
                 remaining_credit -= use
         total += amount
+        noncash = discount + credit
         receivable.paid_irr = min(
             receivable.amount_irr,
-            receivable.paid_irr + discount + credit,
+            receivable.paid_irr + noncash,
         )
         receivable.status = (
-            "PAID"
-            if receivable.paid_irr >= receivable.amount_irr
+            "CREDITED"
+            if noncash >= receivable.amount_irr and noncash > 0
             else "PARTIAL"
             if receivable.paid_irr > 0
             else "INVOICED"
@@ -2515,6 +2517,7 @@ def apply_platform_refund(
     from app.platform_models import PlatformCredit, PlatformReceivable
     from app.services.finance import _invoice_paid_irr
 
+    _lock_platform(session)
     if refund.source != "INVOICE" or refund.invoice_id is None:
         return 0
     paid = _invoice_paid_irr(session, refund.invoice_id)
@@ -2540,6 +2543,7 @@ def apply_platform_refund(
         receivable_ids.update(
             session.exec(
                 select(PlatformReceivable.id).where(
+                    PlatformReceivable.gym_id == gym_id,
                     PlatformReceivable.source_type == "COACH_ASCORA_SHARE",
                     col(PlatformReceivable.source_key).like(f"{prefix}%"),
                 )
@@ -2552,7 +2556,17 @@ def apply_platform_refund(
             )
         ).all()
     ) if receivable_ids else []
-    total = sum(row.amount_irr for row in receivables)
+    from app.platform_models import PlatformInvoiceLine
+
+    net_amounts: list[int] = []
+    for row in receivables:
+        discounted = session.exec(
+            select(func.coalesce(func.sum(PlatformInvoiceLine.discount_irr), 0)).where(
+                PlatformInvoiceLine.receivable_id == row.id
+            )
+        ).one()
+        net_amounts.append(max(row.amount_irr - int(discounted), 0))
+    total = sum(net_amounts)
     if total <= 0:
         return 0
     credit_amount = int(total * refund.amount_irr // paid)
@@ -2574,16 +2588,33 @@ def apply_platform_refund(
             created_by_id=actor.id,
         )
     )
+    from app.services.finance import _split_proportional
+
+    parts = _split_proportional(credit_amount, net_amounts)
+    account_totals: dict[str, int] = {"4100": 0, "4200": 0}
+    for row, part in zip(receivables, parts, strict=True):
+        account = (
+            "4200"
+            if (row.snapshot or {}).get("mode") == "CUSTOM"
+            else "4100"
+        )
+        account_totals[account] += part
+    journal_lines: list[tuple[str, int, int, str | None]] = []
+    for account, amount in account_totals.items():
+        if amount > 0:
+            journal_lines.append(
+                (account, amount, 0, "Platform commission reversal")
+            )
+    journal_lines.append(
+        ("1100", 0, credit_amount, "Platform receivable reversal")
+    )
     post_platform_journal(
         session,
         actor=actor,
         posting_date=posting_date,
         event_type="PLATFORM_FEE_REVERSAL",
         description="Platform fee refund reversal",
-        lines=[
-            ("4100", credit_amount, 0, "Platform commission reversal"),
-            ("1100", 0, credit_amount, "Platform receivable reversal"),
-        ],
+        lines=journal_lines,
         source_type="finance_refund",
         source_id=refund.id,
     )

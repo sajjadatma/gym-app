@@ -424,7 +424,12 @@ def test_invoice_refund_appends_platform_credit_without_mutating_receivable(
     superuser_headers: dict[str, str],
     db_session: Session,
 ) -> None:
-    from app.platform_models import PlatformCredit, PlatformJournalLine
+    from app.platform_models import (
+        PlatformCredit,
+        PlatformCreditApplication,
+        PlatformInvoiceLine,
+        PlatformJournalLine,
+    )
     from tests.api.routes.test_finance_coach_refunds import refund
 
     gym, owner = make_owner(client, superuser_headers, name="Refund Platform Gym")
@@ -467,3 +472,33 @@ def test_invoice_refund_appends_platform_credit_without_mutating_receivable(
         )
     ).first()
     assert reversal is not None
+
+    second_invoice = issued_invoice(client, owner, customer, amount=1_000_000)
+    second_receipt = record_receipt(
+        client,
+        owner,
+        receipt_payload(
+            customer,
+            amount=1_000_000,
+            allocations=[(second_invoice["id"], 1_000_000)],
+        ),
+    )
+    assert second_receipt.status_code == 200, second_receipt.text
+    issued = client.post(
+        "/api/v1/platform/invoices",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={
+            "gym_id": gym_id,
+            "period_start": "2026-11-01",
+            "period_end": "2026-12-31",
+            "due_on": "2027-01-15",
+        },
+    )
+    assert issued.status_code == 200, issued.text
+    lines = db_session.exec(
+        select(PlatformInvoiceLine).where(
+            PlatformInvoiceLine.invoice_id == uuid.UUID(issued.json()["id"])
+        )
+    ).all()
+    assert sum(line.credit_irr for line in lines) == 30_000
+    assert db_session.exec(select(PlatformCreditApplication)).first() is not None
