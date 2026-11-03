@@ -301,10 +301,14 @@ platform monetization/settlement (Phase 4).
 
 The implementation plan is prepared at
 `docs/superpowers/plans/2026-11-03-ascora-finance-phase4.md`. It covers optional
-plans (including zero plans), all five monetization modes, gym/group agreements,
-separate platform receivables and collections, conservative dues standing,
-role dashboards, CSV/offboarding exports and in-app reminders. No Phase 4 code
-has been implemented, merged or deployed; the three deferred decisions (#18,
-#30, #46) remain deferred.
+plans (including zero plans and agreements with no plan records), all five
+monetization modes, gym/group agreements, separate platform receivables and
+collections, append-only corrections and unpaid-invoice cancellation,
+single-recognition of ASCORA amounts, Superuser authority with owner read-only
+platform billing, separate cashflow/accrual reporting, role dashboards,
+CSV/offboarding exports and in-app reminders. **Proactive reminder delivery
+(#15/#71) remains an outstanding approved requirement**; in-app reminders alone
+do not close it. No Phase 4 code has been implemented, merged or deployed; the
+three deferred decisions (#18, #30, #46) remain deferred.
 
 Phase 4 must not start without explicit approval.
