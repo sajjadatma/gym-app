@@ -798,3 +798,88 @@ class PlatformReceivablePublic(SQLModel):
 
 class PlatformReceivablesPublic(SQLModel):
     data: list[PlatformReceivablePublic]
+
+
+class PlatformSubscriptionAccrual(SQLModel):
+    period: str = Field(min_length=7, max_length=7)
+
+
+class PlatformInvoiceCreate(SQLModel):
+    gym_id: uuid.UUID | None = None
+    group_id: uuid.UUID | None = None
+    period_start: date
+    period_end: date
+    due_on: date
+
+
+class PlatformInvoiceCancelCreate(SQLModel):
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class PlatformInvoiceLinePublic(SQLModel):
+    id: uuid.UUID
+    gym_id: uuid.UUID
+    receivable_id: uuid.UUID
+    source_key: str
+    description: str
+    gross_irr: int
+    discount_irr: int
+    credit_irr: int
+    amount_irr: int
+    paid_irr: int
+    balance_irr: int
+
+
+class PlatformInvoicePublic(SQLModel):
+    id: uuid.UUID
+    gym_id: uuid.UUID | None
+    group_id: uuid.UUID | None
+    invoice_number: int
+    period_start: date
+    period_end: date
+    issued_on: date
+    due_on: date
+    status: str
+    discount_irr: int
+    total_irr: int
+    paid_irr: int
+    balance_irr: int
+    lines: list[PlatformInvoiceLinePublic]
+    created_at: datetime
+
+
+class PlatformInvoicesPublic(SQLModel):
+    data: list[PlatformInvoicePublic]
+
+
+class PlatformPaymentAllocationInput(SQLModel):
+    invoice_line_id: uuid.UUID
+    amount_irr: int
+
+
+class PlatformPaymentCreate(SQLModel):
+    amount_irr: int
+    method: PlatformPaymentMethod
+    reference: str | None = None
+    received_on: date
+    allocations: list[PlatformPaymentAllocationInput] | None = None
+
+
+class PlatformPaymentAllocationPublic(SQLModel):
+    invoice_line_id: uuid.UUID
+    amount_irr: int
+
+
+class PlatformPaymentPublic(SQLModel):
+    id: uuid.UUID
+    invoice_id: uuid.UUID
+    amount_irr: int
+    method: str
+    reference: str | None
+    received_on: date
+    allocations: list[PlatformPaymentAllocationPublic]
+    created_at: datetime
+
+
+class PlatformPaymentsPublic(SQLModel):
+    data: list[PlatformPaymentPublic]

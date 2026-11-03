@@ -14,6 +14,13 @@ from app.platform_models import (
     PlatformGroupMemberInput,
     PlatformGroupPublic,
     PlatformGroupsPublic,
+    PlatformInvoiceCancelCreate,
+    PlatformInvoiceCreate,
+    PlatformInvoicePublic,
+    PlatformInvoicesPublic,
+    PlatformPaymentCreate,
+    PlatformPaymentPublic,
+    PlatformPaymentsPublic,
     PlatformPlanCreate,
     PlatformPlanPublic,
     PlatformPlansPublic,
@@ -21,7 +28,9 @@ from app.platform_models import (
     PlatformPlanVersion,
     PlatformPlanVersionCreate,
     PlatformPlanVersionPublic,
+    PlatformReceivablePublic,
     PlatformReceivablesPublic,
+    PlatformSubscriptionAccrual,
 )
 from app.services import platform as platform_service
 
@@ -276,3 +285,114 @@ def read_platform_receivables(
     gym_id: uuid.UUID | None = None,
 ) -> Any:
     return platform_service.list_receivables(session, gym_id=gym_id)
+
+
+@router.post(
+    "/agreements/{agreement_id}/accrue-period",
+    response_model=PlatformReceivablePublic,
+)
+def accrue_platform_subscription(
+    *,
+    agreement_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentSuperuser,
+    body: PlatformSubscriptionAccrual,
+    idempotency_key: Annotated[
+        str | None, Header(alias="Idempotency-Key")
+    ] = None,
+) -> Any:
+    return platform_service.accrue_subscription_period(
+        session,
+        actor=current_user,
+        agreement_id=agreement_id,
+        body=body,
+        operation_key=_idempotency_key(idempotency_key),
+    )
+
+
+@router.get("/invoices", response_model=PlatformInvoicesPublic)
+def read_platform_invoices(
+    *, session: SessionDep, _current_user: CurrentSuperuser
+) -> Any:
+    return platform_service.list_platform_invoices(session)
+
+
+@router.post("/invoices", response_model=PlatformInvoicePublic)
+def issue_platform_invoice(
+    *,
+    session: SessionDep,
+    current_user: CurrentSuperuser,
+    body: PlatformInvoiceCreate,
+    idempotency_key: Annotated[
+        str | None, Header(alias="Idempotency-Key")
+    ] = None,
+) -> Any:
+    return platform_service.issue_platform_invoice(
+        session,
+        actor=current_user,
+        body=body,
+        operation_key=_idempotency_key(idempotency_key),
+    )
+
+
+@router.get("/invoices/{invoice_id}", response_model=PlatformInvoicePublic)
+def read_platform_invoice(
+    *,
+    invoice_id: uuid.UUID,
+    session: SessionDep,
+    _current_user: CurrentSuperuser,
+) -> Any:
+    return platform_service.get_platform_invoice(session, invoice_id)
+
+
+@router.post(
+    "/invoices/{invoice_id}/payments",
+    response_model=PlatformPaymentPublic,
+)
+def record_platform_invoice_payment(
+    *,
+    invoice_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentSuperuser,
+    body: PlatformPaymentCreate,
+    idempotency_key: Annotated[
+        str | None, Header(alias="Idempotency-Key")
+    ] = None,
+) -> Any:
+    return platform_service.record_platform_payment(
+        session,
+        actor=current_user,
+        invoice_id=invoice_id,
+        body=body,
+        operation_key=_idempotency_key(idempotency_key),
+    )
+
+
+@router.post(
+    "/invoices/{invoice_id}/cancel",
+    response_model=PlatformInvoicePublic,
+)
+def cancel_platform_invoice(
+    *,
+    invoice_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentSuperuser,
+    body: PlatformInvoiceCancelCreate,
+    idempotency_key: Annotated[
+        str | None, Header(alias="Idempotency-Key")
+    ] = None,
+) -> Any:
+    return platform_service.cancel_platform_invoice(
+        session,
+        actor=current_user,
+        invoice_id=invoice_id,
+        body=body,
+        operation_key=_idempotency_key(idempotency_key),
+    )
+
+
+@router.get("/payments", response_model=PlatformPaymentsPublic)
+def read_platform_payments(
+    *, session: SessionDep, _current_user: CurrentSuperuser
+) -> Any:
+    return platform_service.list_platform_payments(session)

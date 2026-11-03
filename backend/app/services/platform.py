@@ -102,6 +102,7 @@ def _audit(
     detail: dict[str, Any] | None = None,
     gym_id: uuid.UUID | None = None,
     group_id: uuid.UUID | None = None,
+    reason: str | None = None,
 ) -> None:
     session.add(
         PlatformAudit(
@@ -111,6 +112,7 @@ def _audit(
             action=action,
             target_type=target_type,
             target_id=target_id,
+            reason=reason,
             detail=detail or {},
         )
     )
@@ -1667,3 +1669,766 @@ def create_platform_ascora_receivable(
         )
         total += fee
     return total
+
+
+def _next_platform_doc(session: Session, doc_type: str) -> int:
+    from app.platform_models import PlatformSequence
+
+    sequence = session.exec(
+        select(PlatformSequence).where(PlatformSequence.doc_type == doc_type)
+    ).first()
+    if sequence is None:
+        sequence = PlatformSequence(doc_type=doc_type, last_value=0)
+        session.add(sequence)
+        session.flush()
+    sequence.last_value += 1
+    session.add(sequence)
+    session.flush()
+    return sequence.last_value
+
+
+def _invoice_line_public(line: Any) -> Any:
+    from app.platform_models import PlatformInvoiceLinePublic
+
+    return PlatformInvoiceLinePublic(
+        id=line.id,
+        gym_id=line.gym_id,
+        receivable_id=line.receivable_id,
+        source_key=line.source_key,
+        description=line.description,
+        gross_irr=line.gross_irr,
+        discount_irr=line.discount_irr,
+        credit_irr=line.credit_irr,
+        amount_irr=line.amount_irr,
+        paid_irr=line.paid_irr,
+        balance_irr=max(line.amount_irr - line.paid_irr, 0),
+    )
+
+
+def _invoice_public(session: Session, invoice: Any) -> Any:
+    from app.platform_models import (
+        PlatformInvoiceLine,
+        PlatformInvoiceLineReversal,
+        PlatformInvoicePublic,
+    )
+
+    lines = session.exec(
+        select(PlatformInvoiceLine)
+        .where(PlatformInvoiceLine.invoice_id == invoice.id)
+        .order_by(col(PlatformInvoiceLine.id))
+    ).all()
+    reversals = session.exec(
+        select(PlatformInvoiceLineReversal)
+        .join(
+            PlatformInvoiceLine,
+            col(PlatformInvoiceLineReversal.invoice_line_id) == col(PlatformInvoiceLine.id),
+        )
+        .where(PlatformInvoiceLine.invoice_id == invoice.id)
+    ).all()
+    reversal_total = sum(row.amount_irr for row in reversals)
+    paid = sum(line.paid_irr for line in lines)
+    return PlatformInvoicePublic(
+        id=invoice.id,
+        gym_id=invoice.gym_id,
+        group_id=invoice.group_id,
+        invoice_number=invoice.invoice_number,
+        period_start=invoice.period_start,
+        period_end=invoice.period_end,
+        issued_on=invoice.issued_on,
+        due_on=invoice.due_on,
+        status=invoice.status,
+        discount_irr=invoice.discount_irr,
+        total_irr=invoice.total_irr,
+        paid_irr=paid,
+        balance_irr=max(invoice.total_irr - paid - reversal_total, 0),
+        lines=[_invoice_line_public(line) for line in lines],
+        created_at=invoice.created_at,
+    )
+
+
+def accrue_subscription_period(
+    session: Session,
+    *,
+    actor: User,
+    agreement_id: uuid.UUID,
+    body: Any,
+    operation_key: str,
+) -> Any:
+    from app.platform_models import PlatformAgreement, PlatformReceivable
+
+    _lock_platform(session)
+    payload = {"agreement_id": str(agreement_id), **body.model_dump(mode="json")}
+    existing_id = _find_result(
+        session,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="platform_receivable",
+    )
+    if existing_id is not None:
+        existing = session.get(PlatformReceivable, existing_id)
+        if existing is None:
+            raise HTTPException(
+                status_code=409, detail="idempotency_key_reused"
+            )
+        return _platform_receivable_public(existing)
+    agreement = session.get(PlatformAgreement, agreement_id)
+    if agreement is None:
+        raise HTTPException(
+            status_code=404, detail="platform_agreement_not_found"
+        )
+    if agreement.status != "EFFECTIVE":
+        raise HTTPException(
+            status_code=409, detail="platform_agreement_not_active"
+        )
+    if agreement.mode not in ("SUBSCRIPTION", "HYBRID", "CUSTOM"):
+        raise HTTPException(
+            status_code=400, detail="platform_subscription_not_configured"
+        )
+    try:
+        year, month = (int(part) for part in body.period.split("-"))
+        start = date(year, month, 1)
+        import calendar
+
+        end = date(year, month, calendar.monthrange(year, month)[1])
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400, detail="platform_period_invalid"
+        ) from exc
+    if start < agreement.effective_from or (
+        agreement.effective_to is not None and end > agreement.effective_to
+    ):
+        raise HTTPException(
+            status_code=400, detail="platform_period_outside_agreement"
+        )
+    amount = agreement.subscription_amount_irr
+    if amount <= 0:
+        raise HTTPException(
+            status_code=400, detail="platform_subscription_not_configured"
+        )
+    source_key = f"subscription:{agreement.id}:{body.period}"
+    existing = session.exec(
+        select(PlatformReceivable).where(
+            PlatformReceivable.source_key == source_key
+        )
+    ).first()
+    if existing is not None:
+        return _platform_receivable_public(existing)
+    if agreement.gym_id is None:
+        raise HTTPException(
+            status_code=400, detail="platform_group_subscription_requires_branch"
+        )
+    receivable = PlatformReceivable(
+        gym_id=agreement.gym_id,
+        agreement_id=agreement.id,
+        source_type="SUBSCRIPTION",
+        source_id=agreement.id,
+        source_key=source_key,
+        amount_irr=amount,
+        due_on=start,
+        status="OPEN",
+        snapshot=agreement_snapshot(session, agreement),
+    )
+    session.add(receivable)
+    session.flush()
+    post_platform_journal(
+        session,
+        actor=actor,
+        posting_date=start,
+        event_type="PLATFORM_FEE",
+        description=f"Platform subscription {body.period}",
+        lines=[
+            ("1100", amount, 0, "Platform receivable"),
+            ("4000", 0, amount, "Subscription revenue"),
+        ],
+        source_type="platform_agreement",
+        source_id=agreement.id,
+    )
+    _audit(
+        session,
+        actor=actor,
+        action="platform.subscription.accrued",
+        target_type="platform_receivable",
+        target_id=receivable.id,
+        gym_id=receivable.gym_id,
+        detail={"period": body.period, "amount_irr": amount},
+    )
+    _remember_operation(
+        session,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="platform_receivable",
+        result_id=receivable.id,
+    )
+    session.commit()
+    session.refresh(receivable)
+    return _platform_receivable_public(receivable)
+
+
+def _receivable_net(receivable: Any) -> int:
+    return int(max(receivable.amount_irr - receivable.paid_irr, 0))
+
+
+def issue_platform_invoice(
+    session: Session,
+    *,
+    actor: User,
+    body: Any,
+    operation_key: str,
+) -> Any:
+    from app.platform_models import (
+        PlatformAgreement,
+        PlatformCredit,
+        PlatformCreditApplication,
+        PlatformGroupMember,
+        PlatformInvoice,
+        PlatformInvoiceLine,
+        PlatformReceivable,
+    )
+    from app.services.finance import _split_proportional
+
+    _lock_platform(session)
+    payload = body.model_dump(mode="json")
+    existing_id = _find_result(
+        session,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="platform_invoice",
+    )
+    if existing_id is not None:
+        invoice = session.get(PlatformInvoice, existing_id)
+        if invoice is None:
+            raise HTTPException(
+                status_code=409, detail="idempotency_key_reused"
+            )
+        return _invoice_public(session, invoice)
+    if (body.gym_id is None) == (body.group_id is None):
+        raise HTTPException(
+            status_code=400, detail="platform_invoice_scope_invalid"
+        )
+    if body.period_end < body.period_start or body.due_on < body.period_start:
+        raise HTTPException(
+            status_code=400, detail="platform_invoice_dates_invalid"
+        )
+    gym_ids: set[uuid.UUID] = set()
+    if body.gym_id is not None:
+        gym_ids.add(body.gym_id)
+    else:
+        members = session.exec(
+            select(PlatformGroupMember).where(
+                PlatformGroupMember.group_id == body.group_id
+            )
+        ).all()
+        gym_ids.update(member.gym_id for member in members)
+    if not gym_ids:
+        raise HTTPException(
+            status_code=400, detail="platform_invoice_empty"
+        )
+    receivables = session.exec(
+        select(PlatformReceivable)
+        .where(
+            col(PlatformReceivable.gym_id).in_(gym_ids),
+            col(PlatformReceivable.status).in_(("OPEN", "PARTIAL")),
+            PlatformReceivable.due_on <= body.period_end,
+        )
+        .order_by(col(PlatformReceivable.created_at))
+    ).all()
+    gross = sum(_receivable_net(row) for row in receivables)
+    if gross <= 0:
+        raise HTTPException(status_code=400, detail="platform_invoice_empty")
+
+    volume_discount_bp = 0
+    if body.group_id is not None:
+        group_agreement = session.exec(
+            select(PlatformAgreement)
+            .where(
+                PlatformAgreement.group_id == body.group_id,
+                PlatformAgreement.status == "EFFECTIVE",
+                PlatformAgreement.effective_from <= body.period_end,
+                or_(
+                    col(PlatformAgreement.effective_to).is_(None),
+                    col(PlatformAgreement.effective_to) >= body.period_end,
+                ),
+            )
+            .order_by(col(PlatformAgreement.version).desc())
+        ).first()
+        if group_agreement is not None:
+            volume_discount_bp = group_agreement.volume_discount_bp
+    discount_total = 0
+    if volume_discount_bp:
+        discount_total = gross * volume_discount_bp // 10_000
+    discount_parts = _split_proportional(discount_total, [
+        _receivable_net(row) for row in receivables
+    ]) if receivables else []
+    invoice = PlatformInvoice(
+        gym_id=body.gym_id,
+        group_id=body.group_id,
+        invoice_number=_next_platform_doc(session, "PLATFORM_INVOICE"),
+        period_start=body.period_start,
+        period_end=body.period_end,
+        issued_on=body.period_end,
+        due_on=body.due_on,
+        status="ISSUED",
+        discount_irr=discount_total,
+        total_irr=0,
+        created_by_id=actor.id,
+    )
+    session.add(invoice)
+    session.flush()
+    total = 0
+    for receivable, discount in zip(receivables, discount_parts, strict=True):
+        credit_available = session.exec(
+            select(func.coalesce(func.sum(PlatformCredit.amount_irr), 0))
+        ).one()
+        applied = session.exec(
+            select(func.coalesce(func.sum(PlatformCreditApplication.amount_irr), 0))
+        ).one()
+        credit_left = max(int(credit_available) - int(applied), 0)
+        gross_line = _receivable_net(receivable)
+        credit = min(credit_left, max(gross_line - discount, 0))
+        amount = max(gross_line - discount - credit, 0)
+        line = PlatformInvoiceLine(
+            invoice_id=invoice.id,
+            gym_id=receivable.gym_id,
+            receivable_id=receivable.id,
+            source_key=receivable.source_key,
+            description=f"Platform {receivable.source_type.lower()}",
+            gross_irr=gross_line,
+            discount_irr=discount,
+            credit_irr=credit,
+            amount_irr=amount,
+        )
+        session.add(line)
+        session.flush()
+        if credit > 0:
+            # Apply available credits FIFO, splitting rows as needed.
+            remaining_credit = credit
+            for candidate in session.exec(
+                select(PlatformCredit).order_by(col(PlatformCredit.created_at))
+            ).all():
+                used = session.exec(
+                    select(func.coalesce(func.sum(PlatformCreditApplication.amount_irr), 0)).where(
+                        PlatformCreditApplication.credit_id == candidate.id
+                    )
+                ).one()
+                available = candidate.amount_irr - int(used)
+                if available <= 0 or remaining_credit <= 0:
+                    continue
+                use = min(available, remaining_credit)
+                session.add(
+                    PlatformCreditApplication(
+                        credit_id=candidate.id,
+                        invoice_line_id=line.id,
+                        amount_irr=use,
+                    )
+                )
+                remaining_credit -= use
+        total += amount
+        receivable.status = "CREDITED" if amount == 0 else "INVOICED"
+        session.add(receivable)
+    invoice.total_irr = total
+    if total <= 0:
+        raise HTTPException(status_code=400, detail="platform_invoice_empty")
+    invoice.status = "ISSUED"
+    session.add(invoice)
+    if discount_total:
+        journal_lines: list[tuple[str, int, int, str | None]] = []
+        for line in session.exec(
+            select(PlatformInvoiceLine).where(
+                PlatformInvoiceLine.invoice_id == invoice.id
+            )
+        ).all():
+            if line.discount_irr <= 0:
+                continue
+            account = "4000" if line.source_key.startswith("subscription:") else "4100"
+            journal_lines.append((account, line.discount_irr, 0, "Volume discount"))
+            journal_lines.append(("1100", 0, line.discount_irr, "Volume discount"))
+        if journal_lines:
+            post_platform_journal(
+                session,
+                actor=actor,
+                posting_date=body.period_end,
+                event_type="PLATFORM_FEE_REVERSAL",
+                description="Group volume discount",
+                lines=journal_lines,
+                source_type="platform_invoice",
+                source_id=invoice.id,
+            )
+    _audit(
+        session,
+        actor=actor,
+        action="platform.invoice.issued",
+        target_type="platform_invoice",
+        target_id=invoice.id,
+        gym_id=invoice.gym_id,
+        group_id=invoice.group_id,
+        detail={"total_irr": total, "discount_irr": discount_total},
+    )
+    _remember_operation(
+        session,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="platform_invoice",
+        result_id=invoice.id,
+    )
+    session.commit()
+    session.refresh(invoice)
+    return _invoice_public(session, invoice)
+
+
+def list_platform_invoices(session: Session) -> Any:
+    from app.platform_models import PlatformInvoice, PlatformInvoicesPublic
+
+    invoices = session.exec(
+        select(PlatformInvoice).order_by(
+            col(PlatformInvoice.invoice_number).desc()
+        )
+    ).all()
+    return PlatformInvoicesPublic(
+        data=[_invoice_public(session, invoice) for invoice in invoices]
+    )
+
+
+def get_platform_invoice(session: Session, invoice_id: uuid.UUID) -> Any:
+    from app.platform_models import PlatformInvoice
+
+    invoice = session.get(PlatformInvoice, invoice_id)
+    if invoice is None:
+        raise HTTPException(
+            status_code=404, detail="platform_invoice_not_found"
+        )
+    return _invoice_public(session, invoice)
+
+
+def _payment_public(session: Session, payment: Any) -> Any:
+    from app.platform_models import (
+        PlatformPaymentAllocation,
+        PlatformPaymentAllocationPublic,
+        PlatformPaymentPublic,
+    )
+
+    rows = session.exec(
+        select(PlatformPaymentAllocation).where(
+            PlatformPaymentAllocation.payment_id == payment.id
+        )
+    ).all()
+    return PlatformPaymentPublic(
+        id=payment.id,
+        invoice_id=payment.invoice_id,
+        amount_irr=payment.amount_irr,
+        method=payment.method,
+        reference=payment.reference,
+        received_on=payment.received_on,
+        allocations=[
+            PlatformPaymentAllocationPublic(
+                invoice_line_id=row.invoice_line_id, amount_irr=row.amount_irr
+            )
+            for row in rows
+        ],
+        created_at=payment.created_at,
+    )
+
+
+def record_platform_payment(
+    session: Session,
+    *,
+    actor: User,
+    invoice_id: uuid.UUID,
+    body: Any,
+    operation_key: str,
+) -> Any:
+    from app.platform_models import (
+        PlatformInvoice,
+        PlatformInvoiceLine,
+        PlatformPayment,
+        PlatformPaymentAllocation,
+        PlatformReceivable,
+    )
+
+    _lock_platform(session)
+    payload = {"invoice_id": str(invoice_id), **body.model_dump(mode="json")}
+    existing_id = _find_result(
+        session,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="platform_payment",
+    )
+    if existing_id is not None:
+        payment = session.get(PlatformPayment, existing_id)
+        if payment is None:
+            raise HTTPException(
+                status_code=409, detail="idempotency_key_reused"
+            )
+        return _payment_public(session, payment)
+    invoice = session.get(PlatformInvoice, invoice_id)
+    if invoice is None:
+        raise HTTPException(
+            status_code=404, detail="platform_invoice_not_found"
+        )
+    if invoice.status in ("CANCELLED", "CREDITED"):
+        raise HTTPException(
+            status_code=409, detail="platform_invoice_not_payable"
+        )
+    if body.amount_irr <= 0:
+        raise HTTPException(
+            status_code=400, detail="platform_payment_invalid"
+        )
+    lines = session.exec(
+        select(PlatformInvoiceLine)
+        .where(PlatformInvoiceLine.invoice_id == invoice.id)
+        .order_by(col(PlatformInvoiceLine.id))
+    ).all()
+    by_id = {line.id: line for line in lines}
+    requested = body.allocations
+    if requested is None:
+        remaining = body.amount_irr
+        requested = []
+        for line in lines:
+            unpaid = max(line.amount_irr - line.paid_irr, 0)
+            if unpaid <= 0:
+                continue
+            amount = min(unpaid, remaining)
+            if amount > 0:
+                requested.append(
+                    type("Alloc", (), {"invoice_line_id": line.id, "amount_irr": amount})()
+                )
+                remaining -= amount
+            if remaining <= 0:
+                break
+    if sum(row.amount_irr for row in requested) != body.amount_irr:
+        raise HTTPException(
+            status_code=400, detail="platform_payment_over_allocated"
+        )
+    seen: set[uuid.UUID] = set()
+    for row in requested:
+        target = by_id.get(row.invoice_line_id)
+        if target is None or row.invoice_line_id in seen:
+            raise HTTPException(
+                status_code=400, detail="platform_payment_invalid"
+            )
+        seen.add(row.invoice_line_id)
+        if row.amount_irr <= 0 or row.amount_irr > max(
+            target.amount_irr - target.paid_irr, 0
+        ):
+            raise HTTPException(
+                status_code=400, detail="platform_payment_over_allocated"
+            )
+    payment = PlatformPayment(
+        invoice_id=invoice.id,
+        amount_irr=body.amount_irr,
+        method=body.method,
+        reference=body.reference,
+        received_on=body.received_on,
+        operation_key=operation_key,
+        created_by_id=actor.id,
+    )
+    session.add(payment)
+    session.flush()
+    for row in requested:
+        target_line = by_id[row.invoice_line_id]
+        session.add(
+            PlatformPaymentAllocation(
+                payment_id=payment.id,
+                invoice_line_id=target_line.id,
+                amount_irr=row.amount_irr,
+            )
+        )
+        target_line.paid_irr += row.amount_irr
+        session.add(target_line)
+        receivable = session.get(PlatformReceivable, target_line.receivable_id)
+        if receivable is not None:
+            receivable.paid_irr = min(
+                receivable.amount_irr, receivable.paid_irr + row.amount_irr
+            )
+            receivable.status = (
+                "PAID" if receivable.paid_irr >= receivable.amount_irr else "PARTIAL"
+            )
+            session.add(receivable)
+    paid = sum(line.paid_irr for line in lines)
+    invoice.status = "PAID" if paid >= invoice.total_irr else "PARTIALLY_PAID"
+    session.add(invoice)
+    post_platform_journal(
+        session,
+        actor=actor,
+        posting_date=body.received_on,
+        event_type="PLATFORM_PAYMENT",
+        description=f"Platform payment {payment.id}",
+        lines=[
+            ("1000", body.amount_irr, 0, "Platform cash"),
+            ("1100", 0, body.amount_irr, "Platform receivable"),
+        ],
+        source_type="platform_payment",
+        source_id=payment.id,
+    )
+    _audit(
+        session,
+        actor=actor,
+        action="platform.payment.recorded",
+        target_type="platform_payment",
+        target_id=payment.id,
+        gym_id=invoice.gym_id,
+        group_id=invoice.group_id,
+        detail={"amount_irr": body.amount_irr},
+    )
+    _remember_operation(
+        session,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="platform_payment",
+        result_id=payment.id,
+    )
+    session.commit()
+    session.refresh(payment)
+    return _payment_public(session, payment)
+
+
+def list_platform_payments(session: Session) -> Any:
+    from app.platform_models import PlatformPayment, PlatformPaymentsPublic
+
+    payments = session.exec(
+        select(PlatformPayment).order_by(col(PlatformPayment.created_at))
+    ).all()
+    return PlatformPaymentsPublic(
+        data=[_payment_public(session, payment) for payment in payments]
+    )
+
+
+def cancel_platform_invoice(
+    session: Session,
+    *,
+    actor: User,
+    invoice_id: uuid.UUID,
+    body: Any,
+    operation_key: str,
+) -> Any:
+    from app.platform_models import (
+        PlatformCredit,
+        PlatformCreditApplication,
+        PlatformInvoice,
+        PlatformInvoiceCancellation,
+        PlatformInvoiceLine,
+        PlatformInvoiceLineReversal,
+        PlatformPayment,
+        PlatformReceivable,
+    )
+
+    _lock_platform(session)
+    payload = {"invoice_id": str(invoice_id), **body.model_dump(mode="json")}
+    existing_id = _find_result(
+        session,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="platform_invoice",
+    )
+    if existing_id is not None:
+        invoice = session.get(PlatformInvoice, existing_id)
+        if invoice is None:
+            raise HTTPException(
+                status_code=409, detail="idempotency_key_reused"
+            )
+        return _invoice_public(session, invoice)
+    invoice = session.get(PlatformInvoice, invoice_id)
+    if invoice is None:
+        raise HTTPException(
+            status_code=404, detail="platform_invoice_not_found"
+        )
+    if invoice.status == "CANCELLED":
+        return _invoice_public(session, invoice)
+    if invoice.status != "ISSUED" or session.exec(
+        select(PlatformPayment).where(PlatformPayment.invoice_id == invoice.id)
+    ).first() is not None:
+        raise HTTPException(
+            status_code=409, detail="platform_invoice_paid"
+        )
+    lines = session.exec(
+        select(PlatformInvoiceLine).where(
+            PlatformInvoiceLine.invoice_id == invoice.id
+        )
+    ).all()
+    cancellation = PlatformInvoiceCancellation(
+        invoice_id=invoice.id,
+        reason=body.reason.strip(),
+        created_by_id=actor.id,
+    )
+    session.add(cancellation)
+    session.flush()
+    for line in lines:
+        if line.amount_irr <= 0:
+            continue
+        receivable = session.get(
+            PlatformReceivable, line.receivable_id
+        )
+        if receivable is not None and receivable.paid_irr == 0:
+            receivable.status = "OPEN"
+            session.add(receivable)
+        session.add(
+            PlatformInvoiceLineReversal(
+                cancellation_id=cancellation.id,
+                invoice_line_id=line.id,
+                amount_irr=line.amount_irr,
+            )
+        )
+        applications = session.exec(
+            select(PlatformCreditApplication).where(
+                PlatformCreditApplication.invoice_line_id == line.id
+            )
+        ).all()
+        for index, application in enumerate(applications):
+            source_key = f"cancel:{invoice.id}:{line.id}:{index}"
+            if session.exec(
+                select(PlatformCredit).where(PlatformCredit.source_key == source_key)
+            ).first() is None:
+                session.add(
+                    PlatformCredit(
+                        gym_id=line.gym_id,
+                        source_type="INVOICE_CANCELLATION",
+                        source_id=cancellation.id,
+                        source_key=source_key,
+                        amount_irr=application.amount_irr,
+                        reason=body.reason,
+                        created_by_id=actor.id,
+                    )
+                )
+    if invoice.discount_irr > 0:
+        journal_lines: list[tuple[str, int, int, str | None]] = []
+        for line in lines:
+            if line.discount_irr <= 0:
+                continue
+            account = "4000" if line.source_key.startswith("subscription:") else "4100"
+            journal_lines.append(("1100", line.discount_irr, 0, "Cancel discount"))
+            journal_lines.append((account, 0, line.discount_irr, "Cancel discount"))
+        if journal_lines:
+            journal = post_platform_journal(
+                session,
+                actor=actor,
+                posting_date=invoice.issued_on,
+                event_type="PLATFORM_INVOICE_CANCEL",
+                description="Platform invoice cancelled",
+                lines=journal_lines,
+                source_type="platform_invoice",
+                source_id=invoice.id,
+            )
+            cancellation.journal_id = journal.id
+            session.add(cancellation)
+    invoice.status = "CANCELLED"
+    session.add(invoice)
+    _audit(
+        session,
+        actor=actor,
+        action="platform.invoice.cancelled",
+        target_type="platform_invoice",
+        target_id=invoice.id,
+        gym_id=invoice.gym_id,
+        group_id=invoice.group_id,
+        reason=body.reason,
+        detail={"cancellation_id": str(cancellation.id)},
+    )
+    _remember_operation(
+        session,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="platform_invoice",
+        result_id=invoice.id,
+    )
+    session.commit()
+    session.refresh(invoice)
+    return _invoice_public(session, invoice)
