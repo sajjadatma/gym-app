@@ -110,6 +110,19 @@ export function FinanceOverviewSection({
     queryFn: async () => (await FinanceService.listFinanceAccounts()).data,
     enabled: Boolean(activeGymId),
   })
+  const summaryQuery = useQuery({
+    queryKey: ["finance", scope, "summary"],
+    queryFn: async () =>
+      (
+        await FinanceService.readGymSummary({
+          query: {
+            from_date: `${todayIso().slice(0, 7)}-01`,
+            to_date: todayIso(),
+          },
+        })
+      ).data,
+    enabled: Boolean(activeGymId),
+  })
   const journalQuery = useQuery({
     queryKey: ["finance", scope, "journal"],
     queryFn: async () =>
@@ -365,6 +378,81 @@ export function FinanceOverviewSection({
 
   return (
     <>
+      <SectionCard
+        title={t("finance.dashboard")}
+        subtitle={t("finance.dashboardHint")}
+        actions={
+          <Button
+            variant="tonal"
+            onClick={() =>
+              void (async () => {
+                const token = localStorage.getItem("token")
+                const response = await fetch(
+                  `/api/v1/finance/reports/export?from_date=${todayIso().slice(0, 7)}-01&to_date=${todayIso()}`,
+                  {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                  },
+                )
+                const blob = await response.blob()
+                const url = URL.createObjectURL(blob)
+                const anchor = document.createElement("a")
+                anchor.href = url
+                anchor.download = "finance.csv"
+                anchor.click()
+                URL.revokeObjectURL(url)
+              })()
+            }
+          >
+            {t("finance.exportCsv")}
+          </Button>
+        }
+      >
+        {summaryQuery.isLoading ? (
+          <Spinner label={t("common.loading")} />
+        ) : summaryQuery.isError ? (
+          <ErrorState
+            message={translateApiError(summaryQuery.error, t)}
+            retryLabel={t("common.retry")}
+            onRetry={() => summaryQuery.refetch()}
+          />
+        ) : summaryQuery.data ? (
+          <div className="stack">
+            <div className="row" style={{ gap: 12, flexWrap: "wrap" }}>
+              <Card variant="outlined">
+                <strong>{t("finance.summary.cash")}</strong>
+                <div>{formatNumber(summaryQuery.data.cash_collected_irr)}</div>
+              </Card>
+              <Card variant="outlined">
+                <strong>{t("finance.summary.netCashflow")}</strong>
+                <div>{formatNumber(summaryQuery.data.net_cashflow_irr)}</div>
+              </Card>
+              <Card variant="outlined">
+                <strong>{t("finance.summary.revenue")}</strong>
+                <div>
+                  {formatNumber(summaryQuery.data.recognized_revenue_irr)}
+                </div>
+              </Card>
+              <Card variant="outlined">
+                <strong>{t("finance.summary.profit")}</strong>
+                <div>
+                  {formatNumber(
+                    summaryQuery.data.estimated_operating_profit_irr,
+                  )}
+                </div>
+              </Card>
+              <Card variant="outlined">
+                <strong>{t("finance.summary.receivable")}</strong>
+                <div>{formatNumber(summaryQuery.data.receivable_irr)}</div>
+              </Card>
+              <Card variant="outlined">
+                <strong>{t("finance.summary.coachPayable")}</strong>
+                <div>{formatNumber(summaryQuery.data.coach_payable_irr)}</div>
+              </Card>
+            </div>
+          </div>
+        ) : null}
+      </SectionCard>
+      <div style={{ height: 16 }} />
       <SectionCard
         title={t("finance.reminders")}
         subtitle={t("finance.remindersHint")}

@@ -38,6 +38,7 @@ from app.finance_models import (
     FinanceCoachSettlementCreate,
     FinanceCoachSettlementPublic,
     FinanceCoachSettlementsPublic,
+    FinanceCoachSummaryPublic,
     FinanceCoachVestingCreate,
     FinanceCreditApplyCreate,
     FinanceCreditsPublic,
@@ -142,6 +143,7 @@ from app.services.finance import (
     match_bank_statement_line,
     membership_refund_preview,
     my_account,
+    my_coach_summary,
     pay_expense,
     post_correction,
     post_opening_balance,
@@ -1043,6 +1045,13 @@ def transfer_finance_membership(
         membership_id=membership_id,
         athlete_user_id=body.athlete_user_id,
     )
+
+
+@router.get("/my/coach-summary", response_model=FinanceCoachSummaryPublic)
+def read_my_coach_summary(
+    *, session: SessionDep, current_user: CurrentUser
+) -> Any:
+    return my_coach_summary(session, user=current_user)
 
 
 @router.get("/my/account", response_model=FinanceMyAccountPublic)

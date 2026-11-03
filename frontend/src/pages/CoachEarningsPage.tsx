@@ -29,6 +29,11 @@ export function CoachEarningsPage() {
     queryFn: async () => (await FinanceService.readMyCoachSettlements()).data,
     enabled: Boolean(activeGymId && activeRole === "COACH"),
   })
+  const summaryQuery = useQuery({
+    queryKey: ["finance", "my-coach-summary"],
+    queryFn: async () => (await FinanceService.readMyCoachSummary()).data,
+    enabled: activeRole === "COACH",
+  })
 
   if (!activeGym) {
     return (
@@ -116,6 +121,31 @@ export function CoachEarningsPage() {
           <strong>{money(totals.settled)}</strong>
         </Card>
       </div>
+
+      <div style={{ height: 16 }} />
+
+      {summaryQuery.data ? (
+        <SectionCard title={t("finance.my.allGyms")}>
+          <div className="row" style={{ gap: 12, flexWrap: "wrap" }}>
+            <Card variant="outlined">
+              <strong>{t("finance.coaches.calculated")}</strong>
+              <div>{money(summaryQuery.data.calculated_irr)}</div>
+            </Card>
+            <Card variant="outlined">
+              <strong>{t("finance.coaches.vestedAmount")}</strong>
+              <div>{money(summaryQuery.data.vested_irr)}</div>
+            </Card>
+            <Card variant="outlined">
+              <strong>{t("finance.coaches.eligible")}</strong>
+              <div>{money(summaryQuery.data.eligible_irr)}</div>
+            </Card>
+            <Card variant="outlined">
+              <strong>{t("finance.coaches.settled")}</strong>
+              <div>{money(summaryQuery.data.settled_irr)}</div>
+            </Card>
+          </div>
+        </SectionCard>
+      ) : null}
 
       <div style={{ height: 16 }} />
 

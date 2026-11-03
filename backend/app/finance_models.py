@@ -1913,3 +1913,21 @@ class FinanceGymSummaryPublic(SQLModel):
     renewals_due: int
     coach_payable_irr: int
     platform_payable_irr: int
+
+
+class FinanceCoachGymSummaryPublic(SQLModel):
+    gym_id: uuid.UUID
+    calculated_irr: int
+    vested_irr: int
+    eligible_irr: int
+    settled_irr: int
+    reserved_irr: int
+
+
+class FinanceCoachSummaryPublic(SQLModel):
+    calculated_irr: int
+    vested_irr: int
+    eligible_irr: int
+    settled_irr: int
+    reserved_irr: int
+    per_gym: list[FinanceCoachGymSummaryPublic]

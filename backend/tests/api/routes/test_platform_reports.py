@@ -290,3 +290,45 @@ def test_csv_exports_are_tenant_safe_and_keep_history(
     )
     assert allowed.status_code == 200, allowed.text
     assert "CASHFLOW" in allowed.text
+
+
+def test_coach_summary_aggregates_own_gyms_only(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    from tests.api.routes.test_finance_coach_agreements import make_coach
+    from tests.api.routes.test_finance_coach_allocations import (
+        active_agreement,
+        coached_invoice,
+    )
+    from tests.api.routes.test_finance_foundation import make_owner
+    from tests.api.routes.test_finance_invoices import make_customer
+    from tests.api.routes.test_finance_receipts import receipt_payload, record_receipt
+
+    gym, owner = make_owner(client, superuser_headers, name="Coach Summary Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+    coach_id, coach_headers = make_coach(client, owner, gym_id)
+    active_agreement(
+        client,
+        owner,
+        coach_id,
+        terms=[
+            {"recipient": "COACH", "basis": "PERCENT", "percent_bp": 3000},
+            {"recipient": "GYM", "basis": "PERCENT", "percent_bp": 7000},
+        ],
+    )
+    invoice = coached_invoice(client, owner, customer, coach_id, amount=1_000_000)
+    receipt = record_receipt(
+        client,
+        owner,
+        receipt_payload(
+            customer, amount=1_000_000, allocations=[(invoice["id"], 1_000_000)]
+        ),
+    )
+    assert receipt.status_code == 200, receipt.text
+    summary = client.get("/api/v1/finance/my/coach-summary", headers=coach_headers)
+    assert summary.status_code == 200, summary.text
+    body = summary.json()
+    assert body["calculated_irr"] == 300_000
+    assert body["reserved_irr"] == 0
+    assert body["per_gym"][0]["gym_id"] == gym_id

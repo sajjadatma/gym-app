@@ -95,6 +95,13 @@ export function AthleteFinancePage() {
   const selectedInvoice = refundableInvoices.find(
     (invoice) => invoice.id === invoiceId,
   )
+  const dueTotal = account.invoices.reduce(
+    (sum, invoice) => sum + invoice.balance_irr,
+    0,
+  )
+  const overdueCount = account.invoices.filter(
+    (invoice) => invoice.overdue,
+  ).length
   const originalMethod = account.receipts.find((receipt) =>
     receipt.allocations.some(
       (allocation) => allocation.invoice_id === invoiceId,
@@ -179,6 +186,18 @@ export function AthleteFinancePage() {
             <span>{t("finance.my.advance")}</span>
           </div>
           <strong>{money(account.advance_balance_irr)}</strong>
+        </Card>
+        <Card variant="outlined">
+          <div className="m3-entity-card__meta">
+            <FileText size={16} />
+            <span>{t("finance.my.due")}</span>
+          </div>
+          <strong>{money(dueTotal)}</strong>
+          {overdueCount > 0 ? (
+            <div className="muted">
+              {t("finance.my.overdueCount", { count: overdueCount })}
+            </div>
+          ) : null}
         </Card>
         <Card variant="outlined">
           <div className="m3-entity-card__meta">

@@ -12,6 +12,7 @@ import { FinanceInvoicesSection } from "./finance/FinanceInvoicesSection"
 import { FinanceMembershipsSection } from "./finance/FinanceMembershipsSection"
 import { FinanceOverviewSection } from "./finance/FinanceOverviewSection"
 import { FinancePaymentsSection } from "./finance/FinancePaymentsSection"
+import { FinancePlatformSection } from "./finance/FinancePlatformSection"
 import { FinanceRefundsSection } from "./finance/FinanceRefundsSection"
 
 export function FinancePage() {
@@ -81,6 +82,7 @@ export function FinancePage() {
           { value: "expenses", label: t("finance.tabExpenses") },
           { value: "memberships", label: t("finance.tabMemberships") },
           { value: "coaches", label: t("finance.tabCoaches") },
+          { value: "platform", label: t("finance.tabPlatform") },
         ]}
       />
 
@@ -104,8 +106,10 @@ export function FinancePage() {
           <FinanceExpensesSection settings={settings} unit={unit} />
         ) : tab === "memberships" ? (
           <FinanceMembershipsSection settings={settings} unit={unit} />
-        ) : (
+        ) : tab === "coaches" ? (
           <FinanceCoachesSection settings={settings} unit={unit} />
+        ) : (
+          <FinancePlatformSection />
         )}
       </div>
     </>

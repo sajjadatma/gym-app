@@ -5471,3 +5471,58 @@ def gym_summary(
         coach_payable_irr=coach_payable,
         platform_payable_irr=platform_payable,
     )
+
+
+def my_coach_summary(session: Session, *, user: User) -> Any:
+    from app.finance_models import (
+        FinanceCoachGymSummaryPublic,
+        FinanceCoachSummaryPublic,
+    )
+
+    memberships = session.exec(
+        select(GymMembership)
+        .join(
+            GymMembershipRole,
+            col(GymMembershipRole.membership_id) == col(GymMembership.id),
+        )
+        .where(
+            GymMembership.user_id == user.id,
+            col(GymMembership.is_active).is_(True),
+            GymMembershipRole.role == "COACH",
+        )
+    ).all()
+    gym_ids = {membership.gym_id for membership in memberships}
+    if not gym_ids:
+        raise HTTPException(status_code=403, detail="coach_access_required")
+    earnings = session.exec(
+        select(FinanceCoachEarning).where(
+            FinanceCoachEarning.coach_user_id == user.id,
+            col(FinanceCoachEarning.gym_id).in_(gym_ids),
+        )
+    ).all()
+    per_gym: list[Any] = []
+    totals = {
+        "calculated_irr": 0,
+        "vested_irr": 0,
+        "eligible_irr": 0,
+        "settled_irr": 0,
+        "reserved_irr": 0,
+    }
+    for gym_id in sorted(gym_ids):
+        rows = [
+            _earning_public(session, row)
+            for row in earnings
+            if row.gym_id == gym_id
+        ]
+        row = FinanceCoachGymSummaryPublic(
+            gym_id=gym_id,
+            calculated_irr=sum(item.calculated_irr for item in rows),
+            vested_irr=sum(item.vested_irr for item in rows),
+            eligible_irr=sum(item.eligible_irr for item in rows),
+            settled_irr=sum(item.settled_irr for item in rows),
+            reserved_irr=sum(item.reserved_irr for item in rows),
+        )
+        per_gym.append(row)
+        for key in totals:
+            totals[key] += getattr(row, key)
+    return FinanceCoachSummaryPublic(per_gym=per_gym, **totals)
