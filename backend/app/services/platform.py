@@ -1706,7 +1706,9 @@ def _invoice_line_public(line: Any) -> Any:
     )
 
 
-def _invoice_public(session: Session, invoice: Any) -> Any:
+def _invoice_public(
+    session: Session, invoice: Any, *, gym_id: uuid.UUID | None = None
+) -> Any:
     from app.platform_models import (
         PlatformInvoiceLine,
         PlatformInvoiceLineReversal,
@@ -1718,6 +1720,8 @@ def _invoice_public(session: Session, invoice: Any) -> Any:
         .where(PlatformInvoiceLine.invoice_id == invoice.id)
         .order_by(col(PlatformInvoiceLine.id))
     ).all()
+    if gym_id is not None:
+        lines = [line for line in lines if line.gym_id == gym_id]
     reversals = session.exec(
         select(PlatformInvoiceLineReversal)
         .join(
@@ -1728,6 +1732,12 @@ def _invoice_public(session: Session, invoice: Any) -> Any:
     ).all()
     reversal_total = sum(row.amount_irr for row in reversals)
     paid = sum(line.paid_irr for line in lines)
+    total = sum(line.amount_irr for line in lines) if gym_id is not None else invoice.total_irr
+    discount = (
+        sum(line.discount_irr for line in lines)
+        if gym_id is not None
+        else invoice.discount_irr
+    )
     return PlatformInvoicePublic(
         id=invoice.id,
         gym_id=invoice.gym_id,
@@ -1738,10 +1748,10 @@ def _invoice_public(session: Session, invoice: Any) -> Any:
         issued_on=invoice.issued_on,
         due_on=invoice.due_on,
         status=invoice.status,
-        discount_irr=invoice.discount_irr,
-        total_irr=invoice.total_irr,
+        discount_irr=discount,
+        total_irr=total,
         paid_irr=paid,
-        balance_irr=max(invoice.total_irr - paid - reversal_total, 0),
+        balance_irr=max(total - paid - reversal_total, 0),
         lines=[_invoice_line_public(line) for line in lines],
         created_at=invoice.created_at,
     )
@@ -2136,18 +2146,36 @@ def issue_platform_invoice(
 
 
 def list_platform_invoices(
-    session: Session, *, gym_id: uuid.UUID | None = None
+    session: Session,
+    *,
+    gym_id: uuid.UUID | None = None,
+    as_of: date | None = None,
 ) -> Any:
-    from app.platform_models import PlatformInvoice, PlatformInvoicesPublic
+    from app.platform_models import (
+        PlatformInvoice,
+        PlatformInvoiceLine,
+        PlatformInvoicesPublic,
+    )
 
     statement = select(PlatformInvoice).order_by(
         col(PlatformInvoice.invoice_number).desc()
     )
     if gym_id is not None:
-        statement = statement.where(PlatformInvoice.gym_id == gym_id)
+        statement = statement.where(
+            or_(
+                col(PlatformInvoice.gym_id) == gym_id,
+                col(PlatformInvoice.id).in_(
+                    select(col(PlatformInvoiceLine.invoice_id)).where(
+                        PlatformInvoiceLine.gym_id == gym_id
+                    )
+                ),
+            )
+        )
     invoices = session.exec(statement).all()
+    if as_of is not None:
+        invoices = [row for row in invoices if row.issued_on <= as_of]
     return PlatformInvoicesPublic(
-        data=[_invoice_public(session, invoice) for invoice in invoices]
+        data=[_invoice_public(session, invoice, gym_id=gym_id) for invoice in invoices]
     )
 
 
@@ -2357,10 +2385,22 @@ def list_platform_payments(
         col(PlatformPayment.created_at)
     )
     if gym_id is not None:
-        statement = statement.join(
-            PlatformInvoice,
-            col(PlatformPayment.invoice_id) == col(PlatformInvoice.id),
-        ).where(PlatformInvoice.gym_id == gym_id)
+        from app.platform_models import PlatformInvoiceLine
+
+        statement = statement.where(
+            col(PlatformPayment.invoice_id).in_(
+                select(PlatformInvoice.id).where(
+                    or_(
+                        col(PlatformInvoice.gym_id) == gym_id,
+                        col(PlatformInvoice.id).in_(
+                            select(col(PlatformInvoiceLine.invoice_id)).where(
+                                PlatformInvoiceLine.gym_id == gym_id
+                            )
+                        ),
+                    )
+                )
+            )
+        )
     payments = session.exec(statement).all()
     return PlatformPaymentsPublic(
         data=[_payment_public(session, payment) for payment in payments]
@@ -2656,18 +2696,18 @@ def platform_standing(
     restrict_after_days = (
         agreement.restrict_after_days if agreement is not None else 21
     )
-    invoices = list_platform_invoices(session, gym_id=gym_id).data
+    invoices = list_platform_invoices(
+        session, gym_id=gym_id, as_of=as_of
+    ).data
     open_rows = [row for row in invoices if row.balance_irr > 0]
     open_irr = sum(row.balance_irr for row in open_rows)
     overdue_rows = [row for row in open_rows if row.due_on < as_of]
     overdue_irr = sum(row.balance_irr for row in overdue_rows)
-    oldest_due_on = min((row.due_on for row in overdue_rows), default=None)
+    oldest_due_on = min((row.due_on for row in open_rows), default=None)
     overdue_days = (
         max((as_of - oldest_due_on).days, 0) if oldest_due_on else 0
     )
-    if not open_rows:
-        stage = "CURRENT"
-    elif overdue_days == 0:
+    if not open_rows or oldest_due_on is None or as_of < oldest_due_on:
         stage = "CURRENT"
     elif overdue_days <= grace_days:
         stage = "DUE"
@@ -2722,11 +2762,18 @@ def list_platform_dues(
     from app.platform_models import PlatformInvoice
 
     as_of = as_of or date.today()
-    gym_ids = session.exec(
+
+    direct = session.exec(
         select(PlatformInvoice.gym_id)
         .where(col(PlatformInvoice.gym_id).is_not(None))
         .distinct()
     ).all()
+    from app.platform_models import PlatformInvoiceLine
+
+    allocated = session.exec(
+        select(col(PlatformInvoiceLine.gym_id)).distinct()
+    ).all()
+    gym_ids = list({gym_id for gym_id in direct if gym_id is not None} | set(allocated))
     return [
         platform_standing(session, gym_id=gym_id, as_of=as_of)
         for gym_id in gym_ids

@@ -46,7 +46,7 @@ def test_overdue_stage_progresses_and_superuser_authority_is_unchanged(
     )
     assert issued.status_code == 200, issued.text
 
-    for offset, expected in ((1, "DUE"), (9, "GRACE"), (22, "RESTRICTED")):
+    for offset, expected in ((0, "DUE"), (1, "DUE"), (9, "GRACE"), (22, "RESTRICTED")):
         standing = client.get(
             f"/api/v1/platform/dues/{gym_id}",
             headers=superuser_headers,
@@ -54,8 +54,13 @@ def test_overdue_stage_progresses_and_superuser_authority_is_unchanged(
         )
         assert standing.status_code == 200, standing.text
         assert standing.json()["stage"] == expected
-        assert standing.json()["overdue_irr"] == 500_000
-        assert standing.json()["informational_restrictions"]
+        if offset:
+            assert standing.json()["overdue_irr"] == 500_000
+        else:
+            assert standing.json()["overdue_irr"] == 0
+            assert standing.json()["open_irr"] == 500_000
+        if offset:
+            assert standing.json()["informational_restrictions"]
 
     # A restricted standing never blocks a Superuser write.
     created = client.post(
@@ -83,6 +88,13 @@ def test_platform_reminders_are_in_app_only_and_list_due_and_overdue(
     assert platform_invoice(
         client, superuser_headers, gym_id=gym_id, due_on=date.today()
     ).status_code == 200
+    due_soon = client.get(
+        "/api/v1/platform/reminders",
+        headers=superuser_headers,
+        params={"as_of": date.today().isoformat(), "within_days": 7},
+    )
+    assert due_soon.status_code == 200, due_soon.text
+    assert due_soon.json()["due_soon"]
     reminders = client.get(
         "/api/v1/platform/reminders",
         headers=superuser_headers,

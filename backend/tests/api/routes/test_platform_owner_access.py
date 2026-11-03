@@ -86,7 +86,10 @@ def test_gym_owner_has_read_only_access_to_own_platform_billing(
         json={"enabled": False},
     )
     assert disabled.status_code == 200, disabled.text
-    still_readable = client.get(
-        "/api/v1/finance/platform/invoices", headers=owner_a
-    )
-    assert still_readable.status_code == 200, still_readable.text
+    for path in (
+        "/api/v1/finance/platform/invoices",
+        "/api/v1/finance/platform/dues",
+        "/api/v1/finance/platform/payments",
+    ):
+        still_readable = client.get(path, headers=owner_a)
+        assert still_readable.status_code == 200, still_readable.text

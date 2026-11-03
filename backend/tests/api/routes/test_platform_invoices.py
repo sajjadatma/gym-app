@@ -222,6 +222,16 @@ def test_group_invoice_keeps_branch_lines_and_volume_discount(
     )
     assert cancelled.status_code == 200, cancelled.text
     assert cancelled.json()["status"] == "CANCELLED"
+    owner_view = client.get(
+        "/api/v1/finance/platform/invoices", headers=owners[0]
+    )
+    assert owner_view.status_code == 200, owner_view.text
+    owner_row = next(
+        row for row in owner_view.json()["data"] if row["id"] == body["id"]
+    )
+    assert len(owner_row["lines"]) == 1
+    assert owner_row["lines"][0]["gym_id"] == str(gyms[0]["id"])
+    assert owner_row["total_irr"] == owner_row["lines"][0]["amount_irr"]
 
 
 def test_platform_payment_is_partial_safe_idempotent_and_only_platform_cash(

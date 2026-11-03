@@ -4,7 +4,7 @@ import uuid
 from datetime import date
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
 
 from app.api.deps import CurrentSuperuser, SessionDep
 from app.platform_models import (
@@ -421,6 +421,10 @@ def read_platform_gym_dues(
     _current_user: CurrentSuperuser,
     as_of: date | None = None,
 ) -> Any:
+    from app.models import Gym
+
+    if session.get(Gym, gym_id) is None:
+        raise HTTPException(status_code=404, detail="gym_not_found")
     return platform_service.platform_standing(session, gym_id=gym_id, as_of=as_of)
 
 
@@ -430,7 +434,7 @@ def read_platform_reminders(
     session: SessionDep,
     _current_user: CurrentSuperuser,
     as_of: date | None = None,
-    within_days: int = 7,
+    within_days: Annotated[int, Query(ge=0, le=365)] = 7,
 ) -> Any:
     return platform_service.list_platform_reminders(
         session, as_of=as_of, within_days=within_days
