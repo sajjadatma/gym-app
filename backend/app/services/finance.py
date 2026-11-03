@@ -1908,8 +1908,13 @@ def _snapshot_invoice_coaches(
 
 
 def _snapshot_invoice_platform(
-    session: Session, *, invoice: FinanceInvoice, issue_date: date
+    session: Session,
+    *,
+    invoice: FinanceInvoice,
+    issue_date: date,
+    actor: User,
 ) -> None:
+    from app.platform_models import PlatformAudit
     from app.services import platform as platform_service
 
     lines = session.exec(
@@ -1920,6 +1925,24 @@ def _snapshot_invoice_platform(
     agreement = platform_service.find_effective_agreement(
         session, gym_id=invoice.gym_id, on_date=issue_date
     )
+
+    def audit_line(line: FinanceInvoiceLine) -> None:
+        session.add(
+            PlatformAudit(
+                gym_id=invoice.gym_id,
+                actor_id=actor.id,
+                action="platform.ascora_source.snapshotted",
+                target_type="finance_invoice",
+                target_id=invoice.id,
+                detail={
+                    "invoice_line_id": str(line.id),
+                    "source": line.platform_allocation_status,
+                    "platform_fee_irr": line.platform_fee_irr,
+                    "ascora_term_share_irr": line.platform_ascora_term_share_irr,
+                },
+            )
+        )
+
     for line in lines:
         line.platform_agreement_id = None
         line.platform_agreement_version = None
@@ -1950,9 +1973,11 @@ def _snapshot_invoice_platform(
                 "scheduled_ascora_share_irr": ascora_share,
             }
             session.add(line)
+            audit_line(line)
             continue
         if agreement is None or agreement.mode in ("FREE", "SUBSCRIPTION"):
             session.add(line)
+            audit_line(line)
             continue
         term = platform_service.match_commission_term(
             session,
@@ -1963,6 +1988,7 @@ def _snapshot_invoice_platform(
         if term is None:
             line.platform_allocation_status = "NO_TERM"
             session.add(line)
+            audit_line(line)
             continue
         line.platform_allocation_status = "SNAPSHOTTED"
         line.platform_agreement_id = agreement.id
@@ -1991,6 +2017,7 @@ def _snapshot_invoice_platform(
             },
         }
         session.add(line)
+        audit_line(line)
 
 
 def issue_invoice(
@@ -2029,7 +2056,7 @@ def issue_invoice(
         )
 
     _snapshot_invoice_coaches(session, invoice=invoice, issue_date=posting_date)
-    _snapshot_invoice_platform(session, invoice=invoice, issue_date=posting_date)
+    _snapshot_invoice_platform(session, invoice=invoice, issue_date=posting_date, actor=actor)
     accounts = ensure_accounts(session, scope.gym_id)
     number = allocate_document_number(
         session, scope.gym_id, INVOICE_DOC_TYPE

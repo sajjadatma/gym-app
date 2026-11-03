@@ -311,3 +311,109 @@ def test_free_and_unmatched_source_do_not_accrue_and_replay_is_idempotent(
         headers=superuser_headers,
     ).json()["data"]
     assert receivables == []
+
+
+def test_fixed_ascora_coach_share_is_capped_at_issue_snapshot(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Fixed ASCORA Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+    coach_id, _ = make_coach(client, owner, gym_id)
+    coach_agreement = client.post(
+        "/api/v1/finance/coach-agreements",
+        headers={**superuser_headers, "X-Gym-ID": gym_id},
+        json=agreement_payload(
+            coach_id,
+            terms=[
+                {"recipient": "COACH", "basis": "PERCENT", "percent_bp": 2000},
+                {"recipient": "ASCORA", "basis": "FIXED", "fixed_irr": 100_000},
+                {"recipient": "GYM", "basis": "PERCENT", "percent_bp": 8000},
+            ],
+        ),
+    )
+    assert coach_agreement.status_code == 200, coach_agreement.text
+    assert (
+        client.post(
+            f"/api/v1/finance/coach-agreements/{coach_agreement.json()['id']}/activate",
+            headers={**superuser_headers, "X-Gym-ID": gym_id},
+        ).status_code
+        == 200
+    )
+    commission_agreement(client, superuser_headers, gym_id, percent_bp=500)
+    invoice = coached_invoice(client, owner, customer, coach_id, amount=1_000_000)
+    first = record_receipt(
+        client,
+        owner,
+        receipt_payload(
+            customer, amount=400_000, allocations=[(invoice["id"], 400_000)]
+        ),
+    )
+    assert first.status_code == 200, first.text
+    second = record_receipt(
+        client,
+        owner,
+        receipt_payload(
+            customer, amount=600_000, allocations=[(invoice["id"], 600_000)]
+        ),
+    )
+    assert second.status_code == 200, second.text
+    rows = client.get(
+        f"/api/v1/platform/receivables?gym_id={gym_id}",
+        headers=superuser_headers,
+    ).json()["data"]
+    assert [row["source_type"] for row in rows] == ["COACH_ASCORA_SHARE"]
+    assert sum(row["amount_irr"] for row in rows) == 100_000
+
+
+def test_snapshot_is_audited_and_subscription_or_unmatched_source_adds_no_fee(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    from app.platform_models import PlatformAudit
+
+    gym, owner = make_owner(client, superuser_headers, name="Audit / No Fee Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+
+    subscription = create_platform_agreement(
+        client,
+        superuser_headers,
+        gym_id=gym_id,
+        mode="SUBSCRIPTION",
+        subscription_amount_irr=500_000,
+        terms=[],
+    )
+    assert subscription.status_code == 200, subscription.text
+    activate_platform_agreement(
+        client, superuser_headers, subscription.json()["id"]
+    )
+    invoice = issued_invoice(client, owner, customer, amount=1_000_000)
+    line = client.get(
+        f"/api/v1/finance/invoices/{invoice['id']}", headers=owner
+    ).json()["lines"][0]
+    assert line["platform_allocation_status"] == "NOT_APPLICABLE"
+    assert (
+        db_session.exec(
+            select(PlatformAudit).where(
+                PlatformAudit.action == "platform.ascora_source.snapshotted"
+            )
+        ).first()
+        is not None
+    )
+    receipt = record_receipt(
+        client,
+        owner,
+        receipt_payload(
+            customer, amount=1_000_000, allocations=[(invoice["id"], 1_000_000)]
+        ),
+    )
+    assert receipt.status_code == 200, receipt.text
+    assert (
+        client.get(
+            f"/api/v1/platform/receivables?gym_id={gym_id}",
+            headers=superuser_headers,
+        ).json()["data"]
+        == []
+    )

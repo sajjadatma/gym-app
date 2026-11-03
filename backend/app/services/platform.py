@@ -1369,6 +1369,7 @@ def post_platform_journal(
 ) -> Any:
     from app.platform_models import PlatformJournal, PlatformJournalLine
 
+    _lock_platform(session)
     total_debit = sum(line[1] for line in lines)
     total_credit = sum(line[2] for line in lines)
     if total_debit != total_credit or total_debit <= 0 or len(lines) < 2:
@@ -1466,6 +1467,7 @@ def create_platform_ascora_receivable(
     )
     from app.services.finance import _split_proportional
 
+    _lock_platform(session)
     lines = session.exec(
         select(FinanceInvoiceLine)
         .where(FinanceInvoiceLine.invoice_id == invoice.id)
@@ -1490,10 +1492,35 @@ def create_platform_ascora_receivable(
         snapshot = line.platform_snapshot or {}
         source = snapshot.get("source")
         if source == "COACH_ASCORA_TERM":
+            if session.exec(
+                select(PlatformReceivable).where(
+                    PlatformReceivable.source_id == line.id,
+                    PlatformReceivable.source_type == "COMMISSION",
+                )
+            ).first() is not None:
+                _audit(
+                    session,
+                    actor=actor,
+                    action="platform.ascora_source.conflict_ignored",
+                    target_type="finance_invoice_line",
+                    target_id=line.id,
+                    gym_id=gym_id,
+                    detail={"source": "COACH_ASCORA_TERM"},
+                )
+                continue
+            prefix = f"ascora:{invoice.id}:{line.id}:"
+            prior = session.exec(
+                select(func.coalesce(func.sum(PlatformReceivable.amount_irr), 0)).where(
+                    PlatformReceivable.source_type == "COACH_ASCORA_SHARE",
+                    col(PlatformReceivable.source_key).like(f"{prefix}%"),
+                )
+            ).one()
+            remaining = max(line.platform_ascora_term_share_irr - int(prior), 0)
             for earning in earning_by_line.get(line.id, []):
-                if earning.platform_share_irr <= 0:
+                if earning.platform_share_irr <= 0 or remaining <= 0:
                     continue
-                source_key = f"ascora:{earning.id}"
+                amount = min(earning.platform_share_irr, remaining)
+                source_key = f"{prefix}{earning.id}"
                 if session.exec(
                     select(PlatformReceivable).where(
                         PlatformReceivable.source_key == source_key
@@ -1506,7 +1533,7 @@ def create_platform_ascora_receivable(
                     source_type="COACH_ASCORA_SHARE",
                     source_id=earning.id,
                     source_key=source_key,
-                    amount_irr=earning.platform_share_irr,
+                    amount_irr=amount,
                     due_on=received_on + timedelta(days=30),
                     status="OPEN",
                     snapshot=snapshot,
@@ -1522,19 +1549,21 @@ def create_platform_ascora_receivable(
                     lines=[
                         (
                             PLATFORM_RECEIVABLE_ACCOUNT,
-                            earning.platform_share_irr,
+                            amount,
                             0,
                             "ASCORA receivable",
                         ),
                         (
                             PLATFORM_COMMISSION_ACCOUNT,
                             0,
-                            earning.platform_share_irr,
+                            amount,
                             "ASCORA revenue",
                         ),
                     ],
-                    source_type=source_prefix,
-                    source_id=receivable.id,
+                    source_type=(
+                        "finance_receipt" if receipt_id else "finance_credit"
+                    ),
+                    source_id=receipt_id or credit_movement_id,
                 )
                 _audit(
                     session,
@@ -1545,20 +1574,28 @@ def create_platform_ascora_receivable(
                     gym_id=gym_id,
                     detail={
                         "source": "COACH_ASCORA_TERM",
-                        "amount_irr": earning.platform_share_irr,
+                        "amount_irr": amount,
                         "source_key": source_key,
                     },
                 )
-                total += earning.platform_share_irr
+                total += amount
+                remaining -= amount
             continue
         if line.platform_allocation_status != "SNAPSHOTTED":
             continue
-        for earning in earning_by_line.get(line.id, []):
-            if earning.platform_share_irr > 0:
-                raise HTTPException(
-                    status_code=409,
-                    detail="platform_double_recognition_guard",
-                )
+        if any(
+            earning.platform_share_irr > 0
+            for earning in earning_by_line.get(line.id, [])
+        ):
+            _audit(
+                session,
+                actor=actor,
+                action="platform.ascora_source.conflict_ignored",
+                target_type="finance_invoice_line",
+                target_id=line.id,
+                gym_id=gym_id,
+                detail={"source": "PLATFORM_COMMISSION"},
+            )
         fee = platform_fee_for_portion(
             snapshot, portion, line.payable_irr
         )
@@ -1610,8 +1647,10 @@ def create_platform_ascora_receivable(
                 (PLATFORM_RECEIVABLE_ACCOUNT, fee, 0, "Platform receivable"),
                 (revenue_account, 0, fee, "Platform commission revenue"),
             ],
-            source_type=source_prefix,
-            source_id=receivable.id,
+            source_type=(
+                "finance_receipt" if receipt_id else "finance_credit"
+            ),
+            source_id=receipt_id or credit_movement_id,
         )
         _audit(
             session,
