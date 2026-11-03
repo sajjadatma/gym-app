@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { athletesArchiveAthleteData, athletesArchiveAthleteErrors, athletesArchiveAthleteResponses, athletesBulkImportAthletesData, athletesBulkImportAthletesErrors, athletesBulkImportAthletesResponses, athletesCreateAthleteData, athletesCreateAthleteErrors, athletesCreateAthleteResponses, athletesDeleteAthleteData, athletesDeleteAthleteErrors, athletesDeleteAthleteResponses, athletesDownloadAthleteImportTemplateData, athletesDownloadAthleteImportTemplateErrors, athletesDownloadAthleteImportTemplateResponses, athletesDownloadBodyFileData, athletesDownloadBodyFileErrors, athletesDownloadBodyFileResponses, athletesListAthletesData, athletesListAthletesErrors, athletesListAthletesResponses, athletesListBodyFilesData, athletesListBodyFilesErrors, athletesListBodyFilesResponses, athletesPreviewAthleteImportData, athletesPreviewAthleteImportErrors, athletesPreviewAthleteImportResponses, athletesReadAthleteData, athletesReadAthleteErrors, athletesReadAthleteResponses, athletesReadMyAthleteProfileData, athletesReadMyAthleteProfileErrors, athletesReadMyAthleteProfileResponses, athletesReassignCoachData, athletesReassignCoachErrors, athletesReassignCoachResponses, athletesRestoreAthleteData, athletesRestoreAthleteErrors, athletesRestoreAthleteResponses, athletesUpdateAthleteData, athletesUpdateAthleteErrors, athletesUpdateAthleteResponses, athletesUpdateMyAthleteProfileData, athletesUpdateMyAthleteProfileErrors, athletesUpdateMyAthleteProfileResponses, athletesUploadBodyFileData, athletesUploadBodyFileErrors, athletesUploadBodyFileResponses, exerciseCategoriesCreateExerciseCategoryData, exerciseCategoriesCreateExerciseCategoryErrors, exerciseCategoriesCreateExerciseCategoryResponses, exerciseCategoriesListExerciseCategoriesData, exerciseCategoriesListExerciseCategoriesErrors, exerciseCategoriesListExerciseCategoriesResponses, exercisesCreateExerciseData, exercisesCreateExerciseErrors, exercisesCreateExerciseResponses, exercisesListExercisesData, exercisesListExercisesErrors, exercisesListExercisesResponses, exercisesUpdateExerciseData, exercisesUpdateExerciseErrors, exercisesUpdateExerciseResponses, financeAccrueFinanceCoachPeriodData, financeAccrueFinanceCoachPeriodErrors, financeAccrueFinanceCoachPeriodResponses, financeActivateFinanceCoachAgreementData, financeActivateFinanceCoachAgreementErrors, financeActivateFinanceCoachAgreementResponses, financeApplyFinanceCreditData, financeApplyFinanceCreditErrors, financeApplyFinanceCreditResponses, financeApproveFinanceRefundData, financeApproveFinanceRefundErrors, financeApproveFinanceRefundResponses, financeCancelFinanceCoachSettlementData, financeCancelFinanceCoachSettlementErrors, financeCancelFinanceCoachSettlementResponses, financeCancelFinanceMembershipData, financeCancelFinanceMembershipErrors, financeCancelFinanceMembershipResponses, financeCloseFinancePeriodData, financeCloseFinancePeriodErrors, financeCloseFinancePeriodResponses, financeConfirmFinanceCoachSettlementData, financeConfirmFinanceCoachSettlementErrors, financeConfirmFinanceCoachSettlementResponses, financeCorrectFinanceJournalData, financeCorrectFinanceJournalErrors, financeCorrectFinanceJournalResponses, financeCreateFinanceCatalogItemData, financeCreateFinanceCatalogItemErrors, financeCreateFinanceCatalogItemResponses, financeCreateFinanceCoachAgreementData, financeCreateFinanceCoachAgreementErrors, financeCreateFinanceCoachAgreementResponses, financeCreateFinanceCoachSettlementData, financeCreateFinanceCoachSettlementErrors, financeCreateFinanceCoachSettlementResponses, financeCreateFinanceExpenseData, financeCreateFinanceExpenseErrors, financeCreateFinanceExpenseResponses, financeCreateFinanceInvoiceData, financeCreateFinanceInvoiceErrors, financeCreateFinanceInvoiceResponses, financeCreateFinanceMembershipData, financeCreateFinanceMembershipErrors, financeCreateFinanceMembershipResponses, financeCreateFinanceReconciliationLineData, financeCreateFinanceReconciliationLineErrors, financeCreateFinanceReconciliationLineResponses, financeDeleteFinanceInvoiceData, financeDeleteFinanceInvoiceErrors, financeDeleteFinanceInvoiceResponses, financeFreezeFinanceMembershipData, financeFreezeFinanceMembershipErrors, financeFreezeFinanceMembershipResponses, financeIssueFinanceInvoiceData, financeIssueFinanceInvoiceErrors, financeIssueFinanceInvoiceResponses, financeListFinanceAccountsData, financeListFinanceAccountsErrors, financeListFinanceAccountsResponses, financeMatchFinanceReconciliationLineData, financeMatchFinanceReconciliationLineErrors, financeMatchFinanceReconciliationLineResponses, financePayFinanceExpenseData, financePayFinanceExpenseErrors, financePayFinanceExpenseResponses, financePostFinanceOpeningBalanceData, financePostFinanceOpeningBalanceErrors, financePostFinanceOpeningBalanceResponses, financeReadCoachAgreementData, financeReadCoachAgreementErrors, financeReadCoachAgreementResponses, financeReadCoachAgreementsData, financeReadCoachAgreementsErrors, financeReadCoachAgreementsResponses, financeReadCoachDiscrepanciesData, financeReadCoachDiscrepanciesErrors, financeReadCoachDiscrepanciesResponses, financeReadCoachEarningData, financeReadCoachEarningErrors, financeReadCoachEarningResponses, financeReadCoachEarningsData, financeReadCoachEarningsErrors, financeReadCoachEarningsResponses, financeReadCoachSettlementData, financeReadCoachSettlementErrors, financeReadCoachSettlementResponses, financeReadCoachSettlementsData, financeReadCoachSettlementsErrors, financeReadCoachSettlementsResponses, financeReadFinanceCatalogData, financeReadFinanceCatalogErrors, financeReadFinanceCatalogResponses, financeReadFinanceCreditsData, financeReadFinanceCreditsErrors, financeReadFinanceCreditsResponses, financeReadFinanceExpenseData, financeReadFinanceExpenseErrors, financeReadFinanceExpenseResponses, financeReadFinanceExpensesData, financeReadFinanceExpensesErrors, financeReadFinanceExpensesResponses, financeReadFinanceGrantsData, financeReadFinanceGrantsErrors, financeReadFinanceGrantsResponses, financeReadFinanceInvoiceData, financeReadFinanceInvoiceErrors, financeReadFinanceInvoiceResponses, financeReadFinanceInvoicesData, financeReadFinanceInvoicesErrors, financeReadFinanceInvoicesResponses, financeReadFinanceJournalData, financeReadFinanceJournalEntryData, financeReadFinanceJournalEntryErrors, financeReadFinanceJournalEntryResponses, financeReadFinanceJournalErrors, financeReadFinanceJournalResponses, financeReadFinanceMembershipData, financeReadFinanceMembershipErrors, financeReadFinanceMembershipResponses, financeReadFinanceMembershipsData, financeReadFinanceMembershipsErrors, financeReadFinanceMembershipsResponses, financeReadFinancePeriodsData, financeReadFinancePeriodsErrors, financeReadFinancePeriodsResponses, financeReadFinanceReceiptData, financeReadFinanceReceiptErrors, financeReadFinanceReceiptResponses, financeReadFinanceReceiptsData, financeReadFinanceReceiptsErrors, financeReadFinanceReceiptsResponses, financeReadFinanceReconciliationData, financeReadFinanceReconciliationErrors, financeReadFinanceReconciliationResponses, financeReadFinanceRefundsData, financeReadFinanceRefundsErrors, financeReadFinanceRefundsResponses, financeReadFinanceRemindersData, financeReadFinanceRemindersErrors, financeReadFinanceRemindersResponses, financeReadFinanceSettingsData, financeReadFinanceSettingsErrors, financeReadFinanceSettingsResponses, financeReadMembershipRefundPreviewData, financeReadMembershipRefundPreviewErrors, financeReadMembershipRefundPreviewResponses, financeReadMyCoachEarningsData, financeReadMyCoachEarningsErrors, financeReadMyCoachEarningsResponses, financeReadMyCoachSettlementsData, financeReadMyCoachSettlementsErrors, financeReadMyCoachSettlementsResponses, financeReadMyFinanceAccountData, financeReadMyFinanceAccountErrors, financeReadMyFinanceAccountResponses, financeRecordFinanceReceiptData, financeRecordFinanceReceiptErrors, financeRecordFinanceReceiptResponses, financeRecordFinanceRefundData, financeRecordFinanceRefundErrors, financeRecordFinanceRefundResponses, financeRejectFinanceRefundData, financeRejectFinanceRefundErrors, financeRejectFinanceRefundResponses, financeRepeatFinanceExpenseData, financeRepeatFinanceExpenseErrors, financeRepeatFinanceExpenseResponses, financeRequestFinanceRefundData, financeRequestFinanceRefundErrors, financeRequestFinanceRefundResponses, financeRequestMyFinanceRefundData, financeRequestMyFinanceRefundErrors, financeRequestMyFinanceRefundResponses, financeResolveFinanceCoachDiscrepancyData, financeResolveFinanceCoachDiscrepancyErrors, financeResolveFinanceCoachDiscrepancyResponses, financeResolveFinanceCoachEarningData, financeResolveFinanceCoachEarningErrors, financeResolveFinanceCoachEarningResponses, financeResumeFinanceMembershipData, financeResumeFinanceMembershipErrors, financeResumeFinanceMembershipResponses, financeTransferFinanceMembershipData, financeTransferFinanceMembershipErrors, financeTransferFinanceMembershipResponses, financeUpdateFinanceCatalogItemData, financeUpdateFinanceCatalogItemErrors, financeUpdateFinanceCatalogItemResponses, financeUpdateFinanceGrantsData, financeUpdateFinanceGrantsErrors, financeUpdateFinanceGrantsResponses, financeUpdateFinanceInvoiceData, financeUpdateFinanceInvoiceErrors, financeUpdateFinanceInvoiceResponses, financeUpdateFinanceSettingsData, financeUpdateFinanceSettingsErrors, financeUpdateFinanceSettingsResponses, financeVestFinanceCoachEarningData, financeVestFinanceCoachEarningErrors, financeVestFinanceCoachEarningResponses, financeVoidFinanceInvoiceData, financeVoidFinanceInvoiceErrors, financeVoidFinanceInvoiceResponses, gymsCreateGymData, gymsCreateGymErrors, gymsCreateGymResponses, gymsCreateMemberData, gymsCreateMemberErrors, gymsCreateMemberResponses, gymsDeleteGymBrandingLogoData, gymsDeleteGymBrandingLogoErrors, gymsDeleteGymBrandingLogoResponses, gymsListCoachesData, gymsListCoachesErrors, gymsListCoachesResponses, gymsListGymsData, gymsListGymsResponses, gymsListMembersData, gymsListMembersErrors, gymsListMembersResponses, gymsReadGymData, gymsReadGymErrors, gymsReadGymResponses, gymsTransferOwnershipData, gymsTransferOwnershipErrors, gymsTransferOwnershipResponses, gymsUpdateGymData, gymsUpdateGymErrors, gymsUpdateGymResponses, gymsUpdateMemberData, gymsUpdateMemberErrors, gymsUpdateMemberResponses, gymsUploadBrandingLogoData, gymsUploadBrandingLogoErrors, gymsUploadBrandingLogoResponses, loginAcceptInvitationData, loginAcceptInvitationErrors, loginAcceptInvitationResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginLogoutData, loginLogoutResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, peopleDownloadPersonBodyFileData, peopleDownloadPersonBodyFileErrors, peopleDownloadPersonBodyFileResponses, peopleReadPersonOverviewData, peopleReadPersonOverviewErrors, peopleReadPersonOverviewResponses, programsArchiveProgramVersionData, programsArchiveProgramVersionErrors, programsArchiveProgramVersionResponses, programsCreateNewDraftData, programsCreateNewDraftErrors, programsCreateNewDraftResponses, programsCreateProgramData, programsCreateProgramErrors, programsCreateProgramResponses, programsDeleteProgramVersionData, programsDeleteProgramVersionErrors, programsDeleteProgramVersionResponses, programsListProgramsData, programsListProgramsErrors, programsListProgramsResponses, programsPublishProgramVersionData, programsPublishProgramVersionErrors, programsPublishProgramVersionResponses, programsReadProgramVersionData, programsReadProgramVersionErrors, programsReadProgramVersionResponses, programsSaveAsTemplateData, programsSaveAsTemplateErrors, programsSaveAsTemplateResponses, programsUpdateProgramVersionData, programsUpdateProgramVersionErrors, programsUpdateProgramVersionResponses, superuserAthletesArchiveAthleteData, superuserAthletesArchiveAthleteErrors, superuserAthletesArchiveAthleteResponses, superuserAthletesCreateAthleteData, superuserAthletesCreateAthleteErrors, superuserAthletesCreateAthleteResponses, superuserAthletesDeleteAthleteData, superuserAthletesDeleteAthleteErrors, superuserAthletesDeleteAthleteResponses, superuserAthletesListAthletesData, superuserAthletesListAthletesErrors, superuserAthletesListAthletesResponses, superuserAthletesRestoreAthleteData, superuserAthletesRestoreAthleteErrors, superuserAthletesRestoreAthleteResponses, superuserAthletesTransferAthleteData, superuserAthletesTransferAthleteErrors, superuserAthletesTransferAthleteResponses, superuserAthletesUpdateAthleteData, superuserAthletesUpdateAthleteErrors, superuserAthletesUpdateAthleteResponses, superuserCoachesArchiveCoachData, superuserCoachesArchiveCoachErrors, superuserCoachesArchiveCoachResponses, superuserCoachesCreateCoachData, superuserCoachesCreateCoachErrors, superuserCoachesCreateCoachResponses, superuserCoachesDeleteCoachData, superuserCoachesDeleteCoachErrors, superuserCoachesDeleteCoachResponses, superuserCoachesListCoachesData, superuserCoachesListCoachesErrors, superuserCoachesListCoachesResponses, superuserCoachesRestoreCoachData, superuserCoachesRestoreCoachErrors, superuserCoachesRestoreCoachResponses, superuserCoachesTransferCoachData, superuserCoachesTransferCoachErrors, superuserCoachesTransferCoachResponses, superuserCoachesUpdateCoachData, superuserCoachesUpdateCoachErrors, superuserCoachesUpdateCoachResponses, templatesApplyTemplateData, templatesApplyTemplateErrors, templatesApplyTemplateResponses, templatesCreateTemplateData, templatesCreateTemplateErrors, templatesCreateTemplateResponses, templatesListTemplatesData, templatesListTemplatesErrors, templatesListTemplatesResponses, templatesReadTemplateData, templatesReadTemplateErrors, templatesReadTemplateResponses, templatesUpdateTemplateData, templatesUpdateTemplateErrors, templatesUpdateTemplateResponses, usersReadUserMeData, usersReadUserMeResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsReadinessCheckData, utilsReadinessCheckResponses } from './types.gen';
+import type { athletesArchiveAthleteData, athletesArchiveAthleteErrors, athletesArchiveAthleteResponses, athletesBulkImportAthletesData, athletesBulkImportAthletesErrors, athletesBulkImportAthletesResponses, athletesCreateAthleteData, athletesCreateAthleteErrors, athletesCreateAthleteResponses, athletesDeleteAthleteData, athletesDeleteAthleteErrors, athletesDeleteAthleteResponses, athletesDownloadAthleteImportTemplateData, athletesDownloadAthleteImportTemplateErrors, athletesDownloadAthleteImportTemplateResponses, athletesDownloadBodyFileData, athletesDownloadBodyFileErrors, athletesDownloadBodyFileResponses, athletesListAthletesData, athletesListAthletesErrors, athletesListAthletesResponses, athletesListBodyFilesData, athletesListBodyFilesErrors, athletesListBodyFilesResponses, athletesPreviewAthleteImportData, athletesPreviewAthleteImportErrors, athletesPreviewAthleteImportResponses, athletesReadAthleteData, athletesReadAthleteErrors, athletesReadAthleteResponses, athletesReadMyAthleteProfileData, athletesReadMyAthleteProfileErrors, athletesReadMyAthleteProfileResponses, athletesReassignCoachData, athletesReassignCoachErrors, athletesReassignCoachResponses, athletesRestoreAthleteData, athletesRestoreAthleteErrors, athletesRestoreAthleteResponses, athletesUpdateAthleteData, athletesUpdateAthleteErrors, athletesUpdateAthleteResponses, athletesUpdateMyAthleteProfileData, athletesUpdateMyAthleteProfileErrors, athletesUpdateMyAthleteProfileResponses, athletesUploadBodyFileData, athletesUploadBodyFileErrors, athletesUploadBodyFileResponses, exerciseCategoriesCreateExerciseCategoryData, exerciseCategoriesCreateExerciseCategoryErrors, exerciseCategoriesCreateExerciseCategoryResponses, exerciseCategoriesListExerciseCategoriesData, exerciseCategoriesListExerciseCategoriesErrors, exerciseCategoriesListExerciseCategoriesResponses, exercisesCreateExerciseData, exercisesCreateExerciseErrors, exercisesCreateExerciseResponses, exercisesListExercisesData, exercisesListExercisesErrors, exercisesListExercisesResponses, exercisesUpdateExerciseData, exercisesUpdateExerciseErrors, exercisesUpdateExerciseResponses, financeAccrueFinanceCoachPeriodData, financeAccrueFinanceCoachPeriodErrors, financeAccrueFinanceCoachPeriodResponses, financeActivateFinanceCoachAgreementData, financeActivateFinanceCoachAgreementErrors, financeActivateFinanceCoachAgreementResponses, financeApplyFinanceCreditData, financeApplyFinanceCreditErrors, financeApplyFinanceCreditResponses, financeApproveFinanceRefundData, financeApproveFinanceRefundErrors, financeApproveFinanceRefundResponses, financeCancelFinanceCoachSettlementData, financeCancelFinanceCoachSettlementErrors, financeCancelFinanceCoachSettlementResponses, financeCancelFinanceMembershipData, financeCancelFinanceMembershipErrors, financeCancelFinanceMembershipResponses, financeCloseFinancePeriodData, financeCloseFinancePeriodErrors, financeCloseFinancePeriodResponses, financeConfirmFinanceCoachSettlementData, financeConfirmFinanceCoachSettlementErrors, financeConfirmFinanceCoachSettlementResponses, financeCorrectFinanceJournalData, financeCorrectFinanceJournalErrors, financeCorrectFinanceJournalResponses, financeCreateFinanceCatalogItemData, financeCreateFinanceCatalogItemErrors, financeCreateFinanceCatalogItemResponses, financeCreateFinanceCoachAgreementData, financeCreateFinanceCoachAgreementErrors, financeCreateFinanceCoachAgreementResponses, financeCreateFinanceCoachSettlementData, financeCreateFinanceCoachSettlementErrors, financeCreateFinanceCoachSettlementResponses, financeCreateFinanceExpenseData, financeCreateFinanceExpenseErrors, financeCreateFinanceExpenseResponses, financeCreateFinanceInvoiceData, financeCreateFinanceInvoiceErrors, financeCreateFinanceInvoiceResponses, financeCreateFinanceMembershipData, financeCreateFinanceMembershipErrors, financeCreateFinanceMembershipResponses, financeCreateFinanceReconciliationLineData, financeCreateFinanceReconciliationLineErrors, financeCreateFinanceReconciliationLineResponses, financeDeleteFinanceInvoiceData, financeDeleteFinanceInvoiceErrors, financeDeleteFinanceInvoiceResponses, financeExportGymOffboardingData, financeExportGymOffboardingErrors, financeExportGymOffboardingResponses, financeExportGymReportData, financeExportGymReportErrors, financeExportGymReportResponses, financeFreezeFinanceMembershipData, financeFreezeFinanceMembershipErrors, financeFreezeFinanceMembershipResponses, financeIssueFinanceInvoiceData, financeIssueFinanceInvoiceErrors, financeIssueFinanceInvoiceResponses, financeListFinanceAccountsData, financeListFinanceAccountsErrors, financeListFinanceAccountsResponses, financeMatchFinanceReconciliationLineData, financeMatchFinanceReconciliationLineErrors, financeMatchFinanceReconciliationLineResponses, financePayFinanceExpenseData, financePayFinanceExpenseErrors, financePayFinanceExpenseResponses, financePostFinanceOpeningBalanceData, financePostFinanceOpeningBalanceErrors, financePostFinanceOpeningBalanceResponses, financeReadCoachAgreementData, financeReadCoachAgreementErrors, financeReadCoachAgreementResponses, financeReadCoachAgreementsData, financeReadCoachAgreementsErrors, financeReadCoachAgreementsResponses, financeReadCoachDiscrepanciesData, financeReadCoachDiscrepanciesErrors, financeReadCoachDiscrepanciesResponses, financeReadCoachEarningData, financeReadCoachEarningErrors, financeReadCoachEarningResponses, financeReadCoachEarningsData, financeReadCoachEarningsErrors, financeReadCoachEarningsResponses, financeReadCoachSettlementData, financeReadCoachSettlementErrors, financeReadCoachSettlementResponses, financeReadCoachSettlementsData, financeReadCoachSettlementsErrors, financeReadCoachSettlementsResponses, financeReadFinanceCatalogData, financeReadFinanceCatalogErrors, financeReadFinanceCatalogResponses, financeReadFinanceCreditsData, financeReadFinanceCreditsErrors, financeReadFinanceCreditsResponses, financeReadFinanceExpenseData, financeReadFinanceExpenseErrors, financeReadFinanceExpenseResponses, financeReadFinanceExpensesData, financeReadFinanceExpensesErrors, financeReadFinanceExpensesResponses, financeReadFinanceGrantsData, financeReadFinanceGrantsErrors, financeReadFinanceGrantsResponses, financeReadFinanceInvoiceData, financeReadFinanceInvoiceErrors, financeReadFinanceInvoiceResponses, financeReadFinanceInvoicesData, financeReadFinanceInvoicesErrors, financeReadFinanceInvoicesResponses, financeReadFinanceJournalData, financeReadFinanceJournalEntryData, financeReadFinanceJournalEntryErrors, financeReadFinanceJournalEntryResponses, financeReadFinanceJournalErrors, financeReadFinanceJournalResponses, financeReadFinanceMembershipData, financeReadFinanceMembershipErrors, financeReadFinanceMembershipResponses, financeReadFinanceMembershipsData, financeReadFinanceMembershipsErrors, financeReadFinanceMembershipsResponses, financeReadFinancePeriodsData, financeReadFinancePeriodsErrors, financeReadFinancePeriodsResponses, financeReadFinanceReceiptData, financeReadFinanceReceiptErrors, financeReadFinanceReceiptResponses, financeReadFinanceReceiptsData, financeReadFinanceReceiptsErrors, financeReadFinanceReceiptsResponses, financeReadFinanceReconciliationData, financeReadFinanceReconciliationErrors, financeReadFinanceReconciliationResponses, financeReadFinanceRefundsData, financeReadFinanceRefundsErrors, financeReadFinanceRefundsResponses, financeReadFinanceRemindersData, financeReadFinanceRemindersErrors, financeReadFinanceRemindersResponses, financeReadFinanceSettingsData, financeReadFinanceSettingsErrors, financeReadFinanceSettingsResponses, financeReadGymSummaryData, financeReadGymSummaryErrors, financeReadGymSummaryResponses, financeReadMembershipRefundPreviewData, financeReadMembershipRefundPreviewErrors, financeReadMembershipRefundPreviewResponses, financeReadMyCoachEarningsData, financeReadMyCoachEarningsErrors, financeReadMyCoachEarningsResponses, financeReadMyCoachSettlementsData, financeReadMyCoachSettlementsErrors, financeReadMyCoachSettlementsResponses, financeReadMyCoachSummaryData, financeReadMyCoachSummaryResponses, financeReadMyFinanceAccountData, financeReadMyFinanceAccountErrors, financeReadMyFinanceAccountResponses, financeReadMyGymPlatformDuesData, financeReadMyGymPlatformDuesErrors, financeReadMyGymPlatformDuesResponses, financeReadMyGymPlatformInvoicesData, financeReadMyGymPlatformInvoicesErrors, financeReadMyGymPlatformInvoicesResponses, financeReadMyGymPlatformPaymentsData, financeReadMyGymPlatformPaymentsErrors, financeReadMyGymPlatformPaymentsResponses, financeRecordFinanceReceiptData, financeRecordFinanceReceiptErrors, financeRecordFinanceReceiptResponses, financeRecordFinanceRefundData, financeRecordFinanceRefundErrors, financeRecordFinanceRefundResponses, financeRejectFinanceRefundData, financeRejectFinanceRefundErrors, financeRejectFinanceRefundResponses, financeRepeatFinanceExpenseData, financeRepeatFinanceExpenseErrors, financeRepeatFinanceExpenseResponses, financeRequestFinanceRefundData, financeRequestFinanceRefundErrors, financeRequestFinanceRefundResponses, financeRequestMyFinanceRefundData, financeRequestMyFinanceRefundErrors, financeRequestMyFinanceRefundResponses, financeResolveFinanceCoachDiscrepancyData, financeResolveFinanceCoachDiscrepancyErrors, financeResolveFinanceCoachDiscrepancyResponses, financeResolveFinanceCoachEarningData, financeResolveFinanceCoachEarningErrors, financeResolveFinanceCoachEarningResponses, financeResumeFinanceMembershipData, financeResumeFinanceMembershipErrors, financeResumeFinanceMembershipResponses, financeTransferFinanceMembershipData, financeTransferFinanceMembershipErrors, financeTransferFinanceMembershipResponses, financeUpdateFinanceCatalogItemData, financeUpdateFinanceCatalogItemErrors, financeUpdateFinanceCatalogItemResponses, financeUpdateFinanceGrantsData, financeUpdateFinanceGrantsErrors, financeUpdateFinanceGrantsResponses, financeUpdateFinanceInvoiceData, financeUpdateFinanceInvoiceErrors, financeUpdateFinanceInvoiceResponses, financeUpdateFinanceSettingsData, financeUpdateFinanceSettingsErrors, financeUpdateFinanceSettingsResponses, financeVestFinanceCoachEarningData, financeVestFinanceCoachEarningErrors, financeVestFinanceCoachEarningResponses, financeVoidFinanceInvoiceData, financeVoidFinanceInvoiceErrors, financeVoidFinanceInvoiceResponses, gymsCreateGymData, gymsCreateGymErrors, gymsCreateGymResponses, gymsCreateMemberData, gymsCreateMemberErrors, gymsCreateMemberResponses, gymsDeleteGymBrandingLogoData, gymsDeleteGymBrandingLogoErrors, gymsDeleteGymBrandingLogoResponses, gymsListCoachesData, gymsListCoachesErrors, gymsListCoachesResponses, gymsListGymsData, gymsListGymsResponses, gymsListMembersData, gymsListMembersErrors, gymsListMembersResponses, gymsReadGymData, gymsReadGymErrors, gymsReadGymResponses, gymsTransferOwnershipData, gymsTransferOwnershipErrors, gymsTransferOwnershipResponses, gymsUpdateGymData, gymsUpdateGymErrors, gymsUpdateGymResponses, gymsUpdateMemberData, gymsUpdateMemberErrors, gymsUpdateMemberResponses, gymsUploadBrandingLogoData, gymsUploadBrandingLogoErrors, gymsUploadBrandingLogoResponses, loginAcceptInvitationData, loginAcceptInvitationErrors, loginAcceptInvitationResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginLogoutData, loginLogoutResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, peopleDownloadPersonBodyFileData, peopleDownloadPersonBodyFileErrors, peopleDownloadPersonBodyFileResponses, peopleReadPersonOverviewData, peopleReadPersonOverviewErrors, peopleReadPersonOverviewResponses, platformAccruePlatformSubscriptionData, platformAccruePlatformSubscriptionErrors, platformAccruePlatformSubscriptionResponses, platformActivatePlatformAgreementData, platformActivatePlatformAgreementErrors, platformActivatePlatformAgreementResponses, platformActivatePlatformPlanVersionData, platformActivatePlatformPlanVersionErrors, platformActivatePlatformPlanVersionResponses, platformCancelPlatformInvoiceData, platformCancelPlatformInvoiceErrors, platformCancelPlatformInvoiceResponses, platformCreatePlatformAgreementData, platformCreatePlatformAgreementErrors, platformCreatePlatformAgreementResponses, platformCreatePlatformCostData, platformCreatePlatformCostErrors, platformCreatePlatformCostResponses, platformCreatePlatformGroupData, platformCreatePlatformGroupErrors, platformCreatePlatformGroupResponses, platformCreatePlatformPlanData, platformCreatePlatformPlanErrors, platformCreatePlatformPlanResponses, platformCreatePlatformPlanVersionData, platformCreatePlatformPlanVersionErrors, platformCreatePlatformPlanVersionResponses, platformDisablePlatformAgreementData, platformDisablePlatformAgreementErrors, platformDisablePlatformAgreementResponses, platformExportPlatformGymReportData, platformExportPlatformGymReportErrors, platformExportPlatformGymReportResponses, platformExportPlatformReportData, platformExportPlatformReportErrors, platformExportPlatformReportResponses, platformIssuePlatformInvoiceData, platformIssuePlatformInvoiceErrors, platformIssuePlatformInvoiceResponses, platformReadPlatformAgreementsData, platformReadPlatformAgreementsResponses, platformReadPlatformCostsData, platformReadPlatformCostsResponses, platformReadPlatformDuesData, platformReadPlatformDuesErrors, platformReadPlatformDuesResponses, platformReadPlatformGroupsData, platformReadPlatformGroupsResponses, platformReadPlatformGymDuesData, platformReadPlatformGymDuesErrors, platformReadPlatformGymDuesResponses, platformReadPlatformGymReportData, platformReadPlatformGymReportErrors, platformReadPlatformGymReportResponses, platformReadPlatformInvoiceData, platformReadPlatformInvoiceErrors, platformReadPlatformInvoiceResponses, platformReadPlatformInvoicesData, platformReadPlatformInvoicesResponses, platformReadPlatformOverviewData, platformReadPlatformOverviewErrors, platformReadPlatformOverviewResponses, platformReadPlatformPaymentsData, platformReadPlatformPaymentsResponses, platformReadPlatformPlanData, platformReadPlatformPlanErrors, platformReadPlatformPlanResponses, platformReadPlatformPlansData, platformReadPlatformPlansResponses, platformReadPlatformPlanUsageData, platformReadPlatformPlanUsageErrors, platformReadPlatformPlanUsageResponses, platformReadPlatformReceivablesData, platformReadPlatformReceivablesErrors, platformReadPlatformReceivablesResponses, platformReadPlatformRemindersData, platformReadPlatformRemindersErrors, platformReadPlatformRemindersResponses, platformRecordPlatformInvoicePaymentData, platformRecordPlatformInvoicePaymentErrors, platformRecordPlatformInvoicePaymentResponses, platformRetirePlatformPlanVersionData, platformRetirePlatformPlanVersionErrors, platformRetirePlatformPlanVersionResponses, platformUpdatePlatformGroupMemberData, platformUpdatePlatformGroupMemberErrors, platformUpdatePlatformGroupMemberResponses, programsArchiveProgramVersionData, programsArchiveProgramVersionErrors, programsArchiveProgramVersionResponses, programsCreateNewDraftData, programsCreateNewDraftErrors, programsCreateNewDraftResponses, programsCreateProgramData, programsCreateProgramErrors, programsCreateProgramResponses, programsDeleteProgramVersionData, programsDeleteProgramVersionErrors, programsDeleteProgramVersionResponses, programsListProgramsData, programsListProgramsErrors, programsListProgramsResponses, programsPublishProgramVersionData, programsPublishProgramVersionErrors, programsPublishProgramVersionResponses, programsReadProgramVersionData, programsReadProgramVersionErrors, programsReadProgramVersionResponses, programsSaveAsTemplateData, programsSaveAsTemplateErrors, programsSaveAsTemplateResponses, programsUpdateProgramVersionData, programsUpdateProgramVersionErrors, programsUpdateProgramVersionResponses, superuserAthletesArchiveAthleteData, superuserAthletesArchiveAthleteErrors, superuserAthletesArchiveAthleteResponses, superuserAthletesCreateAthleteData, superuserAthletesCreateAthleteErrors, superuserAthletesCreateAthleteResponses, superuserAthletesDeleteAthleteData, superuserAthletesDeleteAthleteErrors, superuserAthletesDeleteAthleteResponses, superuserAthletesListAthletesData, superuserAthletesListAthletesErrors, superuserAthletesListAthletesResponses, superuserAthletesRestoreAthleteData, superuserAthletesRestoreAthleteErrors, superuserAthletesRestoreAthleteResponses, superuserAthletesTransferAthleteData, superuserAthletesTransferAthleteErrors, superuserAthletesTransferAthleteResponses, superuserAthletesUpdateAthleteData, superuserAthletesUpdateAthleteErrors, superuserAthletesUpdateAthleteResponses, superuserCoachesArchiveCoachData, superuserCoachesArchiveCoachErrors, superuserCoachesArchiveCoachResponses, superuserCoachesCreateCoachData, superuserCoachesCreateCoachErrors, superuserCoachesCreateCoachResponses, superuserCoachesDeleteCoachData, superuserCoachesDeleteCoachErrors, superuserCoachesDeleteCoachResponses, superuserCoachesListCoachesData, superuserCoachesListCoachesErrors, superuserCoachesListCoachesResponses, superuserCoachesRestoreCoachData, superuserCoachesRestoreCoachErrors, superuserCoachesRestoreCoachResponses, superuserCoachesTransferCoachData, superuserCoachesTransferCoachErrors, superuserCoachesTransferCoachResponses, superuserCoachesUpdateCoachData, superuserCoachesUpdateCoachErrors, superuserCoachesUpdateCoachResponses, templatesApplyTemplateData, templatesApplyTemplateErrors, templatesApplyTemplateResponses, templatesCreateTemplateData, templatesCreateTemplateErrors, templatesCreateTemplateResponses, templatesListTemplatesData, templatesListTemplatesErrors, templatesListTemplatesResponses, templatesReadTemplateData, templatesReadTemplateErrors, templatesReadTemplateResponses, templatesUpdateTemplateData, templatesUpdateTemplateErrors, templatesUpdateTemplateResponses, usersReadUserMeData, usersReadUserMeResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsReadinessCheckData, utilsReadinessCheckResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -1643,6 +1643,18 @@ export class FinanceService {
     }
     
     /**
+     * Read My Coach Summary
+     */
+    public static readMyCoachSummary<ThrowOnError extends boolean = true>(options?: Options<financeReadMyCoachSummaryData, ThrowOnError>) {
+        return (options?.client ?? client).get<financeReadMyCoachSummaryResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/my/coach-summary',
+            ...options
+        });
+    }
+    
+    /**
      * Read My Finance Account
      */
     public static readMyFinanceAccount<ThrowOnError extends boolean = true>(options?: Options<financeReadMyFinanceAccountData, ThrowOnError>) {
@@ -1962,6 +1974,492 @@ export class FinanceService {
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
             url: '/api/v1/finance/coach-settlements/{settlement_id}/cancel',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Read My Gym Platform Invoices
+     */
+    public static readMyGymPlatformInvoices<ThrowOnError extends boolean = true>(options?: Options<financeReadMyGymPlatformInvoicesData, ThrowOnError>) {
+        return (options?.client ?? client).get<financeReadMyGymPlatformInvoicesResponses, financeReadMyGymPlatformInvoicesErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/platform/invoices',
+            ...options
+        });
+    }
+    
+    /**
+     * Read My Gym Platform Dues
+     */
+    public static readMyGymPlatformDues<ThrowOnError extends boolean = true>(options?: Options<financeReadMyGymPlatformDuesData, ThrowOnError>) {
+        return (options?.client ?? client).get<financeReadMyGymPlatformDuesResponses, financeReadMyGymPlatformDuesErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/platform/dues',
+            ...options
+        });
+    }
+    
+    /**
+     * Read My Gym Platform Payments
+     */
+    public static readMyGymPlatformPayments<ThrowOnError extends boolean = true>(options?: Options<financeReadMyGymPlatformPaymentsData, ThrowOnError>) {
+        return (options?.client ?? client).get<financeReadMyGymPlatformPaymentsResponses, financeReadMyGymPlatformPaymentsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/platform/payments',
+            ...options
+        });
+    }
+    
+    /**
+     * Read Gym Summary
+     */
+    public static readGymSummary<ThrowOnError extends boolean = true>(options: Options<financeReadGymSummaryData, ThrowOnError>) {
+        return (options.client ?? client).get<financeReadGymSummaryResponses, financeReadGymSummaryErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/reports/summary',
+            ...options
+        });
+    }
+    
+    /**
+     * Export Gym Report
+     */
+    public static exportGymReport<ThrowOnError extends boolean = true>(options: Options<financeExportGymReportData, ThrowOnError>) {
+        return (options.client ?? client).get<financeExportGymReportResponses, financeExportGymReportErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/reports/export',
+            ...options
+        });
+    }
+    
+    /**
+     * Export Gym Offboarding
+     */
+    public static exportGymOffboarding<ThrowOnError extends boolean = true>(options?: Options<financeExportGymOffboardingData, ThrowOnError>) {
+        return (options?.client ?? client).get<financeExportGymOffboardingResponses, financeExportGymOffboardingErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/reports/offboarding-export',
+            ...options
+        });
+    }
+}
+
+export class PlatformService {
+    /**
+     * Read Platform Plans
+     */
+    public static readPlatformPlans<ThrowOnError extends boolean = true>(options?: Options<platformReadPlatformPlansData, ThrowOnError>) {
+        return (options?.client ?? client).get<platformReadPlatformPlansResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/plans',
+            ...options
+        });
+    }
+    
+    /**
+     * Create Platform Plan
+     */
+    public static createPlatformPlan<ThrowOnError extends boolean = true>(options: Options<platformCreatePlatformPlanData, ThrowOnError>) {
+        return (options.client ?? client).post<platformCreatePlatformPlanResponses, platformCreatePlatformPlanErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/plans',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Read Platform Plan
+     */
+    public static readPlatformPlan<ThrowOnError extends boolean = true>(options: Options<platformReadPlatformPlanData, ThrowOnError>) {
+        return (options.client ?? client).get<platformReadPlatformPlanResponses, platformReadPlatformPlanErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/plans/{plan_id}',
+            ...options
+        });
+    }
+    
+    /**
+     * Create Platform Plan Version
+     */
+    public static createPlatformPlanVersion<ThrowOnError extends boolean = true>(options: Options<platformCreatePlatformPlanVersionData, ThrowOnError>) {
+        return (options.client ?? client).post<platformCreatePlatformPlanVersionResponses, platformCreatePlatformPlanVersionErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/plans/{plan_id}/versions',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Activate Platform Plan Version
+     */
+    public static activatePlatformPlanVersion<ThrowOnError extends boolean = true>(options: Options<platformActivatePlatformPlanVersionData, ThrowOnError>) {
+        return (options.client ?? client).post<platformActivatePlatformPlanVersionResponses, platformActivatePlatformPlanVersionErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/plans/{plan_id}/versions/{version_id}/activate',
+            ...options
+        });
+    }
+    
+    /**
+     * Retire Platform Plan Version
+     */
+    public static retirePlatformPlanVersion<ThrowOnError extends boolean = true>(options: Options<platformRetirePlatformPlanVersionData, ThrowOnError>) {
+        return (options.client ?? client).post<platformRetirePlatformPlanVersionResponses, platformRetirePlatformPlanVersionErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/plans/{plan_id}/versions/{version_id}/retire',
+            ...options
+        });
+    }
+    
+    /**
+     * Read Platform Plan Usage
+     */
+    public static readPlatformPlanUsage<ThrowOnError extends boolean = true>(options: Options<platformReadPlatformPlanUsageData, ThrowOnError>) {
+        return (options.client ?? client).get<platformReadPlatformPlanUsageResponses, platformReadPlatformPlanUsageErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/plans/{plan_id}/versions/{version_id}/usage',
+            ...options
+        });
+    }
+    
+    /**
+     * Read Platform Groups
+     */
+    public static readPlatformGroups<ThrowOnError extends boolean = true>(options?: Options<platformReadPlatformGroupsData, ThrowOnError>) {
+        return (options?.client ?? client).get<platformReadPlatformGroupsResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/groups',
+            ...options
+        });
+    }
+    
+    /**
+     * Create Platform Group
+     */
+    public static createPlatformGroup<ThrowOnError extends boolean = true>(options: Options<platformCreatePlatformGroupData, ThrowOnError>) {
+        return (options.client ?? client).post<platformCreatePlatformGroupResponses, platformCreatePlatformGroupErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/groups',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Update Platform Group Member
+     */
+    public static updatePlatformGroupMember<ThrowOnError extends boolean = true>(options: Options<platformUpdatePlatformGroupMemberData, ThrowOnError>) {
+        return (options.client ?? client).post<platformUpdatePlatformGroupMemberResponses, platformUpdatePlatformGroupMemberErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/groups/{group_id}/members',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Read Platform Agreements
+     */
+    public static readPlatformAgreements<ThrowOnError extends boolean = true>(options?: Options<platformReadPlatformAgreementsData, ThrowOnError>) {
+        return (options?.client ?? client).get<platformReadPlatformAgreementsResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/agreements',
+            ...options
+        });
+    }
+    
+    /**
+     * Create Platform Agreement
+     */
+    public static createPlatformAgreement<ThrowOnError extends boolean = true>(options: Options<platformCreatePlatformAgreementData, ThrowOnError>) {
+        return (options.client ?? client).post<platformCreatePlatformAgreementResponses, platformCreatePlatformAgreementErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/agreements',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Activate Platform Agreement
+     */
+    public static activatePlatformAgreement<ThrowOnError extends boolean = true>(options: Options<platformActivatePlatformAgreementData, ThrowOnError>) {
+        return (options.client ?? client).post<platformActivatePlatformAgreementResponses, platformActivatePlatformAgreementErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/agreements/{agreement_id}/activate',
+            ...options
+        });
+    }
+    
+    /**
+     * Disable Platform Agreement
+     */
+    public static disablePlatformAgreement<ThrowOnError extends boolean = true>(options: Options<platformDisablePlatformAgreementData, ThrowOnError>) {
+        return (options.client ?? client).post<platformDisablePlatformAgreementResponses, platformDisablePlatformAgreementErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/agreements/{agreement_id}/disable',
+            ...options
+        });
+    }
+    
+    /**
+     * Read Platform Receivables
+     */
+    public static readPlatformReceivables<ThrowOnError extends boolean = true>(options?: Options<platformReadPlatformReceivablesData, ThrowOnError>) {
+        return (options?.client ?? client).get<platformReadPlatformReceivablesResponses, platformReadPlatformReceivablesErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/receivables',
+            ...options
+        });
+    }
+    
+    /**
+     * Accrue Platform Subscription
+     */
+    public static accruePlatformSubscription<ThrowOnError extends boolean = true>(options: Options<platformAccruePlatformSubscriptionData, ThrowOnError>) {
+        return (options.client ?? client).post<platformAccruePlatformSubscriptionResponses, platformAccruePlatformSubscriptionErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/agreements/{agreement_id}/accrue-period',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Read Platform Invoices
+     */
+    public static readPlatformInvoices<ThrowOnError extends boolean = true>(options?: Options<platformReadPlatformInvoicesData, ThrowOnError>) {
+        return (options?.client ?? client).get<platformReadPlatformInvoicesResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/invoices',
+            ...options
+        });
+    }
+    
+    /**
+     * Issue Platform Invoice
+     */
+    public static issuePlatformInvoice<ThrowOnError extends boolean = true>(options: Options<platformIssuePlatformInvoiceData, ThrowOnError>) {
+        return (options.client ?? client).post<platformIssuePlatformInvoiceResponses, platformIssuePlatformInvoiceErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/invoices',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Read Platform Invoice
+     */
+    public static readPlatformInvoice<ThrowOnError extends boolean = true>(options: Options<platformReadPlatformInvoiceData, ThrowOnError>) {
+        return (options.client ?? client).get<platformReadPlatformInvoiceResponses, platformReadPlatformInvoiceErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/invoices/{invoice_id}',
+            ...options
+        });
+    }
+    
+    /**
+     * Record Platform Invoice Payment
+     */
+    public static recordPlatformInvoicePayment<ThrowOnError extends boolean = true>(options: Options<platformRecordPlatformInvoicePaymentData, ThrowOnError>) {
+        return (options.client ?? client).post<platformRecordPlatformInvoicePaymentResponses, platformRecordPlatformInvoicePaymentErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/invoices/{invoice_id}/payments',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Cancel Platform Invoice
+     */
+    public static cancelPlatformInvoice<ThrowOnError extends boolean = true>(options: Options<platformCancelPlatformInvoiceData, ThrowOnError>) {
+        return (options.client ?? client).post<platformCancelPlatformInvoiceResponses, platformCancelPlatformInvoiceErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/invoices/{invoice_id}/cancel',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+    
+    /**
+     * Read Platform Payments
+     */
+    public static readPlatformPayments<ThrowOnError extends boolean = true>(options?: Options<platformReadPlatformPaymentsData, ThrowOnError>) {
+        return (options?.client ?? client).get<platformReadPlatformPaymentsResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/payments',
+            ...options
+        });
+    }
+    
+    /**
+     * Read Platform Dues
+     */
+    public static readPlatformDues<ThrowOnError extends boolean = true>(options?: Options<platformReadPlatformDuesData, ThrowOnError>) {
+        return (options?.client ?? client).get<platformReadPlatformDuesResponses, platformReadPlatformDuesErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/dues',
+            ...options
+        });
+    }
+    
+    /**
+     * Read Platform Gym Dues
+     */
+    public static readPlatformGymDues<ThrowOnError extends boolean = true>(options: Options<platformReadPlatformGymDuesData, ThrowOnError>) {
+        return (options.client ?? client).get<platformReadPlatformGymDuesResponses, platformReadPlatformGymDuesErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/dues/{gym_id}',
+            ...options
+        });
+    }
+    
+    /**
+     * Read Platform Reminders
+     */
+    public static readPlatformReminders<ThrowOnError extends boolean = true>(options?: Options<platformReadPlatformRemindersData, ThrowOnError>) {
+        return (options?.client ?? client).get<platformReadPlatformRemindersResponses, platformReadPlatformRemindersErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/reminders',
+            ...options
+        });
+    }
+    
+    /**
+     * Read Platform Overview
+     */
+    public static readPlatformOverview<ThrowOnError extends boolean = true>(options: Options<platformReadPlatformOverviewData, ThrowOnError>) {
+        return (options.client ?? client).get<platformReadPlatformOverviewResponses, platformReadPlatformOverviewErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/reports/overview',
+            ...options
+        });
+    }
+    
+    /**
+     * Read Platform Gym Report
+     */
+    public static readPlatformGymReport<ThrowOnError extends boolean = true>(options: Options<platformReadPlatformGymReportData, ThrowOnError>) {
+        return (options.client ?? client).get<platformReadPlatformGymReportResponses, platformReadPlatformGymReportErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/reports/gyms/{gym_id}',
+            ...options
+        });
+    }
+    
+    /**
+     * Export Platform Report
+     */
+    public static exportPlatformReport<ThrowOnError extends boolean = true>(options: Options<platformExportPlatformReportData, ThrowOnError>) {
+        return (options.client ?? client).get<platformExportPlatformReportResponses, platformExportPlatformReportErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/reports/export',
+            ...options
+        });
+    }
+    
+    /**
+     * Export Platform Gym Report
+     */
+    public static exportPlatformGymReport<ThrowOnError extends boolean = true>(options: Options<platformExportPlatformGymReportData, ThrowOnError>) {
+        return (options.client ?? client).get<platformExportPlatformGymReportResponses, platformExportPlatformGymReportErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/gyms/{gym_id}/export',
+            ...options
+        });
+    }
+    
+    /**
+     * Read Platform Costs
+     */
+    public static readPlatformCosts<ThrowOnError extends boolean = true>(options?: Options<platformReadPlatformCostsData, ThrowOnError>) {
+        return (options?.client ?? client).get<platformReadPlatformCostsResponses, unknown, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/costs',
+            ...options
+        });
+    }
+    
+    /**
+     * Create Platform Cost
+     */
+    public static createPlatformCost<ThrowOnError extends boolean = true>(options: Options<platformCreatePlatformCostData, ThrowOnError>) {
+        return (options.client ?? client).post<platformCreatePlatformCostResponses, platformCreatePlatformCostErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/platform/costs',
             ...options,
             headers: {
                 'Content-Type': 'application/json',

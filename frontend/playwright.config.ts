@@ -35,7 +35,7 @@ export default defineConfig({
     {
       name: "superuser",
       use: { ...devices["Desktop Chrome"] },
-      testMatch: /superuser-context\.spec\.ts/,
+      testMatch: /(superuser-context|platform-finance)\.spec\.ts/,
     },
     {
       name: "responsive",

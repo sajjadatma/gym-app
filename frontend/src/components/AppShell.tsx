@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Dumbbell,
   Globe2,
+  Landmark,
   LayoutDashboard,
   LogOut,
   Moon,
@@ -246,6 +247,11 @@ export function AppShell() {
           { to: "/gyms", label: "nav.gyms", icon: Building2 },
           { to: "/coaches", label: "nav.coaches", icon: UserRound },
           { to: "/athletes", label: "nav.athletes", icon: Users },
+          {
+            to: "/platform/finance",
+            label: "nav.platformFinance",
+            icon: Landmark,
+          },
         ]
       : [{ to: "/", label: "nav.dashboard", icon: LayoutDashboard }]
   } else if (activeRole === "ATHLETE") {

@@ -35,6 +35,7 @@ import { Route as AppMyEarningsRouteImport } from './routes/_app.my.earnings'
 import { Route as AppMyFinanceRouteImport } from './routes/_app.my.finance'
 import { Route as AppMyProfileRouteImport } from './routes/_app.my.profile'
 import { Route as AppPeopleUserIdRouteImport } from './routes/_app.people.$userId'
+import { Route as AppPlatformFinanceRouteImport } from './routes/_app.platform.finance'
 import { Route as AppTemplatesIndexRouteImport } from './routes/_app.templates.index'
 import { Route as AppTemplatesNewRouteImport } from './routes/_app.templates.new'
 import { Route as AppGymsGymIdIndexRouteImport } from './routes/_app.gyms.$gymId.index'
@@ -188,6 +189,11 @@ const AppMyProfileRoute = AppMyProfileRouteImport.update({
 const AppPeopleUserIdRoute = AppPeopleUserIdRouteImport.update({
   id: '/people/$userId',
   path: '/people/$userId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPlatformFinanceRoute = AppPlatformFinanceRouteImport.update({
+  id: '/platform/finance',
+  path: '/platform/finance',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTemplatesIndexRoute = AppTemplatesIndexRouteImport.update({
@@ -349,6 +355,7 @@ export interface FileRoutesByFullPath {
   '/my/finance': typeof AppMyFinanceRoute
   '/my/profile': typeof AppMyProfileRoute
   '/people/$userId': typeof AppPeopleUserIdRoute
+  '/platform/finance': typeof AppPlatformFinanceRoute
   '/templates/new': typeof AppTemplatesNewRoute
   '/athletes/': typeof AppAthletesIndexRoute
   '/gyms/': typeof AppGymsIndexRoute
@@ -396,6 +403,7 @@ export interface FileRoutesByTo {
   '/my/finance': typeof AppMyFinanceRoute
   '/my/profile': typeof AppMyProfileRoute
   '/people/$userId': typeof AppPeopleUserIdRoute
+  '/platform/finance': typeof AppPlatformFinanceRoute
   '/templates/new': typeof AppTemplatesNewRoute
   '/athletes': typeof AppAthletesIndexRoute
   '/gyms': typeof AppGymsIndexRoute
@@ -447,6 +455,7 @@ export interface FileRoutesById {
   '/_app/my/finance': typeof AppMyFinanceRoute
   '/_app/my/profile': typeof AppMyProfileRoute
   '/_app/people/$userId': typeof AppPeopleUserIdRoute
+  '/_app/platform/finance': typeof AppPlatformFinanceRoute
   '/_app/templates/new': typeof AppTemplatesNewRoute
   '/_app/athletes/': typeof AppAthletesIndexRoute
   '/_app/gyms/': typeof AppGymsIndexRoute
@@ -501,6 +510,7 @@ export interface FileRouteTypes {
     | '/my/finance'
     | '/my/profile'
     | '/people/$userId'
+    | '/platform/finance'
     | '/templates/new'
     | '/athletes/'
     | '/gyms/'
@@ -548,6 +558,7 @@ export interface FileRouteTypes {
     | '/my/finance'
     | '/my/profile'
     | '/people/$userId'
+    | '/platform/finance'
     | '/templates/new'
     | '/athletes'
     | '/gyms'
@@ -598,6 +609,7 @@ export interface FileRouteTypes {
     | '/_app/my/finance'
     | '/_app/my/profile'
     | '/_app/people/$userId'
+    | '/_app/platform/finance'
     | '/_app/templates/new'
     | '/_app/athletes/'
     | '/_app/gyms/'
@@ -820,6 +832,13 @@ declare module '@tanstack/react-router' {
       path: '/people/$userId'
       fullPath: '/people/$userId'
       preLoaderRoute: typeof AppPeopleUserIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/platform/finance': {
+      id: '/_app/platform/finance'
+      path: '/platform/finance'
+      fullPath: '/platform/finance'
+      preLoaderRoute: typeof AppPlatformFinanceRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/templates/': {
@@ -1156,6 +1175,7 @@ interface AppRouteChildren {
   AppTemplatesRoute: typeof AppTemplatesRouteWithChildren
   AppIndexRoute: typeof AppIndexRoute
   AppPeopleUserIdRoute: typeof AppPeopleUserIdRoute
+  AppPlatformFinanceRoute: typeof AppPlatformFinanceRoute
   AppProgramsVersionIdEditRoute: typeof AppProgramsVersionIdEditRoute
 }
 
@@ -1170,6 +1190,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTemplatesRoute: AppTemplatesRouteWithChildren,
   AppIndexRoute: AppIndexRoute,
   AppPeopleUserIdRoute: AppPeopleUserIdRoute,
+  AppPlatformFinanceRoute: AppPlatformFinanceRoute,
   AppProgramsVersionIdEditRoute: AppProgramsVersionIdEditRoute,
 }
 

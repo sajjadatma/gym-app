@@ -1682,6 +1682,36 @@ export type FinanceCoachEarningsPublic = {
 };
 
 /**
+ * FinanceCoachGymSummaryPublic
+ */
+export type FinanceCoachGymSummaryPublic = {
+    /**
+     * Gym Id
+     */
+    gym_id: string;
+    /**
+     * Calculated Irr
+     */
+    calculated_irr: number;
+    /**
+     * Vested Irr
+     */
+    vested_irr: number;
+    /**
+     * Eligible Irr
+     */
+    eligible_irr: number;
+    /**
+     * Settled Irr
+     */
+    settled_irr: number;
+    /**
+     * Reserved Irr
+     */
+    reserved_irr: number;
+};
+
+/**
  * FinanceCoachPeriodAccrual
  */
 export type FinanceCoachPeriodAccrual = {
@@ -1831,6 +1861,36 @@ export type FinanceCoachSettlementsPublic = {
      * Count
      */
     count: number;
+};
+
+/**
+ * FinanceCoachSummaryPublic
+ */
+export type FinanceCoachSummaryPublic = {
+    /**
+     * Calculated Irr
+     */
+    calculated_irr: number;
+    /**
+     * Vested Irr
+     */
+    vested_irr: number;
+    /**
+     * Eligible Irr
+     */
+    eligible_irr: number;
+    /**
+     * Settled Irr
+     */
+    settled_irr: number;
+    /**
+     * Reserved Irr
+     */
+    reserved_irr: number;
+    /**
+     * Per Gym
+     */
+    per_gym: Array<FinanceCoachGymSummaryPublic>;
 };
 
 /**
@@ -2084,6 +2144,68 @@ export type FinanceGrantsPublic = {
 };
 
 /**
+ * FinanceGymSummaryPublic
+ */
+export type FinanceGymSummaryPublic = {
+    /**
+     * Cash Collected Irr
+     */
+    cash_collected_irr: number;
+    /**
+     * Cash Refunded Irr
+     */
+    cash_refunded_irr: number;
+    /**
+     * Cash Expenses Paid Irr
+     */
+    cash_expenses_paid_irr: number;
+    /**
+     * Cash Coach Settlements Irr
+     */
+    cash_coach_settlements_irr: number;
+    /**
+     * Net Cashflow Irr
+     */
+    net_cashflow_irr: number;
+    /**
+     * Recognized Revenue Irr
+     */
+    recognized_revenue_irr: number;
+    /**
+     * Recognized Expenses Irr
+     */
+    recognized_expenses_irr: number;
+    /**
+     * Estimated Operating Profit Irr
+     */
+    estimated_operating_profit_irr: number;
+    /**
+     * Sales Irr
+     */
+    sales_irr: number;
+    /**
+     * Receivable Irr
+     */
+    receivable_irr: number;
+    /**
+     * Overdue Irr
+     */
+    overdue_irr: number;
+    /**
+     * Renewals Due
+     */
+    renewals_due: number;
+    /**
+     * Coach Payable Irr
+     */
+    coach_payable_irr: number;
+    /**
+     * Platform Payable Irr
+     */
+    platform_payable_irr: number;
+};
+
+/**
  * FinanceInstallmentInput
  */
 export type FinanceInstallmentInput = {
@@ -2307,6 +2429,18 @@ export type FinanceInvoiceLinePublic = {
      * Coach Allocation Status
      */
     coach_allocation_status?: string;
+    /**
+     * Platform Allocation Status
+     */
+    platform_allocation_status?: string;
+    /**
+     * Platform Fee Irr
+     */
+    platform_fee_irr?: number;
+    /**
+     * Platform Ascora Term Share Irr
+     */
+    platform_ascora_term_share_irr?: number;
 };
 
 /**
@@ -4004,6 +4138,983 @@ export type PersonStatsPublic = {
      * Body Files
      */
     body_files?: number;
+};
+
+/**
+ * PlatformAgreementCreate
+ */
+export type PlatformAgreementCreate = {
+    /**
+     * Gym Id
+     */
+    gym_id?: string | null;
+    /**
+     * Group Id
+     */
+    group_id?: string | null;
+    /**
+     * Mode
+     */
+    mode: 'FREE' | 'SUBSCRIPTION' | 'COMMISSION' | 'HYBRID' | 'CUSTOM';
+    /**
+     * Effective From
+     */
+    effective_from: string;
+    /**
+     * Effective To
+     */
+    effective_to?: string | null;
+    /**
+     * Plan Version Id
+     */
+    plan_version_id?: string | null;
+    /**
+     * Subscription Amount Irr
+     */
+    subscription_amount_irr?: number | null;
+    /**
+     * Volume Discount Bp
+     */
+    volume_discount_bp?: number;
+    /**
+     * Grace Days
+     */
+    grace_days?: number;
+    /**
+     * Restrict After Days
+     */
+    restrict_after_days?: number;
+    /**
+     * Terms
+     */
+    terms?: Array<PlatformCommissionTermInput>;
+};
+
+/**
+ * PlatformAgreementPublic
+ */
+export type PlatformAgreementPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Gym Id
+     */
+    gym_id: string | null;
+    /**
+     * Group Id
+     */
+    group_id: string | null;
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Supersedes Id
+     */
+    supersedes_id: string | null;
+    /**
+     * Mode
+     */
+    mode: string;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Effective From
+     */
+    effective_from: string;
+    /**
+     * Effective To
+     */
+    effective_to: string | null;
+    /**
+     * Plan Version Id
+     */
+    plan_version_id: string | null;
+    /**
+     * Subscription Amount Irr
+     */
+    subscription_amount_irr: number;
+    /**
+     * Billing Interval
+     */
+    billing_interval: string;
+    /**
+     * Volume Discount Bp
+     */
+    volume_discount_bp: number;
+    /**
+     * Grace Days
+     */
+    grace_days: number;
+    /**
+     * Restrict After Days
+     */
+    restrict_after_days: number;
+    /**
+     * Terms
+     */
+    terms: Array<PlatformCommissionTermPublic>;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Activated At
+     */
+    activated_at: string | null;
+};
+
+/**
+ * PlatformAgreementsPublic
+ */
+export type PlatformAgreementsPublic = {
+    /**
+     * Data
+     */
+    data: Array<PlatformAgreementPublic>;
+};
+
+/**
+ * PlatformCommissionTermInput
+ */
+export type PlatformCommissionTermInput = {
+    /**
+     * Kind
+     */
+    kind?: string;
+    /**
+     * Acquisition Source
+     */
+    acquisition_source?: string;
+    /**
+     * Basis
+     */
+    basis: string;
+    /**
+     * Percent Bp
+     */
+    percent_bp?: number;
+    /**
+     * Fixed Irr
+     */
+    fixed_irr?: number;
+    /**
+     * Max Fee Irr
+     */
+    max_fee_irr?: number;
+};
+
+/**
+ * PlatformCommissionTermPublic
+ */
+export type PlatformCommissionTermPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Acquisition Source
+     */
+    acquisition_source: string;
+    /**
+     * Basis
+     */
+    basis: string;
+    /**
+     * Percent Bp
+     */
+    percent_bp: number;
+    /**
+     * Fixed Irr
+     */
+    fixed_irr: number;
+    /**
+     * Max Fee Irr
+     */
+    max_fee_irr: number;
+};
+
+/**
+ * PlatformCostCreate
+ */
+export type PlatformCostCreate = {
+    /**
+     * Gym Id
+     */
+    gym_id?: string | null;
+    /**
+     * Category
+     */
+    category: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Incurred On
+     */
+    incurred_on: string;
+};
+
+/**
+ * PlatformCostPublic
+ */
+export type PlatformCostPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Gym Id
+     */
+    gym_id: string | null;
+    /**
+     * Category
+     */
+    category: string;
+    /**
+     * Description
+     */
+    description: string | null;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Incurred On
+     */
+    incurred_on: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * PlatformCostsPublic
+ */
+export type PlatformCostsPublic = {
+    /**
+     * Data
+     */
+    data: Array<PlatformCostPublic>;
+};
+
+/**
+ * PlatformGroupCreate
+ */
+export type PlatformGroupCreate = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Members
+     */
+    members?: Array<PlatformGroupMemberInput>;
+};
+
+/**
+ * PlatformGroupMemberInput
+ */
+export type PlatformGroupMemberInput = {
+    /**
+     * Gym Id
+     */
+    gym_id: string;
+    /**
+     * Allocation Bp
+     */
+    allocation_bp?: number;
+};
+
+/**
+ * PlatformGroupMemberPublic
+ */
+export type PlatformGroupMemberPublic = {
+    /**
+     * Gym Id
+     */
+    gym_id: string;
+    /**
+     * Allocation Bp
+     */
+    allocation_bp: number;
+};
+
+/**
+ * PlatformGroupPublic
+ */
+export type PlatformGroupPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Members
+     */
+    members: Array<PlatformGroupMemberPublic>;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * PlatformGroupsPublic
+ */
+export type PlatformGroupsPublic = {
+    /**
+     * Data
+     */
+    data: Array<PlatformGroupPublic>;
+};
+
+/**
+ * PlatformGymReportPublic
+ */
+export type PlatformGymReportPublic = {
+    /**
+     * Gym Id
+     */
+    gym_id: string;
+    /**
+     * Recognized Revenue Irr
+     */
+    recognized_revenue_irr: number;
+    /**
+     * Collected Fees Irr
+     */
+    collected_fees_irr: number;
+    /**
+     * Receivable Irr
+     */
+    receivable_irr: number;
+    /**
+     * Overdue Irr
+     */
+    overdue_irr: number;
+    /**
+     * Recorded Cost Irr
+     */
+    recorded_cost_irr: number;
+    /**
+     * Contribution Irr
+     */
+    contribution_irr: number;
+};
+
+/**
+ * PlatformInvoiceCancelCreate
+ */
+export type PlatformInvoiceCancelCreate = {
+    /**
+     * Reason
+     */
+    reason: string;
+};
+
+/**
+ * PlatformInvoiceCreate
+ */
+export type PlatformInvoiceCreate = {
+    /**
+     * Gym Id
+     */
+    gym_id?: string | null;
+    /**
+     * Group Id
+     */
+    group_id?: string | null;
+    /**
+     * Period Start
+     */
+    period_start: string;
+    /**
+     * Period End
+     */
+    period_end: string;
+    /**
+     * Due On
+     */
+    due_on: string;
+};
+
+/**
+ * PlatformInvoiceLinePublic
+ */
+export type PlatformInvoiceLinePublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Gym Id
+     */
+    gym_id: string;
+    /**
+     * Receivable Id
+     */
+    receivable_id: string;
+    /**
+     * Source Key
+     */
+    source_key: string;
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Gross Irr
+     */
+    gross_irr: number;
+    /**
+     * Discount Irr
+     */
+    discount_irr: number;
+    /**
+     * Credit Irr
+     */
+    credit_irr: number;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Paid Irr
+     */
+    paid_irr: number;
+    /**
+     * Balance Irr
+     */
+    balance_irr: number;
+};
+
+/**
+ * PlatformInvoicePublic
+ */
+export type PlatformInvoicePublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Gym Id
+     */
+    gym_id: string | null;
+    /**
+     * Group Id
+     */
+    group_id: string | null;
+    /**
+     * Invoice Number
+     */
+    invoice_number: number;
+    /**
+     * Period Start
+     */
+    period_start: string;
+    /**
+     * Period End
+     */
+    period_end: string;
+    /**
+     * Issued On
+     */
+    issued_on: string;
+    /**
+     * Due On
+     */
+    due_on: string;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Discount Irr
+     */
+    discount_irr: number;
+    /**
+     * Total Irr
+     */
+    total_irr: number;
+    /**
+     * Paid Irr
+     */
+    paid_irr: number;
+    /**
+     * Balance Irr
+     */
+    balance_irr: number;
+    /**
+     * Lines
+     */
+    lines: Array<PlatformInvoiceLinePublic>;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * PlatformInvoicesPublic
+ */
+export type PlatformInvoicesPublic = {
+    /**
+     * Data
+     */
+    data: Array<PlatformInvoicePublic>;
+};
+
+/**
+ * PlatformOverviewPublic
+ */
+export type PlatformOverviewPublic = {
+    /**
+     * Mrr Irr
+     */
+    mrr_irr: number;
+    /**
+     * Collected Fees Irr
+     */
+    collected_fees_irr: number;
+    /**
+     * Recognized Platform Revenue Irr
+     */
+    recognized_platform_revenue_irr: number;
+    /**
+     * Invoiced Fees Irr
+     */
+    invoiced_fees_irr: number;
+    /**
+     * Receivable Irr
+     */
+    receivable_irr: number;
+    /**
+     * Overdue Irr
+     */
+    overdue_irr: number;
+    /**
+     * Recorded Platform Costs Irr
+     */
+    recorded_platform_costs_irr: number;
+    /**
+     * Estimated Operating Profit Irr
+     */
+    estimated_operating_profit_irr: number;
+    /**
+     * By Gym
+     */
+    by_gym: Array<PlatformGymReportPublic>;
+    /**
+     * Active Plans
+     */
+    active_plans: number;
+    /**
+     * Active Agreements
+     */
+    active_agreements: number;
+    /**
+     * Zero Plan Mode
+     */
+    zero_plan_mode: boolean;
+};
+
+/**
+ * PlatformPaymentAllocationInput
+ */
+export type PlatformPaymentAllocationInput = {
+    /**
+     * Invoice Line Id
+     */
+    invoice_line_id: string;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+};
+
+/**
+ * PlatformPaymentAllocationPublic
+ */
+export type PlatformPaymentAllocationPublic = {
+    /**
+     * Invoice Line Id
+     */
+    invoice_line_id: string;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+};
+
+/**
+ * PlatformPaymentCreate
+ */
+export type PlatformPaymentCreate = {
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Method
+     */
+    method: 'CASH' | 'POS' | 'TRANSFER';
+    /**
+     * Reference
+     */
+    reference?: string | null;
+    /**
+     * Received On
+     */
+    received_on: string;
+    /**
+     * Allocations
+     */
+    allocations?: Array<PlatformPaymentAllocationInput> | null;
+};
+
+/**
+ * PlatformPaymentPublic
+ */
+export type PlatformPaymentPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Invoice Id
+     */
+    invoice_id: string;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Method
+     */
+    method: string;
+    /**
+     * Reference
+     */
+    reference: string | null;
+    /**
+     * Received On
+     */
+    received_on: string;
+    /**
+     * Allocations
+     */
+    allocations: Array<PlatformPaymentAllocationPublic>;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * PlatformPaymentsPublic
+ */
+export type PlatformPaymentsPublic = {
+    /**
+     * Data
+     */
+    data: Array<PlatformPaymentPublic>;
+};
+
+/**
+ * PlatformPlanCreate
+ */
+export type PlatformPlanCreate = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Name
+     */
+    name: string;
+    version: PlatformPlanVersionCreate;
+};
+
+/**
+ * PlatformPlanPublic
+ */
+export type PlatformPlanPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Is Active
+     */
+    is_active: boolean;
+    /**
+     * Versions
+     */
+    versions: Array<PlatformPlanVersionPublic>;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * PlatformPlanUsagePublic
+ */
+export type PlatformPlanUsagePublic = {
+    /**
+     * Plan Version Id
+     */
+    plan_version_id: string;
+    /**
+     * Limits
+     */
+    limits: {
+        [key: string]: unknown;
+    };
+    /**
+     * Active Athletes
+     */
+    active_athletes: number;
+    /**
+     * Staff Seats
+     */
+    staff_seats: number;
+    /**
+     * Limit Status
+     */
+    limit_status: string;
+};
+
+/**
+ * PlatformPlanVersionCreate
+ */
+export type PlatformPlanVersionCreate = {
+    /**
+     * Effective From
+     */
+    effective_from: string;
+    /**
+     * Effective To
+     */
+    effective_to?: string | null;
+    /**
+     * Monthly Price Irr
+     */
+    monthly_price_irr?: number;
+    /**
+     * Limits
+     */
+    limits?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * PlatformPlanVersionPublic
+ */
+export type PlatformPlanVersionPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Plan Id
+     */
+    plan_id: string;
+    /**
+     * Version Number
+     */
+    version_number: number;
+    /**
+     * Effective From
+     */
+    effective_from: string;
+    /**
+     * Effective To
+     */
+    effective_to: string | null;
+    /**
+     * Monthly Price Irr
+     */
+    monthly_price_irr: number;
+    /**
+     * Limits
+     */
+    limits: {
+        [key: string]: unknown;
+    };
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * PlatformPlansPublic
+ */
+export type PlatformPlansPublic = {
+    /**
+     * Data
+     */
+    data: Array<PlatformPlanPublic>;
+};
+
+/**
+ * PlatformReceivablePublic
+ */
+export type PlatformReceivablePublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Gym Id
+     */
+    gym_id: string;
+    /**
+     * Agreement Id
+     */
+    agreement_id: string | null;
+    /**
+     * Source Type
+     */
+    source_type: string;
+    /**
+     * Source Id
+     */
+    source_id: string | null;
+    /**
+     * Source Key
+     */
+    source_key: string;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Paid Irr
+     */
+    paid_irr: number;
+    /**
+     * Due On
+     */
+    due_on: string;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Snapshot
+     */
+    snapshot: {
+        [key: string]: unknown;
+    };
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * PlatformReceivablesPublic
+ */
+export type PlatformReceivablesPublic = {
+    /**
+     * Data
+     */
+    data: Array<PlatformReceivablePublic>;
+};
+
+/**
+ * PlatformRemindersPublic
+ */
+export type PlatformRemindersPublic = {
+    /**
+     * Delivery Scope
+     */
+    delivery_scope: string;
+    /**
+     * Due Soon
+     */
+    due_soon: Array<PlatformInvoicePublic>;
+    /**
+     * Overdue
+     */
+    overdue: Array<PlatformInvoicePublic>;
+};
+
+/**
+ * PlatformStandingPublic
+ */
+export type PlatformStandingPublic = {
+    /**
+     * Gym Id
+     */
+    gym_id: string;
+    /**
+     * Open Irr
+     */
+    open_irr: number;
+    /**
+     * Overdue Irr
+     */
+    overdue_irr: number;
+    /**
+     * Oldest Due On
+     */
+    oldest_due_on: string | null;
+    /**
+     * Overdue Days
+     */
+    overdue_days: number;
+    /**
+     * Stage
+     */
+    stage: string;
+    /**
+     * Informational Restrictions
+     */
+    informational_restrictions: Array<string>;
+};
+
+/**
+ * PlatformSubscriptionAccrual
+ */
+export type PlatformSubscriptionAccrual = {
+    /**
+     * Period
+     */
+    period: string;
 };
 
 /**
@@ -8838,6 +9949,22 @@ export type financeTransferFinanceMembershipResponses = {
 
 export type financeTransferFinanceMembershipResponse = financeTransferFinanceMembershipResponses[keyof financeTransferFinanceMembershipResponses];
 
+export type financeReadMyCoachSummaryData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/my/coach-summary';
+};
+
+export type financeReadMyCoachSummaryResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachSummaryPublic;
+};
+
+export type financeReadMyCoachSummaryResponse = financeReadMyCoachSummaryResponses[keyof financeReadMyCoachSummaryResponses];
+
 export type financeReadMyFinanceAccountData = {
     body?: never;
     headers?: {
@@ -9678,6 +10805,1163 @@ export type financeCancelFinanceCoachSettlementResponses = {
 };
 
 export type financeCancelFinanceCoachSettlementResponse = financeCancelFinanceCoachSettlementResponses[keyof financeCancelFinanceCoachSettlementResponses];
+
+export type financeReadMyGymPlatformInvoicesData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/platform/invoices';
+};
+
+export type financeReadMyGymPlatformInvoicesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadMyGymPlatformInvoicesError = financeReadMyGymPlatformInvoicesErrors[keyof financeReadMyGymPlatformInvoicesErrors];
+
+export type financeReadMyGymPlatformInvoicesResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformInvoicesPublic;
+};
+
+export type financeReadMyGymPlatformInvoicesResponse = financeReadMyGymPlatformInvoicesResponses[keyof financeReadMyGymPlatformInvoicesResponses];
+
+export type financeReadMyGymPlatformDuesData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/platform/dues';
+};
+
+export type financeReadMyGymPlatformDuesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadMyGymPlatformDuesError = financeReadMyGymPlatformDuesErrors[keyof financeReadMyGymPlatformDuesErrors];
+
+export type financeReadMyGymPlatformDuesResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformStandingPublic;
+};
+
+export type financeReadMyGymPlatformDuesResponse = financeReadMyGymPlatformDuesResponses[keyof financeReadMyGymPlatformDuesResponses];
+
+export type financeReadMyGymPlatformPaymentsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/platform/payments';
+};
+
+export type financeReadMyGymPlatformPaymentsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadMyGymPlatformPaymentsError = financeReadMyGymPlatformPaymentsErrors[keyof financeReadMyGymPlatformPaymentsErrors];
+
+export type financeReadMyGymPlatformPaymentsResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformPaymentsPublic;
+};
+
+export type financeReadMyGymPlatformPaymentsResponse = financeReadMyGymPlatformPaymentsResponses[keyof financeReadMyGymPlatformPaymentsResponses];
+
+export type financeReadGymSummaryData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * From Date
+         */
+        from_date: string;
+        /**
+         * To Date
+         */
+        to_date: string;
+    };
+    url: '/api/v1/finance/reports/summary';
+};
+
+export type financeReadGymSummaryErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadGymSummaryError = financeReadGymSummaryErrors[keyof financeReadGymSummaryErrors];
+
+export type financeReadGymSummaryResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceGymSummaryPublic;
+};
+
+export type financeReadGymSummaryResponse = financeReadGymSummaryResponses[keyof financeReadGymSummaryResponses];
+
+export type financeExportGymReportData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * From Date
+         */
+        from_date: string;
+        /**
+         * To Date
+         */
+        to_date: string;
+    };
+    url: '/api/v1/finance/reports/export';
+};
+
+export type financeExportGymReportErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeExportGymReportError = financeExportGymReportErrors[keyof financeExportGymReportErrors];
+
+export type financeExportGymReportResponses = {
+    /**
+     * Response Finance-Export Gym Report
+     *
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type financeExportGymOffboardingData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/reports/offboarding-export';
+};
+
+export type financeExportGymOffboardingErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeExportGymOffboardingError = financeExportGymOffboardingErrors[keyof financeExportGymOffboardingErrors];
+
+export type financeExportGymOffboardingResponses = {
+    /**
+     * Response Finance-Export Gym Offboarding
+     *
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type platformReadPlatformPlansData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/platform/plans';
+};
+
+export type platformReadPlatformPlansResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformPlansPublic;
+};
+
+export type platformReadPlatformPlansResponse = platformReadPlatformPlansResponses[keyof platformReadPlatformPlansResponses];
+
+export type platformCreatePlatformPlanData = {
+    body: PlatformPlanCreate;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/platform/plans';
+};
+
+export type platformCreatePlatformPlanErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformCreatePlatformPlanError = platformCreatePlatformPlanErrors[keyof platformCreatePlatformPlanErrors];
+
+export type platformCreatePlatformPlanResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformPlanPublic;
+};
+
+export type platformCreatePlatformPlanResponse = platformCreatePlatformPlanResponses[keyof platformCreatePlatformPlanResponses];
+
+export type platformReadPlatformPlanData = {
+    body?: never;
+    path: {
+        /**
+         * Plan Id
+         */
+        plan_id: string;
+    };
+    query?: never;
+    url: '/api/v1/platform/plans/{plan_id}';
+};
+
+export type platformReadPlatformPlanErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformReadPlatformPlanError = platformReadPlatformPlanErrors[keyof platformReadPlatformPlanErrors];
+
+export type platformReadPlatformPlanResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformPlanPublic;
+};
+
+export type platformReadPlatformPlanResponse = platformReadPlatformPlanResponses[keyof platformReadPlatformPlanResponses];
+
+export type platformCreatePlatformPlanVersionData = {
+    body: PlatformPlanVersionCreate;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Plan Id
+         */
+        plan_id: string;
+    };
+    query?: never;
+    url: '/api/v1/platform/plans/{plan_id}/versions';
+};
+
+export type platformCreatePlatformPlanVersionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformCreatePlatformPlanVersionError = platformCreatePlatformPlanVersionErrors[keyof platformCreatePlatformPlanVersionErrors];
+
+export type platformCreatePlatformPlanVersionResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformPlanVersionPublic;
+};
+
+export type platformCreatePlatformPlanVersionResponse = platformCreatePlatformPlanVersionResponses[keyof platformCreatePlatformPlanVersionResponses];
+
+export type platformActivatePlatformPlanVersionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Plan Id
+         */
+        plan_id: string;
+        /**
+         * Version Id
+         */
+        version_id: string;
+    };
+    query?: never;
+    url: '/api/v1/platform/plans/{plan_id}/versions/{version_id}/activate';
+};
+
+export type platformActivatePlatformPlanVersionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformActivatePlatformPlanVersionError = platformActivatePlatformPlanVersionErrors[keyof platformActivatePlatformPlanVersionErrors];
+
+export type platformActivatePlatformPlanVersionResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformPlanVersionPublic;
+};
+
+export type platformActivatePlatformPlanVersionResponse = platformActivatePlatformPlanVersionResponses[keyof platformActivatePlatformPlanVersionResponses];
+
+export type platformRetirePlatformPlanVersionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Plan Id
+         */
+        plan_id: string;
+        /**
+         * Version Id
+         */
+        version_id: string;
+    };
+    query?: never;
+    url: '/api/v1/platform/plans/{plan_id}/versions/{version_id}/retire';
+};
+
+export type platformRetirePlatformPlanVersionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformRetirePlatformPlanVersionError = platformRetirePlatformPlanVersionErrors[keyof platformRetirePlatformPlanVersionErrors];
+
+export type platformRetirePlatformPlanVersionResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformPlanVersionPublic;
+};
+
+export type platformRetirePlatformPlanVersionResponse = platformRetirePlatformPlanVersionResponses[keyof platformRetirePlatformPlanVersionResponses];
+
+export type platformReadPlatformPlanUsageData = {
+    body?: never;
+    path: {
+        /**
+         * Plan Id
+         */
+        plan_id: string;
+        /**
+         * Version Id
+         */
+        version_id: string;
+    };
+    query?: never;
+    url: '/api/v1/platform/plans/{plan_id}/versions/{version_id}/usage';
+};
+
+export type platformReadPlatformPlanUsageErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformReadPlatformPlanUsageError = platformReadPlatformPlanUsageErrors[keyof platformReadPlatformPlanUsageErrors];
+
+export type platformReadPlatformPlanUsageResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformPlanUsagePublic;
+};
+
+export type platformReadPlatformPlanUsageResponse = platformReadPlatformPlanUsageResponses[keyof platformReadPlatformPlanUsageResponses];
+
+export type platformReadPlatformGroupsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/platform/groups';
+};
+
+export type platformReadPlatformGroupsResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformGroupsPublic;
+};
+
+export type platformReadPlatformGroupsResponse = platformReadPlatformGroupsResponses[keyof platformReadPlatformGroupsResponses];
+
+export type platformCreatePlatformGroupData = {
+    body: PlatformGroupCreate;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/platform/groups';
+};
+
+export type platformCreatePlatformGroupErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformCreatePlatformGroupError = platformCreatePlatformGroupErrors[keyof platformCreatePlatformGroupErrors];
+
+export type platformCreatePlatformGroupResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformGroupPublic;
+};
+
+export type platformCreatePlatformGroupResponse = platformCreatePlatformGroupResponses[keyof platformCreatePlatformGroupResponses];
+
+export type platformUpdatePlatformGroupMemberData = {
+    body: PlatformGroupMemberInput;
+    path: {
+        /**
+         * Group Id
+         */
+        group_id: string;
+    };
+    query?: never;
+    url: '/api/v1/platform/groups/{group_id}/members';
+};
+
+export type platformUpdatePlatformGroupMemberErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformUpdatePlatformGroupMemberError = platformUpdatePlatformGroupMemberErrors[keyof platformUpdatePlatformGroupMemberErrors];
+
+export type platformUpdatePlatformGroupMemberResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformGroupPublic;
+};
+
+export type platformUpdatePlatformGroupMemberResponse = platformUpdatePlatformGroupMemberResponses[keyof platformUpdatePlatformGroupMemberResponses];
+
+export type platformReadPlatformAgreementsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/platform/agreements';
+};
+
+export type platformReadPlatformAgreementsResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformAgreementsPublic;
+};
+
+export type platformReadPlatformAgreementsResponse = platformReadPlatformAgreementsResponses[keyof platformReadPlatformAgreementsResponses];
+
+export type platformCreatePlatformAgreementData = {
+    body: PlatformAgreementCreate;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/platform/agreements';
+};
+
+export type platformCreatePlatformAgreementErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformCreatePlatformAgreementError = platformCreatePlatformAgreementErrors[keyof platformCreatePlatformAgreementErrors];
+
+export type platformCreatePlatformAgreementResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformAgreementPublic;
+};
+
+export type platformCreatePlatformAgreementResponse = platformCreatePlatformAgreementResponses[keyof platformCreatePlatformAgreementResponses];
+
+export type platformActivatePlatformAgreementData = {
+    body?: never;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Agreement Id
+         */
+        agreement_id: string;
+    };
+    query?: never;
+    url: '/api/v1/platform/agreements/{agreement_id}/activate';
+};
+
+export type platformActivatePlatformAgreementErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformActivatePlatformAgreementError = platformActivatePlatformAgreementErrors[keyof platformActivatePlatformAgreementErrors];
+
+export type platformActivatePlatformAgreementResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformAgreementPublic;
+};
+
+export type platformActivatePlatformAgreementResponse = platformActivatePlatformAgreementResponses[keyof platformActivatePlatformAgreementResponses];
+
+export type platformDisablePlatformAgreementData = {
+    body?: never;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Agreement Id
+         */
+        agreement_id: string;
+    };
+    query?: never;
+    url: '/api/v1/platform/agreements/{agreement_id}/disable';
+};
+
+export type platformDisablePlatformAgreementErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformDisablePlatformAgreementError = platformDisablePlatformAgreementErrors[keyof platformDisablePlatformAgreementErrors];
+
+export type platformDisablePlatformAgreementResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformAgreementPublic;
+};
+
+export type platformDisablePlatformAgreementResponse = platformDisablePlatformAgreementResponses[keyof platformDisablePlatformAgreementResponses];
+
+export type platformReadPlatformReceivablesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Gym Id
+         */
+        gym_id?: string | null;
+    };
+    url: '/api/v1/platform/receivables';
+};
+
+export type platformReadPlatformReceivablesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformReadPlatformReceivablesError = platformReadPlatformReceivablesErrors[keyof platformReadPlatformReceivablesErrors];
+
+export type platformReadPlatformReceivablesResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformReceivablesPublic;
+};
+
+export type platformReadPlatformReceivablesResponse = platformReadPlatformReceivablesResponses[keyof platformReadPlatformReceivablesResponses];
+
+export type platformAccruePlatformSubscriptionData = {
+    body: PlatformSubscriptionAccrual;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Agreement Id
+         */
+        agreement_id: string;
+    };
+    query?: {
+        /**
+         * Branch Gym Id
+         */
+        branch_gym_id?: string | null;
+    };
+    url: '/api/v1/platform/agreements/{agreement_id}/accrue-period';
+};
+
+export type platformAccruePlatformSubscriptionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformAccruePlatformSubscriptionError = platformAccruePlatformSubscriptionErrors[keyof platformAccruePlatformSubscriptionErrors];
+
+export type platformAccruePlatformSubscriptionResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformReceivablePublic;
+};
+
+export type platformAccruePlatformSubscriptionResponse = platformAccruePlatformSubscriptionResponses[keyof platformAccruePlatformSubscriptionResponses];
+
+export type platformReadPlatformInvoicesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/platform/invoices';
+};
+
+export type platformReadPlatformInvoicesResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformInvoicesPublic;
+};
+
+export type platformReadPlatformInvoicesResponse = platformReadPlatformInvoicesResponses[keyof platformReadPlatformInvoicesResponses];
+
+export type platformIssuePlatformInvoiceData = {
+    body: PlatformInvoiceCreate;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/platform/invoices';
+};
+
+export type platformIssuePlatformInvoiceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformIssuePlatformInvoiceError = platformIssuePlatformInvoiceErrors[keyof platformIssuePlatformInvoiceErrors];
+
+export type platformIssuePlatformInvoiceResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformInvoicePublic;
+};
+
+export type platformIssuePlatformInvoiceResponse = platformIssuePlatformInvoiceResponses[keyof platformIssuePlatformInvoiceResponses];
+
+export type platformReadPlatformInvoiceData = {
+    body?: never;
+    path: {
+        /**
+         * Invoice Id
+         */
+        invoice_id: string;
+    };
+    query?: never;
+    url: '/api/v1/platform/invoices/{invoice_id}';
+};
+
+export type platformReadPlatformInvoiceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformReadPlatformInvoiceError = platformReadPlatformInvoiceErrors[keyof platformReadPlatformInvoiceErrors];
+
+export type platformReadPlatformInvoiceResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformInvoicePublic;
+};
+
+export type platformReadPlatformInvoiceResponse = platformReadPlatformInvoiceResponses[keyof platformReadPlatformInvoiceResponses];
+
+export type platformRecordPlatformInvoicePaymentData = {
+    body: PlatformPaymentCreate;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Invoice Id
+         */
+        invoice_id: string;
+    };
+    query?: never;
+    url: '/api/v1/platform/invoices/{invoice_id}/payments';
+};
+
+export type platformRecordPlatformInvoicePaymentErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformRecordPlatformInvoicePaymentError = platformRecordPlatformInvoicePaymentErrors[keyof platformRecordPlatformInvoicePaymentErrors];
+
+export type platformRecordPlatformInvoicePaymentResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformPaymentPublic;
+};
+
+export type platformRecordPlatformInvoicePaymentResponse = platformRecordPlatformInvoicePaymentResponses[keyof platformRecordPlatformInvoicePaymentResponses];
+
+export type platformCancelPlatformInvoiceData = {
+    body: PlatformInvoiceCancelCreate;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path: {
+        /**
+         * Invoice Id
+         */
+        invoice_id: string;
+    };
+    query?: never;
+    url: '/api/v1/platform/invoices/{invoice_id}/cancel';
+};
+
+export type platformCancelPlatformInvoiceErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformCancelPlatformInvoiceError = platformCancelPlatformInvoiceErrors[keyof platformCancelPlatformInvoiceErrors];
+
+export type platformCancelPlatformInvoiceResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformInvoicePublic;
+};
+
+export type platformCancelPlatformInvoiceResponse = platformCancelPlatformInvoiceResponses[keyof platformCancelPlatformInvoiceResponses];
+
+export type platformReadPlatformPaymentsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/platform/payments';
+};
+
+export type platformReadPlatformPaymentsResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformPaymentsPublic;
+};
+
+export type platformReadPlatformPaymentsResponse = platformReadPlatformPaymentsResponses[keyof platformReadPlatformPaymentsResponses];
+
+export type platformReadPlatformDuesData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * As Of
+         */
+        as_of?: string | null;
+    };
+    url: '/api/v1/platform/dues';
+};
+
+export type platformReadPlatformDuesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformReadPlatformDuesError = platformReadPlatformDuesErrors[keyof platformReadPlatformDuesErrors];
+
+export type platformReadPlatformDuesResponses = {
+    /**
+     * Response Platform-Read Platform Dues
+     *
+     * Successful Response
+     */
+    200: Array<PlatformStandingPublic>;
+};
+
+export type platformReadPlatformDuesResponse = platformReadPlatformDuesResponses[keyof platformReadPlatformDuesResponses];
+
+export type platformReadPlatformGymDuesData = {
+    body?: never;
+    path: {
+        /**
+         * Gym Id
+         */
+        gym_id: string;
+    };
+    query?: {
+        /**
+         * As Of
+         */
+        as_of?: string | null;
+    };
+    url: '/api/v1/platform/dues/{gym_id}';
+};
+
+export type platformReadPlatformGymDuesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformReadPlatformGymDuesError = platformReadPlatformGymDuesErrors[keyof platformReadPlatformGymDuesErrors];
+
+export type platformReadPlatformGymDuesResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformStandingPublic;
+};
+
+export type platformReadPlatformGymDuesResponse = platformReadPlatformGymDuesResponses[keyof platformReadPlatformGymDuesResponses];
+
+export type platformReadPlatformRemindersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * As Of
+         */
+        as_of?: string | null;
+        /**
+         * Within Days
+         */
+        within_days?: number;
+    };
+    url: '/api/v1/platform/reminders';
+};
+
+export type platformReadPlatformRemindersErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformReadPlatformRemindersError = platformReadPlatformRemindersErrors[keyof platformReadPlatformRemindersErrors];
+
+export type platformReadPlatformRemindersResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformRemindersPublic;
+};
+
+export type platformReadPlatformRemindersResponse = platformReadPlatformRemindersResponses[keyof platformReadPlatformRemindersResponses];
+
+export type platformReadPlatformOverviewData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * From Date
+         */
+        from_date: string;
+        /**
+         * To Date
+         */
+        to_date: string;
+    };
+    url: '/api/v1/platform/reports/overview';
+};
+
+export type platformReadPlatformOverviewErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformReadPlatformOverviewError = platformReadPlatformOverviewErrors[keyof platformReadPlatformOverviewErrors];
+
+export type platformReadPlatformOverviewResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformOverviewPublic;
+};
+
+export type platformReadPlatformOverviewResponse = platformReadPlatformOverviewResponses[keyof platformReadPlatformOverviewResponses];
+
+export type platformReadPlatformGymReportData = {
+    body?: never;
+    path: {
+        /**
+         * Gym Id
+         */
+        gym_id: string;
+    };
+    query: {
+        /**
+         * From Date
+         */
+        from_date: string;
+        /**
+         * To Date
+         */
+        to_date: string;
+    };
+    url: '/api/v1/platform/reports/gyms/{gym_id}';
+};
+
+export type platformReadPlatformGymReportErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformReadPlatformGymReportError = platformReadPlatformGymReportErrors[keyof platformReadPlatformGymReportErrors];
+
+export type platformReadPlatformGymReportResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformGymReportPublic;
+};
+
+export type platformReadPlatformGymReportResponse = platformReadPlatformGymReportResponses[keyof platformReadPlatformGymReportResponses];
+
+export type platformExportPlatformReportData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * From Date
+         */
+        from_date: string;
+        /**
+         * To Date
+         */
+        to_date: string;
+    };
+    url: '/api/v1/platform/reports/export';
+};
+
+export type platformExportPlatformReportErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformExportPlatformReportError = platformExportPlatformReportErrors[keyof platformExportPlatformReportErrors];
+
+export type platformExportPlatformReportResponses = {
+    /**
+     * Response Platform-Export Platform Report
+     *
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type platformExportPlatformGymReportData = {
+    body?: never;
+    path: {
+        /**
+         * Gym Id
+         */
+        gym_id: string;
+    };
+    query: {
+        /**
+         * From Date
+         */
+        from_date: string;
+        /**
+         * To Date
+         */
+        to_date: string;
+    };
+    url: '/api/v1/platform/gyms/{gym_id}/export';
+};
+
+export type platformExportPlatformGymReportErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformExportPlatformGymReportError = platformExportPlatformGymReportErrors[keyof platformExportPlatformGymReportErrors];
+
+export type platformExportPlatformGymReportResponses = {
+    /**
+     * Response Platform-Export Platform Gym Report
+     *
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type platformReadPlatformCostsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/platform/costs';
+};
+
+export type platformReadPlatformCostsResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformCostsPublic;
+};
+
+export type platformReadPlatformCostsResponse = platformReadPlatformCostsResponses[keyof platformReadPlatformCostsResponses];
+
+export type platformCreatePlatformCostData = {
+    body: PlatformCostCreate;
+    headers?: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/platform/costs';
+};
+
+export type platformCreatePlatformCostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformCreatePlatformCostError = platformCreatePlatformCostErrors[keyof platformCreatePlatformCostErrors];
+
+export type platformCreatePlatformCostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformCostPublic;
+};
+
+export type platformCreatePlatformCostResponse = platformCreatePlatformCostResponses[keyof platformCreatePlatformCostResponses];
 
 export type utilsHealthCheckData = {
     body?: never;
