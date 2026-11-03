@@ -4,6 +4,7 @@ import { useState } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import {
+  type FinanceBankStatementLinePublic,
   type FinanceCreditPublic,
   type FinanceInvoicePublic,
   FinanceService,
@@ -66,6 +67,13 @@ export function FinancePaymentsSection({
   const [creditInvoiceId, setCreditInvoiceId] = useState("")
   const [creditAmount, setCreditAmount] = useState("")
   const [creditDate, setCreditDate] = useState(todayIso)
+  const [reconciliationOpen, setReconciliationOpen] = useState(false)
+  const [statementDate, setStatementDate] = useState(todayIso)
+  const [statementAmount, setStatementAmount] = useState("")
+  const [statementReference, setStatementReference] = useState("")
+  const [matchTarget, setMatchTarget] =
+    useState<FinanceBankStatementLinePublic | null>(null)
+  const [matchReceiptId, setMatchReceiptId] = useState("")
 
   const scope = activeGymId ?? ""
   const receiptsQuery = useQuery({
@@ -81,6 +89,12 @@ export function FinancePaymentsSection({
   const creditsQuery = useQuery({
     queryKey: ["finance", scope, "credits"],
     queryFn: async () => (await FinanceService.readFinanceCredits()).data,
+    enabled: Boolean(activeGymId),
+  })
+  const reconciliationQuery = useQuery({
+    queryKey: ["finance", scope, "reconciliation"],
+    queryFn: async () =>
+      (await FinanceService.readFinanceReconciliation()).data,
     enabled: Boolean(activeGymId),
   })
   const invoicesQuery = useQuery({
@@ -209,6 +223,57 @@ export function FinancePaymentsSection({
     setCreditAmount(amountOf(credit.balance_irr))
     setCreditDate(todayIso())
     setFormError(null)
+  }
+
+  async function createStatementLine() {
+    const amountIrr = parse(statementAmount)
+    if (amountIrr === null || amountIrr <= 0) {
+      setFormError(t("finance.invalidAmount"))
+      return
+    }
+    setSaving(true)
+    setFormError(null)
+    try {
+      await FinanceService.createFinanceReconciliationLine({
+        body: {
+          statement_on: statementDate,
+          amount_irr: amountIrr,
+          reference: statementReference.trim() || null,
+          description: null,
+        },
+        headers: { "Idempotency-Key": newKey() },
+      })
+      await invalidate()
+      setReconciliationOpen(false)
+      show(t("finance.payment.statementRecorded"), "success")
+    } catch (err) {
+      setFormError(translateApiError(err, t))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function matchStatement() {
+    if (!matchTarget || !matchReceiptId) {
+      setFormError(t("finance.payment.chooseReceipt"))
+      return
+    }
+    setSaving(true)
+    setFormError(null)
+    try {
+      await FinanceService.matchFinanceReconciliationLine({
+        path: { line_id: matchTarget.id },
+        body: { receipt_id: matchReceiptId },
+      })
+      await invalidate()
+      setMatchTarget(null)
+      setMatchReceiptId("")
+      show(t("finance.payment.reconciled"), "success")
+    } catch (err) {
+      setFormError(translateApiError(err, t))
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function applyCredit() {
@@ -370,6 +435,169 @@ export function FinancePaymentsSection({
           </div>
         )}
       </SectionCard>
+
+      <div style={{ height: 16 }} />
+
+      <SectionCard
+        title={t("finance.payment.reconciliation")}
+        subtitle={t("finance.payment.reconciliationHint")}
+        actions={
+          canRecord ? (
+            <Button
+              icon={<Plus size={16} />}
+              onClick={() => {
+                setStatementDate(todayIso())
+                setStatementAmount("")
+                setStatementReference("")
+                setFormError(null)
+                setReconciliationOpen(true)
+              }}
+            >
+              {t("finance.payment.newStatementLine")}
+            </Button>
+          ) : null
+        }
+      >
+        {reconciliationQuery.isLoading ? (
+          <Spinner label={t("common.loading")} />
+        ) : (reconciliationQuery.data?.data ?? []).length === 0 ? (
+          <p className="muted">{t("finance.payment.noStatementLines")}</p>
+        ) : (
+          <div className="stack">
+            {(reconciliationQuery.data?.data ?? []).map((line) => (
+              <div key={line.id} className="row row--between">
+                <div>
+                  <strong>{money(line.amount_irr)}</strong>
+                  <div className="m3-entity-card__meta">
+                    <span>{formatDate(line.statement_on)}</span>
+                    <span
+                      className="m3-chip"
+                      style={
+                        line.status === "UNMATCHED"
+                          ? { color: "var(--m3-error)" }
+                          : undefined
+                      }
+                    >
+                      {line.status}
+                    </span>
+                    {line.reference ? <span>{line.reference}</span> : null}
+                    {line.receipt_number ? (
+                      <span>
+                        {t("finance.payment.number")}{" "}
+                        {formatNumber(line.receipt_number)}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                {canRecord && line.status === "UNMATCHED" ? (
+                  <Button
+                    variant="text"
+                    size="sm"
+                    onClick={() => {
+                      setMatchReceiptId("")
+                      setFormError(null)
+                      setMatchTarget({
+                        ...line,
+                        reference: line.reference ?? null,
+                      })
+                    }}
+                  >
+                    {t("finance.payment.match")}
+                  </Button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
+
+      <Dialog
+        open={reconciliationOpen}
+        title={t("finance.payment.newStatementLine")}
+        onClose={() => setReconciliationOpen(false)}
+        footer={
+          <>
+            <Button variant="text" onClick={() => setReconciliationOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button loading={saving} onClick={() => void createStatementLine()}>
+              {t("finance.save")}
+            </Button>
+          </>
+        }
+      >
+        <div className="stack">
+          {formError ? (
+            <div className="m3-inline-alert" role="alert">
+              {formError}
+            </div>
+          ) : null}
+          <DateField
+            label={t("finance.expense.spentOn")}
+            value={statementDate}
+            onChange={(value) => setStatementDate(value ?? todayIso())}
+            required
+          />
+          <TextField
+            label={t("finance.amountIn", { unit: unitLabel })}
+            value={statementAmount}
+            inputMode="decimal"
+            dir="auto"
+            onChange={(event) =>
+              setStatementAmount(normalizeDigits(event.target.value))
+            }
+            required
+          />
+          <TextField
+            label={t("finance.reference")}
+            value={statementReference}
+            onChange={(event) => setStatementReference(event.target.value)}
+          />
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={matchTarget !== null}
+        title={t("finance.payment.match")}
+        description={
+          matchTarget
+            ? `${money(matchTarget.amount_irr)} ${t("finance.reference")}: ${matchTarget.reference ?? "—"}`
+            : undefined
+        }
+        onClose={() => setMatchTarget(null)}
+        footer={
+          <>
+            <Button variant="text" onClick={() => setMatchTarget(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button loading={saving} onClick={() => void matchStatement()}>
+              {t("common.confirm")}
+            </Button>
+          </>
+        }
+      >
+        <div className="stack">
+          {formError ? (
+            <div className="m3-inline-alert" role="alert">
+              {formError}
+            </div>
+          ) : null}
+          <SelectField
+            label={t("finance.payment.matchReceipt")}
+            value={matchReceiptId}
+            onChange={setMatchReceiptId}
+            options={receipts
+              .filter((receipt) => !receipt.reconciled)
+              .map((receipt) => ({
+                value: receipt.id,
+                label: `#${formatNumber(receipt.receipt_number)} · ${money(
+                  receipt.amount_irr,
+                )}`,
+              }))}
+            required
+          />
+        </div>
+      </Dialog>
 
       <Dialog
         open={open}

@@ -254,6 +254,26 @@ Phase 2 is **user-complete for the approved scope**. Phase 3 has not started.
    discrepancies) and a coach `My earnings` page with per-gym calculated,
    vested, eligible and settled history.
 
+10. **Settlement accounting (decision #36/AC-30)** — a `RECORDED` settlement
+    reserves the earnings and posts coach payable to a pending-settlement
+    liability (`2200`); cash (`1000`) is reduced only when the settlement is
+    confirmed. Confirmation is locked, idempotent on retry and linked to a
+    second balanced journal.
+11. **Platform fee authority (decision #78)** — only a global Superuser can
+    create or activate coach agreement terms naming `ASCORA` as a recipient;
+    gym admins and finance staff keep coach/gym compensation management.
+12. **Periodic fixed coach compensation (decision #83/AC-28)** — an active
+    agreement can carry a monthly fixed amount. Accruing a period creates an
+    unpaid expense/payable through the existing expense ledger, with
+    per-agreement/per-period duplicate protection; no synthetic sale or fake
+    payment is created.
+13. **Cash/bank reconciliation (decision #36/AC-31)** — manual bank statement
+    lines can be recorded, remain visible as `UNMATCHED`, and are matched
+    manually to one confirmed receipt of the same amount. Matching sets the
+    receipt's separate reconciliation flag; receipt confirmation and bank
+    reconciliation remain distinct. No bank integration or automatic matching
+    was added.
+
 **Phase 3 deliberate exclusions:** automatic coach clawback (#30 remains
 deferred), usage/attendance tracking (#18), advanced analytics (#46), and
 platform monetization/settlement (Phase 4).

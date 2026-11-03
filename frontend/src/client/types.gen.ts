@@ -1106,6 +1106,88 @@ export type FinanceAccountsPublic = {
 };
 
 /**
+ * FinanceBankStatementLineCreate
+ */
+export type FinanceBankStatementLineCreate = {
+    /**
+     * Statement On
+     */
+    statement_on: string;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Reference
+     */
+    reference?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+};
+
+/**
+ * FinanceBankStatementLinePublic
+ */
+export type FinanceBankStatementLinePublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Statement On
+     */
+    statement_on: string;
+    /**
+     * Amount Irr
+     */
+    amount_irr: number;
+    /**
+     * Reference
+     */
+    reference?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Status
+     */
+    status: 'UNMATCHED' | 'MATCHED';
+    /**
+     * Receipt Id
+     */
+    receipt_id?: string | null;
+    /**
+     * Receipt Number
+     */
+    receipt_number?: number | null;
+    /**
+     * Matched At
+     */
+    matched_at?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * FinanceBankStatementLinesPublic
+ */
+export type FinanceBankStatementLinesPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceBankStatementLinePublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
  * FinanceCatalogItemCreate
  */
 export type FinanceCatalogItemCreate = {
@@ -1214,6 +1296,14 @@ export type FinanceCoachAgreementCreate = {
      */
     vesting_days?: number;
     /**
+     * Periodic Fixed Irr
+     */
+    periodic_fixed_irr?: number;
+    /**
+     * Periodic Interval
+     */
+    periodic_interval?: 'NONE' | 'MONTHLY';
+    /**
      * Notes
      */
     notes?: string | null;
@@ -1259,6 +1349,14 @@ export type FinanceCoachAgreementPublic = {
      * Vesting Days
      */
     vesting_days: number;
+    /**
+     * Periodic Fixed Irr
+     */
+    periodic_fixed_irr?: number;
+    /**
+     * Periodic Interval
+     */
+    periodic_interval?: string;
     /**
      * Effective From
      */
@@ -1577,6 +1675,16 @@ export type FinanceCoachEarningsPublic = {
      * Count
      */
     count: number;
+};
+
+/**
+ * FinanceCoachPeriodAccrual
+ */
+export type FinanceCoachPeriodAccrual = {
+    /**
+     * Period
+     */
+    period: string;
 };
 
 /**
@@ -2398,7 +2506,7 @@ export type FinanceJournalPublic = {
     /**
      * Event Type
      */
-    event_type: 'OPENING_BALANCE' | 'CORRECTION' | 'INVOICE_ISSUED' | 'INVOICE_VOID' | 'RECEIPT_CONFIRMED' | 'ADVANCE_APPLIED' | 'REFUND_RECORDED' | 'EXPENSE_RECORDED' | 'EXPENSE_PAID' | 'COACH_ALLOCATION' | 'COACH_SETTLEMENT' | 'COACH_REFUND_ADJUSTMENT';
+    event_type: 'OPENING_BALANCE' | 'CORRECTION' | 'INVOICE_ISSUED' | 'INVOICE_VOID' | 'RECEIPT_CONFIRMED' | 'ADVANCE_APPLIED' | 'REFUND_RECORDED' | 'EXPENSE_RECORDED' | 'EXPENSE_PAID' | 'COACH_ALLOCATION' | 'COACH_SETTLEMENT' | 'COACH_SETTLED' | 'COACH_ADJUSTMENT';
     /**
      * Description
      */
@@ -2862,6 +2970,16 @@ export type FinanceReceiptsPublic = {
      * Count
      */
     count: number;
+};
+
+/**
+ * FinanceReconciliationMatchCreate
+ */
+export type FinanceReconciliationMatchCreate = {
+    /**
+     * Receipt Id
+     */
+    receipt_id: string;
 };
 
 /**
@@ -9355,6 +9473,153 @@ export type financeResolveFinanceCoachEarningResponses = {
 };
 
 export type financeResolveFinanceCoachEarningResponse = financeResolveFinanceCoachEarningResponses[keyof financeResolveFinanceCoachEarningResponses];
+
+export type financeAccrueFinanceCoachPeriodData = {
+    body: FinanceCoachPeriodAccrual;
+    headers: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key': string;
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Agreement Id
+         */
+        agreement_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/coach-agreements/{agreement_id}/accrue-period';
+};
+
+export type financeAccrueFinanceCoachPeriodErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeAccrueFinanceCoachPeriodError = financeAccrueFinanceCoachPeriodErrors[keyof financeAccrueFinanceCoachPeriodErrors];
+
+export type financeAccrueFinanceCoachPeriodResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceExpensePublic;
+};
+
+export type financeAccrueFinanceCoachPeriodResponse = financeAccrueFinanceCoachPeriodResponses[keyof financeAccrueFinanceCoachPeriodResponses];
+
+export type financeReadFinanceReconciliationData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Status
+         */
+        status?: string | null;
+    };
+    url: '/api/v1/finance/reconciliation';
+};
+
+export type financeReadFinanceReconciliationErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceReconciliationError = financeReadFinanceReconciliationErrors[keyof financeReadFinanceReconciliationErrors];
+
+export type financeReadFinanceReconciliationResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceBankStatementLinesPublic;
+};
+
+export type financeReadFinanceReconciliationResponse = financeReadFinanceReconciliationResponses[keyof financeReadFinanceReconciliationResponses];
+
+export type financeCreateFinanceReconciliationLineData = {
+    body: FinanceBankStatementLineCreate;
+    headers: {
+        /**
+         * Idempotency-Key
+         */
+        'Idempotency-Key': string;
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/reconciliation';
+};
+
+export type financeCreateFinanceReconciliationLineErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeCreateFinanceReconciliationLineError = financeCreateFinanceReconciliationLineErrors[keyof financeCreateFinanceReconciliationLineErrors];
+
+export type financeCreateFinanceReconciliationLineResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceBankStatementLinePublic;
+};
+
+export type financeCreateFinanceReconciliationLineResponse = financeCreateFinanceReconciliationLineResponses[keyof financeCreateFinanceReconciliationLineResponses];
+
+export type financeMatchFinanceReconciliationLineData = {
+    body: FinanceReconciliationMatchCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Line Id
+         */
+        line_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/reconciliation/{line_id}/match';
+};
+
+export type financeMatchFinanceReconciliationLineErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeMatchFinanceReconciliationLineError = financeMatchFinanceReconciliationLineErrors[keyof financeMatchFinanceReconciliationLineErrors];
+
+export type financeMatchFinanceReconciliationLineResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceBankStatementLinePublic;
+};
+
+export type financeMatchFinanceReconciliationLineResponse = financeMatchFinanceReconciliationLineResponses[keyof financeMatchFinanceReconciliationLineResponses];
 
 export type utilsHealthCheckData = {
     body?: never;

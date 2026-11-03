@@ -119,6 +119,14 @@ def test_partial_settlement_is_fifo_capped_and_confirmable(
     )
     assert confirmed.status_code == 200, confirmed.text
     assert confirmed.json()["status"] == "CONFIRMED"
+    # Confirmation retries are idempotent and never post a second cash entry.
+    assert (
+        client.post(
+            f"/api/v1/finance/coach-settlements/{body['id']}/confirm",
+            headers=owner,
+        ).status_code
+        == 200
+    )
 
     second = settle(client, owner, coach_id, 200_000)
     assert second.status_code == 200, second.text
@@ -152,14 +160,42 @@ def test_partial_settlement_is_fifo_capped_and_confirmable(
             FinanceAccount.code == "2100",
         )
     ).one()
+    pending = db_session.exec(
+        select(FinanceAccount).where(
+            FinanceAccount.gym_id == gym["id"],
+            FinanceAccount.code == "2200",
+        )
+    ).one()
+    assert accounts[payable.id] == (100_000, 0)
+    assert accounts[pending.id] == (0, 100_000)
+
+    confirmed_journal = db_session.get(FinanceJournal, settlement.confirmed_journal_id)
+    assert confirmed_journal is not None
+    confirmed_lines = db_session.exec(
+        select(FinanceJournalLine).where(
+            FinanceJournalLine.journal_id == confirmed_journal.id
+        )
+    ).all()
+    confirmed_accounts = {
+        line.account_id: (line.debit_irr, line.credit_irr)
+        for line in confirmed_lines
+    }
     cash = db_session.exec(
         select(FinanceAccount).where(
             FinanceAccount.gym_id == gym["id"],
             FinanceAccount.code == "1000",
         )
     ).one()
-    assert accounts[payable.id] == (100_000, 0)
-    assert accounts[cash.id] == (0, 100_000)
+    assert confirmed_accounts[pending.id] == (100_000, 0)
+    assert confirmed_accounts[cash.id] == (0, 100_000)
+    # Exactly two settlement journals exist: recorded stage and confirmation.
+    settlement_journals = db_session.exec(
+        select(FinanceJournal).where(
+            FinanceJournal.source_type == "finance_coach_settlement",
+            FinanceJournal.source_id == settlement.id,
+        )
+    ).all()
+    assert len(settlement_journals) == 2
 
     coach_view = client.get(
         "/api/v1/finance/my/settlements", headers=coach_headers

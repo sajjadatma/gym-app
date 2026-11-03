@@ -46,7 +46,7 @@ function termRow(recipient: TermRow["recipient"], value: string): TermRow {
 
 export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
   const { t, formatDate, formatNumber, normalizeDigits } = useI18n()
-  const { activeGymId } = useAuth()
+  const { activeGymId, isSuperuser } = useAuth()
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
   const { money, parse, unitLabel } = useMoney(unit)
@@ -64,6 +64,8 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
   const [mode, setMode] = useState("DIRECT")
   const [vestingMode, setVestingMode] = useState("MANUAL")
   const [vestingDays, setVestingDays] = useState("0")
+  const [periodicFixed, setPeriodicFixed] = useState("")
+  const [periodicInterval, setPeriodicInterval] = useState("NONE")
   const [terms, setTerms] = useState<TermRow[]>([
     termRow("COACH", "30"),
     termRow("GYM", "70"),
@@ -91,6 +93,10 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
     useState<FinanceCoachEarningPublic | null>(null)
   const [earningAgreementId, setEarningAgreementId] = useState("")
   const [earningResolveReason, setEarningResolveReason] = useState("")
+  const [periodicTarget, setPeriodicTarget] =
+    useState<FinanceCoachAgreementPublic | null>(null)
+  const [period, setPeriod] = useState("")
+  const [periodError, setPeriodError] = useState<string | null>(null)
 
   const agreementsQuery = useQuery({
     queryKey: ["finance", scope, "coach-agreements"],
@@ -124,6 +130,8 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
     setMode("DIRECT")
     setVestingMode("MANUAL")
     setVestingDays("0")
+    setPeriodicFixed("")
+    setPeriodicInterval("NONE")
     setTerms([termRow("COACH", "30"), termRow("GYM", "70")])
     setActivateNow(true)
     setFormError(null)
@@ -170,6 +178,15 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
       return
     }
     const parsedTerms = buildTerms()
+    const periodicIrr = periodicFixed ? parse(periodicFixed) : 0
+    if (periodicIrr === null) {
+      setFormError(t("finance.invalidAmount"))
+      return
+    }
+    if (periodicInterval === "MONTHLY" && periodicIrr <= 0) {
+      setFormError(t("finance.coaches.periodicAmountRequired"))
+      return
+    }
     if (!parsedTerms) {
       setFormError(t("finance.invalidAmount"))
       return
@@ -185,6 +202,8 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
           mode: mode as "DIRECT" | "WATERFALL",
           vesting_mode: vestingMode as "ON_DATE" | "MANUAL",
           vesting_days: Number(normalizeDigits(vestingDays)) || 0,
+          periodic_fixed_irr: periodicIrr,
+          periodic_interval: periodicInterval as "NONE" | "MONTHLY",
           terms: parsedTerms,
         },
       })
@@ -296,6 +315,27 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
     }
   }
 
+  async function accruePeriod() {
+    if (!periodicTarget) return
+    setSaving(true)
+    setPeriodError(null)
+    try {
+      await FinanceService.accrueFinanceCoachPeriod({
+        path: { agreement_id: periodicTarget.id },
+        body: { period: period.trim() },
+        headers: { "Idempotency-Key": newKey() },
+      })
+      await invalidate()
+      setPeriodicTarget(null)
+      setPeriod("")
+      show(t("finance.coaches.periodAccrued"), "success")
+    } catch (err) {
+      setPeriodError(translateApiError(err, t))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function resolveEarning() {
     if (!earningResolveTarget || !earningAgreementId) return
     setSaving(true)
@@ -390,6 +430,12 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
                           : ""}
                       </span>
                       <span>{agreement.vesting_mode}</span>
+                      {agreement.periodic_interval === "MONTHLY" ? (
+                        <span>
+                          {t("finance.coaches.periodic")}:{" "}
+                          {money(agreement.periodic_fixed_irr ?? 0)}
+                        </span>
+                      ) : null}
                       <span>
                         {agreement.terms
                           .map(
@@ -404,13 +450,39 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
                       </span>
                     </div>
                   </div>
-                  {canAgree && agreement.status === "DRAFT" ? (
+                  {canAgree &&
+                  agreement.status === "DRAFT" &&
+                  (isSuperuser ||
+                    !agreement.terms.some(
+                      (term) => term.recipient === "ASCORA",
+                    )) ? (
                     <Button
                       size="sm"
                       loading={saving}
                       onClick={() => void activate(agreement)}
                     >
                       {t("finance.coaches.activate")}
+                    </Button>
+                  ) : null}
+                  {canAgree &&
+                  agreement.status === "ACTIVE" &&
+                  agreement.periodic_interval === "MONTHLY" &&
+                  (agreement.periodic_fixed_irr ?? 0) > 0 ? (
+                    <Button
+                      variant="text"
+                      size="sm"
+                      onClick={() => {
+                        const now = new Date()
+                        setPeriod(
+                          `${now.getFullYear()}-${String(
+                            now.getMonth() + 1,
+                          ).padStart(2, "0")}`,
+                        )
+                        setPeriodError(null)
+                        setPeriodicTarget(agreement)
+                      }}
+                    >
+                      {t("finance.coaches.accruePeriod")}
                     </Button>
                   ) : null}
                 </div>
@@ -684,6 +756,32 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
               }
             />
           </div>
+          <div className="row" style={{ gap: 8, alignItems: "flex-end" }}>
+            <SelectField
+              label={t("finance.coaches.periodicInterval")}
+              value={periodicInterval}
+              onChange={(value) => setPeriodicInterval(value)}
+              options={[
+                { value: "NONE", label: t("finance.coaches.periodicNone") },
+                {
+                  value: "MONTHLY",
+                  label: t("finance.coaches.periodicMonthly"),
+                },
+              ]}
+              containerClassName="grow"
+            />
+            {periodicInterval === "MONTHLY" ? (
+              <TextField
+                label={t("finance.coaches.periodicAmount")}
+                value={periodicFixed}
+                inputMode="decimal"
+                dir="auto"
+                onChange={(event) =>
+                  setPeriodicFixed(normalizeDigits(event.target.value))
+                }
+              />
+            ) : null}
+          </div>
           <h3 className="m3-section__subtitle">{t("finance.coaches.terms")}</h3>
           {terms.map((term, index) => (
             <div
@@ -701,7 +799,9 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
                 }
                 options={[
                   { value: "COACH", label: "COACH" },
-                  { value: "ASCORA", label: "ASCORA" },
+                  ...(isSuperuser
+                    ? [{ value: "ASCORA", label: "ASCORA" }]
+                    : []),
                   { value: "GYM", label: "GYM" },
                 ]}
               />
@@ -857,6 +957,48 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
           multiline
           required
         />
+      </Dialog>
+
+      <Dialog
+        open={periodicTarget !== null}
+        title={t("finance.coaches.accruePeriod")}
+        description={
+          periodicTarget
+            ? (periodicTarget.coach_name ??
+              customerName(periodicTarget.coach_user_id))
+            : undefined
+        }
+        onClose={() => setPeriodicTarget(null)}
+        footer={
+          <>
+            <Button variant="text" onClick={() => setPeriodicTarget(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              loading={saving}
+              disabled={!period.trim()}
+              onClick={() => void accruePeriod()}
+            >
+              {t("common.confirm")}
+            </Button>
+          </>
+        }
+      >
+        <div className="stack">
+          {periodError ? (
+            <div className="m3-inline-alert" role="alert">
+              {periodError}
+            </div>
+          ) : null}
+          <TextField
+            label={t("finance.coaches.period")}
+            helper={t("finance.coaches.periodHint")}
+            value={period}
+            dir="ltr"
+            onChange={(event) => setPeriod(event.target.value)}
+            required
+          />
+        </div>
       </Dialog>
 
       <Dialog

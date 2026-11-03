@@ -28,6 +28,10 @@ from app.finance_models import (
     FINANCE_VIEW,
     FinanceAccount,
     FinanceAudit,
+    FinanceBankStatementLine,
+    FinanceBankStatementLineCreate,
+    FinanceBankStatementLinePublic,
+    FinanceBankStatementLinesPublic,
     FinanceCatalogItem,
     FinanceCatalogItemCreate,
     FinanceCatalogItemPublic,
@@ -48,6 +52,7 @@ from app.finance_models import (
     FinanceCoachEarningPublic,
     FinanceCoachEarningResolve,
     FinanceCoachEarningsPublic,
+    FinanceCoachPeriodAccrual,
     FinanceCoachSettlement,
     FinanceCoachSettlementCreate,
     FinanceCoachSettlementItem,
@@ -102,6 +107,7 @@ from app.finance_models import (
     FinanceReceiptCreate,
     FinanceReceiptPublic,
     FinanceReceiptsPublic,
+    FinanceReconciliationMatchCreate,
     FinanceRefund,
     FinanceRefundCreate,
     FinanceRefundPreview,
@@ -147,6 +153,7 @@ DEFAULT_ACCOUNTS: tuple[tuple[str, str, str], ...] = (
     ("1100", "مطالبات", "ASSET"),
     ("2000", "بدهی‌ها", "LIABILITY"),
     ("2100", "بدهی به مربیان", "LIABILITY"),
+    ("2200", "تسویه‌های در انتظار", "LIABILITY"),
     ("3000", "سرمایه افتتاحیه", "EQUITY"),
     ("4000", "درآمد", "INCOME"),
     ("4100", "برگشت از فروش", "INCOME"),
@@ -4106,7 +4113,7 @@ def create_coach_settlement(
         description="Coach settlement",
         lines=[
             (accounts["2100"].id, body.amount_irr, 0, "Coach payable"),
-            (accounts["1000"].id, 0, body.amount_irr, "Coach payout"),
+            (accounts["2200"].id, 0, body.amount_irr, "Pending coach payout"),
         ],
         created_by_id=actor.id,
         source_type="finance_coach_settlement",
@@ -4148,14 +4155,36 @@ def confirm_coach_settlement(
     settlement_id: uuid.UUID,
 ) -> FinanceCoachSettlementPublic:
     scope.require(FINANCE_SETTLEMENT_MANAGE)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
+    scope.require(FINANCE_SETTLEMENT_MANAGE)
     settlement = session.get(FinanceCoachSettlement, settlement_id)
     if settlement is None or settlement.gym_id != scope.gym_id:
         raise HTTPException(status_code=404, detail="settlement_not_found")
+    if settlement.status == "CONFIRMED":
+        return _settlement_public(session, settlement)
     if settlement.status != "RECORDED":
         raise HTTPException(status_code=409, detail="settlement_not_recorded")
+    accounts = ensure_accounts(session, scope.gym_id)
+    journal = post_journal(
+        session,
+        gym_id=scope.gym_id,
+        posting_date=settlement.paid_on,
+        event_type="COACH_SETTLED",
+        description="Coach settlement confirmed",
+        lines=[
+            (accounts["2200"].id, settlement.amount_irr, 0, "Pending coach payout"),
+            (accounts["1000"].id, 0, settlement.amount_irr, "Coach payout"),
+        ],
+        created_by_id=actor.id,
+        source_type="finance_coach_settlement",
+        source_id=settlement.id,
+    )
     settlement.status = "CONFIRMED"
     settlement.confirmed_by_id = actor.id
     settlement.confirmed_at = utcnow()
+    settlement.confirmed_journal_id = journal.id
     session.add(settlement)
     record_audit(
         session,
@@ -4164,6 +4193,7 @@ def confirm_coach_settlement(
         action="finance.coach_settlement.confirmed",
         target_type="finance_coach_settlement",
         target_id=settlement.id,
+        detail={"journal_id": str(journal.id)},
     )
     session.commit()
     session.refresh(settlement)
@@ -4451,6 +4481,219 @@ def resolve_coach_earning(
     return _earning_public(session, earning)
 
 
+def accrue_coach_period(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    agreement_id: uuid.UUID,
+    body: FinanceCoachPeriodAccrual,
+    operation_key: str,
+) -> FinanceExpensePublic:
+    scope.require(FINANCE_COACH_AGREEMENT_MANAGE)
+    agreement = session.get(FinanceCoachAgreement, agreement_id)
+    if agreement is None or agreement.gym_id != scope.gym_id:
+        raise HTTPException(status_code=404, detail="coach_agreement_not_found")
+    if agreement.status != "ACTIVE":
+        raise HTTPException(status_code=409, detail="coach_agreement_not_active")
+    if (
+        agreement.periodic_interval != "MONTHLY"
+        or agreement.periodic_fixed_irr <= 0
+    ):
+        raise HTTPException(status_code=400, detail="coach_periodic_not_configured")
+    coach = session.get(User, agreement.coach_user_id)
+    try:
+        year, month = (int(part) for part in body.period.split("-"))
+        spent_on = date(year, month, 1)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="invalid_coach_period") from exc
+    expense = create_expense(
+        session,
+        scope=scope,
+        actor=actor,
+        body=FinanceExpenseCreate(
+            category="حقوق ثابت مربی",
+            counterparty=(coach.full_name or coach.email) if coach else None,
+            description=f"Periodic coach compensation {body.period}",
+            amount_irr=agreement.periodic_fixed_irr,
+            spent_on=spent_on,
+            paid=False,
+            method=None,
+            recurrence_key=agreement.id,
+        ),
+        operation_key=operation_key,
+    )
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.coach_periodic.accrued",
+        target_type="finance_coach_agreement",
+        target_id=agreement.id,
+        detail={"period": body.period, "expense_id": str(expense.id)},
+    )
+    session.commit()
+    return expense
+
+
+def _reconciliation_public(
+    session: Session, row: FinanceBankStatementLine
+) -> FinanceBankStatementLinePublic:
+    receipt = (
+        session.get(FinanceReceipt, row.receipt_id) if row.receipt_id else None
+    )
+    return FinanceBankStatementLinePublic(
+        id=row.id,
+        statement_on=row.statement_on,
+        amount_irr=row.amount_irr,
+        reference=row.reference,
+        description=row.description,
+        status=row.status,  # type: ignore[arg-type]
+        receipt_id=row.receipt_id,
+        receipt_number=receipt.receipt_number if receipt else None,
+        matched_at=row.matched_at,
+        created_at=row.created_at,
+    )
+
+
+def list_bank_statement_lines(
+    session: Session, *, gym_id: uuid.UUID, status: str | None = None
+) -> FinanceBankStatementLinesPublic:
+    filters: list[Any] = [FinanceBankStatementLine.gym_id == gym_id]
+    if status is not None:
+        filters.append(FinanceBankStatementLine.status == status)
+    rows = session.exec(
+        select(FinanceBankStatementLine)
+        .where(*filters)
+        .order_by(
+            col(FinanceBankStatementLine.statement_on).desc(),
+            col(FinanceBankStatementLine.created_at).desc(),
+        )
+    ).all()
+    return FinanceBankStatementLinesPublic(
+        data=[_reconciliation_public(session, row) for row in rows],
+        count=len(rows),
+    )
+
+
+def create_bank_statement_line(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    body: FinanceBankStatementLineCreate,
+    operation_key: str,
+) -> FinanceBankStatementLinePublic:
+    scope.require(FINANCE_PAYMENT_RECORD)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
+    scope.require(FINANCE_PAYMENT_RECORD)
+    payload = body.model_dump(mode="json")
+    operation = find_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+    )
+    if operation is not None:
+        row = session.get(FinanceBankStatementLine, operation.result_id)
+        if row is None or row.gym_id != scope.gym_id:
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
+        return _reconciliation_public(session, row)
+    row = FinanceBankStatementLine(
+        gym_id=scope.gym_id,
+        statement_on=body.statement_on,
+        amount_irr=body.amount_irr,
+        reference=body.reference,
+        description=body.description,
+        created_by_id=actor.id,
+    )
+    session.add(row)
+    session.flush()
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.reconciliation.imported",
+        target_type="finance_bank_statement_line",
+        target_id=row.id,
+        detail={"amount_irr": body.amount_irr},
+    )
+    remember_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="finance_bank_statement_line",
+        result_id=row.id,
+    )
+    session.commit()
+    session.refresh(row)
+    return _reconciliation_public(session, row)
+
+
+def match_bank_statement_line(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    line_id: uuid.UUID,
+    body: FinanceReconciliationMatchCreate,
+) -> FinanceBankStatementLinePublic:
+    scope.require(FINANCE_PAYMENT_RECORD)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
+    scope.require(FINANCE_PAYMENT_RECORD)
+    row = session.get(FinanceBankStatementLine, line_id)
+    if row is None or row.gym_id != scope.gym_id:
+        raise HTTPException(status_code=404, detail="reconciliation_line_not_found")
+    if row.status == "MATCHED":
+        if row.receipt_id == body.receipt_id:
+            return _reconciliation_public(session, row)
+        raise HTTPException(status_code=409, detail="reconciliation_already_matched")
+    receipt = session.get(FinanceReceipt, body.receipt_id)
+    if receipt is None or receipt.gym_id != scope.gym_id:
+        raise HTTPException(status_code=404, detail="receipt_not_found")
+    if receipt.status != "CONFIRMED":
+        raise HTTPException(status_code=409, detail="receipt_not_confirmed")
+    if receipt.amount_irr != row.amount_irr:
+        raise HTTPException(
+            status_code=400, detail="reconciliation_amount_mismatch"
+        )
+    already = session.exec(
+        select(FinanceBankStatementLine).where(
+            FinanceBankStatementLine.receipt_id == body.receipt_id
+        )
+    ).first()
+    if already is not None and already.id != row.id:
+        raise HTTPException(status_code=409, detail="reconciliation_already_matched")
+    row.status = "MATCHED"
+    row.receipt_id = receipt.id
+    row.matched_by_id = actor.id
+    row.matched_at = utcnow()
+    receipt.reconciled_at = utcnow()
+    session.add(row)
+    session.add(receipt)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.reconciliation.matched",
+        target_type="finance_bank_statement_line",
+        target_id=row.id,
+        detail={
+            "receipt_id": str(receipt.id),
+            "receipt_number": receipt.receipt_number,
+            "amount_irr": row.amount_irr,
+        },
+    )
+    session.commit()
+    session.refresh(row)
+    return _reconciliation_public(session, row)
+
+
 def list_reminders(
     session: Session,
     *,
@@ -4537,6 +4780,8 @@ def _agreement_public(
         mode=agreement.mode,  # type: ignore[arg-type]
         vesting_mode=agreement.vesting_mode,  # type: ignore[arg-type]
         vesting_days=agreement.vesting_days,
+        periodic_fixed_irr=agreement.periodic_fixed_irr,
+        periodic_interval=agreement.periodic_interval,
         effective_from=agreement.effective_from,
         effective_to=agreement.effective_to,
         notes=agreement.notes,
@@ -4606,6 +4851,14 @@ def create_coach_agreement(
             status_code=400, detail="invalid_coach_agreement_dates"
         )
     _validate_agreement_terms(body.terms)
+    if body.periodic_interval == "MONTHLY" and body.periodic_fixed_irr <= 0:
+        raise HTTPException(status_code=400, detail="invalid_coach_periodic")
+    if body.periodic_interval == "NONE" and body.periodic_fixed_irr:
+        raise HTTPException(status_code=400, detail="invalid_coach_periodic")
+    if any(term.recipient == "ASCORA" for term in body.terms) and not (
+        scope.is_superuser
+    ):
+        raise HTTPException(status_code=403, detail="superuser_required")
     latest = session.exec(
         select(FinanceCoachAgreement)
         .where(
@@ -4621,6 +4874,8 @@ def create_coach_agreement(
         mode=body.mode,
         vesting_mode=body.vesting_mode,
         vesting_days=body.vesting_days,
+        periodic_fixed_irr=body.periodic_fixed_irr,
+        periodic_interval=body.periodic_interval,
         effective_from=body.effective_from,
         effective_to=body.effective_to,
         notes=body.notes,
@@ -4705,6 +4960,10 @@ def activate_coach_agreement(
         )
     ).all()
     _validate_agreement_terms(terms)
+    if any(term.recipient == "ASCORA" for term in terms) and not (
+        scope.is_superuser
+    ):
+        raise HTTPException(status_code=403, detail="superuser_required")
     agreement.status = "ACTIVE"
     agreement.activated_by_id = actor.id
     agreement.activated_at = utcnow()

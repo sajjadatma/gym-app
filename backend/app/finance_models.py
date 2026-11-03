@@ -32,6 +32,7 @@ FinanceJournalEvent = Literal[
     "EXPENSE_PAID",
     "COACH_ALLOCATION",
     "COACH_SETTLEMENT",
+    "COACH_SETTLED",
     "COACH_ADJUSTMENT",
 ]
 
@@ -225,7 +226,7 @@ class FinanceJournal(SQLModel, table=True):
             "'INVOICE_ISSUED', 'INVOICE_VOID', 'RECEIPT_CONFIRMED', "
             "'ADVANCE_APPLIED', 'REFUND_RECORDED', 'EXPENSE_RECORDED', "
             "'EXPENSE_PAID', 'COACH_ALLOCATION', 'COACH_SETTLEMENT', "
-            "'COACH_ADJUSTMENT')",
+            "'COACH_SETTLED', 'COACH_ADJUSTMENT')",
             name="ck_finance_journal_event",
         ),
     )
@@ -1325,6 +1326,14 @@ class FinanceCoachAgreement(SQLModel, table=True):
             "effective_to IS NULL OR effective_to >= effective_from",
             name="ck_finance_coach_agreement_dates",
         ),
+        CheckConstraint(
+            "periodic_interval IN ('NONE', 'MONTHLY')",
+            name="ck_finance_coach_agreement_periodic",
+        ),
+        CheckConstraint(
+            "periodic_fixed_irr >= 0",
+            name="ck_finance_coach_agreement_periodic_amount",
+        ),
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
@@ -1337,6 +1346,10 @@ class FinanceCoachAgreement(SQLModel, table=True):
     mode: str = Field(default="DIRECT", max_length=20)
     vesting_mode: str = Field(default="MANUAL", max_length=20)
     vesting_days: int = Field(default=0)
+    periodic_fixed_irr: int = Field(
+        default=0, sa_column=Column(BigInteger, nullable=False)
+    )
+    periodic_interval: str = Field(default="NONE", max_length=20)
     effective_from: date
     effective_to: date | None = Field(default=None)
     notes: str | None = Field(default=None, max_length=1000)
@@ -1404,6 +1417,8 @@ class FinanceCoachAgreementCreate(SQLModel):
     mode: FinanceCoachAgreementMode = "DIRECT"
     vesting_mode: FinanceCoachVestingMode = "MANUAL"
     vesting_days: int = Field(default=0, ge=0, le=3650)
+    periodic_fixed_irr: int = Field(default=0, ge=0, le=MAX_FINANCE_IRR)
+    periodic_interval: Literal["NONE", "MONTHLY"] = "NONE"
     notes: str | None = Field(default=None, max_length=1000)
     terms: list[FinanceCoachAgreementTermInput] = Field(min_length=1)
 
@@ -1427,6 +1442,8 @@ class FinanceCoachAgreementPublic(SQLModel):
     mode: FinanceCoachAgreementMode
     vesting_mode: FinanceCoachVestingMode
     vesting_days: int
+    periodic_fixed_irr: int = 0
+    periodic_interval: str = "NONE"
     effective_from: date
     effective_to: date | None = None
     notes: str | None = None
@@ -1589,6 +1606,9 @@ class FinanceCoachSettlement(SQLModel, table=True):
     notes: str | None = Field(default=None, max_length=1000)
     status: str = Field(default="RECORDED", max_length=20)
     journal_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_journal.id", ondelete="RESTRICT"
+    )
+    confirmed_journal_id: uuid.UUID | None = Field(
         default=None, foreign_key="finance_journal.id", ondelete="RESTRICT"
     )
     created_by_id: uuid.UUID | None = Field(
@@ -1765,3 +1785,76 @@ class FinanceCoachDiscrepanciesPublic(SQLModel):
 class FinanceCoachEarningResolve(SQLModel):
     agreement_id: uuid.UUID
     reason: str = Field(min_length=3, max_length=500)
+
+
+class FinanceCoachPeriodAccrual(SQLModel):
+    period: str = Field(min_length=7, max_length=7)
+
+
+FinanceReconciliationStatus = Literal["UNMATCHED", "MATCHED"]
+
+
+class FinanceBankStatementLine(SQLModel, table=True):
+    __tablename__ = "finance_bank_statement_line"
+    __table_args__ = (
+        UniqueConstraint(
+            "receipt_id", name="uq_finance_reconciliation_receipt"
+        ),
+        CheckConstraint(
+            "amount_irr > 0", name="ck_finance_reconciliation_amount"
+        ),
+        CheckConstraint(
+            "status IN ('UNMATCHED', 'MATCHED')",
+            name="ck_finance_reconciliation_status",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
+    statement_on: date
+    amount_irr: int = Field(sa_column=Column(BigInteger, nullable=False))
+    reference: str | None = Field(default=None, max_length=255)
+    description: str | None = Field(default=None, max_length=1000)
+    status: str = Field(default="UNMATCHED", max_length=20)
+    receipt_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="finance_receipt.id",
+        ondelete="RESTRICT",
+    )
+    matched_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    matched_at: datetime | None = Field(default=None)
+    created_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+class FinanceBankStatementLineCreate(SQLModel):
+    statement_on: date
+    amount_irr: int = Field(ge=1, le=MAX_FINANCE_IRR)
+    reference: str | None = Field(default=None, max_length=255)
+    description: str | None = Field(default=None, max_length=1000)
+
+
+class FinanceBankStatementLinePublic(SQLModel):
+    id: uuid.UUID
+    statement_on: date
+    amount_irr: int
+    reference: str | None = None
+    description: str | None = None
+    status: FinanceReconciliationStatus
+    receipt_id: uuid.UUID | None = None
+    receipt_number: int | None = None
+    matched_at: datetime | None = None
+    created_at: datetime
+
+
+class FinanceBankStatementLinesPublic(SQLModel):
+    data: list[FinanceBankStatementLinePublic]
+    count: int
+
+
+class FinanceReconciliationMatchCreate(SQLModel):
+    receipt_id: uuid.UUID

@@ -13,6 +13,9 @@ from app.finance_models import (
     FINANCE_VIEW,
     FinanceAccountPublic,
     FinanceAccountsPublic,
+    FinanceBankStatementLineCreate,
+    FinanceBankStatementLinePublic,
+    FinanceBankStatementLinesPublic,
     FinanceCatalogItemCreate,
     FinanceCatalogItemPublic,
     FinanceCatalogItemUpdate,
@@ -26,6 +29,7 @@ from app.finance_models import (
     FinanceCoachEarningPublic,
     FinanceCoachEarningResolve,
     FinanceCoachEarningsPublic,
+    FinanceCoachPeriodAccrual,
     FinanceCoachSettlementCreate,
     FinanceCoachSettlementPublic,
     FinanceCoachSettlementsPublic,
@@ -64,6 +68,7 @@ from app.finance_models import (
     FinanceReceiptCreate,
     FinanceReceiptPublic,
     FinanceReceiptsPublic,
+    FinanceReconciliationMatchCreate,
     FinanceRefundCreate,
     FinanceRefundPreview,
     FinanceRefundPublic,
@@ -77,12 +82,14 @@ from app.finance_models import (
 from app.models import Message
 from app.services.finance import (
     accounts_public,
+    accrue_coach_period,
     activate_coach_agreement,
     apply_customer_credit,
     approve_refund,
     cancel_membership,
     close_period,
     confirm_coach_settlement,
+    create_bank_statement_line,
     create_catalog_item,
     create_coach_agreement,
     create_coach_settlement,
@@ -102,6 +109,7 @@ from app.services.finance import (
     get_membership,
     get_receipt,
     issue_invoice,
+    list_bank_statement_lines,
     list_catalog,
     list_coach_agreements,
     list_coach_discrepancies,
@@ -118,6 +126,7 @@ from app.services.finance import (
     list_refunds,
     list_reminders,
     lock_finance_gym,
+    match_bank_statement_line,
     membership_refund_preview,
     my_account,
     pay_expense,
@@ -1324,5 +1333,89 @@ def resolve_finance_coach_earning(
         scope=scope,
         actor=current_user,
         earning_id=earning_id,
+        body=body,
+    )
+
+
+@router.post(
+    "/coach-agreements/{agreement_id}/accrue-period",
+    response_model=FinanceExpensePublic,
+)
+def accrue_finance_coach_period(
+    *,
+    agreement_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceCoachPeriodAccrual,
+    idempotency_key: IdempotencyKey,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return accrue_coach_period(
+        session,
+        scope=scope,
+        actor=current_user,
+        agreement_id=agreement_id,
+        body=body,
+        operation_key=idempotency_key,
+    )
+
+
+@router.get(
+    "/reconciliation", response_model=FinanceBankStatementLinesPublic
+)
+def read_finance_reconciliation(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    status: str | None = None,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return list_bank_statement_lines(
+        session, gym_id=ctx.gym.id, status=status
+    )
+
+
+@router.post(
+    "/reconciliation", response_model=FinanceBankStatementLinePublic
+)
+def create_finance_reconciliation_line(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceBankStatementLineCreate,
+    idempotency_key: IdempotencyKey,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return create_bank_statement_line(
+        session,
+        scope=scope,
+        actor=current_user,
+        body=body,
+        operation_key=idempotency_key,
+    )
+
+
+@router.post(
+    "/reconciliation/{line_id}/match",
+    response_model=FinanceBankStatementLinePublic,
+)
+def match_finance_reconciliation_line(
+    *,
+    line_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceReconciliationMatchCreate,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return match_bank_statement_line(
+        session,
+        scope=scope,
+        actor=current_user,
+        line_id=line_id,
         body=body,
     )

@@ -191,7 +191,7 @@ def test_discount_funding_is_deterministic_and_mixed_splits_pro_rata(
     coach_id, _ = make_coach(client, owner, gym_id)
     active_agreement(
         client,
-        owner,
+        {**superuser_headers, "X-Gym-ID": gym_id},
         coach_id,
         terms=[
             {"recipient": "COACH", "basis": "PERCENT", "percent_bp": 3000},

@@ -216,7 +216,8 @@ def test_existing_gyms_receive_the_minimal_chart(
     finally:
         engine.dispose()
     assert codes == [
-        "1000", "1100", "2000", "2100", "3000", "4000", "4100", "5000", "5100"
+        "1000", "1100", "2000", "2100", "2200", "3000", "4000", "4100",
+        "5000", "5100"
     ]
 
 

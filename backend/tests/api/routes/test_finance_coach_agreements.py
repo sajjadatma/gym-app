@@ -345,3 +345,30 @@ def test_expired_agreement_is_not_selected_over_a_valid_version(
         },
     )
     assert granted.status_code == 200, granted.text
+
+
+def test_only_superuser_can_set_platform_fee_terms(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Platform Fee Gym")
+    gym_id = str(gym["id"])
+    coach_id, _ = make_coach(client, owner, gym_id)
+    terms = [
+        {"recipient": "COACH", "basis": "PERCENT", "percent_bp": 3000},
+        {"recipient": "ASCORA", "basis": "PERCENT", "percent_bp": 1000},
+        {"recipient": "GYM", "basis": "PERCENT", "percent_bp": 6000},
+    ]
+    rejected = client.post(
+        "/api/v1/finance/coach-agreements",
+        headers=owner,
+        json=agreement_payload(coach_id, terms=terms),
+    )
+    assert rejected.status_code == 403, rejected.text
+    assert rejected.json()["detail"] == "superuser_required"
+
+    allowed = client.post(
+        "/api/v1/finance/coach-agreements",
+        headers={**superuser_headers, "X-Gym-ID": gym_id},
+        json=agreement_payload(coach_id, terms=terms),
+    )
+    assert allowed.status_code == 200, allowed.text
