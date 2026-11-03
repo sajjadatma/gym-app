@@ -412,3 +412,32 @@ def test_deactivating_a_finance_membership_revokes_active_grants(
     assert client.get("/api/v1/finance/grants", headers=owner).json()["count"] == 0
     blocked = client.get("/api/v1/finance/settings", headers=staff)
     assert blocked.status_code == 403, blocked.text
+
+
+def test_amount_limit_is_rejected_for_permissions_without_enforcement(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Unsupported Limit Gym")
+    staff = add_staff(client, owner, str(gym["id"]), roles=["FINANCE_STAFF"])
+    staff_id = client.get("/api/v1/users/me", headers=staff).json()["id"]
+
+    rejected = grant(
+        client,
+        owner,
+        staff_id,
+        [{"permission": "finance.expense.manage", "amount_limit_irr": 1_000}],
+    )
+    assert rejected.status_code == 400, rejected.text
+    assert rejected.json()["detail"] == "finance_amount_limit_not_supported"
+    assert client.get("/api/v1/finance/grants", headers=owner).json()["count"] == 0
+
+    allowed = grant(
+        client,
+        owner,
+        staff_id,
+        [{"permission": "finance.expense.manage"}],
+    )
+    assert allowed.status_code == 200, allowed.text
+    assert allowed.json()["grants"] == [
+        {"permission": "finance.expense.manage", "amount_limit_irr": None}
+    ]

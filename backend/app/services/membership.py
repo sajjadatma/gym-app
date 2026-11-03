@@ -175,14 +175,12 @@ def activate_user(
         session.add(user)
 
     if not user.hashed_password:
-        if method == "password":
-            generated_password = initial_password or secrets.token_urlsafe(9)
-            user.hashed_password = get_password_hash(generated_password)
-            user.must_change_password = True
-            session.add(user)
-        else:
-            send_invitation_for_user(user, gym)
-            invitation_sent = True
+        # Never let a caller set a password for an existing user. An existing
+        # passwordless user may belong to another gym; accepting an invitation
+        # proves control of the email address before the account is activated.
+        send_invitation_for_user(user, gym)
+        invitation_sent = True
+        generated_password = None
     return ActivationResult(
         user=user,
         initial_password=generated_password

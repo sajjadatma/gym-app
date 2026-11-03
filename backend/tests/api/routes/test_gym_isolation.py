@@ -8,6 +8,7 @@ from tests.utils.helpers import (
     change_password,
     create_athlete,
     create_gym,
+    extract_invitation_token,
     gym_headers,
     unique_email,
 )
@@ -317,3 +318,83 @@ def test_owner_without_explicit_role_has_implicit_admin_and_loses_it_after_trans
     assert client.get(
         f"/api/v1/gyms/{gym['id']}/members", headers=owner
     ).status_code in {403, 404}
+
+
+def test_gym_admin_cannot_set_password_for_pending_user_in_another_gym(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    email_outbox: list[dict],
+) -> None:
+    attacker_email = unique_email("takeover-attacker")
+    attacker_gym = create_gym(
+        client,
+        superuser_headers,
+        name="Attacker Gym",
+        owner_email=attacker_email,
+        password="attacker-pass-123",
+    )["gym"]
+    raw_attacker = auth_headers(client, attacker_email, "attacker-pass-123")
+    change_password(
+        client,
+        raw_attacker,
+        current_password="attacker-pass-123",
+        new_password="attacker-pass-456",
+    )
+    attacker = gym_headers(
+        client,
+        email=attacker_email,
+        password="attacker-pass-456",
+        gym_id=attacker_gym["id"],
+    )
+
+    victim_email = unique_email("pending-victim-owner")
+    victim_gym = create_gym(
+        client,
+        superuser_headers,
+        name="Victim Gym",
+        owner_email=victim_email,
+        method="invite",
+    )["gym"]
+    assert email_outbox
+
+    response = client.post(
+        f"/api/v1/gyms/{attacker_gym['id']}/members",
+        headers=attacker,
+        json={
+            "email": victim_email,
+            "full_name": "Pending Victim",
+            "roles": ["COACH"],
+            "activation_method": "password",
+            "initial_password": "attacker-set-pass-123",
+            "phone": "09120000001",
+        },
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["initial_password"] is None
+    assert body["invitation_sent"] is True
+
+    attacker_password_login = client.post(
+        "/api/v1/login/access-token",
+        data={"username": victim_email, "password": "attacker-set-pass-123"},
+    )
+    assert attacker_password_login.status_code == 400
+
+    token = extract_invitation_token(email_outbox[-1]["html_content"])
+    accepted = client.post(
+        "/api/v1/auth/accept-invitation",
+        json={"token": token, "new_password": "victim-pass-123"},
+    )
+    assert accepted.status_code == 200, accepted.text
+    victim = gym_headers(
+        client,
+        email=victim_email,
+        password="victim-pass-123",
+        gym_id=victim_gym["id"],
+    )
+    assert (
+        client.get(
+            f"/api/v1/gyms/{victim_gym['id']}/members", headers=victim
+        ).status_code
+        == 200
+    )

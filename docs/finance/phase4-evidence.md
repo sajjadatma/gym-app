@@ -132,7 +132,7 @@ Known limitations kept out of this closeout: owner standing/reminders and the Su
 | 39 | **Implemented** | coach own earnings tests |
 | 40 | **Implemented** | athlete self-service tests |
 | 41 | **Implemented** | Superuser full access tests |
-| 42 | **Implemented** | approval/amount-limit tests |
+| 42 | **Partial** | approval flow implemented; amount limits enforced only for opening balances, other amount-bearing permissions reject unsupported limits (5A.1) |
 | 43 | **Implemented** | gym dashboard tests |
 | 44 | **Implemented** | platform overview, per-gym netting and credit/cancellation tests |
 | 45 | **Implemented** | coach/athlete mobile views |
@@ -180,7 +180,7 @@ Known limitations kept out of this closeout: owner standing/reminders and the Su
 | 87 | **Implemented** | unique invoice numbering tests |
 | 88 | **Implemented** | opening balance/Superuser correction tests |
 | 89 | **Implemented** | Superuser acts alone with audit |
-| 90 | **Implemented** | granular grants/limits tests |
+| 90 | **Partial** | granular grants implemented; opening-balance amount limit enforced, other permissions reject unsupported limits (5A.1); per-action limits outstanding |
 | 91 | **Partial** | limits modeled/surfaced; core enforcement not implemented |
 | 92 | **Partial** | local gates/tests/restore pass; public release/pilot/legal not done |
 | ADD-01 | **Implemented** | zero-plan/free/commission/hybrid/custom controls and tests |

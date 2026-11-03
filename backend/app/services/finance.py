@@ -1030,6 +1030,15 @@ def replace_grants(
     target = session.get(User, target_user_id)
     if target is None:
         raise HTTPException(status_code=404, detail="user_not_found")
+    for item in body.grants:
+        if (
+            item.amount_limit_irr is not None
+            and item.permission != FINANCE_OPENING_MANAGE
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="finance_amount_limit_not_supported",
+            )
     lock_finance_gym(session, scope.gym_id)
     if not active_finance_staff(
         session, gym_id=scope.gym_id, user_id=target_user_id
