@@ -215,6 +215,13 @@ def test_group_invoice_keeps_branch_lines_and_volume_discount(
     }
     assert sum(row["amount_irr"] for row in body["lines"]) == body["total_irr"]
     assert len(db_session.exec(select(FinanceJournal)).all()) == gym_journals_before
+    cancelled = client.post(
+        f"/api/v1/platform/invoices/{body['id']}/cancel",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={"reason": "group invoice error"},
+    )
+    assert cancelled.status_code == 200, cancelled.text
+    assert cancelled.json()["status"] == "CANCELLED"
 
 
 def test_platform_payment_is_partial_safe_idempotent_and_only_platform_cash(
@@ -339,3 +346,41 @@ def test_unpaid_platform_invoice_cancellation_is_append_only_and_reversible(
     )
     assert cannot.status_code == 409, cannot.text
     assert cannot.json()["detail"] == "platform_invoice_paid"
+
+
+def test_partially_paid_receivable_is_not_reinvoiced_or_overcollected(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, _ = make_owner(client, superuser_headers, name="No Rebill Gym")
+    gym_id = str(gym["id"])
+    agreement = subscription_agreement(
+        client, superuser_headers, gym_id, amount=500_000
+    )
+    accrued = accrue(client, superuser_headers, agreement["id"])
+    assert accrued.status_code == 200, accrued.text
+    first = issue_platform_invoice(client, superuser_headers, gym_id=gym_id)
+    assert first.status_code == 200, first.text
+    payment = client.post(
+        f"/api/v1/platform/invoices/{first.json()['id']}/payments",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={
+            "amount_irr": 200_000,
+            "method": "CASH",
+            "received_on": "2026-12-01",
+        },
+    )
+    assert payment.status_code == 200, payment.text
+    second = issue_platform_invoice(client, superuser_headers, gym_id=gym_id)
+    assert second.status_code == 400, second.text
+    assert second.json()["detail"] == "platform_invoice_empty"
+    remaining = client.post(
+        f"/api/v1/platform/invoices/{first.json()['id']}/payments",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={
+            "amount_irr": 300_000,
+            "method": "CASH",
+            "received_on": "2026-12-02",
+        },
+    )
+    assert remaining.status_code == 200, remaining.text
+    assert remaining.json()["invoice_id"] == first.json()["id"]

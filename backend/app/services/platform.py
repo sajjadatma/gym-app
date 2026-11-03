@@ -1753,6 +1753,7 @@ def accrue_subscription_period(
     agreement_id: uuid.UUID,
     body: Any,
     operation_key: str,
+    branch_gym_id: uuid.UUID | None = None,
 ) -> Any:
     from app.platform_models import PlatformAgreement, PlatformReceivable
 
@@ -1805,7 +1806,32 @@ def accrue_subscription_period(
         raise HTTPException(
             status_code=400, detail="platform_subscription_not_configured"
         )
-    source_key = f"subscription:{agreement.id}:{body.period}"
+    gym_id = agreement.gym_id
+    if gym_id is None:
+        if branch_gym_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="platform_group_subscription_requires_branch",
+            )
+        from app.platform_models import PlatformGroupMember
+
+        member = session.exec(
+            select(PlatformGroupMember).where(
+                PlatformGroupMember.group_id == agreement.group_id,
+                PlatformGroupMember.gym_id == branch_gym_id,
+            )
+        ).first()
+        if member is None:
+            raise HTTPException(
+                status_code=404, detail="platform_group_member_not_found"
+            )
+        amount = amount * member.allocation_bp // 10_000
+        gym_id = branch_gym_id
+        if amount <= 0:
+            raise HTTPException(
+                status_code=400, detail="platform_subscription_not_configured"
+            )
+    source_key = f"subscription:{agreement.id}:{gym_id}:{body.period}"
     existing = session.exec(
         select(PlatformReceivable).where(
             PlatformReceivable.source_key == source_key
@@ -1813,12 +1839,8 @@ def accrue_subscription_period(
     ).first()
     if existing is not None:
         return _platform_receivable_public(existing)
-    if agreement.gym_id is None:
-        raise HTTPException(
-            status_code=400, detail="platform_group_subscription_requires_branch"
-        )
     receivable = PlatformReceivable(
-        gym_id=agreement.gym_id,
+        gym_id=gym_id,
         agreement_id=agreement.id,
         source_type="SUBSCRIPTION",
         source_id=agreement.id,
@@ -1905,7 +1927,10 @@ def issue_platform_invoice(
         raise HTTPException(
             status_code=400, detail="platform_invoice_scope_invalid"
         )
-    if body.period_end < body.period_start or body.due_on < body.period_start:
+    if (
+        body.period_end < body.period_start
+        or body.due_on < date.today()
+    ):
         raise HTTPException(
             status_code=400, detail="platform_invoice_dates_invalid"
         )
@@ -1923,15 +1948,29 @@ def issue_platform_invoice(
         raise HTTPException(
             status_code=400, detail="platform_invoice_empty"
         )
-    receivables = session.exec(
-        select(PlatformReceivable)
-        .where(
-            col(PlatformReceivable.gym_id).in_(gym_ids),
-            col(PlatformReceivable.status).in_(("OPEN", "PARTIAL")),
-            PlatformReceivable.due_on <= body.period_end,
-        )
-        .order_by(col(PlatformReceivable.created_at))
-    ).all()
+    reserved_ids = set(
+        session.exec(
+            select(PlatformInvoiceLine.receivable_id)
+            .join(
+                PlatformInvoice,
+                col(PlatformInvoiceLine.invoice_id) == col(PlatformInvoice.id),
+            )
+            .where(PlatformInvoice.status != "CANCELLED")
+        ).all()
+    )
+    receivables = [
+        row
+        for row in session.exec(
+            select(PlatformReceivable)
+            .where(
+                col(PlatformReceivable.gym_id).in_(gym_ids),
+                col(PlatformReceivable.status).in_(("OPEN", "PARTIAL")),
+                PlatformReceivable.due_on <= body.period_end,
+            )
+            .order_by(col(PlatformReceivable.created_at))
+        ).all()
+        if row.id not in reserved_ids
+    ]
     gross = sum(_receivable_net(row) for row in receivables)
     if gross <= 0:
         raise HTTPException(status_code=400, detail="platform_invoice_empty")
@@ -1965,7 +2004,7 @@ def issue_platform_invoice(
         invoice_number=_next_platform_doc(session, "PLATFORM_INVOICE"),
         period_start=body.period_start,
         period_end=body.period_end,
-        issued_on=body.period_end,
+        issued_on=date.today(),
         due_on=body.due_on,
         status="ISSUED",
         discount_irr=discount_total,
@@ -1977,10 +2016,17 @@ def issue_platform_invoice(
     total = 0
     for receivable, discount in zip(receivables, discount_parts, strict=True):
         credit_available = session.exec(
-            select(func.coalesce(func.sum(PlatformCredit.amount_irr), 0))
+            select(func.coalesce(func.sum(PlatformCredit.amount_irr), 0)).where(
+                PlatformCredit.gym_id == receivable.gym_id
+            )
         ).one()
         applied = session.exec(
             select(func.coalesce(func.sum(PlatformCreditApplication.amount_irr), 0))
+            .join(
+                PlatformCredit,
+                col(PlatformCreditApplication.credit_id) == col(PlatformCredit.id),
+            )
+            .where(PlatformCredit.gym_id == receivable.gym_id)
         ).one()
         credit_left = max(int(credit_available) - int(applied), 0)
         gross_line = _receivable_net(receivable)
@@ -2003,7 +2049,9 @@ def issue_platform_invoice(
             # Apply available credits FIFO, splitting rows as needed.
             remaining_credit = credit
             for candidate in session.exec(
-                select(PlatformCredit).order_by(col(PlatformCredit.created_at))
+                select(PlatformCredit)
+                .where(PlatformCredit.gym_id == receivable.gym_id)
+                .order_by(col(PlatformCredit.created_at))
             ).all():
                 used = session.exec(
                     select(func.coalesce(func.sum(PlatformCreditApplication.amount_irr), 0)).where(
@@ -2023,7 +2071,17 @@ def issue_platform_invoice(
                 )
                 remaining_credit -= use
         total += amount
-        receivable.status = "CREDITED" if amount == 0 else "INVOICED"
+        receivable.paid_irr = min(
+            receivable.amount_irr,
+            receivable.paid_irr + discount + credit,
+        )
+        receivable.status = (
+            "PAID"
+            if receivable.paid_irr >= receivable.amount_irr
+            else "PARTIAL"
+            if receivable.paid_irr > 0
+            else "INVOICED"
+        )
         session.add(receivable)
     invoice.total_irr = total
     if total <= 0:
@@ -2164,7 +2222,7 @@ def record_platform_payment(
         raise HTTPException(
             status_code=404, detail="platform_invoice_not_found"
         )
-    if invoice.status in ("CANCELLED", "CREDITED"):
+    if invoice.status in ("CANCELLED", "CREDITED", "PAID"):
         raise HTTPException(
             status_code=409, detail="platform_invoice_not_payable"
         )
@@ -2339,61 +2397,24 @@ def cancel_platform_invoice(
         raise HTTPException(
             status_code=409, detail="platform_invoice_paid"
         )
+    if len(body.reason.strip()) < 3:
+        raise HTTPException(
+            status_code=422, detail="platform_invoice_cancel_reason"
+        )
     lines = session.exec(
         select(PlatformInvoiceLine).where(
             PlatformInvoiceLine.invoice_id == invoice.id
         )
     ).all()
-    cancellation = PlatformInvoiceCancellation(
-        invoice_id=invoice.id,
-        reason=body.reason.strip(),
-        created_by_id=actor.id,
-    )
-    session.add(cancellation)
-    session.flush()
-    for line in lines:
-        if line.amount_irr <= 0:
-            continue
-        receivable = session.get(
-            PlatformReceivable, line.receivable_id
-        )
-        if receivable is not None and receivable.paid_irr == 0:
-            receivable.status = "OPEN"
-            session.add(receivable)
-        session.add(
-            PlatformInvoiceLineReversal(
-                cancellation_id=cancellation.id,
-                invoice_line_id=line.id,
-                amount_irr=line.amount_irr,
-            )
-        )
-        applications = session.exec(
-            select(PlatformCreditApplication).where(
-                PlatformCreditApplication.invoice_line_id == line.id
-            )
-        ).all()
-        for index, application in enumerate(applications):
-            source_key = f"cancel:{invoice.id}:{line.id}:{index}"
-            if session.exec(
-                select(PlatformCredit).where(PlatformCredit.source_key == source_key)
-            ).first() is None:
-                session.add(
-                    PlatformCredit(
-                        gym_id=line.gym_id,
-                        source_type="INVOICE_CANCELLATION",
-                        source_id=cancellation.id,
-                        source_key=source_key,
-                        amount_irr=application.amount_irr,
-                        reason=body.reason,
-                        created_by_id=actor.id,
-                    )
-                )
+    journal_id = None
     if invoice.discount_irr > 0:
         journal_lines: list[tuple[str, int, int, str | None]] = []
         for line in lines:
             if line.discount_irr <= 0:
                 continue
-            account = "4000" if line.source_key.startswith("subscription:") else "4100"
+            account = (
+                "4000" if line.source_key.startswith("subscription:") else "4100"
+            )
             journal_lines.append(("1100", line.discount_irr, 0, "Cancel discount"))
             journal_lines.append((account, 0, line.discount_irr, "Cancel discount"))
         if journal_lines:
@@ -2407,8 +2428,56 @@ def cancel_platform_invoice(
                 source_type="platform_invoice",
                 source_id=invoice.id,
             )
-            cancellation.journal_id = journal.id
-            session.add(cancellation)
+            journal_id = journal.id
+    cancellation = PlatformInvoiceCancellation(
+        invoice_id=invoice.id,
+        reason=body.reason.strip(),
+        journal_id=journal_id,
+        created_by_id=actor.id,
+    )
+    session.add(cancellation)
+    session.flush()
+    for line in lines:
+        if line.amount_irr > 0:
+            session.add(
+                PlatformInvoiceLineReversal(
+                    cancellation_id=cancellation.id,
+                    invoice_line_id=line.id,
+                    amount_irr=line.amount_irr,
+                )
+            )
+        receivable = session.get(PlatformReceivable, line.receivable_id)
+        if receivable is not None:
+            receivable.paid_irr = max(
+                receivable.paid_irr - line.discount_irr - line.credit_irr, 0
+            )
+            receivable.status = (
+                "PARTIAL" if receivable.paid_irr > 0 else "OPEN"
+            )
+            session.add(receivable)
+        applications = session.exec(
+            select(PlatformCreditApplication).where(
+                PlatformCreditApplication.invoice_line_id == line.id
+            )
+        ).all()
+        for index, application in enumerate(applications):
+            source_key = f"cancel:{invoice.id}:{line.id}:{index}"
+            if session.exec(
+                select(PlatformCredit).where(
+                    PlatformCredit.source_key == source_key
+                )
+            ).first() is None:
+                session.add(
+                    PlatformCredit(
+                        gym_id=line.gym_id,
+                        source_type="INVOICE_CANCELLATION",
+                        source_id=cancellation.id,
+                        source_key=source_key,
+                        amount_irr=application.amount_irr,
+                        reason=body.reason,
+                        created_by_id=actor.id,
+                    )
+                )
     invoice.status = "CANCELLED"
     session.add(invoice)
     _audit(

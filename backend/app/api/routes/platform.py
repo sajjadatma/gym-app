@@ -297,6 +297,7 @@ def accrue_platform_subscription(
     session: SessionDep,
     current_user: CurrentSuperuser,
     body: PlatformSubscriptionAccrual,
+    branch_gym_id: uuid.UUID | None = None,
     idempotency_key: Annotated[
         str | None, Header(alias="Idempotency-Key")
     ] = None,
@@ -307,6 +308,7 @@ def accrue_platform_subscription(
         agreement_id=agreement_id,
         body=body,
         operation_key=_idempotency_key(idempotency_key),
+        branch_gym_id=branch_gym_id,
     )
 
 
