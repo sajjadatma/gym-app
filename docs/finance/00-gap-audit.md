@@ -297,4 +297,14 @@ platform monetization/settlement (Phase 4).
 5. Readiness: gateway selection (only if enabled), restore/monitoring evidence,
    Iran legal/tax/provider checks, 3–5 gym pilot.
 
+## Phase 4 — plan only (not started)
+
+The implementation plan is prepared at
+`docs/superpowers/plans/2026-11-03-ascora-finance-phase4.md`. It covers optional
+plans (including zero plans), all five monetization modes, gym/group agreements,
+separate platform receivables and collections, conservative dues standing,
+role dashboards, CSV/offboarding exports and in-app reminders. No Phase 4 code
+has been implemented, merged or deployed; the three deferred decisions (#18,
+#30, #46) remain deferred.
+
 Phase 4 must not start without explicit approval.
