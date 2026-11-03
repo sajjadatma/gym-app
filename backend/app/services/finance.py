@@ -5366,6 +5366,7 @@ def gym_summary(
         row.amount_irr
         for row in session.exec(select(PlatformCredit)).all()
         if row.gym_id == gym_id
+        and row.source_type != "INVOICE_CANCELLATION"
         and from_date <= row.created_at.date() <= to_date
     )
     from app.platform_models import PlatformInvoice
@@ -5380,6 +5381,7 @@ def gym_summary(
             )
             .where(
                 PlatformInvoiceLine.gym_id == gym_id,
+                PlatformInvoice.status != "CANCELLED",
                 PlatformInvoice.issued_on >= from_date,
                 PlatformInvoice.issued_on <= to_date,
             )
@@ -5415,13 +5417,16 @@ def gym_summary(
         elif invoice.due_date is None:
             from app.finance_models import FinanceInstallment
 
-            installments = session.exec(
-                select(FinanceInstallment).where(
+            installment = session.exec(
+                select(FinanceInstallment)
+                .where(
                     FinanceInstallment.invoice_id == invoice.id,
                     FinanceInstallment.due_date < today,
                 )
-            ).all()
-            overdue += sum(row.amount_irr for row in installments)
+                .order_by(col(FinanceInstallment.sequence))
+            ).first()
+            if installment is not None:
+                overdue += min(installment.amount_irr, balance)
     renewals = session.exec(
         select(FinanceMembership).where(
             FinanceMembership.gym_id == gym_id,

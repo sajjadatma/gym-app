@@ -7,7 +7,7 @@ from datetime import date
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, HTTPException, Query, Response
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, select
 
@@ -1703,6 +1703,8 @@ def _gym_report_rows(
                 receivable.status,
             ]
         )
+    from app.platform_models import PlatformPaymentAllocation
+
     for payment in session.exec(
         select(PlatformPayment)
         .join(
@@ -1720,13 +1722,27 @@ def _gym_report_rows(
             )
         )
     ).all():
+        allocated = session.exec(
+            select(func.coalesce(func.sum(PlatformPaymentAllocation.amount_irr), 0))
+            .join(
+                PlatformInvoiceLine,
+                col(PlatformPaymentAllocation.invoice_line_id)
+                == col(PlatformInvoiceLine.id),
+            )
+            .where(
+                PlatformPaymentAllocation.payment_id == payment.id,
+                PlatformInvoiceLine.gym_id == gym_id,
+            )
+        ).one()
+        if int(allocated) <= 0:
+            continue
         rows.append(
             [
                 "CASHFLOW",
-                "platform_payment",
+                "platform_payment_allocation",
                 str(payment.id),
                 payment.received_on.isoformat(),
-                payment.amount_irr,
+                int(allocated),
                 "RECORDED",
             ]
         )

@@ -946,3 +946,7 @@ class PlatformOverviewPublic(SQLModel):
     active_plans: int
     active_agreements: int
     zero_plan_mode: bool
+
+
+class PlatformGroupMembersUpdate(SQLModel):
+    members: list[PlatformGroupMemberInput] = Field(min_length=1)

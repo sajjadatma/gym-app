@@ -18,6 +18,7 @@ from app.platform_models import (
     PlatformCostsPublic,
     PlatformGroupCreate,
     PlatformGroupMemberInput,
+    PlatformGroupMembersUpdate,
     PlatformGroupPublic,
     PlatformGroupsPublic,
     PlatformGymReportPublic,
@@ -217,6 +218,22 @@ def update_platform_group_member(
         group_id=group_id,
         gym_id=body.gym_id,
         allocation_bp=body.allocation_bp,
+    )
+
+
+@router.put("/groups/{group_id}/members", response_model=PlatformGroupPublic)
+def replace_platform_group_members(
+    *,
+    group_id: uuid.UUID,
+    session: SessionDep,
+    current_user: CurrentSuperuser,
+    body: PlatformGroupMembersUpdate,
+) -> Any:
+    return platform_service.replace_group_members(
+        session,
+        actor=current_user,
+        group_id=group_id,
+        members=body.members,
     )
 
 

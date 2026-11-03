@@ -276,6 +276,18 @@ def create_plan_version(
     operation_key: str,
 ) -> PlatformPlanVersionPublic:
     _lock_platform(session)
+    payload = {"plan_id": str(plan_id), **body.model_dump(mode="json")}
+    existing_id = _find_result(
+        session,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="platform_plan_version",
+    )
+    if existing_id is not None:
+        version = session.get(PlatformPlanVersion, existing_id)
+        if version is None:
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
+        return _version_public(version)
     plan = session.get(PlatformPlan, plan_id)
     if plan is None:
         raise HTTPException(status_code=404, detail="platform_plan_not_found")
@@ -336,9 +348,9 @@ def create_plan_version(
     _remember_operation(
         session,
         operation_key=operation_key,
-        payload={"plan_id": str(plan_id), **body.model_dump(mode="json")},
-        result_type="platform_plan",
-        result_id=plan.id,
+        payload=payload,
+        result_type="platform_plan_version",
+        result_id=version.id,
     )
     session.commit()
     session.refresh(version)
@@ -356,6 +368,22 @@ def _set_version_status(
     operation_key: str,
 ) -> PlatformPlanVersionPublic:
     _lock_platform(session)
+    payload = {
+        "plan_id": str(plan_id),
+        "version_id": str(version_id),
+        "status": status,
+    }
+    existing_id = _find_result(
+        session,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="platform_plan_version",
+    )
+    if existing_id is not None:
+        existing = session.get(PlatformPlanVersion, existing_id)
+        if existing is None:
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
+        return _version_public(existing)
     plan = session.get(PlatformPlan, plan_id)
     if plan is None:
         raise HTTPException(status_code=404, detail="platform_plan_not_found")
@@ -398,9 +426,9 @@ def _set_version_status(
     _remember_operation(
         session,
         operation_key=operation_key,
-        payload={"plan_id": str(plan_id), "version_id": str(version_id)},
-        result_type="platform_plan",
-        result_id=plan.id,
+        payload=payload,
+        result_type="platform_plan_version",
+        result_id=version.id,
     )
     session.commit()
     session.refresh(version)
@@ -1500,16 +1528,10 @@ def create_platform_ascora_receivable(
                     PlatformReceivable.source_type == "COMMISSION",
                 )
             ).first() is not None:
-                _audit(
-                    session,
-                    actor=actor,
-                    action="platform.ascora_source.conflict_ignored",
-                    target_type="finance_invoice_line",
-                    target_id=line.id,
-                    gym_id=gym_id,
-                    detail={"source": "COACH_ASCORA_TERM"},
+                raise HTTPException(
+                    status_code=409,
+                    detail="platform_double_recognition_guard",
                 )
-                continue
             prefix = f"ascora:{invoice.id}:{line.id}:"
             prior = session.exec(
                 select(func.coalesce(func.sum(PlatformReceivable.amount_irr), 0)).where(
@@ -1590,14 +1612,9 @@ def create_platform_ascora_receivable(
             earning.platform_share_irr > 0
             for earning in earning_by_line.get(line.id, [])
         ):
-            _audit(
-                session,
-                actor=actor,
-                action="platform.ascora_source.conflict_ignored",
-                target_type="finance_invoice_line",
-                target_id=line.id,
-                gym_id=gym_id,
-                detail={"source": "PLATFORM_COMMISSION"},
+            raise HTTPException(
+                status_code=409,
+                detail="platform_double_recognition_guard",
             )
         fee = platform_fee_for_portion(
             snapshot, portion, line.payable_irr
@@ -2009,22 +2026,9 @@ def issue_platform_invoice(
     discount_parts = _split_proportional(discount_total, [
         _receivable_net(row) for row in receivables
     ]) if receivables else []
-    invoice = PlatformInvoice(
-        gym_id=body.gym_id,
-        group_id=body.group_id,
-        invoice_number=_next_platform_doc(session, "PLATFORM_INVOICE"),
-        period_start=body.period_start,
-        period_end=body.period_end,
-        issued_on=date.today(),
-        due_on=body.due_on,
-        status="ISSUED",
-        discount_irr=discount_total,
-        total_irr=0,
-        created_by_id=actor.id,
-    )
-    session.add(invoice)
-    session.flush()
+    specs: list[tuple[Any, int, int, int]] = []
     total = 0
+    credit_used_by_gym: dict[uuid.UUID, int] = {}
     for receivable, discount in zip(receivables, discount_parts, strict=True):
         credit_available = session.exec(
             select(func.coalesce(func.sum(PlatformCredit.amount_irr), 0)).where(
@@ -2039,17 +2043,45 @@ def issue_platform_invoice(
             )
             .where(PlatformCredit.gym_id == receivable.gym_id)
         ).one()
-        credit_left = max(int(credit_available) - int(applied), 0)
+        credit_left = max(
+            int(credit_available)
+            - int(applied)
+            - credit_used_by_gym.get(receivable.gym_id, 0),
+            0,
+        )
         gross_line = _receivable_net(receivable)
         credit = min(credit_left, max(gross_line - discount, 0))
+        credit_used_by_gym[receivable.gym_id] = (
+            credit_used_by_gym.get(receivable.gym_id, 0) + credit
+        )
         amount = max(gross_line - discount - credit, 0)
+        specs.append((receivable, discount, credit, amount))
+        total += amount
+    if total <= 0:
+        raise HTTPException(status_code=400, detail="platform_invoice_empty")
+    invoice = PlatformInvoice(
+        gym_id=body.gym_id,
+        group_id=body.group_id,
+        invoice_number=_next_platform_doc(session, "PLATFORM_INVOICE"),
+        period_start=body.period_start,
+        period_end=body.period_end,
+        issued_on=date.today(),
+        due_on=body.due_on,
+        status="ISSUED",
+        discount_irr=discount_total,
+        total_irr=total,
+        created_by_id=actor.id,
+    )
+    session.add(invoice)
+    session.flush()
+    for receivable, discount, credit, amount in specs:
         line = PlatformInvoiceLine(
             invoice_id=invoice.id,
             gym_id=receivable.gym_id,
             receivable_id=receivable.id,
             source_key=receivable.source_key,
             description=f"Platform {receivable.source_type.lower()}",
-            gross_irr=gross_line,
+            gross_irr=_receivable_net(receivable),
             discount_irr=discount,
             credit_irr=credit,
             amount_irr=amount,
@@ -2057,7 +2089,6 @@ def issue_platform_invoice(
         session.add(line)
         session.flush()
         if credit > 0:
-            # Apply available credits FIFO, splitting rows as needed.
             remaining_credit = credit
             for candidate in session.exec(
                 select(PlatformCredit)
@@ -2081,7 +2112,7 @@ def issue_platform_invoice(
                     )
                 )
                 remaining_credit -= use
-        total += amount
+            session.flush()
         noncash = discount + credit
         receivable.paid_irr = min(
             receivable.amount_irr,
@@ -2095,11 +2126,6 @@ def issue_platform_invoice(
             else "INVOICED"
         )
         session.add(receivable)
-    invoice.total_irr = total
-    if total <= 0:
-        raise HTTPException(status_code=400, detail="platform_invoice_empty")
-    invoice.status = "ISSUED"
-    session.add(invoice)
     if discount_total:
         journal_lines: list[tuple[str, int, int, str | None]] = []
         for line in session.exec(
@@ -2190,22 +2216,33 @@ def get_platform_invoice(session: Session, invoice_id: uuid.UUID) -> Any:
     return _invoice_public(session, invoice)
 
 
-def _payment_public(session: Session, payment: Any) -> Any:
+def _payment_public(
+    session: Session, payment: Any, *, gym_id: uuid.UUID | None = None
+) -> Any:
     from app.platform_models import (
+        PlatformInvoiceLine,
         PlatformPaymentAllocation,
         PlatformPaymentAllocationPublic,
         PlatformPaymentPublic,
     )
 
-    rows = session.exec(
-        select(PlatformPaymentAllocation).where(
-            PlatformPaymentAllocation.payment_id == payment.id
-        )
-    ).all()
+    statement = select(PlatformPaymentAllocation).where(
+        PlatformPaymentAllocation.payment_id == payment.id
+    )
+    if gym_id is not None:
+        statement = statement.join(
+            PlatformInvoiceLine,
+            col(PlatformPaymentAllocation.invoice_line_id)
+            == col(PlatformInvoiceLine.id),
+        ).where(PlatformInvoiceLine.gym_id == gym_id)
+    rows = session.exec(statement).all()
+    amount = (
+        sum(row.amount_irr for row in rows) if gym_id is not None else payment.amount_irr
+    )
     return PlatformPaymentPublic(
         id=payment.id,
         invoice_id=payment.invoice_id,
-        amount_irr=payment.amount_irr,
+        amount_irr=amount,
         method=payment.method,
         reference=payment.reference,
         received_on=payment.received_on,
@@ -2403,7 +2440,10 @@ def list_platform_payments(
         )
     payments = session.exec(statement).all()
     return PlatformPaymentsPublic(
-        data=[_payment_public(session, payment) for payment in payments]
+        data=[
+            _payment_public(session, payment, gym_id=gym_id)
+            for payment in payments
+        ]
     )
 
 
@@ -2569,7 +2609,11 @@ def apply_platform_refund(
     posting_date: date,
 ) -> int:
     from app.finance_models import FinanceInvoiceLine
-    from app.platform_models import PlatformCredit, PlatformReceivable
+    from app.platform_models import (
+        PlatformCredit,
+        PlatformInvoice,
+        PlatformReceivable,
+    )
     from app.services.finance import _invoice_paid_irr
 
     _lock_platform(session)
@@ -2616,8 +2660,14 @@ def apply_platform_refund(
     net_amounts: list[int] = []
     for row in receivables:
         discounted = session.exec(
-            select(func.coalesce(func.sum(PlatformInvoiceLine.discount_irr), 0)).where(
-                PlatformInvoiceLine.receivable_id == row.id
+            select(func.coalesce(func.sum(PlatformInvoiceLine.discount_irr), 0))
+            .join(
+                PlatformInvoice,
+                col(PlatformInvoiceLine.invoice_id) == col(PlatformInvoice.id),
+            )
+            .where(
+                PlatformInvoiceLine.receivable_id == row.id,
+                PlatformInvoice.status != "CANCELLED",
             )
         ).one()
         net_amounts.append(max(row.amount_irr - int(discounted), 0))
@@ -3139,3 +3189,67 @@ def platform_gym_detail(
             "contribution_irr": 0,
         }
     return PlatformGymReportPublic(**row)
+
+
+def replace_group_members(
+    session: Session,
+    *,
+    actor: User,
+    group_id: uuid.UUID,
+    members: list[Any],
+) -> Any:
+    from app.models import Gym
+    from app.platform_models import PlatformGroup, PlatformGroupMember
+
+    _lock_platform(session)
+    group = session.get(PlatformGroup, group_id)
+    if group is None:
+        raise HTTPException(status_code=404, detail="platform_group_not_found")
+    effective = session.exec(
+        select(PlatformAgreement).where(
+            PlatformAgreement.group_id == group_id,
+            PlatformAgreement.status == "EFFECTIVE",
+        )
+    ).first()
+    if effective is not None:
+        raise HTTPException(status_code=409, detail="platform_group_effective")
+    if not members or sum(member.allocation_bp for member in members) != 10000:
+        raise HTTPException(
+            status_code=400, detail="platform_group_allocation_invalid"
+        )
+    for member in members:
+        if member.allocation_bp < 0 or member.allocation_bp > 10000:
+            raise HTTPException(
+                status_code=400, detail="platform_group_allocation_invalid"
+            )
+        if session.get(Gym, member.gym_id) is None:
+            raise HTTPException(status_code=404, detail="gym_not_found")
+    for existing in session.exec(
+        select(PlatformGroupMember).where(
+            PlatformGroupMember.group_id == group_id
+        )
+    ).all():
+        session.delete(existing)
+    session.flush()
+    for member in members:
+        session.add(
+            PlatformGroupMember(
+                group_id=group_id,
+                gym_id=member.gym_id,
+                allocation_bp=member.allocation_bp,
+            )
+        )
+    session.flush()
+    _audit(
+        session,
+        actor=actor,
+        action="platform.group.members_replaced",
+        target_type="platform_group",
+        target_id=group_id,
+        detail={"members": [
+            {"gym_id": str(member.gym_id), "allocation_bp": member.allocation_bp}
+            for member in members
+        ]},
+    )
+    session.commit()
+    return _group_public(session, group)
