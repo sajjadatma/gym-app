@@ -4,6 +4,7 @@ import uuid
 from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
+from sqlmodel import Session
 
 from tests.api.routes.test_finance_foundation import make_owner
 from tests.api.routes.test_platform_invoices import (
@@ -332,3 +333,358 @@ def test_coach_summary_aggregates_own_gyms_only(
     assert body["calculated_irr"] == 300_000
     assert body["reserved_irr"] == 0
     assert body["per_gym"][0]["gym_id"] == gym_id
+
+
+def test_platform_receivables_and_by_gym_reconcile_after_credit_and_cancel(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    import uuid
+
+    from tests.api.routes.test_finance_coach_refunds import refund
+    from tests.api.routes.test_finance_foundation import make_owner
+    from tests.api.routes.test_finance_invoices import make_customer
+    from tests.api.routes.test_finance_receipts import (
+        issued_invoice,
+        receipt_payload,
+        record_receipt,
+    )
+    from tests.api.routes.test_platform_fees import commission_agreement
+    from tests.api.routes.test_platform_invoices import issue_platform_invoice
+
+    gym, owner = make_owner(client, superuser_headers, name="Credit Reconcile Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+    commission_agreement(client, superuser_headers, gym_id, percent_bp=1000)
+    invoice = issued_invoice(client, owner, customer, amount=1_000_000)
+    receipt = record_receipt(
+        client,
+        owner,
+        receipt_payload(
+            customer, amount=1_000_000, allocations=[(invoice["id"], 1_000_000)]
+        ),
+    )
+    assert receipt.status_code == 200, receipt.text
+    refund(client, owner, customer, invoice["id"], 300_000)
+
+    def gym_summary() -> dict[str, object]:
+        response = client.get(
+            "/api/v1/finance/reports/summary",
+            headers=owner,
+            params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+        )
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    before = client.get(
+        "/api/v1/platform/reports/overview",
+        headers=superuser_headers,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+    ).json()
+    assert before["recognized_platform_revenue_irr"] == 70_000
+    assert before["receivable_irr"] == 70_000
+    assert before["by_gym"][0]["recognized_revenue_irr"] == 70_000
+    assert before["by_gym"][0]["receivable_irr"] == 70_000
+    assert before["by_gym"][0]["recognized_revenue_irr"] == before[
+        "recognized_platform_revenue_irr"
+    ]
+    assert gym_summary()["platform_payable_irr"] == 70_000
+
+    first_invoice = issue_platform_invoice(
+        client, superuser_headers, gym_id=gym_id
+    )
+    assert first_invoice.status_code == 200, first_invoice.text
+    assert first_invoice.json()["total_irr"] == 70_000
+    assert first_invoice.json()["lines"][0]["credit_irr"] == 30_000
+    after_issue = client.get(
+        "/api/v1/platform/reports/overview",
+        headers=superuser_headers,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+    ).json()
+    assert after_issue["receivable_irr"] == 70_000
+    assert gym_summary()["platform_payable_irr"] == 70_000
+
+    cancelled = client.post(
+        f"/api/v1/platform/invoices/{first_invoice.json()['id']}/cancel",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={"reason": "reissue"},
+    )
+    assert cancelled.status_code == 200, cancelled.text
+    after_cancel = client.get(
+        "/api/v1/platform/reports/overview",
+        headers=superuser_headers,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+    ).json()
+    assert after_cancel["receivable_irr"] == 70_000
+    assert after_cancel["by_gym"][0]["receivable_irr"] == 70_000
+    # The replacement credit for the cancelled invoice must not be
+    # subtracted from recognized revenue a second time.
+    assert after_cancel["recognized_platform_revenue_irr"] == 70_000
+    assert after_cancel["by_gym"][0]["recognized_revenue_irr"] == 70_000
+    assert after_cancel["invoiced_fees_irr"] == 0
+    assert gym_summary()["platform_payable_irr"] == 70_000
+
+    second_invoice = issue_platform_invoice(
+        client, superuser_headers, gym_id=gym_id
+    )
+    assert second_invoice.status_code == 200, second_invoice.text
+    partial = client.post(
+        f"/api/v1/platform/invoices/{second_invoice.json()['id']}/payments",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={
+            "amount_irr": 40_000,
+            "method": "CASH",
+            "received_on": "2026-12-01",
+        },
+    )
+    assert partial.status_code == 200, partial.text
+    after_partial = client.get(
+        "/api/v1/platform/reports/overview",
+        headers=superuser_headers,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+    ).json()
+    assert after_partial["receivable_irr"] == 30_000
+    assert gym_summary()["platform_payable_irr"] == 30_000
+    final = client.post(
+        f"/api/v1/platform/invoices/{second_invoice.json()['id']}/payments",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={
+            "amount_irr": 30_000,
+            "method": "CASH",
+            "received_on": "2026-12-02",
+        },
+    )
+    assert final.status_code == 200, final.text
+    after_final = client.get(
+        "/api/v1/platform/reports/overview",
+        headers=superuser_headers,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+    ).json()
+    assert after_final["receivable_irr"] == 0
+    assert after_final["invoiced_fees_irr"] == 70_000
+    assert gym_summary()["platform_payable_irr"] == 0
+
+
+def test_platform_overview_does_not_cross_net_credit_between_gyms(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    from sqlmodel import select
+
+    from app.platform_models import PlatformReceivable
+    from tests.api.routes.test_finance_coach_refunds import refund
+    from tests.api.routes.test_finance_foundation import make_owner
+    from tests.api.routes.test_finance_invoices import make_customer
+    from tests.api.routes.test_finance_receipts import (
+        issued_invoice,
+        receipt_payload,
+        record_receipt,
+    )
+    from tests.api.routes.test_platform_fees import commission_agreement
+    from tests.api.routes.test_platform_invoices import issue_platform_invoice
+
+    # Gym A: settle its platform invoice, then refund the athlete fee so it
+    # holds unused credit with no open receivable.
+    gym_a, owner_a = make_owner(client, superuser_headers, name="Credit A Gym")
+    gym_a_id = str(gym_a["id"])
+    customer_a = make_customer(client, owner_a, gym_a_id)
+    commission_agreement(client, superuser_headers, gym_a_id, percent_bp=1000)
+    athlete_invoice_a = issued_invoice(client, owner_a, customer_a, amount=1_000_000)
+    receipt_a = record_receipt(
+        client,
+        owner_a,
+        receipt_payload(
+            customer_a,
+            amount=1_000_000,
+            allocations=[(athlete_invoice_a["id"], 1_000_000)],
+        ),
+    )
+    assert receipt_a.status_code == 200, receipt_a.text
+    platform_invoice_a = issue_platform_invoice(
+        client, superuser_headers, gym_id=gym_a_id
+    )
+    assert platform_invoice_a.status_code == 200, platform_invoice_a.text
+    assert platform_invoice_a.json()["total_irr"] == 100_000
+    settled = client.post(
+        f"/api/v1/platform/invoices/{platform_invoice_a.json()['id']}/payments",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={
+            "amount_irr": 100_000,
+            "method": "CASH",
+            "received_on": date.today().isoformat(),
+        },
+    )
+    assert settled.status_code == 200, settled.text
+    refund(client, owner_a, customer_a, athlete_invoice_a["id"], 300_000)
+
+    # Gym B has an overdue open receivable and no credit.
+    gym_b, owner_b = make_owner(client, superuser_headers, name="Credit B Gym")
+    gym_b_id = str(gym_b["id"])
+    customer_b = make_customer(client, owner_b, gym_b_id)
+    commission_agreement(client, superuser_headers, gym_b_id, percent_bp=1000)
+    athlete_invoice_b = issued_invoice(client, owner_b, customer_b, amount=1_000_000)
+    receipt_b = record_receipt(
+        client,
+        owner_b,
+        receipt_payload(
+            customer_b,
+            amount=1_000_000,
+            allocations=[(athlete_invoice_b["id"], 1_000_000)],
+        ),
+    )
+    assert receipt_b.status_code == 200, receipt_b.text
+    receivable_b = db_session.exec(
+        select(PlatformReceivable).where(
+            PlatformReceivable.gym_id == uuid.UUID(gym_b_id)
+        )
+    ).one()
+    receivable_b.due_on = date.today() - timedelta(days=5)
+    db_session.add(receivable_b)
+    db_session.commit()
+
+    overview = client.get(
+        "/api/v1/platform/reports/overview",
+        headers=superuser_headers,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+    ).json()
+    by_gym = {row["gym_id"]: row for row in overview["by_gym"]}
+    assert by_gym[gym_a_id]["receivable_irr"] == 0
+    assert by_gym[gym_b_id]["receivable_irr"] == 100_000
+    assert by_gym[gym_b_id]["overdue_irr"] == 100_000
+    assert overview["receivable_irr"] == 100_000
+    assert overview["overdue_irr"] == 100_000
+    assert overview["receivable_irr"] == sum(
+        row["receivable_irr"] for row in overview["by_gym"]
+    )
+    assert overview["overdue_irr"] == sum(
+        row["overdue_irr"] for row in overview["by_gym"]
+    )
+
+
+def test_platform_standing_is_current_when_credit_covers_overdue_invoice(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    from tests.api.routes.test_finance_coach_refunds import refund
+    from tests.api.routes.test_finance_foundation import make_owner
+    from tests.api.routes.test_finance_invoices import make_customer
+    from tests.api.routes.test_finance_receipts import (
+        issued_invoice,
+        receipt_payload,
+        record_receipt,
+    )
+    from tests.api.routes.test_platform_fees import commission_agreement
+
+    gym, owner = make_owner(client, superuser_headers, name="Standing Credit Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+    commission_agreement(client, superuser_headers, gym_id, percent_bp=1000)
+    invoice = issued_invoice(client, owner, customer, amount=1_000_000)
+    receipt = record_receipt(
+        client,
+        owner,
+        receipt_payload(
+            customer, amount=1_000_000, allocations=[(invoice["id"], 1_000_000)]
+        ),
+    )
+    assert receipt.status_code == 200, receipt.text
+    issued = platform_invoice(
+        client, superuser_headers, gym_id=gym_id, due_on=date.today()
+    )
+    assert issued.status_code == 200, issued.text
+    refund(client, owner, customer, invoice["id"], 1_000_000)
+
+    standing = client.get(
+        f"/api/v1/platform/dues/{gym_id}",
+        headers=superuser_headers,
+        params={"as_of": (date.today() + timedelta(days=22)).isoformat()},
+    )
+    assert standing.status_code == 200, standing.text
+    body = standing.json()
+    assert body["open_irr"] == 0
+    assert body["overdue_irr"] == 0
+    assert body["stage"] == "CURRENT"
+    assert body["informational_restrictions"] == []
+
+
+def test_group_volume_discount_reconciles_gym_and_platform_reports(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    from tests.api.routes.test_finance_foundation import make_owner
+    from tests.api.routes.test_finance_invoices import make_customer
+    from tests.api.routes.test_finance_receipts import (
+        issued_invoice,
+        receipt_payload,
+        record_receipt,
+    )
+    from tests.api.routes.test_platform_agreements import (
+        create_agreement as create_platform_agreement,
+    )
+    from tests.api.routes.test_platform_fees import commission_agreement
+    from tests.api.routes.test_platform_invoices import (
+        activate,
+        issue_platform_invoice,
+    )
+
+    gym, owner = make_owner(client, superuser_headers, name="Discount Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+    commission_agreement(client, superuser_headers, gym_id, percent_bp=1000)
+    invoice = issued_invoice(client, owner, customer, amount=1_000_000)
+    receipt = record_receipt(
+        client,
+        owner,
+        receipt_payload(
+            customer, amount=1_000_000, allocations=[(invoice["id"], 1_000_000)]
+        ),
+    )
+    assert receipt.status_code == 200, receipt.text
+    group = client.post(
+        "/api/v1/platform/groups",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={
+            "name": "Discount Group",
+            "members": [{"gym_id": gym_id, "allocation_bp": 10000}],
+        },
+    )
+    assert group.status_code == 200, group.text
+    group_agreement = create_platform_agreement(
+        client,
+        superuser_headers,
+        group_id=group.json()["id"],
+        mode="COMMISSION",
+        volume_discount_bp=500,
+        terms=[{"kind": "ANY", "basis": "PERCENT", "percent_bp": 0}],
+    )
+    assert group_agreement.status_code == 200, group_agreement.text
+    activate(client, superuser_headers, group_agreement.json()["id"])
+
+    issued = issue_platform_invoice(
+        client, superuser_headers, group_id=group.json()["id"]
+    )
+    assert issued.status_code == 200, issued.text
+    body = issued.json()
+    assert body["discount_irr"] == 5_000
+    assert body["total_irr"] == 95_000
+    overview = client.get(
+        "/api/v1/platform/reports/overview",
+        headers=superuser_headers,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+    ).json()
+    assert overview["recognized_platform_revenue_irr"] == 95_000
+    assert overview["by_gym"][0]["recognized_revenue_irr"] == 95_000
+    assert overview["invoiced_fees_irr"] == 95_000
+
+    cancelled = client.post(
+        f"/api/v1/platform/invoices/{body['id']}/cancel",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={"reason": "discount reissue"},
+    )
+    assert cancelled.status_code == 200, cancelled.text
+    after = client.get(
+        "/api/v1/platform/reports/overview",
+        headers=superuser_headers,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+    ).json()
+    assert after["recognized_platform_revenue_irr"] == 100_000
+    assert after["by_gym"][0]["recognized_revenue_irr"] == 100_000
+    assert after["invoiced_fees_irr"] == 0

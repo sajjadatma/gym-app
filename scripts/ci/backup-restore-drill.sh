@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Isolated restore drill against the disposable CI stack.
+# Expects a freshly started stack; the fixed fixture rows are not rerunnable.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -67,6 +68,86 @@ ON CONFLICT (gym_id, doc_type) DO UPDATE
   SET last_value = GREATEST(finance_sequence.last_value, 1);
 SQL
 
+
+PLATFORM_RECEIVABLE_ID="00000000-0000-0000-0000-000000000101"
+PLATFORM_INVOICE_ID="00000000-0000-0000-0000-000000000102"
+PLATFORM_LINE_ID="00000000-0000-0000-0000-000000000103"
+PLATFORM_PAYMENT_ID="00000000-0000-0000-0000-000000000104"
+PLATFORM_JOURNAL_ID="00000000-0000-0000-0000-000000000105"
+PLATFORM_AGREEMENT_ID="00000000-0000-0000-0000-000000000106"
+"${COMPOSE[@]}" exec -T db psql -U postgres -d app -v ON_ERROR_STOP=1 <<SQL
+BEGIN;
+INSERT INTO platform_agreement
+  (id, gym_id, group_id, version, supersedes_id, mode, status,
+   effective_from, effective_to, plan_version_id, subscription_amount_irr,
+   billing_interval, volume_discount_bp, grace_days, restrict_after_days,
+   created_by_id, created_at, activated_at)
+VALUES
+  ('$PLATFORM_AGREEMENT_ID', '$finance_gym', NULL, 1, NULL, 'COMMISSION',
+   'EFFECTIVE', current_date, NULL, NULL, 0, 'MONTHLY', 0, 7, 21,
+   NULL, now(), now());
+INSERT INTO platform_receivable
+  (id, gym_id, agreement_id, source_type, source_id, source_key, amount_irr,
+   paid_irr, due_on, status, snapshot, created_at)
+VALUES
+  ('$PLATFORM_RECEIVABLE_ID', '$finance_gym', '$PLATFORM_AGREEMENT_ID',
+   'COMMISSION', NULL, 'ci-drill-platform', 5000, 2500, current_date,
+   'PARTIAL', '{}', now());
+INSERT INTO platform_invoice
+  (id, gym_id, group_id, invoice_number, period_start, period_end, issued_on,
+   due_on, status, discount_irr, total_irr, created_by_id, created_at)
+VALUES
+  ('$PLATFORM_INVOICE_ID', '$finance_gym', NULL, 1, current_date, current_date,
+   current_date, current_date, 'PARTIALLY_PAID', 0, 4500, NULL, now());
+INSERT INTO platform_invoice_line
+  (id, invoice_id, gym_id, receivable_id, source_key, description, gross_irr,
+   discount_irr, credit_irr, amount_irr, paid_irr)
+VALUES
+  ('$PLATFORM_LINE_ID', '$PLATFORM_INVOICE_ID', '$finance_gym',
+   '$PLATFORM_RECEIVABLE_ID', 'ci-drill-platform', 'ci drill', 5000, 0, 500,
+   4500, 2000);
+INSERT INTO platform_payment
+  (id, invoice_id, amount_irr, method, reference, received_on, operation_key,
+   created_by_id, created_at)
+VALUES
+  ('$PLATFORM_PAYMENT_ID', '$PLATFORM_INVOICE_ID', 2000, 'CASH', 'CI-DRILL',
+   current_date, 'ci-drill-payment', NULL, now());
+INSERT INTO platform_payment_allocation
+  (id, payment_id, invoice_line_id, amount_irr)
+VALUES
+  (gen_random_uuid(), '$PLATFORM_PAYMENT_ID', '$PLATFORM_LINE_ID', 2000);
+INSERT INTO platform_credit
+  (id, gym_id, source_type, source_id, source_key, amount_irr, reason,
+   created_by_id, created_at)
+VALUES
+  (gen_random_uuid(), '$finance_gym', 'MANUAL', NULL, 'ci-drill-credit', 500,
+   'ci drill', NULL, now());
+INSERT INTO platform_credit_application
+  (id, credit_id, invoice_line_id, amount_irr, created_at)
+SELECT gen_random_uuid(), id, '$PLATFORM_LINE_ID', 500, now()
+FROM platform_credit WHERE source_key = 'ci-drill-credit';
+INSERT INTO platform_journal
+  (id, entry_number, posting_date, event_type, description, source_type,
+   source_id, created_by_id, created_at)
+VALUES
+  ('$PLATFORM_JOURNAL_ID', 1, current_date, 'PLATFORM_FEE', 'ci drill',
+   'platform_receivable', '$PLATFORM_RECEIVABLE_ID', NULL, now());
+INSERT INTO platform_journal_line
+  (id, journal_id, account_code, debit_irr, credit_irr, memo)
+VALUES
+  (gen_random_uuid(), '$PLATFORM_JOURNAL_ID', '1100', 5000, 0, 'ci drill'),
+  (gen_random_uuid(), '$PLATFORM_JOURNAL_ID', '4100', 0, 5000, 'ci drill');
+INSERT INTO platform_sequence (id, doc_type, last_value)
+VALUES (gen_random_uuid(), 'PLATFORM_INVOICE', 1)
+ON CONFLICT (doc_type) DO UPDATE
+  SET last_value = GREATEST(platform_sequence.last_value, 1);
+INSERT INTO platform_sequence (id, doc_type, last_value)
+VALUES (gen_random_uuid(), 'PLATFORM_JOURNAL', 1)
+ON CONFLICT (doc_type) DO UPDATE
+  SET last_value = GREATEST(platform_sequence.last_value, 1);
+COMMIT;
+SQL
+
 output="$(BACKUP_DIR="$TMP/backups" bash scripts/backup_compose.sh)"
 backup_path="${output#backup_path=}"
 [ -d "$backup_path" ] || { echo "drill: FAIL backup was not produced" >&2; exit 1; }
@@ -82,11 +163,14 @@ docker run --rm --network "$NETWORK" -e PGPASSWORD="$POSTGRES_PASSWORD" \
 mkdir -p "$TMP/restored-uploads"
 tar -xzf "$backup_path/uploads.tar.gz" -C "$TMP/restored-uploads"
 docker run --rm --network "$NETWORK" \
+  -v "$ROOT/scripts/verify_restore.py:/verify_restore.py:ro" \
   -v "$TMP/restored-uploads/body-analysis:/uploads:ro" \
   -v "$backup_path/counts.txt:/counts.txt:ro" \
-  "$BACKEND_IMAGE" python /app/backend/scripts/verify_restore.py \
+  -v "$backup_path/platform-counts.txt:/platform-counts.txt:ro" \
+  "$BACKEND_IMAGE" python /verify_restore.py \
   --database-url "postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/app_restore" \
-  --upload-dir /uploads --expected-counts /counts.txt
+  --upload-dir /uploads --expected-counts /counts.txt \
+  --expected-platform-counts /platform-counts.txt
 
 restored_journals="$("${COMPOSE[@]}" exec -T db psql -U postgres -d app_restore -Atc \
   'SELECT count(*) FROM finance_journal;')"
@@ -101,6 +185,27 @@ restored_unbalanced="$("${COMPOSE[@]}" exec -T db psql -U postgres -d app_restor
   echo "drill: FAIL restored journals are unbalanced: $restored_unbalanced" >&2
   exit 1
 }
+
+assert_restored_count() {
+  local table="$1" expected="$2" actual
+  actual="$("${COMPOSE[@]}" exec -T db psql -U postgres -d app_restore -Atc \
+    "SELECT count(*) FROM $table;")"
+  [ "$actual" = "$expected" ] || {
+    echo "drill: FAIL restored $table: $actual (expected $expected)" >&2
+    exit 1
+  }
+}
+assert_restored_count platform_agreement 1
+assert_restored_count platform_receivable 1
+assert_restored_count platform_credit 1
+assert_restored_count platform_credit_application 1
+assert_restored_count platform_invoice 1
+assert_restored_count platform_invoice_line 1
+assert_restored_count platform_payment 1
+assert_restored_count platform_payment_allocation 1
+assert_restored_count platform_journal 1
+assert_restored_count platform_journal_line 2
+assert_restored_count platform_sequence 2
 
 echo "drill: live restore through restore_compose.sh"
 victim="$("${COMPOSE[@]}" exec -T db psql -U postgres -d app -Atc \

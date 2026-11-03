@@ -40,6 +40,18 @@ for table in user gym athlete_profile body_analysis_file workout_program_version
   "${COMPOSE[@]}" exec -T db psql -U postgres -d "$POSTGRES_DB" -Atc \
     "SELECT count(*) FROM \"$table\";" >> "$TARGET/counts.txt"
 done
+platform_schema="$("${COMPOSE[@]}" exec -T db psql -U postgres -d "$POSTGRES_DB" -Atc \
+  "SELECT to_regclass('public.platform_sequence');")"
+if [ -n "$platform_schema" ]; then
+  for table in platform_agreement platform_receivable platform_credit \
+    platform_credit_application platform_invoice platform_invoice_line \
+    platform_invoice_cancellation platform_invoice_line_reversal \
+    platform_payment platform_payment_allocation platform_journal \
+    platform_journal_line platform_sequence; do
+    "${COMPOSE[@]}" exec -T db psql -U postgres -d "$POSTGRES_DB" -Atc \
+      "SELECT count(*) FROM \"$table\";" >> "$TARGET/platform-counts.txt"
+  done
+fi
 
 sha() {
   if command -v sha256sum >/dev/null 2>&1; then
@@ -52,6 +64,9 @@ sha() {
   printf '%s  %s\n' "$(sha "$TARGET/db.dump")" "db.dump"
   printf '%s  %s\n' "$(sha "$TARGET/uploads.tar.gz")" "uploads.tar.gz"
   printf '%s  %s\n' "$(sha "$TARGET/counts.txt")" "counts.txt"
+  if [ -f "$TARGET/platform-counts.txt" ]; then
+    printf '%s  %s\n' "$(sha "$TARGET/platform-counts.txt")" "platform-counts.txt"
+  fi
 } > "$TARGET/checksums.txt"
 
 chmod 600 "$TARGET"/*

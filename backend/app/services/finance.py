@@ -5448,10 +5448,16 @@ def gym_summary(
         )
         for row in earnings
     )
-    platform_payable = sum(
-        max(row.amount_irr - row.paid_irr, 0)
-        for row in platform_rows
-        if row.status in ("OPEN", "INVOICED", "PARTIAL")
+    from app.services.platform import available_credit_irr
+
+    platform_payable = max(
+        sum(
+            max(row.amount_irr - row.paid_irr, 0)
+            for row in platform_rows
+            if row.status in ("OPEN", "INVOICED", "PARTIAL")
+        )
+        - available_credit_irr(session, gym_id=gym_id),
+        0,
     )
     from app.finance_models import FinanceGymSummaryPublic
 

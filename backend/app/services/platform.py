@@ -2749,15 +2749,32 @@ def platform_standing(
     invoices = list_platform_invoices(
         session, gym_id=gym_id, as_of=as_of
     ).data
-    open_rows = [row for row in invoices if row.balance_irr > 0]
-    open_irr = sum(row.balance_irr for row in open_rows)
-    overdue_rows = [row for row in open_rows if row.due_on < as_of]
-    overdue_irr = sum(row.balance_irr for row in overdue_rows)
-    oldest_due_on = min((row.due_on for row in open_rows), default=None)
+    open_rows = sorted(
+        (row for row in invoices if row.balance_irr > 0),
+        key=lambda row: (row.due_on, str(row.id)),
+    )
+    available_credit = available_credit_irr(
+        session, gym_id=gym_id, as_of=as_of
+    )
+    remaining: list[tuple[Any, int]] = []
+    for row in open_rows:
+        if available_credit <= 0:
+            remaining.append((row, row.balance_irr))
+            continue
+        if available_credit >= row.balance_irr:
+            available_credit -= row.balance_irr
+            continue
+        remaining.append((row, row.balance_irr - available_credit))
+        available_credit = 0
+    open_irr = sum(balance for _, balance in remaining)
+    overdue_irr = sum(
+        balance for row, balance in remaining if row.due_on < as_of
+    )
+    oldest_due_on = min((row.due_on for row, _ in remaining), default=None)
     overdue_days = (
         max((as_of - oldest_due_on).days, 0) if oldest_due_on else 0
     )
-    if not open_rows or oldest_due_on is None or as_of < oldest_due_on:
+    if not remaining or oldest_due_on is None or as_of < oldest_due_on:
         stage = "CURRENT"
     elif overdue_days <= grace_days:
         stage = "DUE"
@@ -2956,6 +2973,7 @@ def _platform_gym_reports(
     from app.platform_models import (
         PlatformCost,
         PlatformCredit,
+        PlatformInvoice,
         PlatformInvoiceLine,
         PlatformPayment,
         PlatformPaymentAllocation,
@@ -3004,7 +3022,24 @@ def _platform_gym_reports(
             for row in session.exec(
                 select(PlatformCredit).where(PlatformCredit.gym_id == gym_id)
             ).all()
-            if from_date <= row.created_at.date() <= to_date
+            if row.source_type != "INVOICE_CANCELLATION"
+            and from_date <= row.created_at.date() <= to_date
+        )
+        recognized -= sum(
+            row.discount_irr
+            for row in session.exec(
+                select(PlatformInvoiceLine)
+                .join(
+                    PlatformInvoice,
+                    col(PlatformInvoiceLine.invoice_id) == col(PlatformInvoice.id),
+                )
+                .where(
+                    PlatformInvoiceLine.gym_id == gym_id,
+                    PlatformInvoice.status != "CANCELLED",
+                    PlatformInvoice.issued_on >= from_date,
+                    PlatformInvoice.issued_on <= to_date,
+                )
+            ).all()
         )
         collected = session.exec(
             select(func.coalesce(func.sum(PlatformPaymentAllocation.amount_irr), 0))
@@ -3034,14 +3069,23 @@ def _platform_gym_reports(
             ).all()
             if row.amount_irr > row.paid_irr
         ]
-        receivable = sum(
-            max(row.amount_irr - row.paid_irr, 0)
-            for row in open_receivables
+        credit = available_credit_irr(session, gym_id=gym_id)
+        receivable = max(
+            sum(
+                max(row.amount_irr - row.paid_irr, 0)
+                for row in open_receivables
+            )
+            - credit,
+            0,
         )
-        overdue = sum(
-            max(row.amount_irr - row.paid_irr, 0)
-            for row in open_receivables
-            if row.due_on < date.today()
+        overdue = max(
+            sum(
+                max(row.amount_irr - row.paid_irr, 0)
+                for row in open_receivables
+                if row.due_on < date.today()
+            )
+            - credit,
+            0,
         )
         cost = session.exec(
             select(func.coalesce(func.sum(PlatformCost.amount_irr), 0)).where(
@@ -3087,27 +3131,6 @@ def platform_overview(
         event_type="PLATFORM_PAYMENT",
     )
     invoices = session.exec(select(PlatformInvoice)).all()
-    from app.platform_models import PlatformReceivable
-
-    open_receivables = [
-        row
-        for row in session.exec(
-            select(PlatformReceivable).where(
-                col(PlatformReceivable.status).in_(
-                    ("OPEN", "INVOICED", "PARTIAL")
-                )
-            )
-        ).all()
-        if row.amount_irr > row.paid_irr
-    ]
-    open_balance = sum(
-        max(row.amount_irr - row.paid_irr, 0) for row in open_receivables
-    )
-    overdue = sum(
-        max(row.amount_irr - row.paid_irr, 0)
-        for row in open_receivables
-        if row.due_on < date.today()
-    )
     costs = session.exec(
         select(func.coalesce(func.sum(PlatformCost.amount_irr), 0)).where(
             PlatformCost.incurred_on >= from_date,
@@ -3117,6 +3140,11 @@ def platform_overview(
     by_gym = _platform_gym_reports(
         session, from_date=from_date, to_date=to_date
     )
+    # Credit is gym-scoped, so platform totals must be the sum of the
+    # already netted per-gym balances rather than netting one gym's credit
+    # against another gym's receivables.
+    open_balance = sum(int(row["receivable_irr"]) for row in by_gym)
+    overdue = sum(int(row["overdue_irr"]) for row in by_gym)
     mrr = session.exec(
         select(func.coalesce(func.sum(PlatformAgreement.subscription_amount_irr), 0)).where(
             PlatformAgreement.status == "EFFECTIVE",
@@ -3151,7 +3179,8 @@ def platform_overview(
         invoiced_fees_irr=sum(
             row.total_irr
             for row in invoices
-            if from_date <= row.issued_on <= to_date
+            if row.status != "CANCELLED"
+            and from_date <= row.issued_on <= to_date
         ),
         receivable_irr=open_balance,
         overdue_irr=overdue,
@@ -3253,3 +3282,33 @@ def replace_group_members(
     )
     session.commit()
     return _group_public(session, group)
+
+
+def available_credit_irr(
+    session: Session,
+    *,
+    gym_id: uuid.UUID | None = None,
+    as_of: date | None = None,
+) -> int:
+    from app.platform_models import PlatformCredit, PlatformCreditApplication
+
+    credit_statement = select(func.coalesce(func.sum(PlatformCredit.amount_irr), 0))
+    applied_statement = select(
+        func.coalesce(func.sum(PlatformCreditApplication.amount_irr), 0)
+    ).join(
+        PlatformCredit,
+        col(PlatformCreditApplication.credit_id) == col(PlatformCredit.id),
+    )
+    if gym_id is not None:
+        credit_statement = credit_statement.where(PlatformCredit.gym_id == gym_id)
+        applied_statement = applied_statement.where(PlatformCredit.gym_id == gym_id)
+    if as_of is not None:
+        credit_statement = credit_statement.where(
+            func.date(PlatformCredit.created_at) <= as_of
+        )
+        applied_statement = applied_statement.where(
+            func.date(PlatformCreditApplication.created_at) <= as_of
+        )
+    credits = int(session.exec(credit_statement).one())
+    applied = int(session.exec(applied_statement).one())
+    return max(credits - applied, 0)

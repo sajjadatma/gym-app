@@ -53,11 +53,22 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 
+"${COMPOSE[@]}" cp "$ROOT/scripts/verify_restore.py" backend:/app/backend/scripts/verify_restore.py
 "${COMPOSE[@]}" cp "$BACKUP_PATH/counts.txt" backend:/tmp/gym-counts.txt
-"${COMPOSE[@]}" exec -T backend sh -c \
-  'python /app/backend/scripts/verify_restore.py \
-    --database-url "$DATABASE_URL" \
-    --upload-dir /app/backend/uploads/body-analysis \
-    --expected-counts /tmp/gym-counts.txt'
+if [ -f "$BACKUP_PATH/platform-counts.txt" ]; then
+  "${COMPOSE[@]}" cp "$BACKUP_PATH/platform-counts.txt" backend:/tmp/gym-platform-counts.txt
+  "${COMPOSE[@]}" exec -T backend sh -c \
+    'python /app/backend/scripts/verify_restore.py \
+      --database-url "$DATABASE_URL" \
+      --upload-dir /app/backend/uploads/body-analysis \
+      --expected-counts /tmp/gym-counts.txt \
+      --expected-platform-counts /tmp/gym-platform-counts.txt'
+else
+  "${COMPOSE[@]}" exec -T backend sh -c \
+    'python /app/backend/scripts/verify_restore.py \
+      --database-url "$DATABASE_URL" \
+      --upload-dir /app/backend/uploads/body-analysis \
+      --expected-counts /tmp/gym-counts.txt'
+fi
 
 echo "Restore and integrity checks completed."

@@ -66,8 +66,15 @@ export function PlatformFinancePage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [planOpen, setPlanOpen] = useState(false)
+  const [versionPlan, setVersionPlan] = useState<PlatformPlanPublic | null>(
+    null,
+  )
   const [agreementOpen, setAgreementOpen] = useState(false)
+  const [groupOpen, setGroupOpen] = useState(false)
+  const [costOpen, setCostOpen] = useState(false)
   const [invoiceOpen, setInvoiceOpen] = useState(false)
+  const [cancelTarget, setCancelTarget] =
+    useState<PlatformInvoicePublic | null>(null)
   const [paymentTarget, setPaymentTarget] =
     useState<PlatformInvoicePublic | null>(null)
   const [planForm, setPlanForm] = useState({
@@ -75,15 +82,31 @@ export function PlatformFinancePage() {
     name: "",
     price: "0",
   })
+  const [versionForm, setVersionForm] = useState({
+    effective_from: today(),
+    price: "0",
+  })
   const [agreementForm, setAgreementForm] = useState({
     gym_id: "",
+    group_id: "",
     mode: "COMMISSION",
     amount: "0",
     percent: "10",
     effective_from: today(),
   })
+  const [groupForm, setGroupForm] = useState({
+    name: "",
+    gym_id: "",
+  })
+  const [costForm, setCostForm] = useState({
+    category: "",
+    amount: "0",
+    gym_id: "",
+    incurred_on: today(),
+  })
   const [invoiceForm, setInvoiceForm] = useState({ gym_id: "" })
   const [paymentAmount, setPaymentAmount] = useState("")
+  const [cancelReason, setCancelReason] = useState("")
 
   const fromDate = monthStart()
   const toDate = today()
@@ -108,6 +131,10 @@ export function PlatformFinancePage() {
     queryKey: ["platform", "agreements"],
     queryFn: async () =>
       (await PlatformService.readPlatformAgreements()).data.data,
+  })
+  const groupsQuery = useQuery({
+    queryKey: ["platform", "groups"],
+    queryFn: async () => (await PlatformService.readPlatformGroups()).data.data,
   })
   const invoicesQuery = useQuery({
     queryKey: ["platform", "invoices"],
@@ -176,7 +203,8 @@ export function PlatformFinancePage() {
             ]
       await PlatformService.createPlatformAgreement({
         body: {
-          gym_id: agreementForm.gym_id,
+          gym_id: agreementForm.group_id ? null : agreementForm.gym_id,
+          group_id: agreementForm.group_id || null,
           mode: agreementForm.mode as
             | "FREE"
             | "SUBSCRIPTION"
@@ -264,13 +292,109 @@ export function PlatformFinancePage() {
   }
 
   async function cancelInvoice(invoice: PlatformInvoicePublic) {
+    if (cancelReason.trim().length < 3) return
     setSaving(true)
     try {
       await PlatformService.cancelPlatformInvoice({
         path: { invoice_id: invoice.id },
-        body: { reason: "platform invoice cancellation" },
+        body: { reason: cancelReason.trim() },
         headers: { "Idempotency-Key": crypto.randomUUID() },
       })
+      await invalidate()
+      setCancelTarget(null)
+      setCancelReason("")
+      show(t("platform.saved"), "success")
+    } catch (err) {
+      show(translateApiError(err, t), "error")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function createVersion() {
+    if (!versionPlan) return
+    setSaving(true)
+    try {
+      await PlatformService.createPlatformPlanVersion({
+        path: { plan_id: versionPlan.id },
+        body: {
+          effective_from: versionForm.effective_from,
+          monthly_price_irr: Number(versionForm.price) || 0,
+          limits: {},
+        },
+        headers: { "Idempotency-Key": crypto.randomUUID() },
+      })
+      await invalidate()
+      setVersionPlan(null)
+      show(t("platform.saved"), "success")
+    } catch (err) {
+      show(translateApiError(err, t), "error")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function createGroup() {
+    if (!groupForm.name.trim() || !groupForm.gym_id) return
+    setSaving(true)
+    try {
+      await PlatformService.createPlatformGroup({
+        body: {
+          name: groupForm.name,
+          members: [{ gym_id: groupForm.gym_id, allocation_bp: 10000 }],
+        },
+        headers: { "Idempotency-Key": crypto.randomUUID() },
+      })
+      await invalidate()
+      setGroupOpen(false)
+      show(t("platform.saved"), "success")
+    } catch (err) {
+      show(translateApiError(err, t), "error")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function createCost() {
+    setSaving(true)
+    try {
+      await PlatformService.createPlatformCost({
+        body: {
+          gym_id: costForm.gym_id || null,
+          category: costForm.category,
+          amount_irr: Number(costForm.amount) || 0,
+          incurred_on: costForm.incurred_on,
+        },
+        headers: { "Idempotency-Key": crypto.randomUUID() },
+      })
+      await invalidate()
+      setCostOpen(false)
+      show(t("platform.saved"), "success")
+    } catch (err) {
+      show(translateApiError(err, t), "error")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function setVersionStatus(
+    plan: PlatformPlanPublic,
+    versionId: string,
+    action: "activate" | "retire",
+  ) {
+    setSaving(true)
+    try {
+      if (action === "activate") {
+        await PlatformService.activatePlatformPlanVersion({
+          path: { plan_id: plan.id, version_id: versionId },
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+        })
+      } else {
+        await PlatformService.retirePlatformPlanVersion({
+          path: { plan_id: plan.id, version_id: versionId },
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+        })
+      }
       await invalidate()
       show(t("platform.saved"), "success")
     } catch (err) {
@@ -286,16 +410,21 @@ export function PlatformFinancePage() {
         title={t("platform.title")}
         subtitle={t("platform.subtitle")}
         actions={
-          <Button
-            variant="tonal"
-            onClick={() =>
-              void downloadCsv(
-                `/api/v1/platform/reports/export?from_date=${fromDate}&to_date=${toDate}`,
-              )
-            }
-          >
-            {t("platform.export")}
-          </Button>
+          <div className="row" style={{ gap: 8 }}>
+            <Button variant="text" onClick={() => setCostOpen(true)}>
+              {t("platform.newCost")}
+            </Button>
+            <Button
+              variant="tonal"
+              onClick={() =>
+                void downloadCsv(
+                  `/api/v1/platform/reports/export?from_date=${fromDate}&to_date=${toDate}`,
+                )
+              }
+            >
+              {t("platform.export")}
+            </Button>
+          </div>
         }
       />
       <Tabs
@@ -413,11 +542,59 @@ export function PlatformFinancePage() {
                       </div>
                       <div className="row" style={{ gap: 8 }}>
                         {plan.versions.map((version) => (
-                          <span className="m3-chip" key={version.id}>
-                            {version.status} ·{" "}
-                            {formatNumber(version.monthly_price_irr)}
-                          </span>
+                          <div
+                            className="row"
+                            style={{ gap: 4 }}
+                            key={version.id}
+                          >
+                            <span className="m3-chip">
+                              v{version.version_number} {version.status} ·{" "}
+                              {formatNumber(version.monthly_price_irr)}
+                            </span>
+                            {version.status === "DRAFT" ? (
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  void setVersionStatus(
+                                    plan,
+                                    version.id,
+                                    "activate",
+                                  )
+                                }
+                              >
+                                {t("platform.activate")}
+                              </Button>
+                            ) : null}
+                            {version.status === "ACTIVE" ? (
+                              <Button
+                                size="sm"
+                                variant="text"
+                                onClick={() =>
+                                  void setVersionStatus(
+                                    plan,
+                                    version.id,
+                                    "retire",
+                                  )
+                                }
+                              >
+                                {t("platform.retire")}
+                              </Button>
+                            ) : null}
+                          </div>
                         ))}
+                        <Button
+                          size="sm"
+                          variant="text"
+                          onClick={() => {
+                            setVersionForm({
+                              effective_from: today(),
+                              price: "0",
+                            })
+                            setVersionPlan(plan)
+                          }}
+                        >
+                          {t("platform.newVersion")}
+                        </Button>
                       </div>
                     </div>
                   </Card>
@@ -431,12 +608,17 @@ export function PlatformFinancePage() {
           <SectionCard
             title={t("platform.agreements")}
             actions={
-              <Button
-                icon={<Plus size={16} />}
-                onClick={() => setAgreementOpen(true)}
-              >
-                {t("platform.newAgreement")}
-              </Button>
+              <div className="row" style={{ gap: 8 }}>
+                <Button variant="text" onClick={() => setGroupOpen(true)}>
+                  {t("platform.newGroup")}
+                </Button>
+                <Button
+                  icon={<Plus size={16} />}
+                  onClick={() => setAgreementOpen(true)}
+                >
+                  {t("platform.newAgreement")}
+                </Button>
+              </div>
             }
           >
             {agreementsQuery.isLoading ? (
@@ -518,6 +700,18 @@ export function PlatformFinancePage() {
                             · {formatNumber(invoice.balance_irr)}
                           </div>
                         </div>
+                        <div className="stack" style={{ marginTop: 8 }}>
+                          {invoice.lines.map((line) => (
+                            <div className="muted" key={line.id}>
+                              {line.description} ·{" "}
+                              {formatNumber(line.amount_irr)} ·{" "}
+                              {t("platform.paid")}:{" "}
+                              {formatNumber(line.paid_irr)} ·{" "}
+                              {t("platform.balance")}:{" "}
+                              {formatNumber(line.balance_irr)}
+                            </div>
+                          ))}
+                        </div>
                         <div className="row" style={{ gap: 8 }}>
                           {invoice.status !== "CANCELLED" &&
                           invoice.balance_irr > 0 ? (
@@ -536,7 +730,10 @@ export function PlatformFinancePage() {
                               size="sm"
                               variant="text"
                               loading={saving}
-                              onClick={() => void cancelInvoice(invoice)}
+                              onClick={() => {
+                                setCancelReason("")
+                                setCancelTarget(invoice)
+                              }}
                             >
                               {t("platform.cancelInvoice")}
                             </Button>
@@ -655,9 +852,31 @@ export function PlatformFinancePage() {
             label={t("platform.gym")}
             value={agreementForm.gym_id}
             onChange={(value) =>
-              setAgreementForm({ ...agreementForm, gym_id: value })
+              setAgreementForm({
+                ...agreementForm,
+                gym_id: value,
+                group_id: "",
+              })
             }
             options={gymOptions}
+          />
+          <SelectField
+            label={t("platform.group")}
+            value={agreementForm.group_id}
+            onChange={(value) =>
+              setAgreementForm({
+                ...agreementForm,
+                group_id: value,
+                gym_id: "",
+              })
+            }
+            options={[
+              { value: "", label: "—" },
+              ...(groupsQuery.data ?? []).map((group) => ({
+                value: group.id,
+                label: group.name,
+              })),
+            ]}
           />
           <SelectField
             label={t("platform.mode")}
@@ -746,6 +965,151 @@ export function PlatformFinancePage() {
             onChange={(event) => setPaymentAmount(event.target.value)}
           />
         </div>
+      </Dialog>
+
+      <Dialog
+        open={versionPlan !== null}
+        title={t("platform.newVersion")}
+        onClose={() => setVersionPlan(null)}
+        footer={
+          <>
+            <Button variant="text" onClick={() => setVersionPlan(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button loading={saving} onClick={() => void createVersion()}>
+              {t("common.save")}
+            </Button>
+          </>
+        }
+      >
+        <div className="stack">
+          <TextField
+            label={t("platform.effectiveFrom")}
+            value={versionForm.effective_from}
+            onChange={(event) =>
+              setVersionForm({
+                ...versionForm,
+                effective_from: event.target.value,
+              })
+            }
+          />
+          <TextField
+            label={t("platform.price")}
+            value={versionForm.price}
+            onChange={(event) =>
+              setVersionForm({ ...versionForm, price: event.target.value })
+            }
+          />
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={groupOpen}
+        title={t("platform.newGroup")}
+        onClose={() => setGroupOpen(false)}
+        footer={
+          <>
+            <Button variant="text" onClick={() => setGroupOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              loading={saving}
+              disabled={!groupForm.name.trim() || !groupForm.gym_id}
+              onClick={() => void createGroup()}
+            >
+              {t("common.save")}
+            </Button>
+          </>
+        }
+      >
+        <div className="stack">
+          <TextField
+            label={t("platform.name")}
+            value={groupForm.name}
+            onChange={(event) =>
+              setGroupForm({ ...groupForm, name: event.target.value })
+            }
+          />
+          <SelectField
+            label={t("platform.gym")}
+            value={groupForm.gym_id}
+            onChange={(value) => setGroupForm({ ...groupForm, gym_id: value })}
+            options={gymOptions}
+          />
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={costOpen}
+        title={t("platform.newCost")}
+        onClose={() => setCostOpen(false)}
+        footer={
+          <>
+            <Button variant="text" onClick={() => setCostOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button loading={saving} onClick={() => void createCost()}>
+              {t("common.save")}
+            </Button>
+          </>
+        }
+      >
+        <div className="stack">
+          <TextField
+            label={t("platform.category")}
+            value={costForm.category}
+            onChange={(event) =>
+              setCostForm({ ...costForm, category: event.target.value })
+            }
+          />
+          <TextField
+            label={t("platform.amount")}
+            value={costForm.amount}
+            onChange={(event) =>
+              setCostForm({ ...costForm, amount: event.target.value })
+            }
+          />
+          <TextField
+            label={t("platform.effectiveFrom")}
+            value={costForm.incurred_on}
+            onChange={(event) =>
+              setCostForm({ ...costForm, incurred_on: event.target.value })
+            }
+          />
+          <SelectField
+            label={t("platform.gym")}
+            value={costForm.gym_id}
+            onChange={(value) => setCostForm({ ...costForm, gym_id: value })}
+            options={[{ value: "", label: "—" }, ...gymOptions]}
+          />
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={cancelTarget !== null}
+        title={t("platform.cancelInvoice")}
+        onClose={() => setCancelTarget(null)}
+        footer={
+          <>
+            <Button variant="text" onClick={() => setCancelTarget(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              loading={saving}
+              disabled={cancelReason.trim().length < 3}
+              onClick={() => cancelTarget && void cancelInvoice(cancelTarget)}
+            >
+              {t("common.confirm")}
+            </Button>
+          </>
+        }
+      >
+        <TextField
+          label={t("platform.cancelReason")}
+          value={cancelReason}
+          onChange={(event) => setCancelReason(event.target.value)}
+          multiline
+        />
       </Dialog>
     </>
   )
