@@ -899,3 +899,50 @@ class PlatformRemindersPublic(SQLModel):
     delivery_scope: str
     due_soon: list[PlatformInvoicePublic]
     overdue: list[PlatformInvoicePublic]
+
+
+class PlatformCostCreate(SQLModel):
+    gym_id: uuid.UUID | None = None
+    category: str = Field(min_length=2, max_length=100)
+    description: str | None = Field(default=None, max_length=500)
+    amount_irr: int = Field(ge=0)
+    incurred_on: date
+
+
+class PlatformCostPublic(SQLModel):
+    id: uuid.UUID
+    gym_id: uuid.UUID | None
+    category: str
+    description: str | None
+    amount_irr: int
+    incurred_on: date
+    created_at: datetime
+
+
+class PlatformCostsPublic(SQLModel):
+    data: list[PlatformCostPublic]
+
+
+class PlatformGymReportPublic(SQLModel):
+    gym_id: uuid.UUID
+    recognized_revenue_irr: int
+    collected_fees_irr: int
+    receivable_irr: int
+    overdue_irr: int
+    recorded_cost_irr: int
+    contribution_irr: int
+
+
+class PlatformOverviewPublic(SQLModel):
+    mrr_irr: int
+    collected_fees_irr: int
+    recognized_platform_revenue_irr: int
+    invoiced_fees_irr: int
+    receivable_irr: int
+    overdue_irr: int
+    recorded_platform_costs_irr: int
+    estimated_operating_profit_irr: int
+    by_gym: list[PlatformGymReportPublic]
+    active_plans: int
+    active_agreements: int
+    zero_plan_mode: bool

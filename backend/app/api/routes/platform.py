@@ -1,24 +1,30 @@
 from __future__ import annotations
 
+import csv
+import io
 import uuid
 from datetime import date
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Response
 
 from app.api.deps import CurrentSuperuser, SessionDep
 from app.platform_models import (
     PlatformAgreementCreate,
     PlatformAgreementPublic,
     PlatformAgreementsPublic,
+    PlatformCostCreate,
+    PlatformCostsPublic,
     PlatformGroupCreate,
     PlatformGroupMemberInput,
     PlatformGroupPublic,
     PlatformGroupsPublic,
+    PlatformGymReportPublic,
     PlatformInvoiceCancelCreate,
     PlatformInvoiceCreate,
     PlatformInvoicePublic,
     PlatformInvoicesPublic,
+    PlatformOverviewPublic,
     PlatformPaymentCreate,
     PlatformPaymentPublic,
     PlatformPaymentsPublic,
@@ -438,4 +444,126 @@ def read_platform_reminders(
 ) -> Any:
     return platform_service.list_platform_reminders(
         session, as_of=as_of, within_days=within_days
+    )
+
+
+def _platform_csv(rows: list[list[Any]]) -> Response:
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    for row in rows:
+        writer.writerow(row)
+    return Response(
+        content="\ufeff" + buffer.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="platform.csv"'},
+    )
+
+
+@router.get("/reports/overview", response_model=PlatformOverviewPublic)
+def read_platform_overview(
+    *,
+    session: SessionDep,
+    _current_user: CurrentSuperuser,
+    from_date: date,
+    to_date: date,
+) -> Any:
+    return platform_service.platform_overview(
+        session, from_date=from_date, to_date=to_date
+    )
+
+
+@router.get(
+    "/reports/gyms/{gym_id}", response_model=PlatformGymReportPublic
+)
+def read_platform_gym_report(
+    *,
+    gym_id: uuid.UUID,
+    session: SessionDep,
+    _current_user: CurrentSuperuser,
+    from_date: date,
+    to_date: date,
+) -> Any:
+    return platform_service.platform_gym_detail(
+        session, gym_id=gym_id, from_date=from_date, to_date=to_date
+    )
+
+
+@router.get("/reports/export")
+def export_platform_report(
+    *,
+    session: SessionDep,
+    _current_user: CurrentSuperuser,
+    from_date: date,
+    to_date: date,
+) -> Any:
+    overview = platform_service.platform_overview(
+        session, from_date=from_date, to_date=to_date
+    )
+    rows: list[list[Any]] = [
+        ["metric_family", "scope", "gym_id", "metric", "value_irr"]
+    ]
+    rows.append(["CASHFLOW", "platform", "", "collected_fees_irr", overview.collected_fees_irr])
+    rows.append(["ACCRUAL", "platform", "", "recognized_platform_revenue_irr", overview.recognized_platform_revenue_irr])
+    rows.append(["ACCRUAL", "platform", "", "estimated_operating_profit_irr", overview.estimated_operating_profit_irr])
+    rows.append(["BALANCE", "platform", "", "receivable_irr", overview.receivable_irr])
+    rows.append(["BALANCE", "platform", "", "overdue_irr", overview.overdue_irr])
+    for row in overview.by_gym:
+        rows.append(
+            [
+                "ACCRUAL",
+                "gym",
+                str(row.gym_id),
+                "contribution_irr",
+                row.contribution_irr,
+            ]
+        )
+    return _platform_csv(rows)
+
+
+@router.get("/gyms/{gym_id}/export")
+def export_platform_gym_report(
+    *,
+    gym_id: uuid.UUID,
+    session: SessionDep,
+    _current_user: CurrentSuperuser,
+    from_date: date,
+    to_date: date,
+) -> Any:
+    detail = platform_service.platform_gym_detail(
+        session, gym_id=gym_id, from_date=from_date, to_date=to_date
+    )
+    rows: list[list[Any]] = [
+        ["metric_family", "metric", "value_irr"],
+        ["ACCRUAL", "recognized_revenue_irr", detail.recognized_revenue_irr],
+        ["CASHFLOW", "collected_fees_irr", detail.collected_fees_irr],
+        ["BALANCE", "receivable_irr", detail.receivable_irr],
+        ["BALANCE", "overdue_irr", detail.overdue_irr],
+        ["ACCRUAL", "recorded_cost_irr", detail.recorded_cost_irr],
+        ["ACCRUAL", "contribution_irr", detail.contribution_irr],
+    ]
+    return _platform_csv(rows)
+
+
+@router.get("/costs", response_model=PlatformCostsPublic)
+def read_platform_costs(
+    *, session: SessionDep, _current_user: CurrentSuperuser
+) -> Any:
+    return platform_service.list_platform_costs(session)
+
+
+@router.post("/costs")
+def create_platform_cost(
+    *,
+    session: SessionDep,
+    current_user: CurrentSuperuser,
+    body: PlatformCostCreate,
+    idempotency_key: Annotated[
+        str | None, Header(alias="Idempotency-Key")
+    ] = None,
+) -> Any:
+    return platform_service.create_platform_cost(
+        session,
+        actor=current_user,
+        body=body,
+        operation_key=_idempotency_key(idempotency_key),
     )

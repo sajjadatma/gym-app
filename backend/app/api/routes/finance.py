@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import csv
+import io
 import uuid
 from datetime import date
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Response
 from sqlalchemy.exc import IntegrityError
+from sqlmodel import select
 
 from app.api.deps import CurrentUser, GymContextDep, SessionDep
 from app.core.audit import audit
@@ -115,6 +118,7 @@ from app.services.finance import (
     get_journal,
     get_membership,
     get_receipt,
+    gym_summary,
     issue_invoice,
     list_bank_statement_lines,
     list_catalog,
@@ -1486,3 +1490,224 @@ def read_my_gym_platform_payments(
     scope = resolve_finance_scope(session, ctx, current_user)
     scope.require(FINANCE_VIEW)
     return platform_service.list_platform_payments(session, gym_id=ctx.gym.id)
+
+
+def _csv_response(rows: list[list[Any]]) -> Response:
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    for row in rows:
+        writer.writerow(row)
+    return Response(
+        content="\ufeff" + buffer.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="finance.csv"'},
+    )
+
+
+def _gym_report_rows(
+    session: Any,
+    *,
+    gym_id: uuid.UUID,
+    from_date: date,
+    to_date: date,
+) -> list[list[Any]]:
+    from app.finance_models import (
+        FinanceCoachEarning,
+        FinanceCoachSettlement,
+        FinanceExpense,
+        FinanceInvoice,
+        FinanceReceipt,
+        FinanceRefund,
+    )
+    from app.platform_models import PlatformInvoiceLine
+
+    rows: list[list[Any]] = [
+        ["metric_family", "row_type", "reference", "date", "amount_irr", "status"]
+    ]
+    summary = gym_summary(
+        session, gym_id=gym_id, from_date=from_date, to_date=to_date
+    )
+    for field in (
+        "cash_collected_irr",
+        "cash_refunded_irr",
+        "cash_expenses_paid_irr",
+        "cash_coach_settlements_irr",
+        "net_cashflow_irr",
+        "sales_irr",
+        "receivable_irr",
+        "overdue_irr",
+        "coach_payable_irr",
+        "platform_payable_irr",
+        "recognized_revenue_irr",
+        "recognized_expenses_irr",
+        "estimated_operating_profit_irr",
+    ):
+        family = (
+            "ACCRUAL"
+            if field
+            in {
+                "recognized_revenue_irr",
+                "recognized_expenses_irr",
+                "estimated_operating_profit_irr",
+            }
+            else "BALANCE"
+            if field
+            in {
+                "receivable_irr",
+                "overdue_irr",
+                "coach_payable_irr",
+                "platform_payable_irr",
+            }
+            else "BILLING"
+            if field == "sales_irr"
+            else "CASHFLOW"
+        )
+        rows.append([family, "summary", field, "", getattr(summary, field), ""])
+
+    for invoice in session.exec(
+        select(FinanceInvoice).where(FinanceInvoice.gym_id == gym_id)
+    ).all():
+        rows.append(
+            [
+                "BILLING",
+                "invoice",
+                str(invoice.invoice_number or ""),
+                invoice.issue_date.isoformat() if invoice.issue_date else "",
+                invoice.total_irr,
+                invoice.status,
+            ]
+        )
+    for receipt in session.exec(
+        select(FinanceReceipt).where(FinanceReceipt.gym_id == gym_id)
+    ).all():
+        rows.append(
+            [
+                "CASHFLOW",
+                "receipt",
+                str(receipt.receipt_number),
+                receipt.received_on.isoformat(),
+                receipt.amount_irr,
+                receipt.status,
+            ]
+        )
+    for refund in session.exec(
+        select(FinanceRefund).where(FinanceRefund.gym_id == gym_id)
+    ).all():
+        rows.append(
+            [
+                "CASHFLOW",
+                "refund",
+                str(refund.id),
+                refund.created_at.date().isoformat(),
+                refund.amount_irr,
+                refund.status,
+            ]
+        )
+    for expense in session.exec(
+        select(FinanceExpense).where(FinanceExpense.gym_id == gym_id)
+    ).all():
+        rows.append(
+            [
+                "CASHFLOW" if expense.status == "PAID" else "ACCRUAL",
+                "expense",
+                str(expense.id),
+                expense.spent_on.isoformat(),
+                expense.amount_irr,
+                expense.status,
+            ]
+        )
+    for earning in session.exec(
+        select(FinanceCoachEarning).where(FinanceCoachEarning.gym_id == gym_id)
+    ).all():
+        rows.append(
+            [
+                "ACCRUAL",
+                "coach_earning",
+                str(earning.id),
+                earning.created_at.date().isoformat(),
+                earning.coach_share_irr,
+                earning.status,
+            ]
+        )
+    for settlement in session.exec(
+        select(FinanceCoachSettlement).where(
+            FinanceCoachSettlement.gym_id == gym_id
+        )
+    ).all():
+        rows.append(
+            [
+                "CASHFLOW" if settlement.status == "CONFIRMED" else "BALANCE",
+                "coach_settlement",
+                str(settlement.id),
+                settlement.paid_on.isoformat(),
+                settlement.amount_irr,
+                settlement.status,
+            ]
+        )
+    for line in session.exec(
+        select(PlatformInvoiceLine).where(PlatformInvoiceLine.gym_id == gym_id)
+    ).all():
+        rows.append(
+            [
+                "BALANCE",
+                "platform_invoice_line",
+                line.source_key,
+                "",
+                line.amount_irr,
+                "PAID" if line.paid_irr >= line.amount_irr else "OPEN",
+            ]
+        )
+    return rows
+
+
+@router.get("/reports/summary")
+def read_gym_summary(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    from_date: date,
+    to_date: date,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return gym_summary(
+        session, gym_id=ctx.gym.id, from_date=from_date, to_date=to_date
+    )
+
+
+@router.get("/reports/export")
+def export_gym_report(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    from_date: date,
+    to_date: date,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return _csv_response(
+        _gym_report_rows(
+            session, gym_id=ctx.gym.id, from_date=from_date, to_date=to_date
+        )
+    )
+
+
+@router.get("/reports/offboarding-export")
+def export_gym_offboarding(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return _csv_response(
+        _gym_report_rows(
+            session,
+            gym_id=ctx.gym.id,
+            from_date=date(2000, 1, 1),
+            to_date=date.today(),
+        )
+    )

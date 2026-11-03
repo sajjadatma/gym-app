@@ -5281,3 +5281,154 @@ def activate_coach_agreement(
     session.commit()
     session.refresh(agreement)
     return _agreement_public(session, agreement)
+
+
+def gym_summary(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    from_date: date,
+    to_date: date,
+) -> Any:
+    from app.platform_models import PlatformReceivable
+
+    def journal_totals(codes: tuple[str, ...]) -> tuple[int, int]:
+        rows = session.exec(
+            select(
+                func.coalesce(func.sum(FinanceJournalLine.debit_irr), 0),
+                func.coalesce(func.sum(FinanceJournalLine.credit_irr), 0),
+            )
+            .join(
+                FinanceAccount,
+                col(FinanceJournalLine.account_id) == col(FinanceAccount.id),
+            )
+            .join(
+                FinanceJournal,
+                col(FinanceJournalLine.journal_id) == col(FinanceJournal.id),
+            )
+            .where(
+                FinanceJournal.gym_id == gym_id,
+                col(FinanceAccount.code).in_(codes),
+                FinanceJournal.posting_date >= from_date,
+                FinanceJournal.posting_date <= to_date,
+                FinanceJournal.event_type != "OPENING_BALANCE",
+            )
+        ).one()
+        return int(rows[0]), int(rows[1])
+
+    def cash_event(event_type: str) -> int:
+        rows = session.exec(
+            select(
+                func.coalesce(func.sum(FinanceJournalLine.debit_irr), 0),
+                func.coalesce(func.sum(FinanceJournalLine.credit_irr), 0),
+            )
+            .join(
+                FinanceAccount,
+                col(FinanceJournalLine.account_id) == col(FinanceAccount.id),
+            )
+            .join(
+                FinanceJournal,
+                col(FinanceJournalLine.journal_id) == col(FinanceJournal.id),
+            )
+            .where(
+                FinanceJournal.gym_id == gym_id,
+                FinanceJournal.event_type == event_type,
+                FinanceJournal.posting_date >= from_date,
+                FinanceJournal.posting_date <= to_date,
+                FinanceAccount.code == "1000",
+            )
+        ).one()
+        return int(rows[0]) - int(rows[1])
+
+    cash_collected = cash_event("RECEIPT_CONFIRMED")
+    cash_refunded = -cash_event("REFUND_RECORDED")
+    cash_expenses = -cash_event("EXPENSE_PAID")
+    cash_settlements = -cash_event("COACH_SETTLED")
+
+    revenue_debit, revenue_credit = journal_totals(("4000", "4100"))
+    expense_debit, expense_credit = journal_totals(("5000", "5100"))
+    recognized_revenue = revenue_credit - revenue_debit
+    platform_rows = session.exec(
+        select(PlatformReceivable).where(PlatformReceivable.gym_id == gym_id)
+    ).all()
+    platform_accrued = sum(
+        row.amount_irr
+        for row in platform_rows
+        if from_date <= row.created_at.date() <= to_date
+    )
+    recognized_expenses = max(expense_debit - expense_credit, 0) + platform_accrued
+    estimated_profit = recognized_revenue - recognized_expenses
+
+    invoices = session.exec(
+        select(FinanceInvoice).where(
+            FinanceInvoice.gym_id == gym_id,
+            col(FinanceInvoice.status).in_(("ISSUED", "VOID")),
+        )
+    ).all()
+    sales = sum(
+        row.total_irr
+        for row in invoices
+        if row.issue_date is not None
+        and from_date <= row.issue_date <= to_date
+        and row.status == "ISSUED"
+    )
+    receivable = 0
+    overdue = 0
+    today = utcnow().date()
+    for invoice in invoices:
+        if invoice.status != "ISSUED":
+            continue
+        paid = _invoice_paid_irr(session, invoice.id)
+        balance = max(invoice.total_irr - paid, 0)
+        receivable += balance
+        if invoice.due_date is not None and invoice.due_date < today:
+            overdue += balance
+    renewals = session.exec(
+        select(FinanceMembership).where(
+            FinanceMembership.gym_id == gym_id,
+            col(FinanceMembership.status).in_(("ACTIVE", "FROZEN")),
+            FinanceMembership.end_date >= today,
+            FinanceMembership.end_date <= today + timedelta(days=30),
+        )
+    ).all()
+    earnings = session.exec(
+        select(FinanceCoachEarning).where(FinanceCoachEarning.gym_id == gym_id)
+    ).all()
+    coach_payable = sum(
+        max(
+            row.coach_share_irr
+            - _earning_settled_irr(session, row.id)
+            - _earning_reserved_irr(session, row.id)
+            - _earning_adjustment_irr(session, row.id),
+            0,
+        )
+        for row in earnings
+    )
+    platform_payable = sum(
+        max(row.amount_irr - row.paid_irr, 0)
+        for row in platform_rows
+        if row.status in ("OPEN", "INVOICED", "PARTIAL")
+    )
+    from app.finance_models import FinanceGymSummaryPublic
+
+    return FinanceGymSummaryPublic(
+        cash_collected_irr=cash_collected,
+        cash_refunded_irr=cash_refunded,
+        cash_expenses_paid_irr=cash_expenses,
+        cash_coach_settlements_irr=cash_settlements,
+        net_cashflow_irr=(
+            cash_collected
+            - cash_refunded
+            - cash_expenses
+            - cash_settlements
+        ),
+        recognized_revenue_irr=recognized_revenue,
+        recognized_expenses_irr=recognized_expenses,
+        estimated_operating_profit_irr=estimated_profit,
+        sales_irr=sales,
+        receivable_irr=receivable,
+        overdue_irr=overdue,
+        renewals_due=len(renewals),
+        coach_payable_irr=coach_payable,
+        platform_payable_irr=platform_payable,
+    )

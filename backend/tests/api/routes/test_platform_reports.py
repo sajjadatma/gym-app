@@ -109,3 +109,189 @@ def test_platform_reminders_are_in_app_only_and_list_due_and_overdue(
     assert body["overdue"]
     # The approved proactive delivery requirement remains outstanding.
     assert body["delivery_scope"] != "PROACTIVE"
+
+
+def test_gym_summary_separates_cashflow_and_accrual_profit(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    import uuid
+
+    from tests.api.routes.test_finance_foundation import make_owner
+    from tests.api.routes.test_finance_invoices import make_customer
+    from tests.api.routes.test_finance_receipts import (
+        issued_invoice,
+        receipt_payload,
+        record_receipt,
+    )
+    from tests.api.routes.test_platform_fees import commission_agreement
+
+    gym, owner = make_owner(client, superuser_headers, name="Summary Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+    commission_agreement(client, superuser_headers, gym_id, percent_bp=1000)
+    invoice = issued_invoice(client, owner, customer, amount=1_000_000)
+    receipt = record_receipt(
+        client,
+        owner,
+        receipt_payload(
+            customer, amount=400_000, allocations=[(invoice["id"], 400_000)]
+        ),
+    )
+    assert receipt.status_code == 200, receipt.text
+    expense = client.post(
+        "/api/v1/finance/expenses",
+        headers={**owner, "Idempotency-Key": uuid.uuid4().hex},
+        json={
+            "category": "اجاره",
+            "counterparty": "مالک",
+            "amount_irr": 50_000,
+            "spent_on": "2026-11-02",
+            "paid": False,
+        },
+    )
+    assert expense.status_code == 200, expense.text
+    paid = client.post(
+        f"/api/v1/finance/expenses/{expense.json()['id']}/pay",
+        headers={**owner, "Idempotency-Key": uuid.uuid4().hex},
+        json={"paid_on": "2026-11-03", "method": "TRANSFER"},
+    )
+    assert paid.status_code == 200, paid.text
+    summary = client.get(
+        "/api/v1/finance/reports/summary",
+        headers=owner,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+    )
+    assert summary.status_code == 200, summary.text
+    body = summary.json()
+    assert body["sales_irr"] == 1_000_000
+    assert body["cash_collected_irr"] == 400_000
+    assert body["cash_expenses_paid_irr"] == 50_000
+    assert body["net_cashflow_irr"] == 350_000
+    assert body["recognized_revenue_irr"] == 1_000_000
+    assert body["recognized_expenses_irr"] == 90_000
+    assert body["estimated_operating_profit_irr"] == 910_000
+    assert body["estimated_operating_profit_irr"] != body["net_cashflow_irr"]
+
+
+def test_platform_overview_separates_cash_from_recognized_revenue(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    import uuid
+
+    from tests.api.routes.test_finance_foundation import make_owner
+    from tests.api.routes.test_finance_invoices import make_customer
+    from tests.api.routes.test_finance_receipts import (
+        issued_invoice,
+        receipt_payload,
+        record_receipt,
+    )
+    from tests.api.routes.test_platform_fees import commission_agreement
+
+    gym, owner = make_owner(client, superuser_headers, name="Platform Report Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+    commission_agreement(client, superuser_headers, gym_id, percent_bp=1000)
+    invoice = issued_invoice(client, owner, customer, amount=1_000_000)
+    receipt = record_receipt(
+        client,
+        owner,
+        receipt_payload(
+            customer, amount=1_000_000, allocations=[(invoice["id"], 1_000_000)]
+        ),
+    )
+    assert receipt.status_code == 200, receipt.text
+    cost = client.post(
+        "/api/v1/platform/costs",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={
+            "gym_id": gym_id,
+            "category": "hosting",
+            "amount_irr": 10_000,
+            "incurred_on": "2026-11-03",
+        },
+    )
+    assert cost.status_code == 200, cost.text
+    overview = client.get(
+        "/api/v1/platform/reports/overview",
+        headers=superuser_headers,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+    )
+    assert overview.status_code == 200, overview.text
+    body = overview.json()
+    assert body["zero_plan_mode"] is True
+    assert body["mrr_irr"] == 0
+    assert body["collected_fees_irr"] == 0
+    assert body["recognized_platform_revenue_irr"] == 100_000
+    assert body["recorded_platform_costs_irr"] == 10_000
+    assert body["estimated_operating_profit_irr"] == 90_000
+    assert body["by_gym"][0]["contribution_irr"] == 90_000
+
+    platform_invoice = client.post(
+        "/api/v1/platform/invoices",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={
+            "gym_id": gym_id,
+            "period_start": "2026-11-01",
+            "period_end": "2026-12-31",
+            "due_on": "2027-01-15",
+        },
+    )
+    assert platform_invoice.status_code == 200, platform_invoice.text
+    payment = client.post(
+        f"/api/v1/platform/invoices/{platform_invoice.json()['id']}/payments",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={
+            "amount_irr": 100_000,
+            "method": "TRANSFER",
+            "received_on": "2026-12-01",
+        },
+    )
+    assert payment.status_code == 200, payment.text
+    after = client.get(
+        "/api/v1/platform/reports/overview",
+        headers=superuser_headers,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+    ).json()
+    assert after["collected_fees_irr"] == 100_000
+    assert after["recognized_platform_revenue_irr"] == 100_000
+
+
+def test_csv_exports_are_tenant_safe_and_keep_history(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+
+    from tests.api.routes.test_finance_foundation import make_owner
+    from tests.api.routes.test_finance_invoices import make_customer
+    from tests.api.routes.test_finance_receipts import issued_invoice
+
+    gym, owner = make_owner(client, superuser_headers, name="Export Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+    invoice = issued_invoice(client, owner, customer, amount=100_000)
+    assert invoice["id"]
+    export = client.get(
+        "/api/v1/finance/reports/export",
+        headers=owner,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+    )
+    assert export.status_code == 200, export.text
+    assert export.headers["content-type"].startswith("text/csv")
+    assert "BILLING" in export.text
+    offboarding = client.get(
+        "/api/v1/finance/reports/offboarding-export", headers=owner
+    )
+    assert offboarding.status_code == 200, offboarding.text
+    assert "invoice" in offboarding.text
+    denied = client.get(
+        "/api/v1/platform/reports/export",
+        headers=owner,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+    )
+    assert denied.status_code == 403
+    allowed = client.get(
+        "/api/v1/platform/reports/export",
+        headers=superuser_headers,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-31"},
+    )
+    assert allowed.status_code == 200, allowed.text
+    assert "CASHFLOW" in allowed.text

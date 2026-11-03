@@ -1896,3 +1896,20 @@ class FinanceReconciliationMatchCreate(SQLModel):
 
 class FinanceCoachSettlementCancel(SQLModel):
     reason: str = Field(min_length=3, max_length=500)
+
+
+class FinanceGymSummaryPublic(SQLModel):
+    cash_collected_irr: int
+    cash_refunded_irr: int
+    cash_expenses_paid_irr: int
+    cash_coach_settlements_irr: int
+    net_cashflow_irr: int
+    recognized_revenue_irr: int
+    recognized_expenses_irr: int
+    estimated_operating_profit_irr: int
+    sales_irr: int
+    receivable_irr: int
+    overdue_irr: int
+    renewals_due: int
+    coach_payable_irr: int
+    platform_payable_irr: int
