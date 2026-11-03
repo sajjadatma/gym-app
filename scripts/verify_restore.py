@@ -143,6 +143,22 @@ def _finance_checks(connection: "psycopg.Connection[object]") -> dict[str, objec
             "finance_journal_line",
             "finance_audit",
             "finance_grant",
+            "finance_catalog_item",
+            "finance_invoice",
+            "finance_invoice_line",
+            "finance_installment",
+            "finance_receipt",
+            "finance_receipt_allocation",
+            "finance_customer_credit",
+            "finance_credit_movement",
+            "finance_refund",
+            "finance_expense",
+            "finance_coach_agreement",
+            "finance_coach_earning",
+            "finance_coach_settlement",
+            "finance_coach_settlement_item",
+            "finance_operation",
+            "finance_sequence",
         )
     }
     unbalanced = connection.execute(
@@ -166,6 +182,77 @@ def _finance_checks(connection: "psycopg.Connection[object]") -> dict[str, objec
     if thin_journals:
         failures.append(
             f"{thin_journals} restored journals have fewer than two lines"
+        )
+    bad_receipts = connection.execute(
+        """SELECT count(*) FROM finance_receipt r
+           WHERE r.amount_irr < COALESCE((
+             SELECT sum(a.amount_irr) FROM finance_receipt_allocation a
+             WHERE a.receipt_id = r.id
+           ), 0)"""
+    ).fetchone()[0]
+    if bad_receipts:
+        failures.append(
+            f"{bad_receipts} finance receipts are under-allocated"
+        )
+    cross_gym_allocations = connection.execute(
+        """SELECT count(*) FROM finance_receipt_allocation a
+           JOIN finance_receipt r ON r.id = a.receipt_id
+           JOIN finance_invoice i ON i.id = a.invoice_id
+           WHERE r.gym_id <> i.gym_id"""
+    ).fetchone()[0]
+    if cross_gym_allocations:
+        failures.append(
+            f"{cross_gym_allocations} finance allocations cross gyms"
+        )
+    bad_credit_balances = connection.execute(
+        """SELECT count(*) FROM finance_customer_credit c
+           WHERE c.balance_irr <> COALESCE((
+             SELECT sum(
+               CASE m.kind
+                 WHEN 'RECEIPT_EXCESS' THEN m.amount_irr
+                 ELSE -m.amount_irr
+               END
+             )
+             FROM finance_credit_movement m
+             WHERE m.credit_id = c.id
+           ), 0)"""
+    ).fetchone()[0]
+    if bad_credit_balances:
+        failures.append(
+            f"{bad_credit_balances} finance customer credits do not match movements"
+        )
+    invoice_sequences = connection.execute(
+        """SELECT count(*) FROM finance_invoice i
+           WHERE i.invoice_number > COALESCE((
+             SELECT last_value FROM finance_sequence
+             WHERE gym_id = i.gym_id AND doc_type = 'INVOICE'
+           ), 0)"""
+    ).fetchone()[0]
+    if invoice_sequences:
+        failures.append(
+            f"{invoice_sequences} finance invoices exceed their sequence"
+        )
+    receipt_sequences = connection.execute(
+        """SELECT count(*) FROM finance_receipt r
+           WHERE r.receipt_number > COALESCE((
+             SELECT last_value FROM finance_sequence
+             WHERE gym_id = r.gym_id AND doc_type = 'RECEIPT'
+           ), 0)"""
+    ).fetchone()[0]
+    if receipt_sequences:
+        failures.append(
+            f"{receipt_sequences} finance receipts exceed their sequence"
+        )
+    journal_sequences = connection.execute(
+        """SELECT count(*) FROM finance_journal j
+           WHERE j.entry_number > COALESCE((
+             SELECT last_value FROM finance_sequence
+             WHERE gym_id = j.gym_id AND doc_type = 'JOURNAL'
+           ), 0)"""
+    ).fetchone()[0]
+    if journal_sequences:
+        failures.append(
+            f"{journal_sequences} finance journals exceed their sequence"
         )
     return {"counts": counts, "failures": failures}
 

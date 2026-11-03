@@ -139,12 +139,12 @@ Known limitations kept out of this closeout: owner standing/reminders and the Su
 | 46 | **Deferred** | advanced AI/smart analytics excluded |
 | 47 | **Implemented** | tenant isolation tests |
 | 48 | **Implemented** | neutral primitives; no future app built |
-| 49 | **Implemented** | atomic/idempotency/concurrency tests |
-| 50 | **Implemented** | backup/restore drill PASS with balanced platform ledger, counts, allocation and sequence checks |
-| 51 | **Implemented** | additive migrations/tests |
+| 49 | **Implemented** | atomic/idempotency/concurrency tests, including 5A.4 concurrent receipt/payment/refund/settlement/group-invoice/accrual stress |
+| 50 | **Implemented** | 5A.4 Docker backup/restore PASS with nonempty gym finance + platform ledger, exact counts, balanced journals, allocation/credit/sequence checks; 3m10s local drill |
+| 51 | **Implemented** | additive migrations/tests; 5A.4 upgrade→downgrade→upgrade preserves immutable journal/payment/allocation/credit/sequence facts |
 | 52 | **Implemented** | staged Phase 1–4 delivery |
 | 53 | **Outstanding** | 3–5 real-gym pilot not run (Phase 5) |
-| 54 | **Partial** | local integrity/refund/tenant/restore/date-semantics evidence passes; real-gym pilot criteria pending |
+| 54 | **Partial** | local integrity/refund/tenant/restore/date-semantics/migration/concurrency evidence passes; real-gym pilot criteria pending |
 | 55 | **Implemented** | offboarding export |
 | 56 | **Outstanding** | Iran legal/tax/provider checks before real money |
 | 57 | **Implemented** | branch ledger/consolidated reporting |

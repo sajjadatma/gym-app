@@ -6,7 +6,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 
-export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-gym-ci}"
+export COMPOSE_PROJECT_NAME="gym-ci"
+unset BACKUP_RCLONE_REMOTE ENV_FILE
 export BACKEND_IMAGE="${BACKEND_IMAGE:-gym-app-ci:local}"
 export POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-ci-postgres-password}"
 export SECRET_KEY="${SECRET_KEY:-ci-only-secret-key-not-for-production-0123456789}"
@@ -68,6 +69,121 @@ ON CONFLICT (gym_id, doc_type) DO UPDATE
   SET last_value = GREATEST(finance_sequence.last_value, 1);
 SQL
 
+
+# Nonempty gym finance data with exact journal, receipt, credit and sequence facts.
+FIN_INVOICE_ID="00000000-0000-0000-0000-000000000201"
+FIN_LINE_ID="00000000-0000-0000-0000-000000000202"
+FIN_RECEIPT_ID="00000000-0000-0000-0000-000000000203"
+FIN_ALLOC_ID="00000000-0000-0000-0000-000000000204"
+FIN_CREDIT_ID="00000000-0000-0000-0000-000000000205"
+FIN_MOVEMENT_ID="00000000-0000-0000-0000-000000000206"
+FIN_INVOICE_JOURNAL_ID="00000000-0000-0000-0000-000000000207"
+FIN_RECEIPT_JOURNAL_ID="00000000-0000-0000-0000-000000000208"
+"${COMPOSE[@]}" exec -T db psql -U postgres -d app -v ON_ERROR_STOP=1 <<SQL
+WITH period AS (
+  SELECT id FROM finance_period
+  WHERE gym_id = '$finance_gym' AND closed_at IS NULL
+  ORDER BY opened_at DESC LIMIT 1
+), invoice_journal AS (
+  INSERT INTO finance_journal
+    (id, gym_id, period_id, entry_number, posting_date, event_type,
+     description, source_type, source_id, created_by_id, created_at)
+  SELECT '$FIN_INVOICE_JOURNAL_ID', '$finance_gym', id, 2, current_date,
+         'INVOICE_ISSUED', 'ci drill invoice', 'finance_invoice',
+         '$FIN_INVOICE_ID', NULL, now()
+  FROM period
+  RETURNING id, gym_id
+), receipt_journal AS (
+  INSERT INTO finance_journal
+    (id, gym_id, period_id, entry_number, posting_date, event_type,
+     description, source_type, source_id, created_by_id, created_at)
+  SELECT '$FIN_RECEIPT_JOURNAL_ID', '$finance_gym', id, 3, current_date,
+         'RECEIPT_CONFIRMED', 'ci drill receipt', 'finance_receipt',
+         '$FIN_RECEIPT_ID', NULL, now()
+  FROM period
+  RETURNING id, gym_id
+)
+INSERT INTO finance_journal_line
+  (id, journal_id, account_id, debit_irr, credit_irr, memo)
+SELECT gen_random_uuid(), j.id, a.id,
+       CASE
+         WHEN j.id = '$FIN_INVOICE_JOURNAL_ID' AND a.code = '1100' THEN 5000
+         WHEN j.id = '$FIN_RECEIPT_JOURNAL_ID' AND a.code = '1000' THEN 3500
+         ELSE 0
+       END,
+       CASE
+         WHEN j.id = '$FIN_INVOICE_JOURNAL_ID' AND a.code = '4000' THEN 5000
+         WHEN j.id = '$FIN_RECEIPT_JOURNAL_ID' AND a.code = '1100' THEN 3000
+         WHEN j.id = '$FIN_RECEIPT_JOURNAL_ID' AND a.code = '2000' THEN 500
+         ELSE 0
+       END,
+       'ci drill'
+FROM invoice_journal j
+JOIN finance_account a
+  ON a.gym_id = j.gym_id AND a.code IN ('1100', '4000')
+UNION ALL
+SELECT gen_random_uuid(), j.id, a.id,
+       CASE WHEN a.code = '1000' THEN 3500 ELSE 0 END,
+       CASE
+         WHEN a.code = '1100' THEN 3000
+         WHEN a.code = '2000' THEN 500
+         ELSE 0
+       END,
+       'ci drill'
+FROM receipt_journal j
+JOIN finance_account a
+  ON a.gym_id = j.gym_id AND a.code IN ('1000', '1100', '2000');
+INSERT INTO finance_invoice
+  (id, gym_id, customer_user_id, customer_name, status, acquisition_source,
+   discount_funding, invoice_number, issue_date, due_date, description,
+   subtotal_irr, discount_irr, total_irr, journal_id, created_by_id,
+   created_at, issued_at)
+VALUES
+  ('$FIN_INVOICE_ID', '$finance_gym', '$athlete_id', 'ci drill',
+   'ISSUED', 'GYM', 'GYM', 1, current_date, current_date, 'ci drill',
+   5000, 0, 5000, '$FIN_INVOICE_JOURNAL_ID', NULL, now(), now());
+INSERT INTO finance_invoice_line
+  (id, invoice_id, line_number, kind, description, quantity, unit_price_irr,
+   line_discount_irr, net_irr, discount_share_irr, payable_irr,
+   coach_allocation_status, platform_allocation_status, platform_fee_irr,
+   platform_ascora_term_share_irr)
+VALUES
+  ('$FIN_LINE_ID', '$FIN_INVOICE_ID', 1, 'PROGRAM', 'ci drill', 1, 5000,
+   0, 5000, 0, 5000, 'NOT_APPLICABLE', 'NOT_APPLICABLE', 0, 0);
+INSERT INTO finance_receipt
+  (id, gym_id, customer_user_id, customer_name, receipt_number, method,
+   amount_irr, reference, received_on, status, verification_source,
+   journal_id, created_by_id, created_at)
+VALUES
+  ('$FIN_RECEIPT_ID', '$finance_gym', '$athlete_id', 'ci drill', 1, 'CASH',
+   3500, 'CI-DRILL', current_date, 'CONFIRMED', 'STAFF_ATTESTATION',
+   '$FIN_RECEIPT_JOURNAL_ID', NULL, now());
+INSERT INTO finance_receipt_allocation
+  (id, receipt_id, invoice_id, amount_irr)
+VALUES
+  ('$FIN_ALLOC_ID', '$FIN_RECEIPT_ID', '$FIN_INVOICE_ID', 3000);
+INSERT INTO finance_customer_credit
+  (id, gym_id, customer_user_id, balance_irr, updated_at)
+VALUES
+  ('$FIN_CREDIT_ID', '$finance_gym', '$athlete_id', 500, now());
+INSERT INTO finance_credit_movement
+  (id, credit_id, kind, amount_irr, receipt_id, created_by_id, created_at)
+VALUES
+  ('$FIN_MOVEMENT_ID', '$FIN_CREDIT_ID', 'RECEIPT_EXCESS', 500,
+   '$FIN_RECEIPT_ID', NULL, now());
+INSERT INTO finance_sequence (id, gym_id, doc_type, last_value)
+VALUES (gen_random_uuid(), '$finance_gym', 'INVOICE', 1)
+ON CONFLICT (gym_id, doc_type) DO UPDATE
+  SET last_value = GREATEST(finance_sequence.last_value, 1);
+INSERT INTO finance_sequence (id, gym_id, doc_type, last_value)
+VALUES (gen_random_uuid(), '$finance_gym', 'RECEIPT', 1)
+ON CONFLICT (gym_id, doc_type) DO UPDATE
+  SET last_value = GREATEST(finance_sequence.last_value, 1);
+INSERT INTO finance_sequence (id, gym_id, doc_type, last_value)
+VALUES (gen_random_uuid(), '$finance_gym', 'JOURNAL', 3)
+ON CONFLICT (gym_id, doc_type) DO UPDATE
+  SET last_value = GREATEST(finance_sequence.last_value, 3);
+SQL
 
 PLATFORM_RECEIVABLE_ID="00000000-0000-0000-0000-000000000101"
 PLATFORM_INVOICE_ID="00000000-0000-0000-0000-000000000102"
@@ -174,7 +290,7 @@ docker run --rm --network "$NETWORK" \
 
 restored_journals="$("${COMPOSE[@]}" exec -T db psql -U postgres -d app_restore -Atc \
   'SELECT count(*) FROM finance_journal;')"
-[ "$restored_journals" = "1" ] || {
+[ "$restored_journals" = "3" ] || {
   echo "drill: FAIL restored finance journals: $restored_journals" >&2
   exit 1
 }
@@ -195,6 +311,15 @@ assert_restored_count() {
     exit 1
   }
 }
+assert_restored_count finance_invoice 1
+assert_restored_count finance_invoice_line 1
+assert_restored_count finance_receipt 1
+assert_restored_count finance_receipt_allocation 1
+assert_restored_count finance_customer_credit 1
+assert_restored_count finance_credit_movement 1
+assert_restored_count finance_journal 3
+assert_restored_count finance_journal_line 7
+assert_restored_count finance_sequence 3
 assert_restored_count platform_agreement 1
 assert_restored_count platform_receivable 1
 assert_restored_count platform_credit 1

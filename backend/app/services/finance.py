@@ -2773,6 +2773,7 @@ def apply_customer_credit(
         credit_id=credit.id,
         kind="APPLIED",
         amount_irr=body.amount_irr,
+        applied_on=body.received_on,
         invoice_id=invoice.id,
         created_by_id=actor.id,
     )

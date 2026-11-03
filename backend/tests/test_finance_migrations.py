@@ -486,7 +486,7 @@ def test_reporting_date_migration_backfills_existing_rows(
                         amount_irr, reason, created_by_id, created_at)
                        VALUES (gen_random_uuid(), :gym_id, 'MANUAL', NULL,
                                'backfill-credit', 100, 'backfill', NULL,
-                               '2026-11-03T00:00:00Z')"""
+                               '2026-11-03T21:00:00Z')"""
                 ),
                 {"gym_id": gym_id},
             )
@@ -505,7 +505,7 @@ def test_reporting_date_migration_backfills_existing_rows(
                        (id, credit_id, kind, amount_irr, receipt_id, invoice_id,
                         created_by_id, created_at)
                        VALUES (gen_random_uuid(), :credit_id, 'APPLIED', 100,
-                               NULL, NULL, NULL, '2026-11-03T00:00:00Z')"""
+                               NULL, NULL, NULL, '2026-11-03T21:00:00Z')"""
                 ),
                 {"credit_id": credit_id},
             )
@@ -582,10 +582,450 @@ def test_reporting_date_migration_backfills_existing_rows(
                 {"id": credit_id},
             ).one()
         assert str(receivable[0]) == "2026-11-02"
-        assert str(credit[0]) == "2026-11-03"
+        assert str(credit[0]) == "2026-11-04"
         assert str(invoice[0]) == "2026-11-05"
         assert str(period[0]) == "2026-11-10"
-        assert str(period[1]) == "2026-11-10"
-        assert str(movement[0]) == "2026-11-03"
+        assert str(period[1]) == "2026-11-30"
+        assert str(movement[0]) == "2026-11-04"
+    finally:
+        engine.dispose()
+
+
+def test_reporting_date_migration_preserves_immutable_rows(
+    migrated_database: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_alembic_database(monkeypatch, migrated_database)
+    config = _alembic_config()
+    command.upgrade(config, "f1a2b3c4d5e6")
+    gym_id, user_id = _seed_gym(migrated_database)
+
+    period_id = uuid.uuid4()
+    journal_id = uuid.uuid4()
+    receivable_id = uuid.uuid4()
+    invoice_id = uuid.uuid4()
+    line_id = uuid.uuid4()
+    payment_id = uuid.uuid4()
+    platform_journal_id = uuid.uuid4()
+    platform_credit_id = uuid.uuid4()
+    platform_application_id = uuid.uuid4()
+    finance_invoice_id = uuid.uuid4()
+    finance_line_id = uuid.uuid4()
+    finance_receipt_id = uuid.uuid4()
+    finance_allocation_id = uuid.uuid4()
+    finance_credit_id = uuid.uuid4()
+    finance_movement_id = uuid.uuid4()
+    debit_account = uuid.uuid4()
+    credit_account = uuid.uuid4()
+
+    def snapshot(connection: object) -> dict[str, object]:
+        return {
+            "finance_journal": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, gym_id, period_id, entry_number, posting_date, "
+                    "event_type, description, reversal_of_id, source_type, "
+                    "source_id, created_by_id, created_at), '|' ORDER BY id), '')) "
+                    "FROM finance_journal"
+                )
+            ).one(),
+            "finance_lines": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, journal_id, account_id, debit_irr, credit_irr, memo), "
+                    "'|' ORDER BY id), '')) FROM finance_journal_line"
+                )
+            ).one(),
+            "platform_journal": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, entry_number, posting_date, event_type, description, "
+                    "source_type, source_id, created_by_id, created_at), "
+                    "'|' ORDER BY id), '')) FROM platform_journal"
+                )
+            ).one(),
+            "platform_lines": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, journal_id, account_code, debit_irr, credit_irr, memo), "
+                    "'|' ORDER BY id), '')) FROM platform_journal_line"
+                )
+            ).one(),
+            "payments": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, invoice_id, amount_irr, method, reference, received_on, "
+                    "operation_key, created_by_id, created_at), '|' ORDER BY id), '')) "
+                    "FROM platform_payment"
+                )
+            ).one(),
+            "allocations": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, payment_id, invoice_line_id, amount_irr), '|' ORDER BY id), '')) "
+                    "FROM platform_payment_allocation"
+                )
+            ).one(),
+            "invoice_lines": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, invoice_id, gym_id, receivable_id, source_key, description, "
+                    "gross_irr, discount_irr, credit_irr, amount_irr, paid_irr), "
+                    "'|' ORDER BY id), '')) FROM platform_invoice_line"
+                )
+            ).one(),
+            "platform_credit": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, gym_id, source_type, source_id, source_key, amount_irr, "
+                    "reason, created_by_id, created_at), '|' ORDER BY id), '')) "
+                    "FROM platform_credit"
+                )
+            ).one(),
+            "platform_credit_applications": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, credit_id, invoice_line_id, amount_irr, created_at), "
+                    "'|' ORDER BY id), '')) FROM platform_credit_application"
+                )
+            ).one(),
+            "finance_invoice": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, gym_id, customer_user_id, status, invoice_number, "
+                    "issue_date, due_date, subtotal_irr, discount_irr, total_irr, "
+                    "journal_id, created_at), '|' ORDER BY id), '')) FROM finance_invoice"
+                )
+            ).one(),
+            "finance_invoice_lines": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, invoice_id, line_number, kind, quantity, unit_price_irr, "
+                    "line_discount_irr, net_irr, discount_share_irr, payable_irr), "
+                    "'|' ORDER BY id), '')) FROM finance_invoice_line"
+                )
+            ).one(),
+            "finance_receipts": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, gym_id, customer_user_id, receipt_number, method, "
+                    "amount_irr, received_on, status, journal_id, created_at), "
+                    "'|' ORDER BY id), '')) FROM finance_receipt"
+                )
+            ).one(),
+            "finance_allocations": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, receipt_id, invoice_id, amount_irr), '|' ORDER BY id), '')) "
+                    "FROM finance_receipt_allocation"
+                )
+            ).one(),
+            "finance_credits": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, gym_id, customer_user_id, balance_irr, updated_at), "
+                    "'|' ORDER BY id), '')) FROM finance_customer_credit"
+                )
+            ).one(),
+            "finance_movements": connection.execute(
+                text(
+                    "SELECT count(*), md5(coalesce(string_agg(concat_ws('|', "
+                    "id, credit_id, kind, amount_irr, receipt_id, invoice_id, "
+                    "created_at), '|' ORDER BY id), '')) FROM finance_credit_movement"
+                )
+            ).one(),
+            "finance_sequences": connection.execute(
+                text(
+                    "SELECT count(*), coalesce(sum(last_value), 0) "
+                    "FROM finance_sequence"
+                )
+            ).one(),
+            "platform_sequences": connection.execute(
+                text(
+                    "SELECT count(*), coalesce(sum(last_value), 0) "
+                    "FROM platform_sequence"
+                )
+            ).one(),
+        }
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO finance_account
+                       (id, gym_id, code, name, type, created_at)
+                       VALUES (:debit, :gym_id, '1000', 'Cash', 'ASSET', now()),
+                              (:credit, :gym_id, '3000', 'Equity', 'EQUITY', now())"""
+                ),
+                {
+                    "debit": debit_account,
+                    "credit": credit_account,
+                    "gym_id": gym_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_period
+                       (id, gym_id, opened_at, created_at)
+                       VALUES (:id, :gym_id, now(), now())"""
+                ),
+                {"id": period_id, "gym_id": gym_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_journal
+                       (id, gym_id, period_id, entry_number, posting_date,
+                        event_type, description, created_by_id, created_at)
+                       VALUES (:id, :gym_id, :period_id, 1, current_date,
+                               'OPENING_BALANCE', 'preserve', :user_id, now())"""
+                ),
+                {
+                    "id": journal_id,
+                    "gym_id": gym_id,
+                    "period_id": period_id,
+                    "user_id": user_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_journal_line
+                       (id, journal_id, account_id, debit_irr, credit_irr, memo)
+                       VALUES (gen_random_uuid(), :journal, :debit, 1000, 0, NULL),
+                              (gen_random_uuid(), :journal, :credit, 0, 1000, NULL)"""
+                ),
+                {
+                    "journal": journal_id,
+                    "debit": debit_account,
+                    "credit": credit_account,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_sequence
+                       (id, gym_id, doc_type, last_value)
+                       VALUES (gen_random_uuid(), :gym_id, 'JOURNAL', 1)"""
+                ),
+                {"gym_id": gym_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_invoice
+                       (id, gym_id, customer_user_id, status, acquisition_source,
+                        discount_funding, invoice_number, issue_date, due_date,
+                        subtotal_irr, discount_irr, total_irr, created_by_id,
+                        created_at, issued_at)
+                       VALUES (:id, :gym_id, :user_id, 'ISSUED', 'GYM', 'GYM',
+                               1, current_date, current_date, 1000, 0, 1000,
+                               NULL, now(), now())"""
+                ),
+                {
+                    "id": finance_invoice_id,
+                    "gym_id": gym_id,
+                    "user_id": user_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_invoice_line
+                       (id, invoice_id, line_number, kind, description, quantity,
+                        unit_price_irr, line_discount_irr, net_irr,
+                        discount_share_irr, payable_irr, coach_allocation_status,
+                        platform_allocation_status, platform_fee_irr,
+                        platform_ascora_term_share_irr)
+                       VALUES (:id, :invoice_id, 1, 'PROGRAM', 'preserve', 1,
+                               1000, 0, 1000, 0, 1000, 'NOT_APPLICABLE',
+                               'NOT_APPLICABLE', 0, 0)"""
+                ),
+                {"id": finance_line_id, "invoice_id": finance_invoice_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_receipt
+                       (id, gym_id, customer_user_id, receipt_number, method,
+                        amount_irr, reference, received_on, status,
+                        verification_source, created_at)
+                       VALUES (:id, :gym_id, :user_id, 1, 'CASH', 1100,
+                               'PRESERVE', current_date, 'CONFIRMED',
+                               'STAFF_ATTESTATION', now())"""
+                ),
+                {
+                    "id": finance_receipt_id,
+                    "gym_id": gym_id,
+                    "user_id": user_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_receipt_allocation
+                       (id, receipt_id, invoice_id, amount_irr)
+                       VALUES (:id, :receipt_id, :invoice_id, 1000)"""
+                ),
+                {
+                    "id": finance_allocation_id,
+                    "receipt_id": finance_receipt_id,
+                    "invoice_id": finance_invoice_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_customer_credit
+                       (id, gym_id, customer_user_id, balance_irr, updated_at)
+                       VALUES (:id, :gym_id, :user_id, 100, now())"""
+                ),
+                {
+                    "id": finance_credit_id,
+                    "gym_id": gym_id,
+                    "user_id": user_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_credit_movement
+                       (id, credit_id, kind, amount_irr, receipt_id, created_at)
+                       VALUES (:id, :credit_id, 'RECEIPT_EXCESS', 100,
+                               :receipt_id, now())"""
+                ),
+                {
+                    "id": finance_movement_id,
+                    "credit_id": finance_credit_id,
+                    "receipt_id": finance_receipt_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_receivable
+                       (id, gym_id, agreement_id, source_type, source_id,
+                        source_key, amount_irr, paid_irr, due_on, status,
+                        snapshot, created_at)
+                       VALUES (:id, :gym_id, NULL, 'SUBSCRIPTION', NULL,
+                               'preserve-receivable', 1000, 1000, current_date,
+                               'PAID', '{}', now())"""
+                ),
+                {"id": receivable_id, "gym_id": gym_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_invoice
+                       (id, gym_id, group_id, invoice_number, period_start,
+                        period_end, issued_on, due_on, status, discount_irr,
+                        total_irr, created_by_id, created_at)
+                       VALUES (:id, :gym_id, NULL, 1, current_date, current_date,
+                               current_date, current_date, 'PAID', 0, 1000,
+                               NULL, now())"""
+                ),
+                {"id": invoice_id, "gym_id": gym_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_invoice_line
+                       (id, invoice_id, gym_id, receivable_id, source_key,
+                        description, gross_irr, discount_irr, credit_irr,
+                        amount_irr, paid_irr)
+                       VALUES (:id, :invoice_id, :gym_id, :receivable_id,
+                               'preserve-line', 'preserve', 1000, 0, 0,
+                               1000, 1000)"""
+                ),
+                {
+                    "id": line_id,
+                    "invoice_id": invoice_id,
+                    "gym_id": gym_id,
+                    "receivable_id": receivable_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_payment
+                       (id, invoice_id, amount_irr, method, reference,
+                        received_on, operation_key, created_by_id, created_at)
+                       VALUES (:id, :invoice_id, 1000, 'CASH', 'PRESERVE',
+                               current_date, 'preserve-payment', NULL, now())"""
+                ),
+                {"id": payment_id, "invoice_id": invoice_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_payment_allocation
+                       (id, payment_id, invoice_line_id, amount_irr)
+                       VALUES (gen_random_uuid(), :payment_id, :line_id, 1000)"""
+                ),
+                {"payment_id": payment_id, "line_id": line_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_credit
+                       (id, gym_id, source_type, source_id, source_key,
+                        amount_irr, reason, created_by_id, created_at)
+                       VALUES (:id, :gym_id, 'MANUAL', NULL, 'preserve-credit',
+                               100, 'preserve', NULL, now())"""
+                ),
+                {"id": platform_credit_id, "gym_id": gym_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_credit_application
+                       (id, credit_id, invoice_line_id, amount_irr, created_at)
+                       VALUES (:id, :credit_id, :line_id, 100, now())"""
+                ),
+                {
+                    "id": platform_application_id,
+                    "credit_id": platform_credit_id,
+                    "line_id": line_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_journal
+                       (id, entry_number, posting_date, event_type, description,
+                        source_type, source_id, created_by_id, created_at)
+                       VALUES (:id, 1, current_date, 'PLATFORM_FEE', 'preserve',
+                               'platform_receivable', :receivable_id, NULL, now())"""
+                ),
+                {"id": platform_journal_id, "receivable_id": receivable_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_journal_line
+                       (id, journal_id, account_code, debit_irr, credit_irr, memo)
+                       VALUES (gen_random_uuid(), :journal, '1100', 1000, 0, NULL),
+                              (gen_random_uuid(), :journal, '4100', 0, 1000, NULL)"""
+                ),
+                {"journal": platform_journal_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_sequence
+                       (id, doc_type, last_value)
+                       VALUES (gen_random_uuid(), 'PLATFORM_INVOICE', 1),
+                              (gen_random_uuid(), 'PLATFORM_JOURNAL', 1)"""
+                )
+            )
+            before = snapshot(connection)
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as connection:
+            after_upgrade = snapshot(connection)
+        assert after_upgrade == before
+    finally:
+        engine.dispose()
+
+    command.downgrade(config, "f1a2b3c4d5e6")
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as connection:
+            after_downgrade = snapshot(connection)
+        assert after_downgrade == before
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as connection:
+            after_reupgrade = snapshot(connection)
+        assert after_reupgrade == before
     finally:
         engine.dispose()
