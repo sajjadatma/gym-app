@@ -649,3 +649,49 @@ class PlatformOperation(SQLModel, table=True):
     result_type: str = Field(max_length=40)
     result_id: uuid.UUID
     created_at: datetime = Field(default_factory=get_datetime_utc)
+
+
+class PlatformPlanVersionCreate(SQLModel):
+    effective_from: date
+    effective_to: date | None = None
+    monthly_price_irr: int = 0
+    limits: dict[str, Any] = Field(default_factory=dict)
+
+
+class PlatformPlanCreate(SQLModel):
+    code: str = Field(min_length=2, max_length=50)
+    name: str = Field(min_length=2, max_length=255)
+    version: PlatformPlanVersionCreate
+
+
+class PlatformPlanVersionPublic(SQLModel):
+    id: uuid.UUID
+    plan_id: uuid.UUID
+    version_number: int
+    effective_from: date
+    effective_to: date | None
+    monthly_price_irr: int
+    limits: dict[str, Any]
+    status: str
+    created_at: datetime
+
+
+class PlatformPlanPublic(SQLModel):
+    id: uuid.UUID
+    code: str
+    name: str
+    is_active: bool
+    versions: list[PlatformPlanVersionPublic]
+    created_at: datetime
+
+
+class PlatformPlansPublic(SQLModel):
+    data: list[PlatformPlanPublic]
+
+
+class PlatformPlanUsagePublic(SQLModel):
+    plan_version_id: uuid.UUID
+    limits: dict[str, Any]
+    active_athletes: int
+    staff_seats: int
+    limit_status: str

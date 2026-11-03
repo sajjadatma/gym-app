@@ -8,6 +8,7 @@ from app.api.routes import (
     gyms,
     login,
     people,
+    platform,
     programs,
     superuser_athletes,
     superuser_coaches,
@@ -29,4 +30,5 @@ api_router.include_router(exercise_categories.router)
 api_router.include_router(programs.router)
 api_router.include_router(templates.router)
 api_router.include_router(finance.router)
+api_router.include_router(platform.router)
 api_router.include_router(utils.router)
