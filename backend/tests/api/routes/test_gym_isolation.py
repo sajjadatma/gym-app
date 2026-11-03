@@ -398,3 +398,65 @@ def test_gym_admin_cannot_set_password_for_pending_user_in_another_gym(
         ).status_code
         == 200
     )
+
+
+def test_existing_user_never_receives_a_caller_supplied_initial_password(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+) -> None:
+    attacker_email = unique_email("returned-password-attacker")
+    attacker_gym = create_gym(
+        client,
+        superuser_headers,
+        name="Returned Password Attacker Gym",
+        owner_email=attacker_email,
+        password="attacker-pass-123",
+    )["gym"]
+    raw_attacker = auth_headers(client, attacker_email, "attacker-pass-123")
+    change_password(
+        client,
+        raw_attacker,
+        current_password="attacker-pass-123",
+        new_password="attacker-pass-456",
+    )
+    attacker = gym_headers(
+        client,
+        email=attacker_email,
+        password="attacker-pass-456",
+        gym_id=attacker_gym["id"],
+    )
+
+    victim_email = unique_email("existing-password-victim")
+    create_gym(
+        client,
+        superuser_headers,
+        name="Existing Password Victim Gym",
+        owner_email=victim_email,
+        password="victim-original-pass-123",
+    )
+
+    response = client.post(
+        f"/api/v1/gyms/{attacker_gym['id']}/members",
+        headers=attacker,
+        json={
+            "email": victim_email,
+            "full_name": "Existing Password Victim",
+            "roles": ["COACH"],
+            "activation_method": "password",
+            "initial_password": "attacker-returned-pass-123",
+            "phone": "09120000002",
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["initial_password"] is None
+
+    victim_login = client.post(
+        "/api/v1/login/access-token",
+        data={"username": victim_email, "password": "victim-original-pass-123"},
+    )
+    assert victim_login.status_code == 200
+    attacker_password_login = client.post(
+        "/api/v1/login/access-token",
+        data={"username": victim_email, "password": "attacker-returned-pass-123"},
+    )
+    assert attacker_password_login.status_code == 400

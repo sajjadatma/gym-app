@@ -986,7 +986,14 @@ def _grant_items(rows: list[FinanceGrant]) -> list[FinanceGrantItem]:
     return [
         FinanceGrantItem(
             permission=cast(GrantableFinancePermission, row.permission),
-            amount_limit_irr=row.amount_limit_irr,
+            # Legacy rows may carry a limit for a permission that never
+            # enforced it. Keep the stored row/audit history, but never present
+            # that limit as an active control.
+            amount_limit_irr=(
+                row.amount_limit_irr
+                if row.permission == FINANCE_OPENING_MANAGE
+                else None
+            ),
         )
         for row in rows
     ]

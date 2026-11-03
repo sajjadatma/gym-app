@@ -441,3 +441,41 @@ def test_amount_limit_is_rejected_for_permissions_without_enforcement(
     assert allowed.json()["grants"] == [
         {"permission": "finance.expense.manage", "amount_limit_irr": None}
     ]
+
+
+def test_legacy_unsupported_grant_limit_is_not_presented_as_enforced(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Legacy Grant Gym")
+    gym_id = uuid.UUID(str(gym["id"]))
+    staff = add_staff(client, owner, str(gym_id), roles=["FINANCE_STAFF"])
+    staff_id = uuid.UUID(client.get("/api/v1/users/me", headers=staff).json()["id"])
+
+    legacy = FinanceGrant(
+        gym_id=gym_id,
+        user_id=staff_id,
+        permission="finance.expense.manage",
+        amount_limit_irr=1_000,
+    )
+    db_session.add(legacy)
+    db_session.commit()
+
+    listed = client.get("/api/v1/finance/grants", headers=owner)
+    assert listed.status_code == 200, listed.text
+    row = next(
+        item for item in listed.json()["data"] if item["user_id"] == str(staff_id)
+    )
+    assert row["grants"] == [
+        {"permission": "finance.expense.manage", "amount_limit_irr": None}
+    ]
+
+    stored = db_session.exec(
+        select(FinanceGrant).where(
+            FinanceGrant.gym_id == gym_id,
+            FinanceGrant.user_id == staff_id,
+            FinanceGrant.permission == "finance.expense.manage",
+        )
+    ).one()
+    assert stored.amount_limit_irr == 1_000

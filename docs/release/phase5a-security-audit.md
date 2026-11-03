@@ -135,14 +135,26 @@ None is a Critical/High blocker for local synthetic acceptance. Each is recorded
 - No real secrets were found in tracked Git history; `.env*` files are gitignored.
 - Backup scripts use restrictive modes, checksums and confirmation-gated restore.
 
-## 8. Verdict
+## 8. 5A.1 follow-up hardening
+
+Two narrow follow-ups were completed after the initial 5A.1 report:
+
+- **Legacy grant limits:** no unsupported legacy grants existed in the local development database, but the read model now normalizes any legacy unsupported `amount_limit_irr` to `None` while preserving the stored grant row and audit history. A regression test inserts a legacy row directly and proves the API no longer presents it as an enforced limit.
+- **Initial-password return:** `activate_user` now returns an initial password only for a newly created user (`created=True`). An existing user never receives a caller-supplied password in the response. A regression test proves the response is `None` and the attacker-supplied password cannot log in.
+
+Follow-up evidence:
+- Targeted 5A.1 security/isolation suite: **62 passed**.
+- Full backend suite after the follow-ups and 5A.2 additions: **308 passed**.
+- Ruff and Mypy clean.
+
+## 9. Verdict
 
 **5A.1 PASS — LOCAL GO for this workstream.**
 
-- Zero open Critical/High findings after the two fixes.
-- Both fixes have focused regression tests that failed before the fix and pass after it.
+- Zero open Critical/High findings after the fixes and follow-ups.
+- Every fix has a focused regression test that failed before the fix and passes after it.
 - Full local backend regression is green.
 - Medium/Low findings are accepted for local-only 5A with explicit Phase 5B follow-ups.
 - Decisions #42 and #90 are corrected to **Partial** because per-action amount enforcement is not complete; the immediate false-control vulnerability is closed.
-- No implementation of 5A.2–5A.7 has started.
+- 5A.2 was subsequently executed under separate approval; 5A.3–5A.7 have not started.
 - No merge to `main`, remote deployment, provider integration or real financial data was performed.

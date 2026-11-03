@@ -184,7 +184,7 @@ def activate_user(
     return ActivationResult(
         user=user,
         initial_password=generated_password
-        if method == "password" and user.must_change_password
+        if created and method == "password" and user.must_change_password
         else None,
         invitation_sent=invitation_sent,
         created=created,
