@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
 
 from fastapi.testclient import TestClient
 
+from app.services.platform import platform_today
 from tests.api.routes.test_finance_foundation import make_owner
 from tests.api.routes.test_platform_invoices import (
     accrue,
@@ -26,7 +26,7 @@ def test_gym_owner_has_read_only_access_to_own_platform_billing(
         )
         assert accrue(client, superuser_headers, agreement["id"]).status_code == 200
         issued = platform_invoice(
-            client, superuser_headers, gym_id=gym_id, due_on=date.today()
+            client, superuser_headers, gym_id=gym_id, due_on=platform_today()
         )
         assert issued.status_code == 200, issued.text
         invoices[gym_id] = issued.json()["id"]
@@ -46,7 +46,7 @@ def test_gym_owner_has_read_only_access_to_own_platform_billing(
             "amount_irr": 200_000,
             "method": "TRANSFER",
             "reference": "OWNER-1",
-            "received_on": date.today().isoformat(),
+            "received_on": platform_today().isoformat(),
         },
     )
     assert payment.status_code == 200, payment.text

@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from sqlalchemy import func, or_, text
@@ -171,6 +172,25 @@ def utcnow() -> datetime:
 # ---------------------------------------------------------------------------
 # Settings and access
 # ---------------------------------------------------------------------------
+
+
+def gym_timezone(session: Session, gym_id: uuid.UUID) -> ZoneInfo:
+    settings = get_finance_settings(session, gym_id)
+    name = settings.timezone if settings else DEFAULT_TIMEZONE
+    try:
+        return ZoneInfo(name)
+    except Exception:
+        return ZoneInfo(DEFAULT_TIMEZONE)
+
+
+def gym_today(session: Session, gym_id: uuid.UUID) -> date:
+    return datetime.now(UTC).astimezone(gym_timezone(session, gym_id)).date()
+
+
+def gym_local_date(
+    session: Session, gym_id: uuid.UUID, instant: datetime
+) -> date:
+    return instant.astimezone(gym_timezone(session, gym_id)).date()
 
 
 def get_finance_settings(
@@ -418,13 +438,43 @@ def get_open_period(session: Session, gym_id: uuid.UUID) -> FinancePeriod | None
     ).first()
 
 
-def ensure_open_period(session: Session, gym_id: uuid.UUID) -> FinancePeriod:
+def ensure_open_period(
+    session: Session,
+    gym_id: uuid.UUID,
+    *,
+    posting_date: date | None = None,
+) -> FinancePeriod:
     period = get_open_period(session, gym_id)
-    if period is not None:
-        return period
-    period = FinancePeriod(gym_id=gym_id, opened_at=utcnow())
-    session.add(period)
-    session.flush()
+    if period is None:
+        has_prior_period = session.exec(
+            select(FinancePeriod.id).where(FinancePeriod.gym_id == gym_id)
+        ).first()
+        period = FinancePeriod(
+            gym_id=gym_id,
+            opened_at=utcnow(),
+            period_start=None if has_prior_period is None else gym_today(session, gym_id),
+        )
+        session.add(period)
+        session.flush()
+    if posting_date is not None:
+        if period.period_start is None:
+            period.period_start = posting_date
+            session.add(period)
+        elif posting_date < period.period_start:
+            has_closed_period = session.exec(
+                select(FinancePeriod.id).where(
+                    FinancePeriod.gym_id == gym_id,
+                    col(FinancePeriod.closed_at).is_not(None),
+                )
+            ).first()
+            if has_closed_period is None:
+                period.period_start = posting_date
+                session.add(period)
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail="finance_posting_outside_open_period",
+                )
     return period
 
 
@@ -491,7 +541,9 @@ def post_journal(
     if owned != account_ids:
         raise HTTPException(status_code=400, detail="invalid_finance_account")
 
-    period = ensure_open_period(session, gym_id)
+    period = ensure_open_period(
+        session, gym_id, posting_date=posting_date
+    )
     journal = FinanceJournal(
         gym_id=gym_id,
         period_id=period.id,
@@ -816,6 +868,7 @@ def close_period(
     if period is None:
         raise HTTPException(status_code=409, detail="finance_no_open_period")
     period.closed_at = utcnow()
+    period.period_end = gym_today(session, scope.gym_id)
     period.closed_by_id = actor.id
     session.add(period)
     record_audit(
@@ -923,6 +976,8 @@ def period_public(period: FinancePeriod) -> FinancePeriodPublic:
     return FinancePeriodPublic(
         id=period.id,
         opened_at=period.opened_at,
+        period_start=period.period_start,
+        period_end=period.period_end,
         closed_at=period.closed_at,
         status="CLOSED" if period.closed_at else "OPEN",
     )
@@ -1416,6 +1471,38 @@ def _get_invoice(
     return invoice
 
 
+def effective_due(
+    session: Session,
+    invoice: FinanceInvoice,
+    *,
+    paid_irr: int | None = None,
+) -> tuple[date | None, int]:
+    installments = session.exec(
+        select(FinanceInstallment)
+        .where(FinanceInstallment.invoice_id == invoice.id)
+        .order_by(col(FinanceInstallment.sequence))
+    ).all()
+    paid = _invoice_paid_irr(session, invoice.id) if paid_irr is None else paid_irr
+    balance = max(invoice.total_irr - paid, 0)
+    if not installments:
+        return invoice.due_date, balance
+    cumulative = 0
+    for installment in installments:
+        cumulative += installment.amount_irr
+        if paid < cumulative:
+            return installment.due_date, min(cumulative - paid, balance)
+    return installments[-1].due_date, balance
+
+
+def effective_due_date(
+    session: Session,
+    invoice: FinanceInvoice,
+    *,
+    paid_irr: int | None = None,
+) -> date | None:
+    return effective_due(session, invoice, paid_irr=paid_irr)[0]
+
+
 def invoice_public(
     session: Session, invoice: FinanceInvoice
 ) -> FinanceInvoicePublic:
@@ -1431,12 +1518,13 @@ def invoice_public(
     ).all()
     paid = 0 if invoice.status == "VOID" else _invoice_paid_irr(session, invoice.id)
     balance = 0 if invoice.status == "VOID" else invoice.total_irr - paid
-    today = utcnow().date()
+    today = gym_today(session, invoice.gym_id)
+    due_on = effective_due_date(session, invoice, paid_irr=paid)
     overdue = (
         invoice.status == "ISSUED"
         and balance > 0
-        and invoice.due_date is not None
-        and invoice.due_date < today
+        and due_on is not None
+        and due_on < today
     )
     return FinanceInvoicePublic(
         id=invoice.id,
@@ -2238,6 +2326,54 @@ def void_invoice(
 # ---------------------------------------------------------------------------
 
 RECEIPT_DOC_TYPE = "RECEIPT"
+
+
+def _invoice_void_date(
+    session: Session, invoice: FinanceInvoice
+) -> date | None:
+    if invoice.status != "VOID":
+        return None
+    journal = session.exec(
+        select(FinanceJournal).where(
+            FinanceJournal.gym_id == invoice.gym_id,
+            FinanceJournal.event_type == "INVOICE_VOID",
+            FinanceJournal.source_type == "finance_invoice",
+            FinanceJournal.source_id == invoice.id,
+        )
+    ).first()
+    if journal is not None:
+        return journal.posting_date
+    return invoice.voided_at.date() if invoice.voided_at is not None else None
+
+
+def _invoice_paid_as_of(
+    session: Session, invoice_id: uuid.UUID, as_of: date
+) -> int:
+    allocated = session.exec(
+        select(
+            func.coalesce(func.sum(FinanceReceiptAllocation.amount_irr), 0)
+        )
+        .join(
+            FinanceReceipt,
+            col(FinanceReceiptAllocation.receipt_id) == col(FinanceReceipt.id),
+        )
+        .where(
+            FinanceReceiptAllocation.invoice_id == invoice_id,
+            FinanceReceipt.received_on <= as_of,
+        )
+    ).one()
+    applied = session.exec(
+        select(func.coalesce(func.sum(FinanceCreditMovement.amount_irr), 0)).where(
+            FinanceCreditMovement.invoice_id == invoice_id,
+            FinanceCreditMovement.kind == "APPLIED",
+            func.coalesce(
+                FinanceCreditMovement.applied_on,
+                func.date(FinanceCreditMovement.created_at),
+            )
+            <= as_of,
+        )
+    ).one()
+    return int(allocated) + int(applied)
 
 
 def _invoice_paid_irr(session: Session, invoice_id: uuid.UUID) -> int:
@@ -3437,10 +3573,12 @@ def _membership_paid_irr(
     return _invoice_paid_irr(session, membership.invoice_id)
 
 
-def _derived_membership_status(membership: FinanceMembership) -> str:
+def _derived_membership_status(
+    session: Session, membership: FinanceMembership
+) -> str:
     if (
         membership.status in ("ACTIVE", "FROZEN")
-        and membership.end_date < utcnow().date()
+        and membership.end_date < gym_today(session, membership.gym_id)
     ):
         return "EXPIRED"
     return membership.status
@@ -3456,7 +3594,7 @@ def membership_public(
         invoice_id=membership.invoice_id,
         start_date=membership.start_date,
         end_date=membership.end_date,
-        status=_derived_membership_status(membership),  # type: ignore[arg-type]
+        status=_derived_membership_status(session, membership),  # type: ignore[arg-type]
         access_required_irr=membership.access_required_irr,
         paid_irr=paid,
         access_granted=paid >= membership.access_required_irr,
@@ -3946,24 +4084,13 @@ def _resolve_refund_method(
 def _invoice_reminder(
     session: Session, invoice: FinanceInvoice
 ) -> FinanceInstallmentReminder | None:
-    today = utcnow().date()
+    today = gym_today(session, invoice.gym_id)
     balance = invoice.total_irr - _invoice_paid_irr(session, invoice.id)
     if balance <= 0:
         return None
-    installments = session.exec(
-        select(FinanceInstallment)
-        .where(FinanceInstallment.invoice_id == invoice.id)
-        .order_by(col(FinanceInstallment.sequence))
-    ).all()
-    if installments:
-        first = installments[0]
-        due_date = first.due_date
-        amount = min(first.amount_irr, balance)
-    else:
-        if invoice.due_date is None:
-            return None
-        due_date = invoice.due_date
-        amount = balance
+    due_date, amount = effective_due(session, invoice)
+    if due_date is None:
+        return None
     customer = session.get(User, invoice.customer_user_id)
     days_until = (due_date - today).days
     return FinanceInstallmentReminder(
@@ -4439,7 +4566,7 @@ def cancel_coach_settlement(
     journal = post_journal(
         session,
         gym_id=scope.gym_id,
-        posting_date=utcnow().date(),
+        posting_date=gym_today(session, scope.gym_id),
         event_type="COACH_SETTLE_CANCEL",
         description="Coach settlement cancelled",
         lines=[
@@ -5019,7 +5146,7 @@ def list_reminders(
     customer_user_id: uuid.UUID | None = None,
 ) -> FinanceRemindersPublic:
     """Compute due installments and renewals on read; no scheduler is used."""
-    today = utcnow().date()
+    today = gym_today(session, gym_id)
     horizon = today + timedelta(days=within_days)
     invoice_filters: list[Any] = [
         FinanceInvoice.gym_id == gym_id,
@@ -5376,14 +5503,18 @@ def gym_summary(
     platform_accrued = sum(
         row.amount_irr
         for row in platform_rows
-        if from_date <= row.created_at.date() <= to_date
+        if from_date
+        <= (row.recognized_on or row.created_at.date())
+        <= to_date
     )
     platform_accrued -= sum(
         row.amount_irr
         for row in session.exec(select(PlatformCredit)).all()
         if row.gym_id == gym_id
         and row.source_type != "INVOICE_CANCELLATION"
-        and from_date <= row.created_at.date() <= to_date
+        and from_date
+        <= (row.recognized_on or row.created_at.date())
+        <= to_date
     )
     from app.platform_models import PlatformInvoice
 
@@ -5397,9 +5528,24 @@ def gym_summary(
             )
             .where(
                 PlatformInvoiceLine.gym_id == gym_id,
-                PlatformInvoice.status != "CANCELLED",
                 PlatformInvoice.issued_on >= from_date,
                 PlatformInvoice.issued_on <= to_date,
+            )
+        ).all()
+    )
+    platform_accrued += sum(
+        row.discount_irr
+        for row in session.exec(
+            select(PlatformInvoiceLine)
+            .join(
+                PlatformInvoice,
+                col(PlatformInvoiceLine.invoice_id) == col(PlatformInvoice.id),
+            )
+            .where(
+                PlatformInvoiceLine.gym_id == gym_id,
+                col(PlatformInvoice.cancelled_on).is_not(None),
+                col(PlatformInvoice.cancelled_on) >= from_date,
+                col(PlatformInvoice.cancelled_on) <= to_date,
             )
         ).all()
     )
@@ -5412,43 +5558,28 @@ def gym_summary(
             col(FinanceInvoice.status).in_(("ISSUED", "VOID")),
         )
     ).all()
-    sales = sum(
-        row.total_irr
-        for row in invoices
-        if row.issue_date is not None
-        and from_date <= row.issue_date <= to_date
-        and row.status == "ISSUED"
-    )
+    sales_debit, sales_credit = journal_totals(("4000",))
+    sales = sales_credit - sales_debit
     receivable = 0
     overdue = 0
-    today = utcnow().date()
     for invoice in invoices:
-        if invoice.status != "ISSUED":
+        if invoice.issue_date is None or invoice.issue_date > to_date:
             continue
-        paid = _invoice_paid_irr(session, invoice.id)
+        voided_on = _invoice_void_date(session, invoice)
+        if voided_on is not None and voided_on <= to_date:
+            continue
+        paid = _invoice_paid_as_of(session, invoice.id, to_date)
         balance = max(invoice.total_irr - paid, 0)
         receivable += balance
-        if invoice.due_date is not None and invoice.due_date < today:
+        due_on, _ = effective_due(session, invoice, paid_irr=paid)
+        if due_on is not None and due_on < to_date:
             overdue += balance
-        elif invoice.due_date is None:
-            from app.finance_models import FinanceInstallment
-
-            installment = session.exec(
-                select(FinanceInstallment)
-                .where(
-                    FinanceInstallment.invoice_id == invoice.id,
-                    FinanceInstallment.due_date < today,
-                )
-                .order_by(col(FinanceInstallment.sequence))
-            ).first()
-            if installment is not None:
-                overdue += min(installment.amount_irr, balance)
     renewals = session.exec(
         select(FinanceMembership).where(
             FinanceMembership.gym_id == gym_id,
             col(FinanceMembership.status).in_(("ACTIVE", "FROZEN")),
-            FinanceMembership.end_date >= today,
-            FinanceMembership.end_date <= today + timedelta(days=30),
+            FinanceMembership.end_date >= to_date,
+            FinanceMembership.end_date <= to_date + timedelta(days=30),
         )
     ).all()
     earnings = session.exec(
@@ -5464,17 +5595,11 @@ def gym_summary(
         )
         for row in earnings
     )
-    from app.services.platform import available_credit_irr
+    from app.services.platform import platform_standing
 
-    platform_payable = max(
-        sum(
-            max(row.amount_irr - row.paid_irr, 0)
-            for row in platform_rows
-            if row.status in ("OPEN", "INVOICED", "PARTIAL")
-        )
-        - available_credit_irr(session, gym_id=gym_id),
-        0,
-    )
+    platform_payable = platform_standing(
+        session, gym_id=gym_id, as_of=to_date
+    ).total_exposure_irr
     from app.finance_models import FinanceGymSummaryPublic
 
     return FinanceGymSummaryPublic(

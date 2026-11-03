@@ -395,3 +395,197 @@ def test_finance_migrations_downgrade_to_pre_finance_and_back(
 
     command.upgrade(config, "head")
     command.check(config)
+
+
+def test_reporting_date_migration_backfills_existing_rows(
+    migrated_database: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_alembic_database(monkeypatch, migrated_database)
+    config = _alembic_config()
+    command.upgrade(config, "f1a2b3c4d5e6")
+    gym_id, user_id = _seed_gym(migrated_database)
+
+    period_id = uuid.uuid4()
+    journal_id = uuid.uuid4()
+    invoice_id = uuid.uuid4()
+    receivable_id = uuid.uuid4()
+    credit_id = uuid.uuid4()
+    debit_account = uuid.uuid4()
+    credit_account = uuid.uuid4()
+    engine = create_engine(migrated_database)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO finance_account
+                       (id, gym_id, code, name, type, created_at)
+                       VALUES (:debit, :gym_id, '1000', 'Cash', 'ASSET', now()),
+                              (:credit, :gym_id, '3000', 'Equity', 'EQUITY', now())"""
+                ),
+                {
+                    "debit": debit_account,
+                    "credit": credit_account,
+                    "gym_id": gym_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_period
+                       (id, gym_id, opened_at, closed_at, closed_by_id, created_at)
+                       VALUES (:id, :gym_id, '2026-11-01T00:00:00Z',
+                               '2026-11-30T00:00:00Z', :user_id,
+                               '2026-11-01T00:00:00Z')"""
+                ),
+                {"id": period_id, "gym_id": gym_id, "user_id": user_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_journal
+                       (id, gym_id, period_id, entry_number, posting_date,
+                        event_type, description, created_by_id, created_at)
+                       VALUES (:journal_id, :gym_id, :period_id, 1,
+                               '2026-11-10', 'OPENING_BALANCE', 'backfill',
+                               :user_id, '2026-11-10T00:00:00Z')"""
+                ),
+                {
+                    "journal_id": journal_id,
+                    "gym_id": gym_id,
+                    "period_id": period_id,
+                    "user_id": user_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_journal_line
+                       (id, journal_id, account_id, debit_irr, credit_irr, memo)
+                       VALUES (gen_random_uuid(), :journal_id, :debit, 1000, 0, NULL),
+                              (gen_random_uuid(), :journal_id, :credit, 0, 1000, NULL)"""
+                ),
+                {
+                    "journal_id": journal_id,
+                    "debit": debit_account,
+                    "credit": credit_account,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_receivable
+                       (id, gym_id, agreement_id, source_type, source_id,
+                        source_key, amount_irr, paid_irr, due_on, status,
+                        snapshot, created_at)
+                       VALUES (:id, :gym_id, NULL, 'SUBSCRIPTION', NULL,
+                               'backfill-receivable', 1000, 0, '2026-11-01',
+                               'OPEN', '{}', '2026-11-02T00:00:00Z')"""
+                ),
+                {"id": receivable_id, "gym_id": gym_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_credit
+                       (id, gym_id, source_type, source_id, source_key,
+                        amount_irr, reason, created_by_id, created_at)
+                       VALUES (gen_random_uuid(), :gym_id, 'MANUAL', NULL,
+                               'backfill-credit', 100, 'backfill', NULL,
+                               '2026-11-03T00:00:00Z')"""
+                ),
+                {"gym_id": gym_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_customer_credit
+                       (id, gym_id, customer_user_id, balance_irr, updated_at)
+                       VALUES (:id, :gym_id, :user_id, 0,
+                               '2026-11-03T00:00:00Z')"""
+                ),
+                {"id": credit_id, "gym_id": gym_id, "user_id": user_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_credit_movement
+                       (id, credit_id, kind, amount_irr, receipt_id, invoice_id,
+                        created_by_id, created_at)
+                       VALUES (gen_random_uuid(), :credit_id, 'APPLIED', 100,
+                               NULL, NULL, NULL, '2026-11-03T00:00:00Z')"""
+                ),
+                {"credit_id": credit_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_invoice
+                       (id, gym_id, group_id, invoice_number, period_start,
+                        period_end, issued_on, due_on, status, discount_irr,
+                        total_irr, created_by_id, created_at)
+                       VALUES (:id, :gym_id, NULL, 1, '2026-11-01',
+                               '2026-11-30', '2026-11-04', '2026-11-30',
+                               'ISSUED', 0, 1000, NULL,
+                               '2026-11-04T00:00:00Z')"""
+                ),
+                {"id": invoice_id, "gym_id": gym_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_invoice_cancellation
+                       (id, invoice_id, reason, journal_id, created_by_id,
+                        created_at)
+                       VALUES (gen_random_uuid(), :invoice_id, 'backfill',
+                               NULL, NULL, '2026-11-05T00:00:00Z')"""
+                ),
+                {"invoice_id": invoice_id},
+            )
+            connection.execute(
+                text(
+                    "UPDATE platform_invoice SET status = 'CANCELLED' "
+                    "WHERE id = :id"
+                ),
+                {"id": invoice_id},
+            )
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "head")
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as connection:
+            receivable = connection.execute(
+                text(
+                    "SELECT recognized_on FROM platform_receivable "
+                    "WHERE id = :id"
+                ),
+                {"id": receivable_id},
+            ).one()
+            credit = connection.execute(
+                text(
+                    "SELECT recognized_on FROM platform_credit "
+                    "WHERE source_key = 'backfill-credit'"
+                )
+            ).one()
+            invoice = connection.execute(
+                text(
+                    "SELECT cancelled_on FROM platform_invoice "
+                    "WHERE id = :id"
+                ),
+                {"id": invoice_id},
+            ).one()
+            period = connection.execute(
+                text(
+                    "SELECT period_start, period_end FROM finance_period "
+                    "WHERE id = :id"
+                ),
+                {"id": period_id},
+            ).one()
+            movement = connection.execute(
+                text(
+                    "SELECT applied_on FROM finance_credit_movement "
+                    "WHERE credit_id = :id"
+                ),
+                {"id": credit_id},
+            ).one()
+        assert str(receivable[0]) == "2026-11-02"
+        assert str(credit[0]) == "2026-11-03"
+        assert str(invoice[0]) == "2026-11-05"
+        assert str(period[0]) == "2026-11-10"
+        assert str(period[1]) == "2026-11-10"
+        assert str(movement[0]) == "2026-11-03"
+    finally:
+        engine.dispose()

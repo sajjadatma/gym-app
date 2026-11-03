@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -165,7 +166,7 @@ def test_reminders_report_due_installments_and_renewals(
 ) -> None:
     gym, owner = make_owner(client, superuser_headers, name="Reminder Gym")
     customer = make_customer(client, owner, str(gym["id"]))
-    today = datetime.now(UTC).date()
+    today = datetime.now(UTC).astimezone(ZoneInfo("Asia/Tehran")).date()
     past_due = (today - timedelta(days=2)).isoformat()
     later_due = (today + timedelta(days=20)).isoformat()
     draft = create_draft(

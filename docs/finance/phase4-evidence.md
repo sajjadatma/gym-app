@@ -127,14 +127,14 @@ Known limitations kept out of this closeout: owner standing/reminders and the Su
 | 34 | **Partial** | overdue stages/reminders visible; no automatic restrictions |
 | 35 | **Implemented** | negative balance visibility tests |
 | 36 | **Implemented** | manual reconciliation tests |
-| 37 | **Implemented** | gym reports/export tests and platform payable netting |
+| 37 | **Implemented** | gym reports/export tests, platform payable netting, 5A.3 date-semantics conformance |
 | 38 | **Implemented** | finance grants/staff tests |
 | 39 | **Implemented** | coach own earnings tests |
 | 40 | **Implemented** | athlete self-service tests |
 | 41 | **Implemented** | Superuser full access tests |
 | 42 | **Partial** | approval flow implemented; amount limits enforced only for opening balances, other amount-bearing permissions reject unsupported limits (5A.1) |
 | 43 | **Implemented** | gym dashboard tests |
-| 44 | **Implemented** | platform overview, per-gym netting and credit/cancellation tests |
+| 44 | **Implemented** | platform overview, per-gym netting, credit/cancellation tests and 5A.3 revenue-basis reconciliation |
 | 45 | **Implemented** | coach/athlete mobile views |
 | 46 | **Deferred** | advanced AI/smart analytics excluded |
 | 47 | **Implemented** | tenant isolation tests |
@@ -144,14 +144,14 @@ Known limitations kept out of this closeout: owner standing/reminders and the Su
 | 51 | **Implemented** | additive migrations/tests |
 | 52 | **Implemented** | staged Phase 1–4 delivery |
 | 53 | **Outstanding** | 3–5 real-gym pilot not run (Phase 5) |
-| 54 | **Partial** | integrity/refund/tenant/restore tests pass including platform credit reconciliation; real-gym pilot criteria pending |
+| 54 | **Partial** | local integrity/refund/tenant/restore/date-semantics evidence passes; real-gym pilot criteria pending |
 | 55 | **Implemented** | offboarding export |
 | 56 | **Outstanding** | Iran legal/tax/provider checks before real money |
 | 57 | **Implemented** | branch ledger/consolidated reporting |
 | 58 | **Implemented** | group contracts/discounts |
 | 59 | **Implemented** | disabled finance read-only tests |
 | 60 | **Implemented** | integer IRR tests |
-| 61 | **Implemented** | Jalali/timezone reporting |
+| 61 | **Partial** | Jalali display and gym-local report boundaries implemented (5A.3); some current-only vesting/expiry reads still use UTC and the timezone setting is not editable through the API |
 | 62 | **Implemented** | standalone income/expense |
 | 63 | **Implemented** | membership effective dates |
 | 64 | **Implemented** | access/downpayment policy |
@@ -174,7 +174,7 @@ Known limitations kept out of this closeout: owner standing/reminders and the Su
 | 81 | **Implemented** | settlement parties/proof fields |
 | 82 | **Implemented** | weekly/default settlement config |
 | 83 | **Implemented** | periodic coach pay tests |
-| 84 | **Implemented** | estimated operating profit tests |
+| 84 | **Implemented** | estimated operating profit tests; journal-posting revenue/expense basis reconciled in 5A.3 |
 | 85 | **Implemented** | expense fields/recurrence tests |
 | 86 | **Implemented** | period close/correction tests |
 | 87 | **Implemented** | unique invoice numbering tests |

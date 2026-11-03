@@ -277,6 +277,7 @@ class PlatformReceivable(SQLModel, table=True):
     paid_irr: int = Field(
         default=0, sa_column=Column(BigInteger, nullable=False)
     )
+    recognized_on: date | None = Field(default=None)
     due_on: date
     status: str = Field(default="OPEN", max_length=20)
     snapshot: dict[str, Any] = Field(
@@ -302,6 +303,7 @@ class PlatformCredit(SQLModel, table=True):
     amount_irr: int = Field(
         default=0, sa_column=Column(BigInteger, nullable=False)
     )
+    recognized_on: date | None = Field(default=None)
     reason: str | None = Field(default=None, max_length=500)
     created_by_id: uuid.UUID | None = Field(
         default=None, foreign_key="user.id", ondelete="RESTRICT"
@@ -366,6 +368,7 @@ class PlatformInvoice(SQLModel, table=True):
     issued_on: date
     due_on: date
     status: str = Field(default="ISSUED", max_length=20)
+    cancelled_on: date | None = Field(default=None)
     discount_irr: int = Field(
         default=0, sa_column=Column(BigInteger, nullable=False)
     )
@@ -889,6 +892,11 @@ class PlatformStandingPublic(SQLModel):
     gym_id: uuid.UUID
     open_irr: int
     overdue_irr: int
+    billed_open_irr: int = 0
+    unbilled_open_irr: int = 0
+    total_exposure_irr: int = 0
+    overdue_billed_irr: int = 0
+    overdue_unbilled_irr: int = 0
     oldest_due_on: date | None
     overdue_days: int
     stage: str
@@ -929,6 +937,10 @@ class PlatformGymReportPublic(SQLModel):
     collected_fees_irr: int
     receivable_irr: int
     overdue_irr: int
+    billed_receivable_irr: int = 0
+    unbilled_receivable_irr: int = 0
+    billed_overdue_irr: int = 0
+    unbilled_overdue_irr: int = 0
     recorded_cost_irr: int
     contribution_irr: int
 
@@ -940,6 +952,10 @@ class PlatformOverviewPublic(SQLModel):
     invoiced_fees_irr: int
     receivable_irr: int
     overdue_irr: int
+    billed_receivable_irr: int = 0
+    unbilled_receivable_irr: int = 0
+    billed_overdue_irr: int = 0
+    unbilled_overdue_irr: int = 0
     recorded_platform_costs_irr: int
     estimated_operating_profit_irr: int
     by_gym: list[PlatformGymReportPublic]

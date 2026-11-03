@@ -1527,6 +1527,7 @@ def _gym_report_rows(
         FinanceCoachSettlement,
         FinanceExpense,
         FinanceInvoice,
+        FinanceJournal,
         FinanceReceipt,
         FinanceRefund,
     )
@@ -1611,14 +1612,31 @@ def _gym_report_rows(
     for refund in session.exec(
         select(FinanceRefund).where(FinanceRefund.gym_id == gym_id)
     ).all():
-        if not in_range(refund.created_at.date()):
+        refund_journal = (
+            session.get(FinanceJournal, refund.journal_id)
+            if refund.journal_id is not None
+            else None
+        )
+        if refund.status == "REJECTED":
+            continue
+        if refund.status == "RECORDED" and refund_journal is not None:
+            refund_family = "CASHFLOW"
+            refund_date = refund_journal.posting_date
+        else:
+            from app.services.finance import gym_local_date
+
+            refund_family = "BALANCE"
+            refund_date = gym_local_date(
+                session, gym_id, refund.created_at
+            )
+        if not in_range(refund_date):
             continue
         rows.append(
             [
-                "CASHFLOW",
+                refund_family,
                 "refund",
                 str(refund.id),
-                refund.created_at.date().isoformat(),
+                refund_date.isoformat(),
                 refund.amount_irr,
                 refund.status,
             ]
@@ -1626,14 +1644,25 @@ def _gym_report_rows(
     for expense in session.exec(
         select(FinanceExpense).where(FinanceExpense.gym_id == gym_id)
     ).all():
-        if not in_range(expense.spent_on):
+        expense_journal = (
+            session.get(FinanceJournal, expense.journal_id)
+            if expense.journal_id is not None
+            else None
+        )
+        if expense.status == "PAID" and expense_journal is not None:
+            expense_family = "CASHFLOW"
+            expense_date = expense_journal.posting_date
+        else:
+            expense_family = "ACCRUAL"
+            expense_date = expense.spent_on
+        if not in_range(expense_date):
             continue
         rows.append(
             [
-                "CASHFLOW" if expense.status == "PAID" else "ACCRUAL",
+                expense_family,
                 "expense",
                 str(expense.id),
-                expense.spent_on.isoformat(),
+                expense_date.isoformat(),
                 expense.amount_irr,
                 expense.status,
             ]
@@ -1641,14 +1670,24 @@ def _gym_report_rows(
     for earning in session.exec(
         select(FinanceCoachEarning).where(FinanceCoachEarning.gym_id == gym_id)
     ).all():
-        if not in_range(earning.created_at.date()):
+        earning_journal = (
+            session.get(FinanceJournal, earning.journal_id)
+            if earning.journal_id is not None
+            else None
+        )
+        earning_date = (
+            earning_journal.posting_date
+            if earning_journal is not None
+            else earning.created_at.date()
+        )
+        if not in_range(earning_date):
             continue
         rows.append(
             [
                 "ACCRUAL",
                 "coach_earning",
                 str(earning.id),
-                earning.created_at.date().isoformat(),
+                earning_date.isoformat(),
                 earning.coach_share_irr,
                 earning.status,
             ]
@@ -1680,6 +1719,8 @@ def _gym_report_rows(
     for agreement in session.exec(
         select(PlatformAgreement).where(PlatformAgreement.gym_id == gym_id)
     ).all():
+        if not in_range(agreement.effective_from):
+            continue
         rows.append(
             [
                 "ACCRUAL",
@@ -1693,6 +1734,8 @@ def _gym_report_rows(
     for receivable in session.exec(
         select(PlatformReceivable).where(PlatformReceivable.gym_id == gym_id)
     ).all():
+        if not in_range(receivable.recognized_on or receivable.created_at.date()):
+            continue
         rows.append(
             [
                 "BALANCE",
@@ -1734,7 +1777,7 @@ def _gym_report_rows(
                 PlatformInvoiceLine.gym_id == gym_id,
             )
         ).one()
-        if int(allocated) <= 0:
+        if int(allocated) <= 0 or not in_range(payment.received_on):
             continue
         rows.append(
             [
@@ -1816,11 +1859,13 @@ def export_gym_offboarding(
 ) -> Any:
     scope = resolve_finance_scope(session, ctx, current_user)
     scope.require(FINANCE_VIEW)
+    from app.services.finance import gym_today
+
     return _csv_response(
         _gym_report_rows(
             session,
             gym_id=ctx.gym.id,
             from_date=date(2000, 1, 1),
-            to_date=date.today(),
+            to_date=gym_today(session, ctx.gym.id),
         )
     )

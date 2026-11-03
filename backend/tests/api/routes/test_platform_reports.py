@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
+from app.services.platform import platform_today
 from tests.api.routes.test_finance_foundation import make_owner
 from tests.api.routes.test_platform_invoices import (
     accrue,
@@ -27,7 +28,7 @@ def platform_invoice(
             "gym_id": gym_id,
             "period_start": "2026-11-01",
             "period_end": "2026-12-31",
-            "due_on": (due_on or date.today()).isoformat(),
+            "due_on": (due_on or platform_today()).isoformat(),
         },
     )
 
@@ -43,7 +44,7 @@ def test_overdue_stage_progresses_and_superuser_authority_is_unchanged(
     accrued = accrue(client, superuser_headers, agreement["id"])
     assert accrued.status_code == 200, accrued.text
     issued = platform_invoice(
-        client, superuser_headers, gym_id=gym_id, due_on=date.today()
+        client, superuser_headers, gym_id=gym_id, due_on=platform_today()
     )
     assert issued.status_code == 200, issued.text
 
@@ -51,7 +52,7 @@ def test_overdue_stage_progresses_and_superuser_authority_is_unchanged(
         standing = client.get(
             f"/api/v1/platform/dues/{gym_id}",
             headers=superuser_headers,
-            params={"as_of": (date.today() + timedelta(days=offset)).isoformat()},
+            params={"as_of": (platform_today() + timedelta(days=offset)).isoformat()},
         )
         assert standing.status_code == 200, standing.text
         assert standing.json()["stage"] == expected
@@ -87,12 +88,12 @@ def test_platform_reminders_are_in_app_only_and_list_due_and_overdue(
     )
     assert accrue(client, superuser_headers, agreement["id"]).status_code == 200
     assert platform_invoice(
-        client, superuser_headers, gym_id=gym_id, due_on=date.today()
+        client, superuser_headers, gym_id=gym_id, due_on=platform_today()
     ).status_code == 200
     due_soon = client.get(
         "/api/v1/platform/reminders",
         headers=superuser_headers,
-        params={"as_of": date.today().isoformat(), "within_days": 7},
+        params={"as_of": platform_today().isoformat(), "within_days": 7},
     )
     assert due_soon.status_code == 200, due_soon.text
     assert due_soon.json()["due_soon"]
@@ -100,7 +101,7 @@ def test_platform_reminders_are_in_app_only_and_list_due_and_overdue(
         "/api/v1/platform/reminders",
         headers=superuser_headers,
         params={
-            "as_of": (date.today() + timedelta(days=1)).isoformat(),
+            "as_of": (platform_today() + timedelta(days=1)).isoformat(),
             "within_days": 7,
         },
     )
@@ -511,7 +512,7 @@ def test_platform_overview_does_not_cross_net_credit_between_gyms(
         json={
             "amount_irr": 100_000,
             "method": "CASH",
-            "received_on": date.today().isoformat(),
+            "received_on": platform_today().isoformat(),
         },
     )
     assert settled.status_code == 200, settled.text
@@ -538,7 +539,7 @@ def test_platform_overview_does_not_cross_net_credit_between_gyms(
             PlatformReceivable.gym_id == uuid.UUID(gym_b_id)
         )
     ).one()
-    receivable_b.due_on = date.today() - timedelta(days=5)
+    receivable_b.due_on = platform_today() - timedelta(days=5)
     db_session.add(receivable_b)
     db_session.commit()
 
@@ -550,9 +551,11 @@ def test_platform_overview_does_not_cross_net_credit_between_gyms(
     by_gym = {row["gym_id"]: row for row in overview["by_gym"]}
     assert by_gym[gym_a_id]["receivable_irr"] == 0
     assert by_gym[gym_b_id]["receivable_irr"] == 100_000
-    assert by_gym[gym_b_id]["overdue_irr"] == 100_000
+    assert by_gym[gym_b_id]["unbilled_receivable_irr"] == 100_000
+    assert by_gym[gym_b_id]["overdue_irr"] == 0
     assert overview["receivable_irr"] == 100_000
-    assert overview["overdue_irr"] == 100_000
+    assert overview["unbilled_receivable_irr"] == 100_000
+    assert overview["overdue_irr"] == 0
     assert overview["receivable_irr"] == sum(
         row["receivable_irr"] for row in overview["by_gym"]
     )
@@ -588,7 +591,7 @@ def test_platform_standing_is_current_when_credit_covers_overdue_invoice(
     )
     assert receipt.status_code == 200, receipt.text
     issued = platform_invoice(
-        client, superuser_headers, gym_id=gym_id, due_on=date.today()
+        client, superuser_headers, gym_id=gym_id, due_on=platform_today()
     )
     assert issued.status_code == 200, issued.text
     refund(client, owner, customer, invoice["id"], 1_000_000)
@@ -596,7 +599,7 @@ def test_platform_standing_is_current_when_credit_covers_overdue_invoice(
     standing = client.get(
         f"/api/v1/platform/dues/{gym_id}",
         headers=superuser_headers,
-        params={"as_of": (date.today() + timedelta(days=22)).isoformat()},
+        params={"as_of": (platform_today() + timedelta(days=22)).isoformat()},
     )
     assert standing.status_code == 200, standing.text
     body = standing.json()

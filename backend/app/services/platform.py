@@ -3,8 +3,9 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from sqlalchemy import func, or_, text
@@ -26,6 +27,13 @@ from app.platform_models import (
     PlatformPlanVersionCreate,
     PlatformPlanVersionPublic,
 )
+
+PLATFORM_TIMEZONE = "Asia/Tehran"
+
+
+def platform_today() -> date:
+    return datetime.now(UTC).astimezone(ZoneInfo(PLATFORM_TIMEZONE)).date()
+
 
 ALLOWED_LIMITS: dict[str, type] = {
     "active_athletes": int,
@@ -1124,7 +1132,7 @@ def activate_agreement(
             agreement.supersedes_id = row.id
         # A future-dated replacement must not truncate or replace the
         # agreement that is in force today. Selection is effective-dated.
-        if agreement.effective_from <= date.today():
+        if agreement.effective_from <= platform_today():
             if (
                 row.effective_to is None
                 or row.effective_to >= agreement.effective_from
@@ -1559,6 +1567,7 @@ def create_platform_ascora_receivable(
                     source_id=earning.id,
                     source_key=source_key,
                     amount_irr=amount,
+                    recognized_on=received_on,
                     due_on=received_on + timedelta(days=30),
                     status="OPEN",
                     snapshot=snapshot,
@@ -1646,6 +1655,7 @@ def create_platform_ascora_receivable(
             source_id=line.id,
             source_key=source_key,
             amount_irr=fee,
+            recognized_on=received_on,
             due_on=received_on + timedelta(days=30),
             status="OPEN",
             snapshot=snapshot,
@@ -1705,9 +1715,10 @@ def _next_platform_doc(session: Session, doc_type: str) -> int:
     return sequence.last_value
 
 
-def _invoice_line_public(line: Any) -> Any:
+def _invoice_line_public(line: Any, *, paid_irr: int | None = None) -> Any:
     from app.platform_models import PlatformInvoiceLinePublic
 
+    paid = line.paid_irr if paid_irr is None else paid_irr
     return PlatformInvoiceLinePublic(
         id=line.id,
         gym_id=line.gym_id,
@@ -1718,18 +1729,31 @@ def _invoice_line_public(line: Any) -> Any:
         discount_irr=line.discount_irr,
         credit_irr=line.credit_irr,
         amount_irr=line.amount_irr,
-        paid_irr=line.paid_irr,
-        balance_irr=max(line.amount_irr - line.paid_irr, 0),
+        paid_irr=paid,
+        balance_irr=max(line.amount_irr - paid, 0),
     )
 
 
+def _cancellation_date(session: Session, invoice_id: uuid.UUID) -> date | None:
+    from app.platform_models import PlatformInvoice
+
+    invoice = session.get(PlatformInvoice, invoice_id)
+    return invoice.cancelled_on if invoice is not None else None
+
+
 def _invoice_public(
-    session: Session, invoice: Any, *, gym_id: uuid.UUID | None = None
+    session: Session,
+    invoice: Any,
+    *,
+    gym_id: uuid.UUID | None = None,
+    as_of: date | None = None,
 ) -> Any:
     from app.platform_models import (
         PlatformInvoiceLine,
         PlatformInvoiceLineReversal,
         PlatformInvoicePublic,
+        PlatformPayment,
+        PlatformPaymentAllocation,
     )
 
     lines = session.exec(
@@ -1739,22 +1763,60 @@ def _invoice_public(
     ).all()
     if gym_id is not None:
         lines = [line for line in lines if line.gym_id == gym_id]
-    reversals = session.exec(
+    line_ids = [line.id for line in lines]
+    paid_by_line: dict[uuid.UUID, int] = {}
+    if as_of is not None and line_ids:
+        rows = session.exec(
+            select(
+                PlatformPaymentAllocation.invoice_line_id,
+                func.coalesce(func.sum(PlatformPaymentAllocation.amount_irr), 0),
+            )
+            .join(
+                PlatformPayment,
+                col(PlatformPaymentAllocation.payment_id) == col(PlatformPayment.id),
+            )
+            .where(
+                col(PlatformPaymentAllocation.invoice_line_id).in_(line_ids),
+                PlatformPayment.received_on <= as_of,
+            )
+            .group_by(col(PlatformPaymentAllocation.invoice_line_id))
+        ).all()
+        paid_by_line = {line_id: int(amount) for line_id, amount in rows}
+    reversal_statement = (
         select(PlatformInvoiceLineReversal)
         .join(
             PlatformInvoiceLine,
             col(PlatformInvoiceLineReversal.invoice_line_id) == col(PlatformInvoiceLine.id),
         )
         .where(PlatformInvoiceLine.invoice_id == invoice.id)
-    ).all()
+    )
+    if gym_id is not None:
+        reversal_statement = reversal_statement.where(
+            PlatformInvoiceLine.gym_id == gym_id
+        )
+    if as_of is not None and (
+        invoice.cancelled_on is None or invoice.cancelled_on > as_of
+    ):
+        reversals = []
+    else:
+        reversals = list(session.exec(reversal_statement).all())
     reversal_total = sum(row.amount_irr for row in reversals)
-    paid = sum(line.paid_irr for line in lines)
+    paid = (
+        sum(paid_by_line.get(line.id, 0) for line in lines)
+        if as_of is not None
+        else sum(line.paid_irr for line in lines)
+    )
     total = sum(line.amount_irr for line in lines) if gym_id is not None else invoice.total_irr
     discount = (
         sum(line.discount_irr for line in lines)
         if gym_id is not None
         else invoice.discount_irr
     )
+    status = invoice.status
+    if as_of is not None and invoice.status == "CANCELLED":
+        cancelled_on = _cancellation_date(session, invoice.id)
+        if cancelled_on is not None and cancelled_on > as_of:
+            status = "ISSUED"
     return PlatformInvoicePublic(
         id=invoice.id,
         gym_id=invoice.gym_id,
@@ -1764,12 +1826,17 @@ def _invoice_public(
         period_end=invoice.period_end,
         issued_on=invoice.issued_on,
         due_on=invoice.due_on,
-        status=invoice.status,
+        status=status,
         discount_irr=discount,
         total_irr=total,
         paid_irr=paid,
         balance_irr=max(total - paid - reversal_total, 0),
-        lines=[_invoice_line_public(line) for line in lines],
+        lines=[
+            _invoice_line_public(line, paid_irr=paid_by_line.get(line.id, 0))
+            if as_of is not None
+            else _invoice_line_public(line)
+            for line in lines
+        ],
         created_at=invoice.created_at,
     )
 
@@ -1874,6 +1941,7 @@ def accrue_subscription_period(
         source_id=agreement.id,
         source_key=source_key,
         amount_irr=amount,
+        recognized_on=start,
         due_on=start,
         status="OPEN",
         snapshot=agreement_snapshot(session, agreement),
@@ -1957,7 +2025,7 @@ def issue_platform_invoice(
         )
     if (
         body.period_end < body.period_start
-        or body.due_on < date.today()
+        or body.due_on < platform_today()
     ):
         raise HTTPException(
             status_code=400, detail="platform_invoice_dates_invalid"
@@ -2065,7 +2133,7 @@ def issue_platform_invoice(
         invoice_number=_next_platform_doc(session, "PLATFORM_INVOICE"),
         period_start=body.period_start,
         period_end=body.period_end,
-        issued_on=date.today(),
+        issued_on=platform_today(),
         due_on=body.due_on,
         status="ISSUED",
         discount_irr=discount_total,
@@ -2142,7 +2210,7 @@ def issue_platform_invoice(
             post_platform_journal(
                 session,
                 actor=actor,
-                posting_date=body.period_end,
+                posting_date=invoice.issued_on,
                 event_type="PLATFORM_FEE_REVERSAL",
                 description="Group volume discount",
                 lines=journal_lines,
@@ -2201,7 +2269,10 @@ def list_platform_invoices(
     if as_of is not None:
         invoices = [row for row in invoices if row.issued_on <= as_of]
     return PlatformInvoicesPublic(
-        data=[_invoice_public(session, invoice, gym_id=gym_id) for invoice in invoices]
+        data=[
+            _invoice_public(session, invoice, gym_id=gym_id, as_of=as_of)
+            for invoice in invoices
+        ]
     )
 
 
@@ -2504,6 +2575,7 @@ def cancel_platform_invoice(
         )
     ).all()
     journal_id = None
+    cancellation_date = platform_today()
     if invoice.discount_irr > 0:
         journal_lines: list[tuple[str, int, int, str | None]] = []
         for line in lines:
@@ -2518,7 +2590,7 @@ def cancel_platform_invoice(
             journal = post_platform_journal(
                 session,
                 actor=actor,
-                posting_date=invoice.issued_on,
+                posting_date=cancellation_date,
                 event_type="PLATFORM_INVOICE_CANCEL",
                 description="Platform invoice cancelled",
                 lines=journal_lines,
@@ -2571,11 +2643,13 @@ def cancel_platform_invoice(
                         source_id=cancellation.id,
                         source_key=source_key,
                         amount_irr=application.amount_irr,
+                        recognized_on=platform_today(),
                         reason=body.reason,
                         created_by_id=actor.id,
                     )
                 )
     invoice.status = "CANCELLED"
+    invoice.cancelled_on = cancellation_date
     session.add(invoice)
     _audit(
         session,
@@ -2689,6 +2763,7 @@ def apply_platform_refund(
             source_id=refund.id,
             source_key=source_key,
             amount_irr=credit_amount,
+            recognized_on=posting_date,
             reason=refund.reason,
             created_by_id=actor.id,
         )
@@ -2738,9 +2813,14 @@ def apply_platform_refund(
 def platform_standing(
     session: Session, *, gym_id: uuid.UUID, as_of: date | None = None
 ) -> Any:
-    from app.platform_models import PlatformStandingPublic
+    from app.platform_models import (
+        PlatformInvoice,
+        PlatformInvoiceLine,
+        PlatformReceivable,
+        PlatformStandingPublic,
+    )
 
-    as_of = as_of or date.today()
+    as_of = as_of or platform_today()
     agreement = find_effective_agreement(session, gym_id=gym_id, on_date=as_of)
     grace_days = agreement.grace_days if agreement is not None else 7
     restrict_after_days = (
@@ -2756,25 +2836,63 @@ def platform_standing(
     available_credit = available_credit_irr(
         session, gym_id=gym_id, as_of=as_of
     )
-    remaining: list[tuple[Any, int]] = []
+    credit_left = available_credit
+    remaining_rows: list[tuple[Any, int]] = []
     for row in open_rows:
-        if available_credit <= 0:
-            remaining.append((row, row.balance_irr))
+        if credit_left <= 0:
+            remaining_rows.append((row, row.balance_irr))
             continue
-        if available_credit >= row.balance_irr:
-            available_credit -= row.balance_irr
+        if credit_left >= row.balance_irr:
+            credit_left -= row.balance_irr
             continue
-        remaining.append((row, row.balance_irr - available_credit))
-        available_credit = 0
-    open_irr = sum(balance for _, balance in remaining)
-    overdue_irr = sum(
-        balance for row, balance in remaining if row.due_on < as_of
+        remaining_rows.append((row, row.balance_irr - credit_left))
+        credit_left = 0
+    billed_open_net = sum(balance for _, balance in remaining_rows)
+    overdue_billed = sum(
+        balance for row, balance in remaining_rows if row.due_on < as_of
     )
-    oldest_due_on = min((row.due_on for row, _ in remaining), default=None)
+
+    cancelled_invoice_ids = set(
+        session.exec(
+            select(PlatformInvoice.id).where(
+                PlatformInvoice.status == "CANCELLED",
+                col(PlatformInvoice.cancelled_on).is_not(None),
+                col(PlatformInvoice.cancelled_on) <= as_of,
+            )
+        ).all()
+    )
+    covered_statement = (
+        select(PlatformInvoiceLine.receivable_id)
+        .join(
+            PlatformInvoice,
+            col(PlatformInvoiceLine.invoice_id) == col(PlatformInvoice.id),
+        )
+        .where(PlatformInvoice.issued_on <= as_of)
+    )
+    if cancelled_invoice_ids:
+        covered_statement = covered_statement.where(
+            col(PlatformInvoiceLine.invoice_id).not_in(cancelled_invoice_ids)
+        )
+    covered_receivable_ids = set(session.exec(covered_statement).all())
+    unbilled_rows = [
+        row
+        for row in session.exec(
+            select(PlatformReceivable).where(
+                PlatformReceivable.gym_id == gym_id,
+                PlatformReceivable.amount_irr > 0,
+            )
+        ).all()
+        if row.id not in covered_receivable_ids
+        and (row.recognized_on or row.created_at.date()) <= as_of
+    ]
+    unbilled_open = sum(max(row.amount_irr, 0) for row in unbilled_rows)
+    unbilled_open_net = max(unbilled_open - credit_left, 0)
+    total_exposure = billed_open_net + unbilled_open_net
+    oldest_due_on = min((row.due_on for row, _ in remaining_rows), default=None)
     overdue_days = (
         max((as_of - oldest_due_on).days, 0) if oldest_due_on else 0
     )
-    if not remaining or oldest_due_on is None or as_of < oldest_due_on:
+    if not remaining_rows or oldest_due_on is None or as_of < oldest_due_on:
         stage = "CURRENT"
     elif overdue_days <= grace_days:
         stage = "DUE"
@@ -2783,28 +2901,32 @@ def platform_standing(
     else:
         stage = "RESTRICTED"
     restrictions = []
-    if overdue_irr > 0:
+    if overdue_billed > 0:
         restrictions.append("PLATFORM_DUES_OVERDUE")
     if stage == "RESTRICTED":
         restrictions.append("PLATFORM_DUES_RESTRICTED")
     return PlatformStandingPublic(
         gym_id=gym_id,
-        open_irr=open_irr,
-        overdue_irr=overdue_irr,
+        open_irr=billed_open_net,
+        overdue_irr=overdue_billed,
+        billed_open_irr=billed_open_net,
+        unbilled_open_irr=unbilled_open_net,
+        total_exposure_irr=total_exposure,
+        overdue_billed_irr=overdue_billed,
+        overdue_unbilled_irr=0,
         oldest_due_on=oldest_due_on,
         overdue_days=overdue_days,
         stage=stage,
         informational_restrictions=restrictions,
     )
 
-
 def list_platform_reminders(
     session: Session, *, as_of: date | None = None, within_days: int = 7
 ) -> Any:
     from app.platform_models import PlatformRemindersPublic
 
-    as_of = as_of or date.today()
-    invoices = list_platform_invoices(session).data
+    as_of = as_of or platform_today()
+    invoices = list_platform_invoices(session, as_of=as_of).data
     due_soon = [
         row
         for row in invoices
@@ -2828,7 +2950,7 @@ def list_platform_dues(
 ) -> list[Any]:
     from app.platform_models import PlatformInvoice
 
-    as_of = as_of or date.today()
+    as_of = as_of or platform_today()
 
     direct = session.exec(
         select(PlatformInvoice.gym_id)
@@ -2840,7 +2962,16 @@ def list_platform_dues(
     allocated = session.exec(
         select(col(PlatformInvoiceLine.gym_id)).distinct()
     ).all()
-    gym_ids = list({gym_id for gym_id in direct if gym_id is not None} | set(allocated))
+    from app.platform_models import PlatformReceivable
+
+    receivable_gyms = session.exec(
+        select(col(PlatformReceivable.gym_id)).distinct()
+    ).all()
+    gym_ids = list(
+        {gym_id for gym_id in direct if gym_id is not None}
+        | set(allocated)
+        | {gym_id for gym_id in receivable_gyms if gym_id is not None}
+    )
     return [
         platform_standing(session, gym_id=gym_id, as_of=as_of)
         for gym_id in gym_ids
@@ -3015,7 +3146,9 @@ def _platform_gym_reports(
                     PlatformReceivable.gym_id == gym_id
                 )
             ).all()
-            if from_date <= row.created_at.date() <= to_date
+            if from_date
+            <= (row.recognized_on or row.created_at.date())
+            <= to_date
         )
         recognized -= sum(
             row.amount_irr
@@ -3023,7 +3156,9 @@ def _platform_gym_reports(
                 select(PlatformCredit).where(PlatformCredit.gym_id == gym_id)
             ).all()
             if row.source_type != "INVOICE_CANCELLATION"
-            and from_date <= row.created_at.date() <= to_date
+            and from_date
+            <= (row.recognized_on or row.created_at.date())
+            <= to_date
         )
         recognized -= sum(
             row.discount_irr
@@ -3035,9 +3170,24 @@ def _platform_gym_reports(
                 )
                 .where(
                     PlatformInvoiceLine.gym_id == gym_id,
-                    PlatformInvoice.status != "CANCELLED",
                     PlatformInvoice.issued_on >= from_date,
                     PlatformInvoice.issued_on <= to_date,
+                )
+            ).all()
+        )
+        recognized += sum(
+            row.discount_irr
+            for row in session.exec(
+                select(PlatformInvoiceLine)
+                .join(
+                    PlatformInvoice,
+                    col(PlatformInvoiceLine.invoice_id) == col(PlatformInvoice.id),
+                )
+                .where(
+                    PlatformInvoiceLine.gym_id == gym_id,
+                    col(PlatformInvoice.cancelled_on).is_not(None),
+                    col(PlatformInvoice.cancelled_on) >= from_date,
+                    col(PlatformInvoice.cancelled_on) <= to_date,
                 )
             ).all()
         )
@@ -3057,36 +3207,9 @@ def _platform_gym_reports(
                 PlatformPayment.received_on <= to_date,
             )
         ).one()
-        open_receivables = [
-            row
-            for row in session.exec(
-                select(PlatformReceivable).where(
-                    PlatformReceivable.gym_id == gym_id,
-                    col(PlatformReceivable.status).in_(
-                        ("OPEN", "INVOICED", "PARTIAL")
-                    ),
-                )
-            ).all()
-            if row.amount_irr > row.paid_irr
-        ]
-        credit = available_credit_irr(session, gym_id=gym_id)
-        receivable = max(
-            sum(
-                max(row.amount_irr - row.paid_irr, 0)
-                for row in open_receivables
-            )
-            - credit,
-            0,
-        )
-        overdue = max(
-            sum(
-                max(row.amount_irr - row.paid_irr, 0)
-                for row in open_receivables
-                if row.due_on < date.today()
-            )
-            - credit,
-            0,
-        )
+        standing = platform_standing(session, gym_id=gym_id, as_of=to_date)
+        receivable = standing.total_exposure_irr
+        overdue = standing.overdue_billed_irr + standing.overdue_unbilled_irr
         cost = session.exec(
             select(func.coalesce(func.sum(PlatformCost.amount_irr), 0)).where(
                 PlatformCost.gym_id == gym_id,
@@ -3101,6 +3224,10 @@ def _platform_gym_reports(
                 "collected_fees_irr": int(collected),
                 "receivable_irr": receivable,
                 "overdue_irr": overdue,
+                "billed_receivable_irr": standing.billed_open_irr,
+                "unbilled_receivable_irr": standing.unbilled_open_irr,
+                "billed_overdue_irr": standing.overdue_billed_irr,
+                "unbilled_overdue_irr": standing.overdue_unbilled_irr,
                 "recorded_cost_irr": int(cost),
                 "contribution_irr": recognized - int(cost),
             }
@@ -3131,6 +3258,18 @@ def platform_overview(
         event_type="PLATFORM_PAYMENT",
     )
     invoices = session.exec(select(PlatformInvoice)).all()
+
+    invoiced_fees = sum(
+        row.total_irr
+        for row in invoices
+        if from_date <= row.issued_on <= to_date
+    )
+    for cancelled_invoice in invoices:
+        if (
+            cancelled_invoice.cancelled_on is not None
+            and from_date <= cancelled_invoice.cancelled_on <= to_date
+        ):
+            invoiced_fees -= cancelled_invoice.total_irr
     costs = session.exec(
         select(func.coalesce(func.sum(PlatformCost.amount_irr), 0)).where(
             PlatformCost.incurred_on >= from_date,
@@ -3148,10 +3287,10 @@ def platform_overview(
     mrr = session.exec(
         select(func.coalesce(func.sum(PlatformAgreement.subscription_amount_irr), 0)).where(
             PlatformAgreement.status == "EFFECTIVE",
-            PlatformAgreement.effective_from <= date.today(),
+            PlatformAgreement.effective_from <= to_date,
             or_(
                 col(PlatformAgreement.effective_to).is_(None),
-                col(PlatformAgreement.effective_to) >= date.today(),
+                col(PlatformAgreement.effective_to) >= to_date,
             ),
         )
     ).one()
@@ -3165,10 +3304,10 @@ def platform_overview(
         .select_from(PlatformAgreement)
         .where(
             PlatformAgreement.status == "EFFECTIVE",
-            PlatformAgreement.effective_from <= date.today(),
+            PlatformAgreement.effective_from <= to_date,
             or_(
                 col(PlatformAgreement.effective_to).is_(None),
-                col(PlatformAgreement.effective_to) >= date.today(),
+                col(PlatformAgreement.effective_to) >= to_date,
             ),
         )
     ).one()
@@ -3176,14 +3315,21 @@ def platform_overview(
         mrr_irr=int(mrr),
         collected_fees_irr=int(cash_debit) - int(cash_credit),
         recognized_platform_revenue_irr=int(revenue_credit) - int(revenue_debit),
-        invoiced_fees_irr=sum(
-            row.total_irr
-            for row in invoices
-            if row.status != "CANCELLED"
-            and from_date <= row.issued_on <= to_date
-        ),
+        invoiced_fees_irr=invoiced_fees,
         receivable_irr=open_balance,
         overdue_irr=overdue,
+        billed_receivable_irr=sum(
+            int(row["billed_receivable_irr"]) for row in by_gym
+        ),
+        unbilled_receivable_irr=sum(
+            int(row["unbilled_receivable_irr"]) for row in by_gym
+        ),
+        billed_overdue_irr=sum(
+            int(row["billed_overdue_irr"]) for row in by_gym
+        ),
+        unbilled_overdue_irr=sum(
+            int(row["unbilled_overdue_irr"]) for row in by_gym
+        ),
         recorded_platform_costs_irr=int(costs),
         estimated_operating_profit_irr=(
             int(revenue_credit) - int(revenue_debit) - int(costs)
@@ -3304,7 +3450,11 @@ def available_credit_irr(
         applied_statement = applied_statement.where(PlatformCredit.gym_id == gym_id)
     if as_of is not None:
         credit_statement = credit_statement.where(
-            func.date(PlatformCredit.created_at) <= as_of
+            func.coalesce(
+                PlatformCredit.recognized_on,
+                func.date(PlatformCredit.created_at),
+            )
+            <= as_of
         )
         applied_statement = applied_statement.where(
             func.date(PlatformCreditApplication.created_at) <= as_of

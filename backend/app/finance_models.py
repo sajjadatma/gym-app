@@ -183,6 +183,8 @@ class FinancePeriod(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
     opened_at: datetime = Field(default_factory=get_datetime_utc)
+    period_start: date | None = Field(default=None)
+    period_end: date | None = Field(default=None)
     closed_at: datetime | None = Field(default=None)
     closed_by_id: uuid.UUID | None = Field(
         default=None, foreign_key="user.id", ondelete="RESTRICT"
@@ -447,6 +449,8 @@ class FinanceGrantsPublic(SQLModel):
 class FinancePeriodPublic(SQLModel):
     id: uuid.UUID
     opened_at: datetime
+    period_start: date | None = None
+    period_end: date | None = None
     closed_at: datetime | None = None
     status: Literal["OPEN", "CLOSED"]
 
@@ -888,6 +892,7 @@ class FinanceCreditMovement(SQLModel, table=True):
     )
     kind: str = Field(max_length=20)
     amount_irr: int = Field(sa_column=Column(BigInteger, nullable=False))
+    applied_on: date | None = Field(default=None)
     receipt_id: uuid.UUID | None = Field(
         default=None, foreign_key="finance_receipt.id", ondelete="RESTRICT"
     )

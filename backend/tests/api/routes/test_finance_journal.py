@@ -3,7 +3,9 @@ from __future__ import annotations
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -62,11 +64,12 @@ def correct(
     *,
     reason: str = "Opening balance correction",
     key: str | None = None,
+    posting_date: str = "2026-11-02",
 ) -> Any:
     return client.post(
         f"/api/v1/finance/journal/{journal_id}/correct",
         headers={**headers, **idem(key)},
-        json={"reason": reason, "posting_date": "2026-11-02"},
+        json={"reason": reason, "posting_date": posting_date},
     )
 
 
@@ -354,6 +357,10 @@ def test_period_close_starts_a_new_open_period_for_late_corrections(
         client,
         superuser_gym(superuser_headers, str(gym["id"])),
         first["id"],
+        posting_date=datetime.now(UTC)
+        .astimezone(ZoneInfo("Asia/Tehran"))
+        .date()
+        .isoformat(),
     )
     assert corrected.status_code == 200, corrected.text
     assert corrected.json()["period_id"] != original_period
