@@ -739,6 +739,9 @@ class FinanceInvoiceLinePublic(SQLModel):
     coach_agreement_id: uuid.UUID | None = None
     coach_agreement_version: int | None = None
     coach_allocation_status: str = "NOT_APPLICABLE"
+    platform_allocation_status: str = "NOT_APPLICABLE"
+    platform_fee_irr: int = 0
+    platform_ascora_term_share_irr: int = 0
 
 
 class FinanceInstallmentPublic(SQLModel):

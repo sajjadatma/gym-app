@@ -542,7 +542,7 @@ class PlatformJournal(SQLModel, table=True):
     posting_date: date
     event_type: str = Field(max_length=40)
     description: str = Field(max_length=255)
-    source_type: str = Field(max_length=40)
+    source_type: str = Field(max_length=80)
     source_id: uuid.UUID | None = Field(default=None)
     created_by_id: uuid.UUID | None = Field(
         default=None, foreign_key="user.id", ondelete="RESTRICT"
@@ -779,3 +779,22 @@ class PlatformGroupPublic(SQLModel):
 
 class PlatformGroupsPublic(SQLModel):
     data: list[PlatformGroupPublic]
+
+
+class PlatformReceivablePublic(SQLModel):
+    id: uuid.UUID
+    gym_id: uuid.UUID
+    agreement_id: uuid.UUID | None
+    source_type: str
+    source_id: uuid.UUID | None
+    source_key: str
+    amount_irr: int
+    paid_irr: int
+    due_on: date
+    status: str
+    snapshot: dict[str, Any]
+    created_at: datetime
+
+
+class PlatformReceivablesPublic(SQLModel):
+    data: list[PlatformReceivablePublic]

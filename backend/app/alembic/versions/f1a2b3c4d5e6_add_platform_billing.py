@@ -356,7 +356,7 @@ def upgrade() -> None:
         sa.Column("posting_date", sa.Date(), nullable=False),
         _str("event_type", 40),
         _str("description", 255),
-        _str("source_type", 40),
+        _str("source_type", 80),
         _uuid("source_id", nullable=True),
         _uuid("created_by_id", nullable=True),
         _dt("created_at"),

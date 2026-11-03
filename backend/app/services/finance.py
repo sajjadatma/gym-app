@@ -1459,6 +1459,9 @@ def invoice_public(
                 coach_agreement_id=line.coach_agreement_id,
                 coach_agreement_version=line.coach_agreement_version,
                 coach_allocation_status=line.coach_allocation_status,
+                platform_allocation_status=line.platform_allocation_status,
+                platform_fee_irr=line.platform_fee_irr,
+                platform_ascora_term_share_irr=line.platform_ascora_term_share_irr,
             )
             for line in lines
         ],
@@ -1903,6 +1906,93 @@ def _snapshot_invoice_coaches(
         session.add(line)
 
 
+
+def _snapshot_invoice_platform(
+    session: Session, *, invoice: FinanceInvoice, issue_date: date
+) -> None:
+    from app.services import platform as platform_service
+
+    lines = session.exec(
+        select(FinanceInvoiceLine).where(
+            FinanceInvoiceLine.invoice_id == invoice.id
+        )
+    ).all()
+    agreement = platform_service.find_effective_agreement(
+        session, gym_id=invoice.gym_id, on_date=issue_date
+    )
+    for line in lines:
+        line.platform_agreement_id = None
+        line.platform_agreement_version = None
+        line.platform_allocation_status = "NOT_APPLICABLE"
+        line.platform_snapshot = None
+        line.platform_fee_irr = 0
+        line.platform_ascora_term_share_irr = 0
+        ascora_share = 0
+        if line.coach_user_id is not None and line.agreement_snapshot:
+            _, ascora_share, _ = _allocate_coach_shares(
+                line.agreement_snapshot,
+                base_irr=line.payable_irr + line.discount_share_irr,
+                discount_irr=line.discount_share_irr,
+                discount_funding=invoice.discount_funding,
+            )
+        if ascora_share > 0:
+            line.platform_allocation_status = "COACH_ASCORA_TERM"
+            line.platform_ascora_term_share_irr = ascora_share
+            line.platform_fee_irr = ascora_share
+            line.platform_snapshot = {
+                "source": "COACH_ASCORA_TERM",
+                "coach_agreement_id": (
+                    str(line.coach_agreement_id)
+                    if line.coach_agreement_id is not None
+                    else None
+                ),
+                "coach_agreement_version": line.coach_agreement_version,
+                "scheduled_ascora_share_irr": ascora_share,
+            }
+            session.add(line)
+            continue
+        if agreement is None or agreement.mode in ("FREE", "SUBSCRIPTION"):
+            session.add(line)
+            continue
+        term = platform_service.match_commission_term(
+            session,
+            agreement=agreement,
+            line_kind=line.kind,
+            acquisition_source=invoice.acquisition_source,
+        )
+        if term is None:
+            line.platform_allocation_status = "NO_TERM"
+            session.add(line)
+            continue
+        line.platform_allocation_status = "SNAPSHOTTED"
+        line.platform_agreement_id = agreement.id
+        line.platform_agreement_version = agreement.version
+        line.platform_fee_irr = platform_service.platform_fee_for_line(
+            term, line.payable_irr
+        )
+        line.platform_snapshot = {
+            "source": "PLATFORM_COMMISSION",
+            "agreement_id": str(agreement.id),
+            "version": agreement.version,
+            "mode": agreement.mode,
+            "volume_discount_bp": agreement.volume_discount_bp,
+            "group_allocations": (
+                platform_service.agreement_snapshot(session, agreement).get(
+                    "group_allocations", []
+                )
+            ),
+            "term": {
+                "kind": term.kind,
+                "acquisition_source": term.acquisition_source,
+                "basis": term.basis,
+                "percent_bp": term.percent_bp,
+                "fixed_irr": term.fixed_irr,
+                "max_fee_irr": term.max_fee_irr,
+            },
+        }
+        session.add(line)
+
+
 def issue_invoice(
     session: Session,
     *,
@@ -1939,6 +2029,7 @@ def issue_invoice(
         )
 
     _snapshot_invoice_coaches(session, invoice=invoice, issue_date=posting_date)
+    _snapshot_invoice_platform(session, invoice=invoice, issue_date=posting_date)
     accounts = ensure_accounts(session, scope.gym_id)
     number = allocate_document_number(
         session, scope.gym_id, INVOICE_DOC_TYPE
@@ -2358,6 +2449,19 @@ def create_receipt(
             credit_movement_id=None,
             source_prefix=f"receipt:{receipt.id}",
         )
+        from app.services import platform as platform_service
+
+        platform_service.create_platform_ascora_receivable(
+            session,
+            gym_id=scope.gym_id,
+            actor=actor,
+            invoice=invoice,
+            amount_irr=allocation.amount_irr,
+            received_on=body.received_on,
+            receipt_id=receipt.id,
+            credit_movement_id=None,
+            source_prefix=f"receipt:{receipt.id}",
+        )
 
     if excess:
         credit = _customer_credit(
@@ -2498,6 +2602,19 @@ def apply_customer_credit(
     _create_coach_earnings(
         session,
         scope=scope,
+        actor=actor,
+        invoice=invoice,
+        amount_irr=body.amount_irr,
+        received_on=body.received_on,
+        receipt_id=None,
+        credit_movement_id=movement.id,
+        source_prefix=f"advance:{movement.id}",
+    )
+    from app.services import platform as platform_service
+
+    platform_service.create_platform_ascora_receivable(
+        session,
+        gym_id=scope.gym_id,
         actor=actor,
         invoice=invoice,
         amount_irr=body.amount_irr,

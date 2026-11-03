@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import func, text
+from sqlalchemy import func, or_, text
 from sqlmodel import Session, col, select
 
 from app.models import AthleteProfile, GymMembership, GymMembershipRole, User
@@ -1231,3 +1231,400 @@ def agreement_snapshot(session: Session, agreement: PlatformAgreement) -> dict[s
             ).all()
         ],
     }
+
+
+def find_effective_agreement(
+    session: Session, *, gym_id: uuid.UUID, on_date: date
+) -> PlatformAgreement | None:
+    from app.platform_models import PlatformGroupMember
+
+    direct = session.exec(
+        select(PlatformAgreement)
+        .where(
+            PlatformAgreement.gym_id == gym_id,
+            PlatformAgreement.status == "EFFECTIVE",
+            PlatformAgreement.effective_from <= on_date,
+            or_(
+                col(PlatformAgreement.effective_to).is_(None),
+                col(PlatformAgreement.effective_to) >= on_date,
+            ),
+        )
+        .order_by(col(PlatformAgreement.version).desc())
+    ).first()
+    if direct is not None:
+        return direct
+    return session.exec(
+        select(PlatformAgreement)
+        .join(
+            PlatformGroupMember,
+            col(PlatformGroupMember.group_id) == col(PlatformAgreement.group_id),
+        )
+        .where(
+            PlatformGroupMember.gym_id == gym_id,
+            PlatformAgreement.status == "EFFECTIVE",
+            PlatformAgreement.effective_from <= on_date,
+            or_(
+                col(PlatformAgreement.effective_to).is_(None),
+                col(PlatformAgreement.effective_to) >= on_date,
+            ),
+        )
+        .order_by(col(PlatformAgreement.version).desc())
+    ).first()
+
+
+def match_commission_term(
+    session: Session,
+    *,
+    agreement: PlatformAgreement,
+    line_kind: str,
+    acquisition_source: str,
+) -> Any:
+    from app.platform_models import PlatformCommissionTerm
+
+    terms = session.exec(
+        select(PlatformCommissionTerm).where(
+            PlatformCommissionTerm.agreement_id == agreement.id
+        )
+    ).all()
+    candidates: list[tuple[int, Any]] = []
+    for term in terms:
+        if term.kind not in (line_kind, "ANY"):
+            continue
+        if term.acquisition_source not in (acquisition_source, "ANY"):
+            continue
+        score = (2 if term.kind == line_kind else 0) + (
+            1 if term.acquisition_source == acquisition_source else 0
+        )
+        candidates.append((score, term))
+    if not candidates:
+        return None
+    candidates.sort(
+        key=lambda item: (
+            -item[0],
+            item[1].created_at,
+            str(item[1].id),
+        )
+    )
+    return candidates[0][1]
+
+
+def platform_fee_for_line(term: Any, payable_irr: int) -> int:
+    if payable_irr <= 0:
+        return 0
+    fee = 0
+    if term.basis in ("PERCENT", "PERCENT_PLUS_FIXED"):
+        fee += payable_irr * term.percent_bp // 10_000
+    if term.basis in ("FIXED", "PERCENT_PLUS_FIXED"):
+        fee += term.fixed_irr
+    if term.max_fee_irr > 0:
+        fee = min(fee, term.max_fee_irr)
+    return min(fee, payable_irr)
+
+
+def platform_fee_for_portion(
+    snapshot: dict[str, Any], portion_irr: int, line_payable_irr: int
+) -> int:
+    term = snapshot.get("term") or {}
+    if portion_irr <= 0 or line_payable_irr <= 0:
+        return 0
+    fee = 0
+    if term.get("basis") in ("PERCENT", "PERCENT_PLUS_FIXED"):
+        fee += portion_irr * int(term.get("percent_bp", 0)) // 10_000
+    if term.get("basis") in ("FIXED", "PERCENT_PLUS_FIXED"):
+        fee += int(term.get("fixed_irr", 0)) * portion_irr // line_payable_irr
+    cap = int(term.get("max_fee_irr", 0) or 0)
+    if cap > 0:
+        fee = min(fee, cap)
+    return min(fee, portion_irr)
+
+
+def _next_platform_entry(session: Session) -> int:
+    from app.platform_models import PlatformSequence
+
+    sequence = session.exec(
+        select(PlatformSequence).where(
+            PlatformSequence.doc_type == "PLATFORM_JOURNAL"
+        )
+    ).first()
+    if sequence is None:
+        sequence = PlatformSequence(doc_type="PLATFORM_JOURNAL", last_value=0)
+        session.add(sequence)
+        session.flush()
+    sequence.last_value += 1
+    session.add(sequence)
+    session.flush()
+    return sequence.last_value
+
+
+def post_platform_journal(
+    session: Session,
+    *,
+    actor: User,
+    posting_date: date,
+    event_type: str,
+    description: str,
+    lines: list[tuple[str, int, int, str | None]],
+    source_type: str,
+    source_id: uuid.UUID | None,
+) -> Any:
+    from app.platform_models import PlatformJournal, PlatformJournalLine
+
+    total_debit = sum(line[1] for line in lines)
+    total_credit = sum(line[2] for line in lines)
+    if total_debit != total_credit or total_debit <= 0 or len(lines) < 2:
+        raise HTTPException(
+            status_code=500, detail="platform_journal_unbalanced"
+        )
+    journal = PlatformJournal(
+        entry_number=_next_platform_entry(session),
+        posting_date=posting_date,
+        event_type=event_type,
+        description=description,
+        source_type=source_type,
+        source_id=source_id,
+        created_by_id=actor.id,
+    )
+    session.add(journal)
+    session.flush()
+    for account_code, debit, credit, memo in lines:
+        session.add(
+            PlatformJournalLine(
+                journal_id=journal.id,
+                account_code=account_code,
+                debit_irr=debit,
+                credit_irr=credit,
+                memo=memo,
+            )
+        )
+    session.flush()
+    return journal
+
+
+def list_receivables(
+    session: Session, *, gym_id: uuid.UUID | None = None
+) -> Any:
+    from app.platform_models import (
+        PlatformReceivable,
+        PlatformReceivablesPublic,
+    )
+
+    statement = select(PlatformReceivable).order_by(
+        col(PlatformReceivable.created_at),
+        col(PlatformReceivable.id),
+    )
+    if gym_id is not None:
+        statement = statement.where(PlatformReceivable.gym_id == gym_id)
+    rows = session.exec(statement).all()
+    return PlatformReceivablesPublic(
+        data=[
+            _platform_receivable_public(row)
+            for row in rows
+        ]
+    )
+
+
+def _platform_receivable_public(row: Any) -> Any:
+    from app.platform_models import PlatformReceivablePublic
+
+    return PlatformReceivablePublic(
+        id=row.id,
+        gym_id=row.gym_id,
+        agreement_id=row.agreement_id,
+        source_type=row.source_type,
+        source_id=row.source_id,
+        source_key=row.source_key,
+        amount_irr=row.amount_irr,
+        paid_irr=row.paid_irr,
+        due_on=row.due_on,
+        status=row.status,
+        snapshot=row.snapshot,
+        created_at=row.created_at,
+    )
+
+
+def create_platform_ascora_receivable(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    actor: User,
+    invoice: Any,
+    amount_irr: int,
+    received_on: date,
+    receipt_id: uuid.UUID | None,
+    credit_movement_id: uuid.UUID | None,
+    source_prefix: str,
+) -> int:
+    from app.finance_models import (
+        FinanceCoachEarning,
+        FinanceInvoiceLine,
+    )
+    from app.platform_models import (
+        PLATFORM_COMMISSION_ACCOUNT,
+        PLATFORM_CUSTOM_ACCOUNT,
+        PLATFORM_RECEIVABLE_ACCOUNT,
+        PlatformReceivable,
+    )
+    from app.services.finance import _split_proportional
+
+    lines = session.exec(
+        select(FinanceInvoiceLine)
+        .where(FinanceInvoiceLine.invoice_id == invoice.id)
+        .order_by(col(FinanceInvoiceLine.line_number))
+    ).all()
+    portions = _split_proportional(amount_irr, [line.payable_irr for line in lines])
+    earnings = session.exec(
+        select(FinanceCoachEarning).where(
+            FinanceCoachEarning.invoice_id == invoice.id,
+            FinanceCoachEarning.receipt_id == receipt_id,
+            FinanceCoachEarning.credit_movement_id == credit_movement_id,
+        )
+    ).all()
+    earning_by_line: dict[uuid.UUID, list[Any]] = {}
+    for earning in earnings:
+        earning_by_line.setdefault(earning.invoice_line_id, []).append(earning)
+
+    total = 0
+    for line, portion in zip(lines, portions, strict=True):
+        if portion <= 0:
+            continue
+        snapshot = line.platform_snapshot or {}
+        source = snapshot.get("source")
+        if source == "COACH_ASCORA_TERM":
+            for earning in earning_by_line.get(line.id, []):
+                if earning.platform_share_irr <= 0:
+                    continue
+                source_key = f"ascora:{earning.id}"
+                if session.exec(
+                    select(PlatformReceivable).where(
+                        PlatformReceivable.source_key == source_key
+                    )
+                ).first() is not None:
+                    continue
+                receivable = PlatformReceivable(
+                    gym_id=gym_id,
+                    agreement_id=None,
+                    source_type="COACH_ASCORA_SHARE",
+                    source_id=earning.id,
+                    source_key=source_key,
+                    amount_irr=earning.platform_share_irr,
+                    due_on=received_on + timedelta(days=30),
+                    status="OPEN",
+                    snapshot=snapshot,
+                )
+                session.add(receivable)
+                session.flush()
+                post_platform_journal(
+                    session,
+                    actor=actor,
+                    posting_date=received_on,
+                    event_type="PLATFORM_FEE",
+                    description="ASCORA coach-term share",
+                    lines=[
+                        (
+                            PLATFORM_RECEIVABLE_ACCOUNT,
+                            earning.platform_share_irr,
+                            0,
+                            "ASCORA receivable",
+                        ),
+                        (
+                            PLATFORM_COMMISSION_ACCOUNT,
+                            0,
+                            earning.platform_share_irr,
+                            "ASCORA revenue",
+                        ),
+                    ],
+                    source_type=source_prefix,
+                    source_id=receivable.id,
+                )
+                _audit(
+                    session,
+                    actor=actor,
+                    action="platform.ascora.recognized",
+                    target_type="platform_receivable",
+                    target_id=receivable.id,
+                    gym_id=gym_id,
+                    detail={
+                        "source": "COACH_ASCORA_TERM",
+                        "amount_irr": earning.platform_share_irr,
+                        "source_key": source_key,
+                    },
+                )
+                total += earning.platform_share_irr
+            continue
+        if line.platform_allocation_status != "SNAPSHOTTED":
+            continue
+        for earning in earning_by_line.get(line.id, []):
+            if earning.platform_share_irr > 0:
+                raise HTTPException(
+                    status_code=409,
+                    detail="platform_double_recognition_guard",
+                )
+        fee = platform_fee_for_portion(
+            snapshot, portion, line.payable_irr
+        )
+        if fee <= 0:
+            continue
+        prior = session.exec(
+            select(func.coalesce(func.sum(PlatformReceivable.amount_irr), 0)).where(
+                PlatformReceivable.source_id == line.id,
+                PlatformReceivable.source_type == "COMMISSION",
+            )
+        ).one()
+        cap = int((snapshot.get("term") or {}).get("max_fee_irr", 0) or 0)
+        if cap > 0:
+            fee = min(fee, max(cap - int(prior), 0))
+        if fee <= 0:
+            continue
+        source_key = f"{source_prefix}:{line.id}"
+        if session.exec(
+            select(PlatformReceivable).where(
+                PlatformReceivable.source_key == source_key
+            )
+        ).first() is not None:
+            continue
+        receivable = PlatformReceivable(
+            gym_id=gym_id,
+            agreement_id=line.platform_agreement_id,
+            source_type="COMMISSION",
+            source_id=line.id,
+            source_key=source_key,
+            amount_irr=fee,
+            due_on=received_on + timedelta(days=30),
+            status="OPEN",
+            snapshot=snapshot,
+        )
+        session.add(receivable)
+        session.flush()
+        revenue_account = (
+            PLATFORM_CUSTOM_ACCOUNT
+            if snapshot.get("mode") == "CUSTOM"
+            else PLATFORM_COMMISSION_ACCOUNT
+        )
+        post_platform_journal(
+            session,
+            actor=actor,
+            posting_date=received_on,
+            event_type="PLATFORM_FEE",
+            description="Platform commission",
+            lines=[
+                (PLATFORM_RECEIVABLE_ACCOUNT, fee, 0, "Platform receivable"),
+                (revenue_account, 0, fee, "Platform commission revenue"),
+            ],
+            source_type=source_prefix,
+            source_id=receivable.id,
+        )
+        _audit(
+            session,
+            actor=actor,
+            action="platform.ascora.recognized",
+            target_type="platform_receivable",
+            target_id=receivable.id,
+            gym_id=gym_id,
+            detail={
+                "source": "PLATFORM_COMMISSION",
+                "amount_irr": fee,
+                "source_key": source_key,
+            },
+        )
+        total += fee
+    return total

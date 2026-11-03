@@ -21,6 +21,7 @@ from app.platform_models import (
     PlatformPlanVersion,
     PlatformPlanVersionCreate,
     PlatformPlanVersionPublic,
+    PlatformReceivablesPublic,
 )
 from app.services import platform as platform_service
 
@@ -265,3 +266,13 @@ def disable_platform_agreement(
         agreement_id=agreement_id,
         operation_key=_idempotency_key(idempotency_key),
     )
+
+
+@router.get("/receivables", response_model=PlatformReceivablesPublic)
+def read_platform_receivables(
+    *,
+    session: SessionDep,
+    _current_user: CurrentSuperuser,
+    gym_id: uuid.UUID | None = None,
+) -> Any:
+    return platform_service.list_receivables(session, gym_id=gym_id)
