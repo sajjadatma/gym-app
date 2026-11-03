@@ -847,8 +847,8 @@ def upgrade() -> None:
             SELECT COALESCE(SUM(allocation_bp), 0) INTO total_bp
               FROM platform_group_member
              WHERE group_id = target_group;
-            IF total_bp > 10000 THEN
-                RAISE EXCEPTION 'platform group allocation exceeds 10000 bp';
+            IF total_bp <> 10000 THEN
+                RAISE EXCEPTION 'platform group allocation must equal 10000 bp';
             END IF;
             IF TG_OP = 'DELETE' THEN
                 RETURN OLD;

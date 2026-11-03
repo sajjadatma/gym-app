@@ -12,6 +12,7 @@ from sqlmodel import Session, col, select
 
 from app.models import AthleteProfile, GymMembership, GymMembershipRole, User
 from app.platform_models import (
+    MAX_PLATFORM_IRR,
     PlatformAgreement,
     PlatformAudit,
     PlatformGroupMember,
@@ -545,7 +546,12 @@ def _validate_terms(
         raise HTTPException(
             status_code=400, detail="platform_terms_required"
         )
+    seen: set[tuple[str, str]] = set()
     for term in terms:
+        key = (term.kind, term.acquisition_source)
+        if key in seen:
+            raise HTTPException(status_code=422, detail="platform_term_duplicate")
+        seen.add(key)
         if term.kind not in (
             "ANY",
             "MEMBERSHIP",
@@ -565,6 +571,16 @@ def _validate_terms(
             raise HTTPException(status_code=422, detail="platform_term_invalid")
         if term.fixed_irr < 0 or term.max_fee_irr < 0:
             raise HTTPException(status_code=422, detail="platform_term_invalid")
+        if term.fixed_irr > MAX_PLATFORM_IRR or term.max_fee_irr > MAX_PLATFORM_IRR:
+            raise HTTPException(status_code=422, detail="platform_term_invalid")
+        if term.basis == "PERCENT" and term.fixed_irr:
+            raise HTTPException(status_code=422, detail="platform_term_invalid")
+        if term.basis == "FIXED" and term.percent_bp:
+            raise HTTPException(status_code=422, detail="platform_term_invalid")
+        if term.basis == "PERCENT_PLUS_FIXED" and not (
+            term.percent_bp or term.fixed_irr
+        ):
+            raise HTTPException(status_code=422, detail="platform_term_invalid")
 
 
 def _terms_public(
@@ -575,7 +591,7 @@ def _terms_public(
     terms = session.exec(
         select(PlatformCommissionTerm)
         .where(PlatformCommissionTerm.agreement_id == agreement_id)
-        .order_by(col(PlatformCommissionTerm.created_at))
+        .order_by(col(PlatformCommissionTerm.created_at), col(PlatformCommissionTerm.id))
     ).all()
     return [
         PlatformCommissionTermPublic(
@@ -755,16 +771,42 @@ def add_group_member(
         raise HTTPException(status_code=404, detail="platform_group_not_found")
     if session.get(Gym, gym_id) is None:
         raise HTTPException(status_code=404, detail="gym_not_found")
+    if allocation_bp < 0 or allocation_bp > 10000:
+        raise HTTPException(
+            status_code=400, detail="platform_group_allocation_invalid"
+        )
+    effective = session.exec(
+        select(PlatformAgreement).where(
+            PlatformAgreement.group_id == group_id,
+            PlatformAgreement.status == "EFFECTIVE",
+        )
+    ).first()
+    if effective is not None:
+        raise HTTPException(
+            status_code=409, detail="platform_group_effective"
+        )
     existing = session.exec(
         select(PlatformGroupMember).where(
             PlatformGroupMember.group_id == group_id,
             PlatformGroupMember.gym_id == gym_id,
         )
     ).first()
+    others_total = session.exec(
+        select(func.coalesce(func.sum(PlatformGroupMember.allocation_bp), 0)).where(
+            PlatformGroupMember.group_id == group_id,
+            PlatformGroupMember.gym_id != gym_id,
+        )
+    ).one()
+    if int(others_total) + allocation_bp != 10000:
+        raise HTTPException(
+            status_code=400, detail="platform_group_allocation_invalid"
+        )
     if existing is not None:
+        previous = existing.allocation_bp
         existing.allocation_bp = allocation_bp
         session.add(existing)
     else:
+        previous = None
         session.add(
             PlatformGroupMember(
                 group_id=group_id,
@@ -773,22 +815,17 @@ def add_group_member(
             )
         )
     session.flush()
-    total = session.exec(
-        select(func.coalesce(func.sum(PlatformGroupMember.allocation_bp), 0)).where(
-            PlatformGroupMember.group_id == group_id
-        )
-    ).one()
-    if int(total) > 10000:
-        raise HTTPException(
-            status_code=400, detail="platform_group_allocation_invalid"
-        )
     _audit(
         session,
         actor=actor,
         action="platform.group.member_updated",
         target_type="platform_group",
         target_id=group_id,
-        detail={"gym_id": str(gym_id), "allocation_bp": allocation_bp},
+        detail={
+            "gym_id": str(gym_id),
+            "allocation_bp": allocation_bp,
+            "previous_allocation_bp": previous,
+        },
     )
     session.commit()
     return _group_public(session, group)
@@ -839,6 +876,11 @@ def create_agreement(
         raise HTTPException(
             status_code=400, detail="platform_volume_discount_invalid"
         )
+    if body.gym_id is not None:
+        from app.models import Gym
+
+        if session.get(Gym, body.gym_id) is None:
+            raise HTTPException(status_code=404, detail="gym_not_found")
     _validate_terms(body.mode, body.terms)
     plan_price = 0
     if body.plan_version_id is not None:
@@ -847,17 +889,18 @@ def create_agreement(
             raise HTTPException(
                 status_code=404, detail="platform_plan_version_not_found"
             )
-        if plan_version.status == "RETIRED":
+        if plan_version.status != "ACTIVE":
             raise HTTPException(
-                status_code=400, detail="platform_plan_version_retired"
+                status_code=400, detail="platform_plan_version_inactive"
             )
-        if not (
-            plan_version.effective_from <= body.effective_from
-            and (
-                plan_version.effective_to is None
-                or body.effective_to is None
-                or plan_version.effective_to >= body.effective_to
+        if plan_version.effective_from > body.effective_from:
+            raise HTTPException(
+                status_code=400,
+                detail="platform_plan_version_outside_effective",
             )
+        if plan_version.effective_to is not None and (
+            body.effective_to is None
+            or body.effective_to > plan_version.effective_to
         ):
             raise HTTPException(
                 status_code=400,
@@ -875,7 +918,11 @@ def create_agreement(
                 status_code=400, detail="platform_subscription_not_allowed"
             )
         subscription_amount = 0
-    if body.mode in ("SUBSCRIPTION", "HYBRID") and subscription_amount < 0:
+    if subscription_amount is None or subscription_amount < 0:
+        raise HTTPException(
+            status_code=400, detail="platform_subscription_invalid"
+        )
+    if subscription_amount > MAX_PLATFORM_IRR:
         raise HTTPException(
             status_code=400, detail="platform_subscription_invalid"
         )
@@ -945,7 +992,29 @@ def create_agreement(
         target_id=agreement.id,
         gym_id=agreement.gym_id,
         group_id=agreement.group_id,
-        detail={"mode": agreement.mode},
+        detail={
+            "mode": agreement.mode,
+            "plan_version_id": str(agreement.plan_version_id)
+            if agreement.plan_version_id
+            else None,
+            "subscription_amount_irr": agreement.subscription_amount_irr,
+            "effective_from": agreement.effective_from.isoformat(),
+            "effective_to": agreement.effective_to.isoformat()
+            if agreement.effective_to
+            else None,
+            "volume_discount_bp": agreement.volume_discount_bp,
+            "terms": [
+                {
+                    "kind": term.kind,
+                    "acquisition_source": term.acquisition_source,
+                    "basis": term.basis,
+                    "percent_bp": term.percent_bp,
+                    "fixed_irr": term.fixed_irr,
+                    "max_fee_irr": term.max_fee_irr,
+                }
+                for term in body.terms
+            ],
+        },
     )
     _remember_operation(
         session,
@@ -983,7 +1052,7 @@ def activate_agreement(
     from app.platform_models import PlatformAgreement
 
     _lock_platform(session)
-    payload = {"agreement_id": str(agreement_id)}
+    payload = {"action": "activate", "agreement_id": str(agreement_id)}
     existing_id = _find_result(
         session,
         operation_key=operation_key,
@@ -1021,10 +1090,18 @@ def activate_agreement(
             raise HTTPException(
                 status_code=409, detail="platform_agreement_period_overlap"
             )
-        if row.effective_to is None or row.effective_to >= agreement.effective_from:
-            row.effective_to = agreement.effective_from - timedelta(days=1)
-        row.status = "REPLACED"
-        session.add(row)
+        if agreement.supersedes_id is None:
+            agreement.supersedes_id = row.id
+        # A future-dated replacement must not truncate or replace the
+        # agreement that is in force today. Selection is effective-dated.
+        if agreement.effective_from <= date.today():
+            if (
+                row.effective_to is None
+                or row.effective_to >= agreement.effective_from
+            ):
+                row.effective_to = agreement.effective_from - timedelta(days=1)
+            row.status = "REPLACED"
+            session.add(row)
     agreement.status = "EFFECTIVE"
     agreement.activated_at = utcnow()
     session.add(agreement)
@@ -1064,9 +1141,26 @@ def disable_agreement(
         raise HTTPException(
             status_code=404, detail="platform_agreement_not_found"
         )
-    payload = {"agreement_id": str(agreement_id)}
+    payload = {"action": "disable", "agreement_id": str(agreement_id)}
+    existing_id = _find_result(
+        session,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="platform_agreement",
+    )
+    if existing_id is not None:
+        existing = session.get(PlatformAgreement, existing_id)
+        if existing is None:
+            raise HTTPException(
+                status_code=409, detail="idempotency_key_reused"
+            )
+        return _agreement_public(session, existing)
     if agreement.status == "DISABLED":
         return _agreement_public(session, agreement)
+    if agreement.status == "REPLACED":
+        raise HTTPException(
+            status_code=409, detail="platform_agreement_replaced"
+        )
     agreement.status = "DISABLED"
     session.add(agreement)
     _audit(
@@ -1093,6 +1187,17 @@ def disable_agreement(
 def agreement_snapshot(session: Session, agreement: PlatformAgreement) -> dict[str, Any]:
     from app.platform_models import PlatformCommissionTerm
 
+    group_allocations = []
+    if agreement.group_id is not None:
+        members = session.exec(
+            select(PlatformGroupMember).where(
+                PlatformGroupMember.group_id == agreement.group_id
+            )
+        ).all()
+        group_allocations = [
+            {"gym_id": str(member.gym_id), "allocation_bp": member.allocation_bp}
+            for member in members
+        ]
     return {
         "agreement_id": str(agreement.id),
         "version": agreement.version,
@@ -1106,6 +1211,7 @@ def agreement_snapshot(session: Session, agreement: PlatformAgreement) -> dict[s
         "volume_discount_bp": agreement.volume_discount_bp,
         "grace_days": agreement.grace_days,
         "restrict_after_days": agreement.restrict_after_days,
+        "group_allocations": group_allocations,
         "terms": [
             {
                 "kind": term.kind,
@@ -1118,7 +1224,10 @@ def agreement_snapshot(session: Session, agreement: PlatformAgreement) -> dict[s
             for term in session.exec(
                 select(PlatformCommissionTerm)
                 .where(PlatformCommissionTerm.agreement_id == agreement.id)
-                .order_by(col(PlatformCommissionTerm.created_at))
+                .order_by(
+                    col(PlatformCommissionTerm.created_at),
+                    col(PlatformCommissionTerm.id),
+                )
             ).all()
         ],
     }

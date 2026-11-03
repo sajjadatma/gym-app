@@ -216,3 +216,155 @@ def test_agreement_rejects_bad_modes_terms_overlap_and_non_superuser(
     )
     assert duplicate.status_code == 409, duplicate.text
     assert duplicate.json()["detail"] == "platform_agreement_period_overlap"
+
+
+def test_group_allocation_must_equal_10000_and_is_locked_while_effective(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gyms = [
+        make_owner(client, superuser_headers, name=f"Locked Group {index}")[0]
+        for index in range(3)
+    ]
+    group = client.post(
+        "/api/v1/platform/groups",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={
+            "name": "Locked Group",
+            "members": [
+                {"gym_id": str(gyms[0]["id"]), "allocation_bp": 3334},
+                {"gym_id": str(gyms[1]["id"]), "allocation_bp": 3333},
+                {"gym_id": str(gyms[2]["id"]), "allocation_bp": 3333},
+            ],
+        },
+    )
+    assert group.status_code == 200, group.text
+    group_id = group.json()["id"]
+
+    invalid = client.post(
+        f"/api/v1/platform/groups/{group_id}/members",
+        headers=superuser_headers,
+        json={"gym_id": str(gyms[0]["id"]), "allocation_bp": 0},
+    )
+    assert invalid.status_code == 400, invalid.text
+
+    agreement = create_agreement(
+        client,
+        superuser_headers,
+        group_id=group_id,
+        mode="COMMISSION",
+        terms=[{"kind": "ANY", "basis": "PERCENT", "percent_bp": 500}],
+    )
+    assert agreement.status_code == 200, agreement.text
+    activated = client.post(
+        f"/api/v1/platform/agreements/{agreement.json()['id']}/activate",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+    )
+    assert activated.status_code == 200, activated.text
+
+    locked = client.post(
+        f"/api/v1/platform/groups/{group_id}/members",
+        headers=superuser_headers,
+        json={"gym_id": str(gyms[0]["id"]), "allocation_bp": 10000},
+    )
+    assert locked.status_code == 409, locked.text
+    assert locked.json()["detail"] == "platform_group_effective"
+
+
+def test_activate_disable_idempotency_and_future_replacement_preserve_current(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, _ = make_owner(client, superuser_headers, name="Lifecycle Gym")
+    first = create_agreement(
+        client, superuser_headers, gym_id=str(gym["id"]), mode="FREE"
+    )
+    assert first.status_code == 200, first.text
+    first_id = first.json()["id"]
+    activate_key = uuid.uuid4().hex
+    activated = client.post(
+        f"/api/v1/platform/agreements/{first_id}/activate",
+        headers={**superuser_headers, "Idempotency-Key": activate_key},
+    )
+    assert activated.status_code == 200, activated.text
+    replay = client.post(
+        f"/api/v1/platform/agreements/{first_id}/activate",
+        headers={**superuser_headers, "Idempotency-Key": activate_key},
+    )
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["status"] == "EFFECTIVE"
+
+    future = create_agreement(
+        client,
+        superuser_headers,
+        gym_id=str(gym["id"]),
+        mode="SUBSCRIPTION",
+        subscription_amount_irr=100_000,
+        effective_from="2027-01-01",
+    )
+    assert future.status_code == 200, future.text
+    future_activated = client.post(
+        f"/api/v1/platform/agreements/{future.json()['id']}/activate",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+    )
+    assert future_activated.status_code == 200, future_activated.text
+
+    listed = client.get("/api/v1/platform/agreements", headers=superuser_headers)
+    rows = {row["id"]: row for row in listed.json()["data"]}
+    assert rows[first_id]["status"] == "EFFECTIVE"
+    assert rows[first_id]["effective_to"] is None
+    assert rows[future.json()["id"]]["status"] == "EFFECTIVE"
+
+    disable_key = uuid.uuid4().hex
+    disabled = client.post(
+        f"/api/v1/platform/agreements/{future.json()['id']}/disable",
+        headers={**superuser_headers, "Idempotency-Key": disable_key},
+    )
+    assert disabled.status_code == 200, disabled.text
+    assert disabled.json()["status"] == "DISABLED"
+    disabled_replay = client.post(
+        f"/api/v1/platform/agreements/{future.json()['id']}/disable",
+        headers={**superuser_headers, "Idempotency-Key": disable_key},
+    )
+    assert disabled_replay.status_code == 200, disabled_replay.text
+    assert disabled_replay.json()["status"] == "DISABLED"
+
+    # The key used for activation cannot silently perform a disable.
+    collision = client.post(
+        f"/api/v1/platform/agreements/{future.json()['id']}/disable",
+        headers={**superuser_headers, "Idempotency-Key": activate_key},
+    )
+    assert collision.status_code == 409, collision.text
+
+
+def test_custom_negative_duplicate_terms_and_unknown_gym_are_rejected(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym, _ = make_owner(client, superuser_headers, name="Validation Gym")
+    negative = create_agreement(
+        client,
+        superuser_headers,
+        gym_id=str(gym["id"]),
+        mode="CUSTOM",
+        subscription_amount_irr=-1,
+        terms=[{"kind": "ANY", "basis": "FIXED", "fixed_irr": 1000}],
+    )
+    assert negative.status_code == 400, negative.text
+
+    duplicates = create_agreement(
+        client,
+        superuser_headers,
+        gym_id=str(gym["id"]),
+        mode="COMMISSION",
+        terms=[
+            {"kind": "ANY", "basis": "PERCENT", "percent_bp": 500},
+            {"kind": "ANY", "basis": "PERCENT", "percent_bp": 700},
+        ],
+    )
+    assert duplicates.status_code == 422, duplicates.text
+
+    unknown = create_agreement(
+        client,
+        superuser_headers,
+        gym_id=str(uuid.uuid4()),
+        mode="FREE",
+    )
+    assert unknown.status_code == 404, unknown.text
