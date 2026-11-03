@@ -81,6 +81,11 @@ from app.finance_models import (
     FinanceSettingsUpdate,
 )
 from app.models import Message
+from app.platform_models import (
+    PlatformInvoicesPublic,
+    PlatformPaymentsPublic,
+    PlatformStandingPublic,
+)
 from app.services.finance import (
     accounts_public,
     accrue_coach_period,
@@ -1439,3 +1444,45 @@ def cancel_finance_coach_settlement(
     return cancel_coach_settlement(
         session, scope=scope, actor=current_user, settlement_id=settlement_id, body=body
     )
+
+
+@router.get("/platform/invoices", response_model=PlatformInvoicesPublic)
+def read_my_gym_platform_invoices(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    from app.services import platform as platform_service
+
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return platform_service.list_platform_invoices(session, gym_id=ctx.gym.id)
+
+
+@router.get("/platform/dues", response_model=PlatformStandingPublic)
+def read_my_gym_platform_dues(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    from app.services import platform as platform_service
+
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return platform_service.platform_standing(session, gym_id=ctx.gym.id)
+
+
+@router.get("/platform/payments", response_model=PlatformPaymentsPublic)
+def read_my_gym_platform_payments(
+    *,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+) -> Any:
+    from app.services import platform as platform_service
+
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return platform_service.list_platform_payments(session, gym_id=ctx.gym.id)

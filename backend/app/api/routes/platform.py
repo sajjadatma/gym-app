@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, HTTPException
@@ -30,6 +31,8 @@ from app.platform_models import (
     PlatformPlanVersionPublic,
     PlatformReceivablePublic,
     PlatformReceivablesPublic,
+    PlatformRemindersPublic,
+    PlatformStandingPublic,
     PlatformSubscriptionAccrual,
 )
 from app.services import platform as platform_service
@@ -398,3 +401,37 @@ def read_platform_payments(
     *, session: SessionDep, _current_user: CurrentSuperuser
 ) -> Any:
     return platform_service.list_platform_payments(session)
+
+
+@router.get("/dues", response_model=list[PlatformStandingPublic])
+def read_platform_dues(
+    *,
+    session: SessionDep,
+    _current_user: CurrentSuperuser,
+    as_of: date | None = None,
+) -> Any:
+    return platform_service.list_platform_dues(session, as_of=as_of)
+
+
+@router.get("/dues/{gym_id}", response_model=PlatformStandingPublic)
+def read_platform_gym_dues(
+    *,
+    gym_id: uuid.UUID,
+    session: SessionDep,
+    _current_user: CurrentSuperuser,
+    as_of: date | None = None,
+) -> Any:
+    return platform_service.platform_standing(session, gym_id=gym_id, as_of=as_of)
+
+
+@router.get("/reminders", response_model=PlatformRemindersPublic)
+def read_platform_reminders(
+    *,
+    session: SessionDep,
+    _current_user: CurrentSuperuser,
+    as_of: date | None = None,
+    within_days: int = 7,
+) -> Any:
+    return platform_service.list_platform_reminders(
+        session, as_of=as_of, within_days=within_days
+    )

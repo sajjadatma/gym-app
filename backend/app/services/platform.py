@@ -2135,14 +2135,17 @@ def issue_platform_invoice(
     return _invoice_public(session, invoice)
 
 
-def list_platform_invoices(session: Session) -> Any:
+def list_platform_invoices(
+    session: Session, *, gym_id: uuid.UUID | None = None
+) -> Any:
     from app.platform_models import PlatformInvoice, PlatformInvoicesPublic
 
-    invoices = session.exec(
-        select(PlatformInvoice).order_by(
-            col(PlatformInvoice.invoice_number).desc()
-        )
-    ).all()
+    statement = select(PlatformInvoice).order_by(
+        col(PlatformInvoice.invoice_number).desc()
+    )
+    if gym_id is not None:
+        statement = statement.where(PlatformInvoice.gym_id == gym_id)
+    invoices = session.exec(statement).all()
     return PlatformInvoicesPublic(
         data=[_invoice_public(session, invoice) for invoice in invoices]
     )
@@ -2341,12 +2344,24 @@ def record_platform_payment(
     return _payment_public(session, payment)
 
 
-def list_platform_payments(session: Session) -> Any:
-    from app.platform_models import PlatformPayment, PlatformPaymentsPublic
+def list_platform_payments(
+    session: Session, *, gym_id: uuid.UUID | None = None
+) -> Any:
+    from app.platform_models import (
+        PlatformInvoice,
+        PlatformPayment,
+        PlatformPaymentsPublic,
+    )
 
-    payments = session.exec(
-        select(PlatformPayment).order_by(col(PlatformPayment.created_at))
-    ).all()
+    statement = select(PlatformPayment).order_by(
+        col(PlatformPayment.created_at)
+    )
+    if gym_id is not None:
+        statement = statement.join(
+            PlatformInvoice,
+            col(PlatformPayment.invoice_id) == col(PlatformInvoice.id),
+        ).where(PlatformInvoice.gym_id == gym_id)
+    payments = session.exec(statement).all()
     return PlatformPaymentsPublic(
         data=[_payment_public(session, payment) for payment in payments]
     )
@@ -2628,3 +2643,92 @@ def apply_platform_refund(
         detail={"amount_irr": credit_amount, "source_key": source_key},
     )
     return credit_amount
+
+
+def platform_standing(
+    session: Session, *, gym_id: uuid.UUID, as_of: date | None = None
+) -> Any:
+    from app.platform_models import PlatformStandingPublic
+
+    as_of = as_of or date.today()
+    agreement = find_effective_agreement(session, gym_id=gym_id, on_date=as_of)
+    grace_days = agreement.grace_days if agreement is not None else 7
+    restrict_after_days = (
+        agreement.restrict_after_days if agreement is not None else 21
+    )
+    invoices = list_platform_invoices(session, gym_id=gym_id).data
+    open_rows = [row for row in invoices if row.balance_irr > 0]
+    open_irr = sum(row.balance_irr for row in open_rows)
+    overdue_rows = [row for row in open_rows if row.due_on < as_of]
+    overdue_irr = sum(row.balance_irr for row in overdue_rows)
+    oldest_due_on = min((row.due_on for row in overdue_rows), default=None)
+    overdue_days = (
+        max((as_of - oldest_due_on).days, 0) if oldest_due_on else 0
+    )
+    if not open_rows:
+        stage = "CURRENT"
+    elif overdue_days == 0:
+        stage = "CURRENT"
+    elif overdue_days <= grace_days:
+        stage = "DUE"
+    elif overdue_days <= restrict_after_days:
+        stage = "GRACE"
+    else:
+        stage = "RESTRICTED"
+    restrictions = []
+    if overdue_irr > 0:
+        restrictions.append("PLATFORM_DUES_OVERDUE")
+    if stage == "RESTRICTED":
+        restrictions.append("PLATFORM_DUES_RESTRICTED")
+    return PlatformStandingPublic(
+        gym_id=gym_id,
+        open_irr=open_irr,
+        overdue_irr=overdue_irr,
+        oldest_due_on=oldest_due_on,
+        overdue_days=overdue_days,
+        stage=stage,
+        informational_restrictions=restrictions,
+    )
+
+
+def list_platform_reminders(
+    session: Session, *, as_of: date | None = None, within_days: int = 7
+) -> Any:
+    from app.platform_models import PlatformRemindersPublic
+
+    as_of = as_of or date.today()
+    invoices = list_platform_invoices(session).data
+    due_soon = [
+        row
+        for row in invoices
+        if row.balance_irr > 0
+        and as_of <= row.due_on <= date.fromordinal(as_of.toordinal() + within_days)
+    ]
+    overdue = [
+        row
+        for row in invoices
+        if row.balance_irr > 0 and row.due_on < as_of
+    ]
+    return PlatformRemindersPublic(
+        delivery_scope="IN_APP_ONLY",
+        due_soon=due_soon,
+        overdue=overdue,
+    )
+
+
+def list_platform_dues(
+    session: Session, *, as_of: date | None = None
+) -> list[Any]:
+    from app.platform_models import PlatformInvoice
+
+    as_of = as_of or date.today()
+    gym_ids = session.exec(
+        select(PlatformInvoice.gym_id)
+        .where(col(PlatformInvoice.gym_id).is_not(None))
+        .distinct()
+    ).all()
+    return [
+        platform_standing(session, gym_id=gym_id, as_of=as_of)
+        for gym_id in gym_ids
+        if gym_id is not None
+    ]

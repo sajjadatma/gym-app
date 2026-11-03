@@ -883,3 +883,19 @@ class PlatformPaymentPublic(SQLModel):
 
 class PlatformPaymentsPublic(SQLModel):
     data: list[PlatformPaymentPublic]
+
+
+class PlatformStandingPublic(SQLModel):
+    gym_id: uuid.UUID
+    open_irr: int
+    overdue_irr: int
+    oldest_due_on: date | None
+    overdue_days: int
+    stage: str
+    informational_restrictions: list[str]
+
+
+class PlatformRemindersPublic(SQLModel):
+    delivery_scope: str
+    due_soon: list[PlatformInvoicePublic]
+    overdue: list[PlatformInvoicePublic]
