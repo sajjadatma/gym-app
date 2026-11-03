@@ -34,6 +34,13 @@ test("admin accrues a fixed periodic coach expense without a sale", async ({
     .first()
     .click()
   const accrue = page.getByRole("dialog")
+  const next = new Date()
+  next.setMonth(next.getMonth() + 1)
+  await accrue
+    .getByLabel(/^دوره/)
+    .fill(
+      `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`,
+    )
   await accrue.getByRole("button", { name: "تأیید", exact: true }).click()
   await expect(page.getByText("هزینه دوره‌ای ثبت شد.")).toBeVisible()
 })

@@ -165,6 +165,12 @@ export function CoachEarningsPage() {
                       {t("finance.coaches.settled")}:{" "}
                       {money(earning.settled_irr)}
                     </div>
+                    {(earning.reserved_irr ?? 0) > 0 ? (
+                      <div className="muted">
+                        {t("finance.coaches.reserved")}:{" "}
+                        {money(earning.reserved_irr ?? 0)}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </Card>

@@ -233,3 +233,60 @@ def test_overpaid_refund_creates_a_manual_discrepancy_not_a_clawback(
     assert resolved.status_code == 200, resolved.text
     assert resolved.json()["status"] == "RESOLVED"
     assert resolved.json()["resolution_note"] == "coach agreed to offset next cycle"
+
+
+def test_recorded_unconfirmed_settlement_is_not_treated_as_paid_by_refund(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Refund Reserve Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+    coach_id, _ = make_coach(client, owner, gym_id)
+    active_agreement(
+        client,
+        owner,
+        coach_id,
+        vesting_mode="MANUAL",
+        terms=[
+            {"recipient": "COACH", "basis": "PERCENT", "percent_bp": 3000},
+            {"recipient": "GYM", "basis": "PERCENT", "percent_bp": 7000},
+        ],
+    )
+    invoice, earning = paid_and_vested(client, owner, customer, coach_id)
+    recorded = client.post(
+        "/api/v1/finance/coach-settlements",
+        headers={**owner, "Idempotency-Key": uuid.uuid4().hex},
+        json={
+            "coach_user_id": coach_id,
+            "amount_irr": 100_000,
+            "method": "CASH",
+            "paid_on": "2026-11-06",
+        },
+    )
+    assert recorded.status_code == 200, recorded.text
+    assert recorded.json()["status"] == "RECORDED"
+
+    refund(client, owner, customer, invoice["id"], 1_000_000)
+    row = client.get(
+        f"/api/v1/finance/coach-earnings/{earning['id']}", headers=owner
+    ).json()
+    assert row["settled_irr"] == 0
+    assert row["reserved_irr"] == 100_000
+    assert row["adjusted_irr"] == 300_000
+    assert row["eligible_irr"] == 0
+    assert (
+        client.get("/api/v1/finance/coach-discrepancies", headers=owner).json()[
+            "count"
+        ]
+        == 0
+    )
+
+    # The pending payout is now larger than the remaining entitlement, so it
+    # cannot be confirmed and must be cancelled by the operator.
+    stale = client.post(
+        f"/api/v1/finance/coach-settlements/{recorded.json()['id']}/confirm",
+        headers=owner,
+    )
+    assert stale.status_code == 409, stale.text
+    assert stale.json()["detail"] == "settlement_stale"

@@ -80,6 +80,14 @@ def test_periodic_fixed_coach_payable_without_a_sale(
     )
     assert other_period.status_code == 200
 
+    outside = client.post(
+        f"/api/v1/finance/coach-agreements/{agreement.json()['id']}/accrue-period",
+        headers={**owner, "Idempotency-Key": uuid.uuid4().hex},
+        json={"period": "2026-10"},
+    )
+    assert outside.status_code == 400, outside.text
+    assert outside.json()["detail"] == "coach_period_outside_agreement"
+
     db_expense = db_session.get(FinanceExpense, uuid.UUID(expense["id"]))
     assert db_expense is not None
     journal = db_session.get(FinanceJournal, db_expense.journal_id)

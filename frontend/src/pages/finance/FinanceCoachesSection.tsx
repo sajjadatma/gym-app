@@ -95,6 +95,11 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
   const [earningResolveReason, setEarningResolveReason] = useState("")
   const [periodicTarget, setPeriodicTarget] =
     useState<FinanceCoachAgreementPublic | null>(null)
+  const [cancelTarget, setCancelTarget] = useState<{
+    id: string
+    amount_irr: number
+  } | null>(null)
+  const [cancelReason, setCancelReason] = useState("")
   const [period, setPeriod] = useState("")
   const [periodError, setPeriodError] = useState<string | null>(null)
 
@@ -295,6 +300,25 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
       show(t("finance.coaches.settlementRecorded"), "success")
     } catch (err) {
       setFormError(translateApiError(err, t))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function cancelSettlement() {
+    if (!cancelTarget) return
+    setSaving(true)
+    try {
+      await FinanceService.cancelFinanceCoachSettlement({
+        path: { settlement_id: cancelTarget.id },
+        body: { reason: cancelReason.trim() },
+      })
+      await invalidate()
+      setCancelTarget(null)
+      setCancelReason("")
+      show(t("finance.coaches.settlementCancelled"), "success")
+    } catch (err) {
+      show(translateApiError(err, t), "error")
     } finally {
       setSaving(false)
     }
@@ -540,6 +564,12 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
                         {t("finance.coaches.settled")}:{" "}
                         {money(earning.settled_irr)}
                       </span>
+                      {(earning.reserved_irr ?? 0) > 0 ? (
+                        <span>
+                          {t("finance.coaches.reserved")}:{" "}
+                          {money(earning.reserved_irr ?? 0)}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   {canSettle &&
@@ -614,13 +644,28 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
                   <div style={{ textAlign: "end" }}>
                     <div>{money(settlement.amount_irr)}</div>
                     {canSettle && settlement.status === "RECORDED" ? (
-                      <Button
-                        size="sm"
-                        loading={saving}
-                        onClick={() => void confirmSettlement(settlement.id)}
+                      <div
+                        className="row"
+                        style={{ gap: 4, justifyContent: "end" }}
                       >
-                        {t("finance.coaches.confirm")}
-                      </Button>
+                        <Button
+                          size="sm"
+                          loading={saving}
+                          onClick={() => void confirmSettlement(settlement.id)}
+                        >
+                          {t("finance.coaches.confirm")}
+                        </Button>
+                        <Button
+                          variant="text"
+                          size="sm"
+                          onClick={() => {
+                            setCancelReason("")
+                            setCancelTarget(settlement)
+                          }}
+                        >
+                          {t("finance.coaches.cancelSettlement")}
+                        </Button>
+                      </div>
                     ) : null}
                   </div>
                 </div>
@@ -996,6 +1041,37 @@ export function FinanceCoachesSection({ settings, unit }: FinanceSectionProps) {
             value={period}
             dir="ltr"
             onChange={(event) => setPeriod(event.target.value)}
+            required
+          />
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={cancelTarget !== null}
+        title={t("finance.coaches.cancelSettlement")}
+        onClose={() => setCancelTarget(null)}
+        footer={
+          <>
+            <Button variant="text" onClick={() => setCancelTarget(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              loading={saving}
+              disabled={cancelReason.trim().length < 3}
+              onClick={() => void cancelSettlement()}
+            >
+              {t("common.confirm")}
+            </Button>
+          </>
+        }
+      >
+        <div className="stack">
+          <p className="muted">{money(cancelTarget?.amount_irr ?? 0)}</p>
+          <TextField
+            label={t("finance.coaches.cancelReason")}
+            value={cancelReason}
+            onChange={(event) => setCancelReason(event.target.value)}
+            multiline
             required
           />
         </div>

@@ -136,6 +136,14 @@ test("post-payout refund opens and resolves a coach discrepancy", async ({
     },
   )
   expect(settlement.ok()).toBeTruthy()
+  expect(
+    (
+      await request.post(
+        `${API_URL}/api/v1/finance/coach-settlements/${(await settlement.json()).id}/confirm`,
+        { headers: admin },
+      )
+    ).ok(),
+  ).toBeTruthy()
 
   const requested = await request.post(`${API_URL}/api/v1/finance/refunds`, {
     headers: { ...admin, "Idempotency-Key": `discrepancy-refund-${suffix}` },

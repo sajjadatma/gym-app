@@ -238,11 +238,19 @@ Phase 2 is **user-complete for the approved scope**. Phase 3 has not started.
    covered, and unresolved/unvested amounts are never eligible.
 5. **Settlements** — manual and partial FIFO settlements capped by the vested
    eligible balance, a balanced payable-to-cash journal, and an audited
-   recorded→confirmed lifecycle. Coach and finance users can read history.
+   recorded→confirmed lifecycle. Only confirmed payouts count as settled;
+   recorded payouts stay reserved and cannot be settled twice. A recorded
+   settlement can be cancelled before confirmation with an audited reason;
+   cancellation releases the reservation and reverses the pending-settlement
+   journal without touching cash. Confirmed settlements cannot be cancelled.
+   Coach and finance users can read history.
 6. **Refund discrepancies** — invoice refunds reverse the coach share
-   proportionally. Unsettled share posts a balanced reversal; already-settled
-   share becomes an OPEN discrepancy for a manual, audited resolution. No
-   automatic clawback or negative payout is created.
+   proportionally. Unsettled share posts a balanced reversal; already-paid
+   (confirmed) share becomes an OPEN discrepancy for a manual, audited
+   resolution. A recorded but unconfirmed settlement remains reserved and is
+   not treated as paid: no discrepancy or automatic clawback is created, and
+   confirmation fails as `settlement_stale` if the reservation now exceeds
+   entitlement so an operator cancels it instead of overpaying.
 7. **Decision #66 correction** — drafts can provide an explicit bundle-discount
    share per line; the shares must sum to the invoice discount and fit each
    line. Proportional allocation remains the default.
@@ -258,7 +266,10 @@ Phase 2 is **user-complete for the approved scope**. Phase 3 has not started.
     reserves the earnings and posts coach payable to a pending-settlement
     liability (`2200`); cash (`1000`) is reduced only when the settlement is
     confirmed. Confirmation is locked, idempotent on retry and linked to a
-    second balanced journal.
+    second balanced journal. `settled_irr` and `SETTLED` reflect confirmed
+    payouts only; reserved amounts are reported separately and reduce
+    eligibility. Cancellation of a recorded settlement is locked, idempotent,
+    releases the reservation and posts `2200 → 2100` with no cash movement.
 11. **Platform fee authority (decision #78)** — only a global Superuser can
     create or activate coach agreement terms naming `ASCORA` as a recipient;
     gym admins and finance staff keep coach/gym compensation management.
@@ -266,7 +277,9 @@ Phase 2 is **user-complete for the approved scope**. Phase 3 has not started.
     agreement can carry a monthly fixed amount. Accruing a period creates an
     unpaid expense/payable through the existing expense ledger, with
     per-agreement/per-period duplicate protection; no synthetic sale or fake
-    payment is created.
+    payment is created. The accrual locks and reloads scope, validates the
+    whole selected month inside the agreement's effective dates, and writes
+    the expense, journal, audit entry and idempotency record in one commit.
 13. **Cash/bank reconciliation (decision #36/AC-31)** — manual bank statement
     lines can be recorded, remain visible as `UNMATCHED`, and are matched
     manually to one confirmed receipt of the same amount. Matching sets the

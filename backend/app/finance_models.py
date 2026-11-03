@@ -33,6 +33,7 @@ FinanceJournalEvent = Literal[
     "COACH_ALLOCATION",
     "COACH_SETTLEMENT",
     "COACH_SETTLED",
+    "COACH_SETTLE_CANCEL",
     "COACH_ADJUSTMENT",
 ]
 
@@ -226,7 +227,7 @@ class FinanceJournal(SQLModel, table=True):
             "'INVOICE_ISSUED', 'INVOICE_VOID', 'RECEIPT_CONFIRMED', "
             "'ADVANCE_APPLIED', 'REFUND_RECORDED', 'EXPENSE_RECORDED', "
             "'EXPENSE_PAID', 'COACH_ALLOCATION', 'COACH_SETTLEMENT', "
-            "'COACH_SETTLED', 'COACH_ADJUSTMENT')",
+            "'COACH_SETTLED', 'COACH_SETTLE_CANCEL', 'COACH_ADJUSTMENT')",
             name="ck_finance_journal_event",
         ),
     )
@@ -1566,6 +1567,7 @@ class FinanceCoachEarningPublic(SQLModel):
     calculated_irr: int
     vested_irr: int
     settled_irr: int
+    reserved_irr: int = 0
     adjusted_irr: int = 0
     eligible_irr: int
     status: FinanceCoachEarningViewStatus
@@ -1581,7 +1583,7 @@ class FinanceCoachEarningsPublic(SQLModel):
     count: int
 
 
-FinanceCoachSettlementStatus = Literal["RECORDED", "CONFIRMED"]
+FinanceCoachSettlementStatus = Literal["RECORDED", "CONFIRMED", "CANCELLED"]
 
 
 class FinanceCoachSettlement(SQLModel, table=True):
@@ -1589,7 +1591,7 @@ class FinanceCoachSettlement(SQLModel, table=True):
     __table_args__ = (
         CheckConstraint("amount_irr > 0", name="ck_finance_coach_settlement_amount"),
         CheckConstraint(
-            "status IN ('RECORDED', 'CONFIRMED')",
+            "status IN ('RECORDED', 'CONFIRMED', 'CANCELLED')",
             name="ck_finance_coach_settlement_status",
         ),
     )
@@ -1619,6 +1621,14 @@ class FinanceCoachSettlement(SQLModel, table=True):
         default=None, foreign_key="user.id", ondelete="RESTRICT"
     )
     confirmed_at: datetime | None = Field(default=None)
+    cancelled_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    cancelled_at: datetime | None = Field(default=None)
+    cancel_reason: str | None = Field(default=None, max_length=500)
+    cancel_journal_id: uuid.UUID | None = Field(
+        default=None, foreign_key="finance_journal.id", ondelete="RESTRICT"
+    )
 
 
 class FinanceCoachSettlementItem(SQLModel, table=True):
@@ -1676,6 +1686,8 @@ class FinanceCoachSettlementPublic(SQLModel):
     items: list[FinanceCoachSettlementItemPublic]
     created_at: datetime
     confirmed_at: datetime | None = None
+    cancelled_at: datetime | None = None
+    cancel_reason: str | None = None
 
 
 class FinanceCoachSettlementsPublic(SQLModel):
@@ -1858,3 +1870,7 @@ class FinanceBankStatementLinesPublic(SQLModel):
 
 class FinanceReconciliationMatchCreate(SQLModel):
     receipt_id: uuid.UUID
+
+
+class FinanceCoachSettlementCancel(SQLModel):
+    reason: str = Field(min_length=3, max_length=500)

@@ -1616,6 +1616,10 @@ export type FinanceCoachEarningPublic = {
      */
     settled_irr: number;
     /**
+     * Reserved Irr
+     */
+    reserved_irr?: number;
+    /**
      * Adjusted Irr
      */
     adjusted_irr?: number;
@@ -1685,6 +1689,16 @@ export type FinanceCoachPeriodAccrual = {
      * Period
      */
     period: string;
+};
+
+/**
+ * FinanceCoachSettlementCancel
+ */
+export type FinanceCoachSettlementCancel = {
+    /**
+     * Reason
+     */
+    reason: string;
 };
 
 /**
@@ -1782,7 +1796,7 @@ export type FinanceCoachSettlementPublic = {
     /**
      * Status
      */
-    status: 'RECORDED' | 'CONFIRMED';
+    status: 'RECORDED' | 'CONFIRMED' | 'CANCELLED';
     /**
      * Items
      */
@@ -1795,6 +1809,14 @@ export type FinanceCoachSettlementPublic = {
      * Confirmed At
      */
     confirmed_at?: string | null;
+    /**
+     * Cancelled At
+     */
+    cancelled_at?: string | null;
+    /**
+     * Cancel Reason
+     */
+    cancel_reason?: string | null;
 };
 
 /**
@@ -2506,7 +2528,7 @@ export type FinanceJournalPublic = {
     /**
      * Event Type
      */
-    event_type: 'OPENING_BALANCE' | 'CORRECTION' | 'INVOICE_ISSUED' | 'INVOICE_VOID' | 'RECEIPT_CONFIRMED' | 'ADVANCE_APPLIED' | 'REFUND_RECORDED' | 'EXPENSE_RECORDED' | 'EXPENSE_PAID' | 'COACH_ALLOCATION' | 'COACH_SETTLEMENT' | 'COACH_SETTLED' | 'COACH_ADJUSTMENT';
+    event_type: 'OPENING_BALANCE' | 'CORRECTION' | 'INVOICE_ISSUED' | 'INVOICE_VOID' | 'RECEIPT_CONFIRMED' | 'ADVANCE_APPLIED' | 'REFUND_RECORDED' | 'EXPENSE_RECORDED' | 'EXPENSE_PAID' | 'COACH_ALLOCATION' | 'COACH_SETTLEMENT' | 'COACH_SETTLED' | 'COACH_SETTLE_CANCEL' | 'COACH_ADJUSTMENT';
     /**
      * Description
      */
@@ -9620,6 +9642,42 @@ export type financeMatchFinanceReconciliationLineResponses = {
 };
 
 export type financeMatchFinanceReconciliationLineResponse = financeMatchFinanceReconciliationLineResponses[keyof financeMatchFinanceReconciliationLineResponses];
+
+export type financeCancelFinanceCoachSettlementData = {
+    body: FinanceCoachSettlementCancel;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Settlement Id
+         */
+        settlement_id: string;
+    };
+    query?: never;
+    url: '/api/v1/finance/coach-settlements/{settlement_id}/cancel';
+};
+
+export type financeCancelFinanceCoachSettlementErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeCancelFinanceCoachSettlementError = financeCancelFinanceCoachSettlementErrors[keyof financeCancelFinanceCoachSettlementErrors];
+
+export type financeCancelFinanceCoachSettlementResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCoachSettlementPublic;
+};
+
+export type financeCancelFinanceCoachSettlementResponse = financeCancelFinanceCoachSettlementResponses[keyof financeCancelFinanceCoachSettlementResponses];
 
 export type utilsHealthCheckData = {
     body?: never;

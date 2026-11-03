@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import calendar
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
@@ -54,6 +55,7 @@ from app.finance_models import (
     FinanceCoachEarningsPublic,
     FinanceCoachPeriodAccrual,
     FinanceCoachSettlement,
+    FinanceCoachSettlementCancel,
     FinanceCoachSettlementCreate,
     FinanceCoachSettlementItem,
     FinanceCoachSettlementItemPublic,
@@ -3808,13 +3810,32 @@ def _invoice_reminder(
     )
 
 
-def _earning_settled_irr(session: Session, earning_id: uuid.UUID) -> int:
+def _earning_settlement_irr(
+    session: Session, earning_id: uuid.UUID, status: str
+) -> int:
     value = session.exec(
-        select(func.coalesce(func.sum(FinanceCoachSettlementItem.amount_irr), 0)).where(
-            FinanceCoachSettlementItem.earning_id == earning_id
+        select(
+            func.coalesce(func.sum(FinanceCoachSettlementItem.amount_irr), 0)
+        )
+        .join(
+            FinanceCoachSettlement,
+            col(FinanceCoachSettlementItem.settlement_id)
+            == col(FinanceCoachSettlement.id),
+        )
+        .where(
+            FinanceCoachSettlementItem.earning_id == earning_id,
+            FinanceCoachSettlement.status == status,
         )
     ).one()
     return int(value)
+
+
+def _earning_settled_irr(session: Session, earning_id: uuid.UUID) -> int:
+    return _earning_settlement_irr(session, earning_id, "CONFIRMED")
+
+
+def _earning_reserved_irr(session: Session, earning_id: uuid.UUID) -> int:
+    return _earning_settlement_irr(session, earning_id, "RECORDED")
 
 
 def _earning_public(
@@ -3830,6 +3851,7 @@ def _earning_public(
         else None
     )
     settled = _earning_settled_irr(session, earning.id)
+    reserved = _earning_reserved_irr(session, earning.id)
     adjusted = _earning_adjustment_irr(session, earning.id)
     if earning.status == "UNRESOLVED":
         status = "UNRESOLVED"
@@ -3868,8 +3890,9 @@ def _earning_public(
         calculated_irr=earning.coach_share_irr,
         vested_irr=vested_irr,
         settled_irr=settled,
+        reserved_irr=reserved,
         adjusted_irr=adjusted,
-        eligible_irr=max(vested_irr - settled - adjusted, 0),
+        eligible_irr=max(vested_irr - settled - reserved - adjusted, 0),
         status=status,  # type: ignore[arg-type]
         unresolved_reason=earning.unresolved_reason,
         vesting_mode=earning.vesting_mode,
@@ -4000,6 +4023,8 @@ def _settlement_public(
         items=public_items,
         created_at=settlement.created_at,
         confirmed_at=settlement.confirmed_at,
+        cancelled_at=settlement.cancelled_at,
+        cancel_reason=settlement.cancel_reason,
     )
 
 
@@ -4028,6 +4053,7 @@ def _eligible_earnings(
         remaining = (
             row.coach_share_irr
             - _earning_settled_irr(session, row.id)
+            - _earning_reserved_irr(session, row.id)
             - _earning_adjustment_irr(session, row.id)
         )
         if remaining > 0:
@@ -4164,8 +4190,28 @@ def confirm_coach_settlement(
         raise HTTPException(status_code=404, detail="settlement_not_found")
     if settlement.status == "CONFIRMED":
         return _settlement_public(session, settlement)
+    if settlement.status == "CANCELLED":
+        raise HTTPException(status_code=409, detail="settlement_cancelled")
     if settlement.status != "RECORDED":
         raise HTTPException(status_code=409, detail="settlement_not_recorded")
+    items = session.exec(
+        select(FinanceCoachSettlementItem).where(
+            FinanceCoachSettlementItem.settlement_id == settlement.id
+        )
+    ).all()
+    earned_ids = {item.earning_id for item in items}
+    for earning_id in earned_ids:
+        earning = session.get(FinanceCoachEarning, earning_id)
+        if earning is None:
+            raise HTTPException(status_code=409, detail="settlement_stale")
+        available = (
+            earning.coach_share_irr
+            - _earning_settled_irr(session, earning.id)
+            - _earning_reserved_irr(session, earning.id)
+            - _earning_adjustment_irr(session, earning.id)
+        )
+        if available < 0:
+            raise HTTPException(status_code=409, detail="settlement_stale")
     accounts = ensure_accounts(session, scope.gym_id)
     journal = post_journal(
         session,
@@ -4193,6 +4239,62 @@ def confirm_coach_settlement(
         action="finance.coach_settlement.confirmed",
         target_type="finance_coach_settlement",
         target_id=settlement.id,
+        detail={"journal_id": str(journal.id)},
+    )
+    session.commit()
+    session.refresh(settlement)
+    return _settlement_public(session, settlement)
+
+
+def cancel_coach_settlement(
+    session: Session,
+    *,
+    scope: FinanceScope,
+    actor: User,
+    settlement_id: uuid.UUID,
+    body: FinanceCoachSettlementCancel,
+) -> FinanceCoachSettlementPublic:
+    scope.require(FINANCE_SETTLEMENT_MANAGE)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
+    scope.require(FINANCE_SETTLEMENT_MANAGE)
+    settlement = session.get(FinanceCoachSettlement, settlement_id)
+    if settlement is None or settlement.gym_id != scope.gym_id:
+        raise HTTPException(status_code=404, detail="settlement_not_found")
+    if settlement.status == "CANCELLED":
+        return _settlement_public(session, settlement)
+    if settlement.status != "RECORDED":
+        raise HTTPException(status_code=409, detail="settlement_not_recorded")
+    accounts = ensure_accounts(session, scope.gym_id)
+    journal = post_journal(
+        session,
+        gym_id=scope.gym_id,
+        posting_date=utcnow().date(),
+        event_type="COACH_SETTLE_CANCEL",
+        description="Coach settlement cancelled",
+        lines=[
+            (accounts["2200"].id, settlement.amount_irr, 0, "Pending coach payout"),
+            (accounts["2100"].id, 0, settlement.amount_irr, "Coach payable"),
+        ],
+        created_by_id=actor.id,
+        source_type="finance_coach_settlement",
+        source_id=settlement.id,
+    )
+    settlement.status = "CANCELLED"
+    settlement.cancelled_by_id = actor.id
+    settlement.cancelled_at = utcnow()
+    settlement.cancel_reason = body.reason
+    settlement.cancel_journal_id = journal.id
+    session.add(settlement)
+    record_audit(
+        session,
+        gym_id=scope.gym_id,
+        actor_id=actor.id,
+        action="finance.coach_settlement.cancelled",
+        target_type="finance_coach_settlement",
+        target_id=settlement.id,
+        reason=body.reason,
         detail={"journal_id": str(journal.id)},
     )
     session.commit()
@@ -4491,6 +4593,10 @@ def accrue_coach_period(
     operation_key: str,
 ) -> FinanceExpensePublic:
     scope.require(FINANCE_COACH_AGREEMENT_MANAGE)
+    lock_finance_gym(session, scope.gym_id)
+    scope = reload_finance_scope(session, scope)
+    scope.require_enabled()
+    scope.require(FINANCE_COACH_AGREEMENT_MANAGE)
     agreement = session.get(FinanceCoachAgreement, agreement_id)
     if agreement is None or agreement.gym_id != scope.gym_id:
         raise HTTPException(status_code=404, detail="coach_agreement_not_found")
@@ -4501,28 +4607,62 @@ def accrue_coach_period(
         or agreement.periodic_fixed_irr <= 0
     ):
         raise HTTPException(status_code=400, detail="coach_periodic_not_configured")
-    coach = session.get(User, agreement.coach_user_id)
     try:
         year, month = (int(part) for part in body.period.split("-"))
         spent_on = date(year, month, 1)
+        month_end = date(
+            year, month, calendar.monthrange(year, month)[1]
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="invalid_coach_period") from exc
-    expense = create_expense(
+    if spent_on < agreement.effective_from or (
+        agreement.effective_to is not None
+        and month_end > agreement.effective_to
+    ):
+        raise HTTPException(
+            status_code=400, detail="coach_period_outside_agreement"
+        )
+    payload = {"agreement_id": str(agreement.id), "period": body.period}
+    operation = find_operation(
         session,
-        scope=scope,
-        actor=actor,
-        body=FinanceExpenseCreate(
-            category="حقوق ثابت مربی",
-            counterparty=(coach.full_name or coach.email) if coach else None,
-            description=f"Periodic coach compensation {body.period}",
-            amount_irr=agreement.periodic_fixed_irr,
-            spent_on=spent_on,
-            paid=False,
-            method=None,
-            recurrence_key=agreement.id,
-        ),
+        gym_id=scope.gym_id,
         operation_key=operation_key,
+        payload=payload,
     )
+    if operation is not None:
+        expense = session.get(FinanceExpense, operation.result_id)
+        if expense is None or expense.gym_id != scope.gym_id:
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
+        return _expense_public(expense)
+    duplicate = session.exec(
+        select(FinanceExpense).where(
+            FinanceExpense.gym_id == scope.gym_id,
+            FinanceExpense.recurrence_key == agreement.id,
+            FinanceExpense.period_key == body.period,
+        )
+    ).first()
+    if duplicate is not None:
+        raise HTTPException(
+            status_code=409, detail="expense_recurrence_exists"
+        )
+    coach = session.get(User, agreement.coach_user_id)
+    expense = FinanceExpense(
+        gym_id=scope.gym_id,
+        category="حقوق ثابت مربی",
+        counterparty=(coach.full_name or coach.email) if coach else None,
+        description=f"Periodic coach compensation {body.period}",
+        amount_irr=agreement.periodic_fixed_irr,
+        spent_on=spent_on,
+        status="UNPAID",
+        method=None,
+        paid_at=None,
+        recurrence_key=agreement.id,
+        period_key=body.period,
+        created_by_id=actor.id,
+    )
+    session.add(expense)
+    session.flush()
+    _post_expense_accrual(session, scope=scope, actor=actor, expense=expense)
     record_audit(
         session,
         gym_id=scope.gym_id,
@@ -4532,9 +4672,17 @@ def accrue_coach_period(
         target_id=agreement.id,
         detail={"period": body.period, "expense_id": str(expense.id)},
     )
+    remember_operation(
+        session,
+        gym_id=scope.gym_id,
+        operation_key=operation_key,
+        payload=payload,
+        result_type="finance_expense",
+        result_id=expense.id,
+    )
     session.commit()
-    return expense
-
+    session.refresh(expense)
+    return _expense_public(expense)
 
 def _reconciliation_public(
     session: Session, row: FinanceBankStatementLine

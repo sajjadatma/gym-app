@@ -30,6 +30,7 @@ from app.finance_models import (
     FinanceCoachEarningResolve,
     FinanceCoachEarningsPublic,
     FinanceCoachPeriodAccrual,
+    FinanceCoachSettlementCancel,
     FinanceCoachSettlementCreate,
     FinanceCoachSettlementPublic,
     FinanceCoachSettlementsPublic,
@@ -86,6 +87,7 @@ from app.services.finance import (
     activate_coach_agreement,
     apply_customer_credit,
     approve_refund,
+    cancel_coach_settlement,
     cancel_membership,
     close_period,
     confirm_coach_settlement,
@@ -1418,4 +1420,22 @@ def match_finance_reconciliation_line(
         actor=current_user,
         line_id=line_id,
         body=body,
+    )
+
+
+@router.post(
+    "/coach-settlements/{settlement_id}/cancel",
+    response_model=FinanceCoachSettlementPublic,
+)
+def cancel_finance_coach_settlement(
+    *,
+    settlement_id: uuid.UUID,
+    session: SessionDep,
+    ctx: GymContextDep,
+    current_user: CurrentUser,
+    body: FinanceCoachSettlementCancel,
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    return cancel_coach_settlement(
+        session, scope=scope, actor=current_user, settlement_id=settlement_id, body=body
     )

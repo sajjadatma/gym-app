@@ -110,7 +110,8 @@ def test_partial_settlement_is_fifo_capped_and_confirmable(
         headers=owner,
     )
     row = listed.json()["data"][0]
-    assert row["settled_irr"] == 100_000
+    assert row["settled_irr"] == 0
+    assert row["reserved_irr"] == 100_000
     assert row["eligible_irr"] == 200_000
 
     confirmed = client.post(
@@ -134,7 +135,23 @@ def test_partial_settlement_is_fifo_capped_and_confirmable(
         f"/api/v1/finance/coach-earnings?coach_user_id={coach_id}",
         headers=owner,
     ).json()["data"][0]
+    assert row["settled_irr"] == 100_000
+    assert row["reserved_irr"] == 200_000
+    assert row["eligible_irr"] == 0
+    assert row["status"] == "VESTED"
+    assert (
+        client.post(
+            f"/api/v1/finance/coach-settlements/{second.json()['id']}/confirm",
+            headers=owner,
+        ).status_code
+        == 200
+    )
+    row = client.get(
+        f"/api/v1/finance/coach-earnings?coach_user_id={coach_id}",
+        headers=owner,
+    ).json()["data"][0]
     assert row["settled_irr"] == 300_000
+    assert row["reserved_irr"] == 0
     assert row["eligible_irr"] == 0
     assert row["status"] == "SETTLED"
 
@@ -244,3 +261,77 @@ def test_settlement_refuses_unvested_and_unresolved_earnings(
     assert receipt.status_code == 200
     # The agreement in this gym is active, so the second invoice snapshots it
     # as well; unresolved earnings are exercised in the allocation slice.
+
+
+def test_recorded_settlement_cancels_before_confirmation_and_releases_reservation(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    gym, owner = make_owner(client, superuser_headers, name="Cancel Settlement Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+    coach_id, _ = make_coach(client, owner, gym_id)
+    active_agreement(
+        client,
+        owner,
+        coach_id,
+        vesting_mode="MANUAL",
+        terms=[
+            {"recipient": "COACH", "basis": "PERCENT", "percent_bp": 3000},
+            {"recipient": "GYM", "basis": "PERCENT", "percent_bp": 7000},
+        ],
+    )
+    invoice_id = vested_earning(client, owner, customer, coach_id)
+    earning = coach_earning(db_session, invoice_id)
+    vested = client.post(
+        f"/api/v1/finance/coach-earnings/{earning.id}/vest",
+        headers=owner,
+        json={"reason": "delivered"},
+    )
+    assert vested.status_code == 200
+    recorded = settle(client, owner, coach_id, 100_000)
+    assert recorded.status_code == 200
+    settlement_id = recorded.json()["id"]
+    assert recorded.json()["status"] == "RECORDED"
+
+    cancelled = client.post(
+        f"/api/v1/finance/coach-settlements/{settlement_id}/cancel",
+        headers=owner,
+        json={"reason": "bank transfer failed"},
+    )
+    assert cancelled.status_code == 200, cancelled.text
+    assert cancelled.json()["status"] == "CANCELLED"
+    assert cancelled.json()["cancel_reason"] == "bank transfer failed"
+    row = client.get(
+        f"/api/v1/finance/coach-earnings/{earning.id}", headers=owner
+    ).json()
+    assert row["reserved_irr"] == 0
+    assert row["settled_irr"] == 0
+    assert row["eligible_irr"] == 300_000
+
+    # A new settlement can reserve the released amount again.
+    replacement = settle(client, owner, coach_id, 100_000)
+    assert replacement.status_code == 200
+    assert replacement.json()["status"] == "RECORDED"
+
+    # Cancellation is idempotent for the same recorded settlement, and a
+    # confirmed payout cannot be cancelled.
+    already = client.post(
+        f"/api/v1/finance/coach-settlements/{settlement_id}/cancel",
+        headers=owner,
+        json={"reason": "already cancelled"},
+    )
+    assert already.status_code == 200
+    confirmed = client.post(
+        f"/api/v1/finance/coach-settlements/{replacement.json()['id']}/confirm",
+        headers=owner,
+    )
+    assert confirmed.status_code == 200
+    cannot_cancel = client.post(
+        f"/api/v1/finance/coach-settlements/{replacement.json()['id']}/cancel",
+        headers=owner,
+        json={"reason": "too late"},
+    )
+    assert cannot_cancel.status_code == 409
+    assert cannot_cancel.json()["detail"] == "settlement_not_recorded"
