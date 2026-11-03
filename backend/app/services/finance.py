@@ -3030,6 +3030,15 @@ def record_refund(
         refund=refund,
         posting_date=posting_date,
     )
+    from app.services import platform as platform_service
+
+    platform_service.apply_platform_refund(
+        session,
+        gym_id=scope.gym_id,
+        actor=actor,
+        refund=refund,
+        posting_date=posting_date,
+    )
     record_audit(
         session,
         gym_id=scope.gym_id,

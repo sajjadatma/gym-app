@@ -417,3 +417,53 @@ def test_snapshot_is_audited_and_subscription_or_unmatched_source_adds_no_fee(
         ).json()["data"]
         == []
     )
+
+
+def test_invoice_refund_appends_platform_credit_without_mutating_receivable(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    from app.platform_models import PlatformCredit, PlatformJournalLine
+    from tests.api.routes.test_finance_coach_refunds import refund
+
+    gym, owner = make_owner(client, superuser_headers, name="Refund Platform Gym")
+    gym_id = str(gym["id"])
+    customer = make_customer(client, owner, gym_id)
+    commission_agreement(client, superuser_headers, gym_id, percent_bp=1000)
+    invoice = issued_invoice(client, owner, customer, amount=1_000_000)
+    receipt = record_receipt(
+        client,
+        owner,
+        receipt_payload(
+            customer, amount=1_000_000, allocations=[(invoice["id"], 1_000_000)]
+        ),
+    )
+    assert receipt.status_code == 200, receipt.text
+    before = db_session.exec(
+        select(PlatformReceivable).where(
+            PlatformReceivable.gym_id == uuid.UUID(gym_id)
+        )
+    ).all()
+    assert sum(row.amount_irr for row in before) == 100_000
+
+    refund(client, owner, customer, invoice["id"], 300_000)
+    db_session.expire_all()
+    after = db_session.exec(
+        select(PlatformReceivable).where(
+            PlatformReceivable.gym_id == uuid.UUID(gym_id)
+        )
+    ).all()
+    assert [(row.id, row.amount_irr) for row in after] == [
+        (row.id, row.amount_irr) for row in before
+    ]
+    credit = db_session.exec(select(PlatformCredit)).one()
+    assert credit.amount_irr == 30_000
+    assert credit.source_type == "REFUND"
+    reversal = db_session.exec(
+        select(PlatformJournalLine).where(
+            PlatformJournalLine.account_code == "4100",
+            PlatformJournalLine.debit_irr == 30_000,
+        )
+    ).first()
+    assert reversal is not None

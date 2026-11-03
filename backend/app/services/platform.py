@@ -2501,3 +2501,99 @@ def cancel_platform_invoice(
     session.commit()
     session.refresh(invoice)
     return _invoice_public(session, invoice)
+
+
+def apply_platform_refund(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    actor: User,
+    refund: Any,
+    posting_date: date,
+) -> int:
+    from app.finance_models import FinanceInvoiceLine
+    from app.platform_models import PlatformCredit, PlatformReceivable
+    from app.services.finance import _invoice_paid_irr
+
+    if refund.source != "INVOICE" or refund.invoice_id is None:
+        return 0
+    paid = _invoice_paid_irr(session, refund.invoice_id)
+    if paid <= 0:
+        return 0
+    lines = session.exec(
+        select(FinanceInvoiceLine).where(
+            FinanceInvoiceLine.invoice_id == refund.invoice_id
+        )
+    ).all()
+    line_ids = [line.id for line in lines]
+    receivable_ids: set[uuid.UUID] = set()
+    if line_ids:
+        receivable_ids.update(
+            session.exec(
+                select(PlatformReceivable.id).where(
+                    PlatformReceivable.source_type == "COMMISSION",
+                    col(PlatformReceivable.source_id).in_(line_ids),
+                )
+            ).all()
+        )
+        prefix = f"ascora:{refund.invoice_id}:"
+        receivable_ids.update(
+            session.exec(
+                select(PlatformReceivable.id).where(
+                    PlatformReceivable.source_type == "COACH_ASCORA_SHARE",
+                    col(PlatformReceivable.source_key).like(f"{prefix}%"),
+                )
+            ).all()
+        )
+    receivables = list(
+        session.exec(
+            select(PlatformReceivable).where(
+                col(PlatformReceivable.id).in_(receivable_ids)
+            )
+        ).all()
+    ) if receivable_ids else []
+    total = sum(row.amount_irr for row in receivables)
+    if total <= 0:
+        return 0
+    credit_amount = int(total * refund.amount_irr // paid)
+    if credit_amount <= 0:
+        return 0
+    source_key = f"refund:{refund.id}"
+    if session.exec(
+        select(PlatformCredit).where(PlatformCredit.source_key == source_key)
+    ).first() is not None:
+        return 0
+    session.add(
+        PlatformCredit(
+            gym_id=gym_id,
+            source_type="REFUND",
+            source_id=refund.id,
+            source_key=source_key,
+            amount_irr=credit_amount,
+            reason=refund.reason,
+            created_by_id=actor.id,
+        )
+    )
+    post_platform_journal(
+        session,
+        actor=actor,
+        posting_date=posting_date,
+        event_type="PLATFORM_FEE_REVERSAL",
+        description="Platform fee refund reversal",
+        lines=[
+            ("4100", credit_amount, 0, "Platform commission reversal"),
+            ("1100", 0, credit_amount, "Platform receivable reversal"),
+        ],
+        source_type="finance_refund",
+        source_id=refund.id,
+    )
+    _audit(
+        session,
+        actor=actor,
+        action="platform.ascora.reversed",
+        target_type="finance_refund",
+        target_id=refund.id,
+        gym_id=gym_id,
+        detail={"amount_irr": credit_amount, "source_key": source_key},
+    )
+    return credit_amount
