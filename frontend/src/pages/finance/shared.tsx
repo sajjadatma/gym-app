@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query"
 import { useAuth } from "@/auth"
 import {
   type FinanceCatalogItemPublic,
+  type FinanceCustomerPublic,
+  FinanceService,
   type FinanceSettingsPublic,
-  GymsService,
-  type MemberPublic,
 } from "@/client"
 import { type TranslationKey, useI18n } from "@/i18n"
 import { formatIrr, parseAmountInUnit } from "@/lib/money"
@@ -140,15 +140,10 @@ export function useFinanceCustomers() {
   const query = useQuery({
     queryKey: ["finance", activeGymId, "customers"],
     queryFn: async () =>
-      (
-        await GymsService.listMembers({
-          path: { gym_id: activeGymId! },
-          query: { offset: 0, limit: 50 },
-        })
-      ).data.data,
+      (await FinanceService.readFinanceCustomers()).data.data,
     enabled: Boolean(activeGymId),
   })
-  const customers = (query.data ?? []).filter((member) => member.is_active)
+  const customers = query.data ?? []
   return {
     ...query,
     customers,
@@ -164,7 +159,7 @@ export function useFinanceCustomers() {
       })),
     customerName: (userId: string | null | undefined) => {
       const member = customers.find(
-        (item: MemberPublic) => item.user_id === userId,
+        (item: FinanceCustomerPublic) => item.user_id === userId,
       )
       return member?.full_name ?? member?.email ?? userId ?? "—"
     },

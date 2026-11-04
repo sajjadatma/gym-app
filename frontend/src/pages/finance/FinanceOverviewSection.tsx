@@ -103,6 +103,7 @@ export function FinanceOverviewSection({
     {},
   )
   const [grantLimit, setGrantLimit] = useState("")
+  const [closeOpen, setCloseOpen] = useState(false)
 
   const scope = activeGymId ?? ""
   const accountsQuery = useQuery({
@@ -192,6 +193,7 @@ export function FinanceOverviewSection({
     settings.enabled && settings.permissions.includes("finance.period.manage")
   const openPeriod = periods.find((period) => period.status === "OPEN")
   const money = (amount: number) => formatIrr(amount, unit, formatNumber)
+  const summaryMoney = (amount: number) => `${money(amount)} ${unitLabel}`
 
   const accountOptions = accounts.map((account) => ({
     value: account.code,
@@ -315,6 +317,7 @@ export function FinanceOverviewSection({
     try {
       await FinanceService.closeFinancePeriod()
       await invalidate()
+      setCloseOpen(false)
       show(t("finance.periodClosed"), "success")
     } catch (err) {
       show(translateApiError(err, t), "error")
@@ -420,33 +423,33 @@ export function FinanceOverviewSection({
             <div className="row" style={{ gap: 12, flexWrap: "wrap" }}>
               <Card variant="outlined">
                 <strong>{t("finance.summary.cash")}</strong>
-                <div>{formatNumber(summaryQuery.data.cash_collected_irr)}</div>
+                <div>{summaryMoney(summaryQuery.data.cash_collected_irr)}</div>
               </Card>
               <Card variant="outlined">
                 <strong>{t("finance.summary.netCashflow")}</strong>
-                <div>{formatNumber(summaryQuery.data.net_cashflow_irr)}</div>
+                <div>{summaryMoney(summaryQuery.data.net_cashflow_irr)}</div>
               </Card>
               <Card variant="outlined">
                 <strong>{t("finance.summary.revenue")}</strong>
                 <div>
-                  {formatNumber(summaryQuery.data.recognized_revenue_irr)}
+                  {summaryMoney(summaryQuery.data.recognized_revenue_irr)}
                 </div>
               </Card>
               <Card variant="outlined">
                 <strong>{t("finance.summary.profit")}</strong>
                 <div>
-                  {formatNumber(
+                  {summaryMoney(
                     summaryQuery.data.estimated_operating_profit_irr,
                   )}
                 </div>
               </Card>
               <Card variant="outlined">
                 <strong>{t("finance.summary.receivable")}</strong>
-                <div>{formatNumber(summaryQuery.data.receivable_irr)}</div>
+                <div>{summaryMoney(summaryQuery.data.receivable_irr)}</div>
               </Card>
               <Card variant="outlined">
                 <strong>{t("finance.summary.coachPayable")}</strong>
-                <div>{formatNumber(summaryQuery.data.coach_payable_irr)}</div>
+                <div>{summaryMoney(summaryQuery.data.coach_payable_irr)}</div>
               </Card>
             </div>
           </div>
@@ -747,7 +750,7 @@ export function FinanceOverviewSection({
               variant="tonal"
               icon={<CalendarClock size={16} />}
               loading={saving}
-              onClick={() => void closePeriod()}
+              onClick={() => setCloseOpen(true)}
             >
               {t("finance.closePeriod")}
             </Button>
@@ -816,6 +819,23 @@ export function FinanceOverviewSection({
           </SectionCard>
         </>
       ) : null}
+
+      <Dialog
+        open={closeOpen}
+        title={t("finance.closePeriod")}
+        description={t("finance.closePeriodHint")}
+        onClose={() => setCloseOpen(false)}
+        footer={
+          <>
+            <Button variant="text" onClick={() => setCloseOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button loading={saving} onClick={() => void closePeriod()}>
+              {t("common.confirm")}
+            </Button>
+          </>
+        }
+      />
 
       <Dialog
         open={openingOpen}

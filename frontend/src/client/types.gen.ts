@@ -1958,6 +1958,42 @@ export type FinanceCreditsPublic = {
 };
 
 /**
+ * FinanceCustomerPublic
+ */
+export type FinanceCustomerPublic = {
+    /**
+     * User Id
+     */
+    user_id: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Full Name
+     */
+    full_name?: string | null;
+    /**
+     * Roles
+     */
+    roles: Array<string>;
+};
+
+/**
+ * FinanceCustomersPublic
+ */
+export type FinanceCustomersPublic = {
+    /**
+     * Data
+     */
+    data: Array<FinanceCustomerPublic>;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
  * FinanceExpenseCreate
  */
 export type FinanceExpenseCreate = {
@@ -2962,6 +2998,14 @@ export type FinancePeriodPublic = {
      * Opened At
      */
     opened_at: string;
+    /**
+     * Period Start
+     */
+    period_start?: string | null;
+    /**
+     * Period End
+     */
+    period_end?: string | null;
     /**
      * Closed At
      */
@@ -4455,6 +4499,16 @@ export type PlatformGroupMemberPublic = {
 };
 
 /**
+ * PlatformGroupMembersUpdate
+ */
+export type PlatformGroupMembersUpdate = {
+    /**
+     * Members
+     */
+    members: Array<PlatformGroupMemberInput>;
+};
+
+/**
  * PlatformGroupPublic
  */
 export type PlatformGroupPublic = {
@@ -4510,6 +4564,22 @@ export type PlatformGymReportPublic = {
      * Overdue Irr
      */
     overdue_irr: number;
+    /**
+     * Billed Receivable Irr
+     */
+    billed_receivable_irr?: number;
+    /**
+     * Unbilled Receivable Irr
+     */
+    unbilled_receivable_irr?: number;
+    /**
+     * Billed Overdue Irr
+     */
+    billed_overdue_irr?: number;
+    /**
+     * Unbilled Overdue Irr
+     */
+    unbilled_overdue_irr?: number;
     /**
      * Recorded Cost Irr
      */
@@ -4710,6 +4780,22 @@ export type PlatformOverviewPublic = {
      * Overdue Irr
      */
     overdue_irr: number;
+    /**
+     * Billed Receivable Irr
+     */
+    billed_receivable_irr?: number;
+    /**
+     * Unbilled Receivable Irr
+     */
+    unbilled_receivable_irr?: number;
+    /**
+     * Billed Overdue Irr
+     */
+    billed_overdue_irr?: number;
+    /**
+     * Unbilled Overdue Irr
+     */
+    unbilled_overdue_irr?: number;
     /**
      * Recorded Platform Costs Irr
      */
@@ -5089,6 +5175,26 @@ export type PlatformStandingPublic = {
      * Overdue Irr
      */
     overdue_irr: number;
+    /**
+     * Billed Open Irr
+     */
+    billed_open_irr?: number;
+    /**
+     * Unbilled Open Irr
+     */
+    unbilled_open_irr?: number;
+    /**
+     * Total Exposure Irr
+     */
+    total_exposure_irr?: number;
+    /**
+     * Overdue Billed Irr
+     */
+    overdue_billed_irr?: number;
+    /**
+     * Overdue Unbilled Irr
+     */
+    overdue_unbilled_irr?: number;
     /**
      * Oldest Due On
      */
@@ -8430,6 +8536,37 @@ export type financeUpdateFinanceSettingsResponses = {
 
 export type financeUpdateFinanceSettingsResponse = financeUpdateFinanceSettingsResponses[keyof financeUpdateFinanceSettingsResponses];
 
+export type financeReadFinanceCustomersData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/finance/customers';
+};
+
+export type financeReadFinanceCustomersErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type financeReadFinanceCustomersError = financeReadFinanceCustomersErrors[keyof financeReadFinanceCustomersErrors];
+
+export type financeReadFinanceCustomersResponses = {
+    /**
+     * Successful Response
+     */
+    200: FinanceCustomersPublic;
+};
+
+export type financeReadFinanceCustomersResponse = financeReadFinanceCustomersResponses[keyof financeReadFinanceCustomersResponses];
+
 export type financeListFinanceAccountsData = {
     body?: never;
     headers?: {
@@ -11313,6 +11450,36 @@ export type platformUpdatePlatformGroupMemberResponses = {
 };
 
 export type platformUpdatePlatformGroupMemberResponse = platformUpdatePlatformGroupMemberResponses[keyof platformUpdatePlatformGroupMemberResponses];
+
+export type platformReplacePlatformGroupMembersData = {
+    body: PlatformGroupMembersUpdate;
+    path: {
+        /**
+         * Group Id
+         */
+        group_id: string;
+    };
+    query?: never;
+    url: '/api/v1/platform/groups/{group_id}/members';
+};
+
+export type platformReplacePlatformGroupMembersErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type platformReplacePlatformGroupMembersError = platformReplacePlatformGroupMembersErrors[keyof platformReplacePlatformGroupMembersErrors];
+
+export type platformReplacePlatformGroupMembersResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformGroupPublic;
+};
+
+export type platformReplacePlatformGroupMembersResponse = platformReplacePlatformGroupMembersResponses[keyof platformReplacePlatformGroupMembersResponses];
 
 export type platformReadPlatformAgreementsData = {
     body?: never;

@@ -16,10 +16,11 @@ def test_finance_staff_has_no_operational_or_administrative_access(
     gym_id = str(gym["id"])
     coach = add_staff(client, owner, gym_id, roles=["COACH"])
     coach_id = client.get("/api/v1/users/me", headers=coach).json()["id"]
+    athlete_email = unique_email("boundary-athlete")
     athlete = create_athlete(
         client,
         coach,
-        email=unique_email("boundary-athlete"),
+        email=athlete_email,
         coach_user_id=coach_id,
     )["athlete"]["profile"]
     athlete_id = athlete["user_id"]
@@ -117,6 +118,15 @@ def test_finance_staff_has_no_operational_or_administrative_access(
     assert client.get("/api/v1/finance/settings", headers=staff).status_code == 200
     assert client.get("/api/v1/finance/accounts", headers=staff).status_code == 200
     assert client.get("/api/v1/finance/journal", headers=staff).status_code == 200
+    customers = client.get("/api/v1/finance/customers", headers=staff)
+    assert customers.status_code == 200, customers.text
+    customer_rows = {row["email"]: row for row in customers.json()["data"]}
+    assert athlete_email in customer_rows
+    assert "ATHLETE" in customer_rows[athlete_email]["roles"]
+    staff_email = client.get("/api/v1/users/me", headers=staff).json()["email"]
+    assert staff_email in customer_rows
+    # Coaches are not finance operators and must not gain the customer read model.
+    assert client.get("/api/v1/finance/customers", headers=coach).status_code == 403
     assert client.get(f"/api/v1/gyms/{gym_id}", headers=staff).status_code == 200
     assert client.get("/api/v1/users/me", headers=staff).status_code == 200
 

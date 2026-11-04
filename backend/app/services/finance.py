@@ -68,6 +68,8 @@ from app.finance_models import (
     FinanceCreditPublic,
     FinanceCreditsPublic,
     FinanceCustomerCredit,
+    FinanceCustomerPublic,
+    FinanceCustomersPublic,
     FinanceExpense,
     FinanceExpenseCreate,
     FinanceExpensePublic,
@@ -130,6 +132,7 @@ from app.models import (
     GymMembershipRole,
     User,
 )
+from app.services.access import get_membership_roles
 
 ADMIN_PERMISSIONS: tuple[FinancePermissionName, ...] = (
     FINANCE_VIEW,
@@ -1078,6 +1081,36 @@ def list_grants(session: Session, *, gym_id: uuid.UUID) -> FinanceGrantsPublic:
         for user_id, items in grouped.items()
     ]
     return FinanceGrantsPublic(data=data, count=len(data))
+
+
+def list_finance_customers(
+    session: Session, *, gym_id: uuid.UUID
+) -> FinanceCustomersPublic:
+    """Active gym members a finance operator may invoice or receive from.
+
+    Finance staff are intentionally denied the operational member list, so the
+    finance workspace needs a narrow read model that exposes only the identity
+    and role data its customer pickers need.
+    """
+    rows = session.exec(
+        select(GymMembership, User)
+        .join(User, col(User.id) == col(GymMembership.user_id))
+        .where(
+            GymMembership.gym_id == gym_id,
+            col(GymMembership.is_active).is_(True),
+        )
+        .order_by(col(User.full_name), col(User.email))
+    ).all()
+    data = [
+        FinanceCustomerPublic(
+            user_id=user.id,
+            email=user.email,
+            full_name=user.full_name,
+            roles=sorted(get_membership_roles(session, membership.id)),
+        )
+        for membership, user in rows
+    ]
+    return FinanceCustomersPublic(data=data, count=len(data))
 
 
 def replace_grants(

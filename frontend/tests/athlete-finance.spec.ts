@@ -36,6 +36,10 @@ test("athlete reviews own bills, receipts and membership and requests a refund",
   // identifiable ceiling even when the demo database already has history.
   const suffix = Date.now()
   const description = `فاکتور ورزشکار ${suffix}`
+  const today = new Date().toISOString().slice(0, 10)
+  const secondDue = new Date(Date.now() + 30 * 86_400_000)
+    .toISOString()
+    .slice(0, 10)
   const created = await request.post(`${API_URL}/api/v1/finance/invoices`, {
     headers: admin,
     data: {
@@ -52,12 +56,15 @@ test("athlete reviews own bills, receipts and membership and requests a refund",
           line_discount_irr: 0,
         },
       ],
+      installments: [
+        { due_date: today, amount_irr: 100_000 },
+        { due_date: secondDue, amount_irr: 100_000 },
+      ],
     },
   })
   expect(created.ok()).toBeTruthy()
   const invoice = (await created.json()) as { id: string }
 
-  const today = new Date().toISOString().slice(0, 10)
   const issued = await request.post(
     `${API_URL}/api/v1/finance/invoices/${invoice.id}/issue`,
     {
@@ -88,6 +95,14 @@ test("athlete reviews own bills, receipts and membership and requests a refund",
   await expect(financeNav).toBeVisible()
 
   await expect(page.getByText("خدمات تست ورزشکار").first()).toBeVisible()
+  await expect(page.getByText(/۱۰۰٬۰۰۰/).first()).toBeVisible()
+  await expect(
+    page
+      .getByText(
+        /[۰-۹]+\s+(فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)/,
+      )
+      .first(),
+  ).toBeVisible()
   await expect(page.getByText("دریافت‌های من")).toBeVisible()
   await expect(page.getByText("انتقال بانکی").first()).toBeVisible()
   await expect(page.getByText("عضویت من").first()).toBeVisible()

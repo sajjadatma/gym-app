@@ -1412,6 +1412,8 @@ const fa = {
   "finance.periodOpen": "باز",
   "finance.periodClosed": "بسته",
   "finance.closePeriod": "بستن دوره",
+  "finance.closePeriodHint":
+    "دوره مالی جاری بسته می‌شود و بازگشت‌پذیر نیست. پیش از ادامه، اسناد را بررسی کنید.",
   "finance.periodNotice": "سند جدید در دوره باز بعدی ثبت می‌شود.",
   "finance.noPeriods": "هنوز دوره‌ای ایجاد نشده است.",
   "finance.grants": "دسترسی کارشناسان مالی",
@@ -2884,6 +2886,8 @@ const en: Record<TranslationKey, string> = {
   "finance.periodOpen": "Open",
   "finance.periodClosed": "Closed",
   "finance.closePeriod": "Close period",
+  "finance.closePeriodHint":
+    "The current accounting period will be closed permanently. Review the journals before continuing.",
   "finance.periodNotice": "New journals post into the next open period.",
   "finance.noPeriods": "No period has been opened yet.",
   "finance.grants": "Finance staff access",

@@ -30,7 +30,13 @@ export default defineConfig({
         /athlete(-finance)?\.spec\.ts/,
         /coach-finance\.spec\.ts/,
         /superuser-context\.spec\.ts/,
+        /role-ui-acceptance\.spec\.ts/,
       ],
+    },
+    {
+      name: "ui-acceptance",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: /role-ui-acceptance\.spec\.ts/,
     },
     {
       name: "superuser",

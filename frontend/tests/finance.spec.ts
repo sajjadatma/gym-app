@@ -34,6 +34,23 @@ test("gym admin posts and reviews the opening balance journal", async ({
     await amounts.nth(0).fill("۱۰۰۰")
     await amounts.nth(1).fill("۱۰۰۰")
     await dialog.getByRole("button", { name: "ذخیره", exact: true }).click()
+    const alreadyPosted = dialog.getByRole("alert").filter({
+      hasText: "قبلاً ثبت شده",
+    })
+    await Promise.race([
+      dialog.waitFor({ state: "hidden" }),
+      alreadyPosted.waitFor({ state: "visible" }),
+    ])
+    if (await alreadyPosted.isVisible().catch(() => false)) {
+      // A reused local database may already hold an opening balance. Close the
+      // rejected form and reload so the posted-state assertions below see the
+      // journal that the initial query had not loaded yet.
+      await dialog.getByRole("button", { name: "انصراف" }).click()
+      await page.reload()
+      await expect(
+        page.getByRole("heading", { name: "مالی باشگاه" }),
+      ).toBeVisible()
+    }
     await expect(dialog).toBeHidden()
   }
 

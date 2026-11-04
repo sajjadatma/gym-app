@@ -42,6 +42,7 @@ from app.finance_models import (
     FinanceCoachVestingCreate,
     FinanceCreditApplyCreate,
     FinanceCreditsPublic,
+    FinanceCustomersPublic,
     FinanceExpenseCreate,
     FinanceExpensePayCreate,
     FinanceExpensePublic,
@@ -131,6 +132,7 @@ from app.services.finance import (
     list_coach_settlements,
     list_credits,
     list_expenses,
+    list_finance_customers,
     list_grants,
     list_invoices,
     list_journals,
@@ -200,6 +202,15 @@ def read_finance_settings(
 ) -> Any:
     scope = resolve_finance_scope(session, ctx, current_user)
     return settings_public(scope)
+
+
+@router.get("/customers", response_model=FinanceCustomersPublic)
+def read_finance_customers(
+    *, session: SessionDep, ctx: GymContextDep, current_user: CurrentUser
+) -> Any:
+    scope = resolve_finance_scope(session, ctx, current_user)
+    scope.require(FINANCE_VIEW)
+    return list_finance_customers(session, gym_id=ctx.gym.id)
 
 
 @router.patch("/settings", response_model=FinanceSettingsPublic)

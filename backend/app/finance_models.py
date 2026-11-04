@@ -446,6 +446,18 @@ class FinanceGrantsPublic(SQLModel):
     count: int
 
 
+class FinanceCustomerPublic(SQLModel):
+    user_id: uuid.UUID
+    email: EmailStr
+    full_name: str | None = None
+    roles: list[str]
+
+
+class FinanceCustomersPublic(SQLModel):
+    data: list[FinanceCustomerPublic]
+    count: int
+
+
 class FinancePeriodPublic(SQLModel):
     id: uuid.UUID
     opened_at: datetime

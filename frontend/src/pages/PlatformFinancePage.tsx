@@ -9,6 +9,7 @@ import {
   type PlatformPlanPublic,
   PlatformService,
 } from "@/client"
+import { DateField } from "@/components/DateField"
 import {
   Button,
   Card,
@@ -43,6 +44,13 @@ function monthStart() {
   return `${today().slice(0, 7)}-01`
 }
 
+function tomorrow() {
+  const now = new Date()
+  now.setDate(now.getDate() + 1)
+  const offset = now.getTimezoneOffset() * 60_000
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10)
+}
+
 async function downloadCsv(path: string) {
   const token = localStorage.getItem("token")
   const response = await fetch(path, {
@@ -59,7 +67,7 @@ async function downloadCsv(path: string) {
 }
 
 export function PlatformFinancePage() {
-  const { t, formatNumber, formatDate } = useI18n()
+  const { t, formatNumber, formatDate, normalizeDigits } = useI18n()
   const { show } = useSnackbar()
   const queryClient = useQueryClient()
   const [tab, setTab] = useState("overview")
@@ -170,7 +178,7 @@ export function PlatformFinancePage() {
           name: planForm.name,
           version: {
             effective_from: today(),
-            monthly_price_irr: Number(planForm.price) || 0,
+            monthly_price_irr: Number(normalizeDigits(planForm.price)) || 0,
             limits: {},
           },
         },
@@ -198,7 +206,9 @@ export function PlatformFinancePage() {
                 kind: "ANY",
                 acquisition_source: "ANY",
                 basis: "PERCENT" as const,
-                percent_bp: Math.round(Number(agreementForm.percent) * 100),
+                percent_bp: Math.round(
+                  Number(normalizeDigits(agreementForm.percent)) * 100,
+                ),
               },
             ]
       await PlatformService.createPlatformAgreement({
@@ -212,7 +222,8 @@ export function PlatformFinancePage() {
             | "HYBRID"
             | "CUSTOM",
           effective_from: agreementForm.effective_from,
-          subscription_amount_irr: Number(agreementForm.amount) || 0,
+          subscription_amount_irr:
+            Number(normalizeDigits(agreementForm.amount)) || 0,
           terms,
         },
         headers: { "Idempotency-Key": crypto.randomUUID() },
@@ -274,7 +285,7 @@ export function PlatformFinancePage() {
       await PlatformService.recordPlatformInvoicePayment({
         path: { invoice_id: paymentTarget.id },
         body: {
-          amount_irr: Number(paymentAmount) || 0,
+          amount_irr: Number(normalizeDigits(paymentAmount)) || 0,
           method: "TRANSFER",
           received_on: today(),
         },
@@ -319,7 +330,7 @@ export function PlatformFinancePage() {
         path: { plan_id: versionPlan.id },
         body: {
           effective_from: versionForm.effective_from,
-          monthly_price_irr: Number(versionForm.price) || 0,
+          monthly_price_irr: Number(normalizeDigits(versionForm.price)) || 0,
           limits: {},
         },
         headers: { "Idempotency-Key": crypto.randomUUID() },
@@ -362,7 +373,7 @@ export function PlatformFinancePage() {
         body: {
           gym_id: costForm.gym_id || null,
           category: costForm.category,
-          amount_irr: Number(costForm.amount) || 0,
+          amount_irr: Number(normalizeDigits(costForm.amount)) || 0,
           incurred_on: costForm.incurred_on,
         },
         headers: { "Idempotency-Key": crypto.randomUUID() },
@@ -587,7 +598,7 @@ export function PlatformFinancePage() {
                           variant="text"
                           onClick={() => {
                             setVersionForm({
-                              effective_from: today(),
+                              effective_from: tomorrow(),
                               price: "0",
                             })
                             setVersionPlan(plan)
@@ -903,15 +914,16 @@ export function PlatformFinancePage() {
               })
             }
           />
-          <TextField
+          <DateField
             label={t("platform.effectiveFrom")}
             value={agreementForm.effective_from}
-            onChange={(event) =>
+            onChange={(value) =>
               setAgreementForm({
                 ...agreementForm,
-                effective_from: event.target.value,
+                effective_from: value ?? today(),
               })
             }
+            required
           />
         </div>
       </Dialog>
@@ -983,15 +995,16 @@ export function PlatformFinancePage() {
         }
       >
         <div className="stack">
-          <TextField
+          <DateField
             label={t("platform.effectiveFrom")}
             value={versionForm.effective_from}
-            onChange={(event) =>
+            onChange={(value) =>
               setVersionForm({
                 ...versionForm,
-                effective_from: event.target.value,
+                effective_from: value ?? tomorrow(),
               })
             }
+            required
           />
           <TextField
             label={t("platform.price")}
@@ -1069,12 +1082,13 @@ export function PlatformFinancePage() {
               setCostForm({ ...costForm, amount: event.target.value })
             }
           />
-          <TextField
+          <DateField
             label={t("platform.effectiveFrom")}
             value={costForm.incurred_on}
-            onChange={(event) =>
-              setCostForm({ ...costForm, incurred_on: event.target.value })
+            onChange={(value) =>
+              setCostForm({ ...costForm, incurred_on: value ?? today() })
             }
+            required
           />
           <SelectField
             label={t("platform.gym")}
