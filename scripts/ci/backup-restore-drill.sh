@@ -283,10 +283,12 @@ docker run --rm --network "$NETWORK" \
   -v "$TMP/restored-uploads/body-analysis:/uploads:ro" \
   -v "$backup_path/counts.txt:/counts.txt:ro" \
   -v "$backup_path/platform-counts.txt:/platform-counts.txt:ro" \
+  -v "$backup_path/finance-counts.txt:/finance-counts.txt:ro" \
   "$BACKEND_IMAGE" python /verify_restore.py \
   --database-url "postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/app_restore" \
   --upload-dir /uploads --expected-counts /counts.txt \
-  --expected-platform-counts /platform-counts.txt
+  --expected-platform-counts /platform-counts.txt \
+  --expected-finance-counts /finance-counts.txt
 
 restored_journals="$("${COMPOSE[@]}" exec -T db psql -U postgres -d app_restore -Atc \
   'SELECT count(*) FROM finance_journal;')"

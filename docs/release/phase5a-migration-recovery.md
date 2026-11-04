@@ -5,6 +5,11 @@
 **Scope:** Local-only migration safety, concurrency/idempotency stress and Docker recovery
 **Status:** PASS — LOCAL GO for 5A.4
 
+> **5A.6 closure note:** the exact finance-count, concurrent
+> cancellation/payment, credit/invoice and post-migration trigger
+> evidence gaps recorded below were closed in Phase 5A.6. See
+> `phase5a-defect-closure.md`. Historical reporting limitations remain open.
+
 ## 1. Migration safety
 
 Migration: `backend/app/alembic/versions/a7b8c9d0e1f2_add_reporting_date_semantics.py`

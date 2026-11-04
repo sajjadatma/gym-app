@@ -15,8 +15,44 @@ TABLES = (
     "workout_program_version",
 )
 
+FINANCE_TABLES = (
+    "finance_settings",
+    "finance_audit",
+    "finance_account",
+    "finance_period",
+    "finance_sequence",
+    "finance_journal",
+    "finance_journal_line",
+    "finance_grant",
+    "finance_operation",
+    "finance_catalog_item",
+    "finance_invoice",
+    "finance_invoice_line",
+    "finance_installment",
+    "finance_receipt",
+    "finance_receipt_allocation",
+    "finance_customer_credit",
+    "finance_credit_movement",
+    "finance_refund",
+    "finance_expense",
+    "finance_membership",
+    "finance_coach_agreement",
+    "finance_coach_agreement_term",
+    "finance_coach_earning",
+    "finance_coach_settlement",
+    "finance_coach_settlement_item",
+    "finance_coach_earning_adjustment",
+    "finance_coach_discrepancy",
+    "finance_bank_statement_line",
+)
+
 PLATFORM_TABLES = (
+    "platform_plan",
+    "platform_plan_version",
+    "platform_group",
+    "platform_group_member",
     "platform_agreement",
+    "platform_commission_term",
     "platform_receivable",
     "platform_credit",
     "platform_credit_application",
@@ -28,6 +64,9 @@ PLATFORM_TABLES = (
     "platform_payment_allocation",
     "platform_journal",
     "platform_journal_line",
+    "platform_audit",
+    "platform_cost",
+    "platform_operation",
     "platform_sequence",
 )
 
@@ -38,6 +77,7 @@ def main() -> int:
     parser.add_argument("--upload-dir", required=True)
     parser.add_argument("--expected-counts")
     parser.add_argument("--expected-platform-counts")
+    parser.add_argument("--expected-finance-counts")
     args = parser.parse_args()
 
     url = args.database_url.replace("+psycopg", "")
@@ -68,6 +108,26 @@ def main() -> int:
             failures.append(
                 f"count mismatch: expected {expected}, restored {actual}"
             )
+
+    if args.expected_finance_counts:
+        if not finance["counts"]:
+            failures.append("finance schema missing in restored database")
+        else:
+            expected_finance = [
+                int(value.strip())
+                for value in Path(args.expected_finance_counts)
+                .read_text()
+                .splitlines()
+                if value.strip()
+            ]
+            actual_finance = [
+                finance["counts"][table] for table in FINANCE_TABLES
+            ]
+            if expected_finance != actual_finance:
+                failures.append(
+                    "finance count mismatch: "
+                    f"expected {expected_finance}, restored {actual_finance}"
+                )
 
     if args.expected_platform_counts:
         if not platform["counts"]:
@@ -135,31 +195,7 @@ def _finance_checks(connection: "psycopg.Connection[object]") -> dict[str, objec
 
     counts = {
         table: connection.execute(f'SELECT count(*) FROM "{table}"').fetchone()[0]
-        for table in (
-            "finance_settings",
-            "finance_account",
-            "finance_period",
-            "finance_journal",
-            "finance_journal_line",
-            "finance_audit",
-            "finance_grant",
-            "finance_catalog_item",
-            "finance_invoice",
-            "finance_invoice_line",
-            "finance_installment",
-            "finance_receipt",
-            "finance_receipt_allocation",
-            "finance_customer_credit",
-            "finance_credit_movement",
-            "finance_refund",
-            "finance_expense",
-            "finance_coach_agreement",
-            "finance_coach_earning",
-            "finance_coach_settlement",
-            "finance_coach_settlement_item",
-            "finance_operation",
-            "finance_sequence",
-        )
+        for table in FINANCE_TABLES
     }
     unbalanced = connection.execute(
         """SELECT count(*) FROM (

@@ -149,3 +149,12 @@ for consolidated platform-group billing.**
   and consolidated invoices) requires new UI features and is deferred to 5A.6.
   Medium/Low findings and all 5A.4 evidence gaps remain open for triage before
   the final LOCAL GO/NO-GO and Phase 5B.
+
+## 9. 5A.6 addendum
+
+F-5A5-H6 was closed in Phase 5A.6 under the owner-authorized narrow
+exception. Multi-gym group membership/allocation editing, volume discounts,
+subscription accrual, consolidated group invoice issuance/inspection and the
+two-gym exact-amount Playwright acceptance are recorded in
+`docs/release/phase5a-defect-closure.md`. The conditional verdict above is
+retained as the historical 5A.5 record.

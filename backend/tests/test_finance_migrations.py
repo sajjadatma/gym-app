@@ -1029,3 +1029,65 @@ def test_reporting_date_migration_preserves_immutable_rows(
         assert after_reupgrade == before
     finally:
         engine.dispose()
+
+
+def test_platform_credit_immutability_trigger_survives_migration(
+    migrated_database: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gym_id, _user_id = _gym_at_head(migrated_database, monkeypatch)
+    config = _alembic_config()
+    credit_id = uuid.uuid4()
+    engine = create_engine(migrated_database)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO platform_credit
+                       (id, gym_id, source_type, source_key, amount_irr, reason,
+                        created_at)
+                       VALUES (:id, :gym, 'MANUAL', :source_key, 1000,
+                               'original', now())"""
+                ),
+                {
+                    "id": credit_id,
+                    "gym": gym_id,
+                    "source_key": f"immutable-{credit_id.hex}",
+                },
+            )
+
+        def assert_trigger_active() -> None:
+            with engine.connect() as connection:
+                state = connection.execute(
+                    text(
+                        "SELECT tgenabled FROM pg_trigger "
+                        "WHERE tgname = 'platform_credit_immutable'"
+                    )
+                ).scalar_one()
+            assert state in {"O", "A"}, state
+            with pytest.raises(
+                DBAPIError, match="platform posted records are immutable"
+            ):
+                with engine.begin() as connection:
+                    connection.execute(
+                        text(
+                            "UPDATE platform_credit SET reason = 'changed' "
+                            "WHERE id = :id"
+                        ),
+                        {"id": credit_id},
+                    )
+            with engine.connect() as connection:
+                reason = connection.execute(
+                    text("SELECT reason FROM platform_credit WHERE id = :id"),
+                    {"id": credit_id},
+                ).scalar_one()
+            assert reason == "original"
+
+        assert_trigger_active()
+
+        # The reporting-date migration disables and re-enables this trigger.
+        # A downgrade/upgrade cycle must leave it enabled and enforcing.
+        command.downgrade(config, "f1a2b3c4d5e6")
+        command.upgrade(config, "head")
+        assert_trigger_active()
+    finally:
+        engine.dispose()

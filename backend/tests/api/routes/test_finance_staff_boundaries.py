@@ -136,3 +136,39 @@ def test_finance_staff_has_no_operational_or_administrative_access(
     )
     still_there = client.get(f"/api/v1/athletes/{athlete_id}", headers=owner)
     assert still_there.status_code == 200
+
+
+def test_finance_customers_are_gym_scoped_and_minimal(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    gym_a, _owner_a = make_owner(
+        client, superuser_headers, name="Customer Gym A"
+    )
+    coach_a = add_staff(client, _owner_a, str(gym_a["id"]), roles=["COACH"])
+    coach_id = client.get("/api/v1/users/me", headers=coach_a).json()["id"]
+    athlete_email = unique_email("customer-a")
+    create_athlete(
+        client,
+        coach_a,
+        email=athlete_email,
+        coach_user_id=coach_id,
+    )
+    gym_b, owner_b = make_owner(client, superuser_headers, name="Customer Gym B")
+    staff_b = add_staff(client, owner_b, str(gym_b["id"]), roles=["FINANCE_STAFF"])
+
+    own = client.get("/api/v1/finance/customers", headers=staff_b)
+    assert own.status_code == 200, own.text
+    rows = own.json()["data"]
+    emails = {row["email"] for row in rows}
+    assert athlete_email not in emails
+    assert all(
+        set(row) == {"user_id", "email", "full_name", "roles"} for row in rows
+    )
+    assert all("phone" not in row and "membership_id" not in row for row in rows)
+
+    cross = client.get(
+        "/api/v1/finance/customers",
+        headers={**staff_b, "X-Gym-ID": str(gym_a["id"])},
+    )
+    assert cross.status_code == 403, cross.text
+    assert cross.json()["detail"] == "not_a_gym_member"

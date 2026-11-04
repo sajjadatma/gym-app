@@ -55,20 +55,19 @@ done
 
 "${COMPOSE[@]}" cp "$ROOT/scripts/verify_restore.py" backend:/app/backend/scripts/verify_restore.py
 "${COMPOSE[@]}" cp "$BACKUP_PATH/counts.txt" backend:/tmp/gym-counts.txt
+expected_args="--expected-counts /tmp/gym-counts.txt"
 if [ -f "$BACKUP_PATH/platform-counts.txt" ]; then
   "${COMPOSE[@]}" cp "$BACKUP_PATH/platform-counts.txt" backend:/tmp/gym-platform-counts.txt
-  "${COMPOSE[@]}" exec -T backend sh -c \
-    'python /app/backend/scripts/verify_restore.py \
-      --database-url "$DATABASE_URL" \
-      --upload-dir /app/backend/uploads/body-analysis \
-      --expected-counts /tmp/gym-counts.txt \
-      --expected-platform-counts /tmp/gym-platform-counts.txt'
-else
-  "${COMPOSE[@]}" exec -T backend sh -c \
-    'python /app/backend/scripts/verify_restore.py \
-      --database-url "$DATABASE_URL" \
-      --upload-dir /app/backend/uploads/body-analysis \
-      --expected-counts /tmp/gym-counts.txt'
+  expected_args="$expected_args --expected-platform-counts /tmp/gym-platform-counts.txt"
 fi
+if [ -f "$BACKUP_PATH/finance-counts.txt" ]; then
+  "${COMPOSE[@]}" cp "$BACKUP_PATH/finance-counts.txt" backend:/tmp/gym-finance-counts.txt
+  expected_args="$expected_args --expected-finance-counts /tmp/gym-finance-counts.txt"
+fi
+"${COMPOSE[@]}" exec -T backend sh -c \
+  'python /app/backend/scripts/verify_restore.py \
+    --database-url "$DATABASE_URL" \
+    --upload-dir /app/backend/uploads/body-analysis \
+    '"$expected_args"
 
 echo "Restore and integrity checks completed."

@@ -5,6 +5,7 @@ import { translateApiError } from "@/api"
 import {
   GymsService,
   type PlatformAgreementPublic,
+  type PlatformGroupPublic,
   type PlatformInvoicePublic,
   type PlatformPlanPublic,
   PlatformService,
@@ -44,6 +45,31 @@ function monthStart() {
   return `${today().slice(0, 7)}-01`
 }
 
+function currentMonth() {
+  return today().slice(0, 7)
+}
+
+let groupMemberKey = 0
+
+function newGroupMember(gymId = "", percent = "100") {
+  groupMemberKey += 1
+  return { key: `group-member-${groupMemberKey}`, gym_id: gymId, percent }
+}
+
+function accrualPeriodFor(effectiveFrom: string) {
+  const date = new Date(`${effectiveFrom}T00:00:00`)
+  let year = date.getFullYear()
+  let month = date.getMonth()
+  if (date.getDate() > 1) {
+    month += 1
+    if (month > 11) {
+      month = 0
+      year += 1
+    }
+  }
+  return `${year}-${String(month + 1).padStart(2, "0")}`
+}
+
 function tomorrow() {
   const now = new Date()
   now.setDate(now.getDate() + 1)
@@ -79,6 +105,9 @@ export function PlatformFinancePage() {
   )
   const [agreementOpen, setAgreementOpen] = useState(false)
   const [groupOpen, setGroupOpen] = useState(false)
+  const [groupEditing, setGroupEditing] = useState<PlatformGroupPublic | null>(
+    null,
+  )
   const [costOpen, setCostOpen] = useState(false)
   const [invoiceOpen, setInvoiceOpen] = useState(false)
   const [cancelTarget, setCancelTarget] =
@@ -100,11 +129,12 @@ export function PlatformFinancePage() {
     mode: "COMMISSION",
     amount: "0",
     percent: "10",
+    volume_discount: "0",
     effective_from: today(),
   })
   const [groupForm, setGroupForm] = useState({
     name: "",
-    gym_id: "",
+    members: [newGroupMember()],
   })
   const [costForm, setCostForm] = useState({
     category: "",
@@ -112,7 +142,20 @@ export function PlatformFinancePage() {
     gym_id: "",
     incurred_on: today(),
   })
-  const [invoiceForm, setInvoiceForm] = useState({ gym_id: "" })
+  const [invoiceForm, setInvoiceForm] = useState({
+    scope: "gym" as "gym" | "group",
+    gym_id: "",
+    group_id: "",
+    period_start: monthStart(),
+    period_end: today(),
+    due_on: today(),
+  })
+  const [accrualTarget, setAccrualTarget] =
+    useState<PlatformAgreementPublic | null>(null)
+  const [accrualForm, setAccrualForm] = useState({
+    period: currentMonth(),
+    branch_gym_id: "*",
+  })
   const [paymentAmount, setPaymentAmount] = useState("")
   const [cancelReason, setCancelReason] = useState("")
 
@@ -163,6 +206,19 @@ export function PlatformFinancePage() {
     value: gym.id,
     label: gym.name,
   }))
+  const groups = groupsQuery.data ?? []
+
+  function gymName(gymId: string | null | undefined) {
+    return gyms.find((gym) => gym.id === gymId)?.name ?? gymId ?? "—"
+  }
+
+  function groupName(groupId: string | null | undefined) {
+    return groups.find((group) => group.id === groupId)?.name ?? groupId ?? "—"
+  }
+
+  function groupMembers(groupId: string | null | undefined) {
+    return groups.find((group) => group.id === groupId)?.members ?? []
+  }
 
   function invalidate() {
     return queryClient.invalidateQueries({ queryKey: ["platform"] })
@@ -195,6 +251,13 @@ export function PlatformFinancePage() {
   }
 
   async function createAgreement() {
+    const discount = Number(
+      normalizeDigits(agreementForm.volume_discount || "0"),
+    )
+    if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
+      setError(t("platform.volumeDiscountInvalid"))
+      return
+    }
     setSaving(true)
     setError("")
     try {
@@ -224,6 +287,7 @@ export function PlatformFinancePage() {
           effective_from: agreementForm.effective_from,
           subscription_amount_irr:
             Number(normalizeDigits(agreementForm.amount)) || 0,
+          volume_discount_bp: Math.round(discount * 100),
           terms,
         },
         headers: { "Idempotency-Key": crypto.randomUUID() },
@@ -249,29 +313,6 @@ export function PlatformFinancePage() {
       show(t("platform.activated"), "success")
     } catch (err) {
       show(translateApiError(err, t), "error")
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function issueInvoice() {
-    setSaving(true)
-    setError("")
-    try {
-      await PlatformService.issuePlatformInvoice({
-        body: {
-          gym_id: invoiceForm.gym_id,
-          period_start: monthStart(),
-          period_end: today(),
-          due_on: today(),
-        },
-        headers: { "Idempotency-Key": crypto.randomUUID() },
-      })
-      await invalidate()
-      setInvoiceOpen(false)
-      show(t("platform.saved"), "success")
-    } catch (err) {
-      setError(translateApiError(err, t))
     } finally {
       setSaving(false)
     }
@@ -345,22 +386,201 @@ export function PlatformFinancePage() {
     }
   }
 
-  async function createGroup() {
-    if (!groupForm.name.trim() || !groupForm.gym_id) return
+  function openGroupCreate() {
+    setError("")
+    setGroupEditing(null)
+    setGroupForm({ name: "", members: [newGroupMember()] })
+    setGroupOpen(true)
+  }
+
+  function openGroupEdit(group: PlatformGroupPublic) {
+    setError("")
+    setGroupEditing(group)
+    setGroupForm({
+      name: group.name,
+      members: group.members.map((member) =>
+        newGroupMember(member.gym_id, String(member.allocation_bp / 100)),
+      ),
+    })
+    setGroupOpen(true)
+  }
+
+  function addGroupMember() {
+    setGroupForm({
+      ...groupForm,
+      members: [...groupForm.members, newGroupMember("", "0")],
+    })
+  }
+
+  function updateGroupMember(
+    key: string,
+    patch: Partial<{ gym_id: string; percent: string }>,
+  ) {
+    setGroupForm({
+      ...groupForm,
+      members: groupForm.members.map((member) =>
+        member.key === key ? { ...member, ...patch } : member,
+      ),
+    })
+  }
+
+  function removeGroupMember(key: string) {
+    setGroupForm({
+      ...groupForm,
+      members: groupForm.members.filter((member) => member.key !== key),
+    })
+  }
+
+  function groupPayload() {
+    const name = groupForm.name.trim()
+    if (!name) {
+      setError(t("platform.groupNameRequired"))
+      return null
+    }
+    if (groupForm.members.length === 0) {
+      setError(t("platform.membersRequired"))
+      return null
+    }
+    const seen = new Set<string>()
+    const members: Array<{ gym_id: string; allocation_bp: number }> = []
+    let total = 0
+    for (const member of groupForm.members) {
+      if (!member.gym_id || seen.has(member.gym_id)) {
+        setError(
+          member.gym_id
+            ? t("platform.duplicateGym")
+            : t("platform.membersRequired"),
+        )
+        return null
+      }
+      seen.add(member.gym_id)
+      const percent = Number(normalizeDigits(member.percent))
+      if (!Number.isFinite(percent) || percent < 0 || percent > 100) {
+        setError(t("platform.allocationInvalid"))
+        return null
+      }
+      const allocation = Math.round(percent * 100)
+      total += allocation
+      members.push({ gym_id: member.gym_id, allocation_bp: allocation })
+    }
+    if (total !== 10_000) {
+      setError(t("platform.allocationInvalid"))
+      return null
+    }
+    return { name, members }
+  }
+
+  async function saveGroup() {
+    const payload = groupPayload()
+    if (!payload) return
     setSaving(true)
+    setError("")
     try {
-      await PlatformService.createPlatformGroup({
+      if (groupEditing) {
+        await PlatformService.replacePlatformGroupMembers({
+          path: { group_id: groupEditing.id },
+          body: { members: payload.members },
+        })
+      } else {
+        await PlatformService.createPlatformGroup({
+          body: payload,
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+        })
+      }
+      await invalidate()
+      setGroupOpen(false)
+      setGroupEditing(null)
+      show(t("platform.saved"), "success")
+    } catch (err) {
+      setError(translateApiError(err, t))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function openAccrual(agreement: PlatformAgreementPublic) {
+    setError("")
+    setAccrualTarget(agreement)
+    setAccrualForm({
+      period: accrualPeriodFor(agreement.effective_from),
+      branch_gym_id: agreement.group_id ? "*" : "",
+    })
+  }
+
+  async function accruePeriod() {
+    if (!accrualTarget) return
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(accrualForm.period)) {
+      setError(t("platform.periodInvalid"))
+      return
+    }
+    const branches = accrualTarget.group_id
+      ? accrualForm.branch_gym_id === "*"
+        ? groupMembers(accrualTarget.group_id).map((member) => member.gym_id)
+        : [accrualForm.branch_gym_id]
+      : [null]
+    if (branches.length === 0) {
+      setError(t("platform.accrualNoBranches"))
+      return
+    }
+    setSaving(true)
+    setError("")
+    try {
+      for (const branch of branches) {
+        await PlatformService.accruePlatformSubscription({
+          path: { agreement_id: accrualTarget.id },
+          body: { period: accrualForm.period },
+          query: { branch_gym_id: branch ?? undefined },
+          headers: { "Idempotency-Key": crypto.randomUUID() },
+        })
+      }
+      await invalidate()
+      setAccrualTarget(null)
+      show(t("platform.accrualSaved"), "success")
+    } catch (err) {
+      setError(translateApiError(err, t))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function openInvoice() {
+    setError("")
+    setInvoiceForm({
+      scope: "gym",
+      gym_id: "",
+      group_id: "",
+      period_start: monthStart(),
+      period_end: today(),
+      due_on: today(),
+    })
+    setInvoiceOpen(true)
+  }
+
+  async function issueInvoice() {
+    const scopeId =
+      invoiceForm.scope === "gym" ? invoiceForm.gym_id : invoiceForm.group_id
+    if (!scopeId) {
+      setError(t("platform.empty"))
+      return
+    }
+    setSaving(true)
+    setError("")
+    try {
+      await PlatformService.issuePlatformInvoice({
         body: {
-          name: groupForm.name,
-          members: [{ gym_id: groupForm.gym_id, allocation_bp: 10000 }],
+          gym_id: invoiceForm.scope === "gym" ? scopeId : null,
+          group_id: invoiceForm.scope === "group" ? scopeId : null,
+          period_start: invoiceForm.period_start,
+          period_end: invoiceForm.period_end,
+          due_on: invoiceForm.due_on,
         },
         headers: { "Idempotency-Key": crypto.randomUUID() },
       })
       await invalidate()
-      setGroupOpen(false)
+      setInvoiceOpen(false)
       show(t("platform.saved"), "success")
     } catch (err) {
-      show(translateApiError(err, t), "error")
+      setError(translateApiError(err, t))
     } finally {
       setSaving(false)
     }
@@ -616,75 +836,136 @@ export function PlatformFinancePage() {
         ) : null}
 
         {tab === "agreements" ? (
-          <SectionCard
-            title={t("platform.agreements")}
-            actions={
-              <div className="row" style={{ gap: 8 }}>
-                <Button variant="text" onClick={() => setGroupOpen(true)}>
+          <div className="stack">
+            <SectionCard
+              title={t("platform.groups")}
+              actions={
+                <Button icon={<Plus size={16} />} onClick={openGroupCreate}>
                   {t("platform.newGroup")}
                 </Button>
+              }
+            >
+              {groupsQuery.isLoading ? (
+                <Spinner label={t("common.loading")} />
+              ) : groups.length === 0 ? (
+                <EmptyState
+                  icon={<Landmark size={24} />}
+                  title={t("platform.empty")}
+                />
+              ) : (
+                <div className="stack">
+                  {groups.map((group) => (
+                    <Card variant="outlined" key={group.id}>
+                      <div className="row row--between">
+                        <div>
+                          <strong>{group.name}</strong>
+                          <div className="muted">
+                            {group.members
+                              .map(
+                                (member) =>
+                                  `${gymName(member.gym_id)} · ${formatNumber(
+                                    member.allocation_bp / 100,
+                                  )}٪`,
+                              )
+                              .join(" | ")}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="text"
+                          onClick={() => openGroupEdit(group)}
+                        >
+                          {t("common.edit")}
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </SectionCard>
+            <SectionCard
+              title={t("platform.agreements")}
+              actions={
                 <Button
                   icon={<Plus size={16} />}
-                  onClick={() => setAgreementOpen(true)}
+                  onClick={() => {
+                    setError("")
+                    setAgreementOpen(true)
+                  }}
                 >
                   {t("platform.newAgreement")}
                 </Button>
-              </div>
-            }
-          >
-            {agreementsQuery.isLoading ? (
-              <Spinner label={t("common.loading")} />
-            ) : (agreementsQuery.data ?? []).length === 0 ? (
-              <EmptyState
-                icon={<Landmark size={24} />}
-                title={t("platform.empty")}
-              />
-            ) : (
-              <div className="stack">
-                {(agreementsQuery.data ?? []).map(
-                  (agreement: PlatformAgreementPublic) => (
-                    <Card variant="outlined" key={agreement.id}>
-                      <div className="row row--between">
-                        <div>
-                          <strong>
-                            {agreement.mode} · v{agreement.version}
-                          </strong>
-                          <div className="muted">
-                            {agreement.gym_id ?? agreement.group_id} ·{" "}
-                            {formatDate(agreement.effective_from)}
+              }
+            >
+              {agreementsQuery.isLoading ? (
+                <Spinner label={t("common.loading")} />
+              ) : (agreementsQuery.data ?? []).length === 0 ? (
+                <EmptyState
+                  icon={<Landmark size={24} />}
+                  title={t("platform.empty")}
+                />
+              ) : (
+                <div className="stack">
+                  {(agreementsQuery.data ?? []).map(
+                    (agreement: PlatformAgreementPublic) => (
+                      <Card variant="outlined" key={agreement.id}>
+                        <div className="row row--between">
+                          <div>
+                            <strong>
+                              {agreement.mode} · v{agreement.version}
+                            </strong>
+                            <div className="muted">
+                              {agreement.group_id
+                                ? `${groupName(agreement.group_id)} · `
+                                : `${gymName(agreement.gym_id)} · `}
+                              {formatDate(agreement.effective_from)} ·{" "}
+                              {formatNumber(agreement.subscription_amount_irr)}{" "}
+                              · {t("platform.volumeDiscountShort")}:{" "}
+                              {formatNumber(agreement.volume_discount_bp / 100)}
+                              ٪
+                            </div>
+                          </div>
+                          <div className="row" style={{ gap: 8 }}>
+                            <span className="m3-chip">{agreement.status}</span>
+                            {agreement.status === "DRAFT" ? (
+                              <Button
+                                size="sm"
+                                loading={saving}
+                                onClick={() =>
+                                  void activateAgreement(agreement.id)
+                                }
+                              >
+                                {t("platform.activate")}
+                              </Button>
+                            ) : null}
+                            {agreement.status === "EFFECTIVE" &&
+                            ["SUBSCRIPTION", "HYBRID", "CUSTOM"].includes(
+                              agreement.mode,
+                            ) ? (
+                              <Button
+                                size="sm"
+                                variant="text"
+                                onClick={() => openAccrual(agreement)}
+                              >
+                                {t("platform.accrue")}
+                              </Button>
+                            ) : null}
                           </div>
                         </div>
-                        <div className="row" style={{ gap: 8 }}>
-                          <span className="m3-chip">{agreement.status}</span>
-                          {agreement.status === "DRAFT" ? (
-                            <Button
-                              size="sm"
-                              loading={saving}
-                              onClick={() =>
-                                void activateAgreement(agreement.id)
-                              }
-                            >
-                              {t("platform.activate")}
-                            </Button>
-                          ) : null}
-                        </div>
-                      </div>
-                    </Card>
-                  ),
-                )}
-              </div>
-            )}
-          </SectionCard>
+                      </Card>
+                    ),
+                  )}
+                </div>
+              )}
+            </SectionCard>
+          </div>
         ) : null}
 
         {tab === "invoices" ? (
           <SectionCard
             title={t("platform.invoices")}
             actions={
-              <Button
-                icon={<Plus size={16} />}
-                onClick={() => setInvoiceOpen(true)}
-              >
+              <Button icon={<Plus size={16} />} onClick={openInvoice}>
                 {t("platform.newInvoice")}
               </Button>
             }
@@ -707,14 +988,35 @@ export function PlatformFinancePage() {
                             #{formatNumber(invoice.invoice_number)}
                           </strong>
                           <div className="muted">
-                            {invoice.status} · {formatNumber(invoice.total_irr)}{" "}
-                            · {formatNumber(invoice.balance_irr)}
+                            {invoice.group_id
+                              ? `${t("platform.scopeGroup")}: ${groupName(invoice.group_id)}`
+                              : `${t("platform.scopeGym")}: ${gymName(invoice.gym_id)}`}
+                            {" · "}
+                            {invoice.status} · {t("platform.period")}:{" "}
+                            {formatDate(invoice.period_start)} –{" "}
+                            {formatDate(invoice.period_end)} ·{" "}
+                            {t("platform.dueOn")}: {formatDate(invoice.due_on)}
+                          </div>
+                          <div className="muted">
+                            {t("finance.invoice.total")}:{" "}
+                            {formatNumber(invoice.total_irr)} ·{" "}
+                            {t("platform.discount")}:{" "}
+                            {formatNumber(invoice.discount_irr)} ·{" "}
+                            {t("finance.invoice.paid")}:{" "}
+                            {formatNumber(invoice.paid_irr)} ·{" "}
+                            {t("finance.invoice.balance")}:{" "}
+                            {formatNumber(invoice.balance_irr)}
                           </div>
                         </div>
                         <div className="stack" style={{ marginTop: 8 }}>
                           {invoice.lines.map((line) => (
                             <div className="muted" key={line.id}>
-                              {line.description} ·{" "}
+                              {gymName(line.gym_id)} · {line.description} ·{" "}
+                              {t("platform.gross")}:{" "}
+                              {formatNumber(line.gross_irr)} ·{" "}
+                              {t("platform.discount")}:{" "}
+                              {formatNumber(line.discount_irr)} ·{" "}
+                              {t("finance.invoice.total")}:{" "}
                               {formatNumber(line.amount_irr)} ·{" "}
                               {t("platform.paid")}:{" "}
                               {formatNumber(line.paid_irr)} ·{" "}
@@ -817,7 +1119,11 @@ export function PlatformFinancePage() {
         }
       >
         <div className="stack">
-          {error ? <div className="m3-inline-alert">{error}</div> : null}
+          {error ? (
+            <div className="m3-inline-alert" role="alert">
+              {error}
+            </div>
+          ) : null}
           <TextField
             label={t("platform.code")}
             value={planForm.code}
@@ -858,7 +1164,11 @@ export function PlatformFinancePage() {
         }
       >
         <div className="stack">
-          {error ? <div className="m3-inline-alert">{error}</div> : null}
+          {error ? (
+            <div className="m3-inline-alert" role="alert">
+              {error}
+            </div>
+          ) : null}
           <SelectField
             label={t("platform.gym")}
             value={agreementForm.gym_id}
@@ -905,6 +1215,17 @@ export function PlatformFinancePage() {
             }
           />
           <TextField
+            label={t("platform.volumeDiscount")}
+            value={agreementForm.volume_discount}
+            inputMode="decimal"
+            onChange={(event) =>
+              setAgreementForm({
+                ...agreementForm,
+                volume_discount: event.target.value,
+              })
+            }
+          />
+          <TextField
             label={t("platform.percent")}
             value={agreementForm.percent}
             onChange={(event) =>
@@ -944,13 +1265,130 @@ export function PlatformFinancePage() {
         }
       >
         <div className="stack">
-          {error ? <div className="m3-inline-alert">{error}</div> : null}
+          {error ? (
+            <div className="m3-inline-alert" role="alert">
+              {error}
+            </div>
+          ) : null}
           <SelectField
-            label={t("platform.gym")}
-            value={invoiceForm.gym_id}
-            onChange={(value) => setInvoiceForm({ gym_id: value })}
-            options={gymOptions}
+            label={t("platform.invoiceScope")}
+            value={invoiceForm.scope}
+            onChange={(value) =>
+              setInvoiceForm({
+                ...invoiceForm,
+                scope: value as "gym" | "group",
+                gym_id: "",
+                group_id: "",
+              })
+            }
+            options={[
+              { value: "gym", label: t("platform.scopeGym") },
+              { value: "group", label: t("platform.scopeGroup") },
+            ]}
           />
+          {invoiceForm.scope === "gym" ? (
+            <SelectField
+              label={t("platform.invoiceGym")}
+              value={invoiceForm.gym_id}
+              onChange={(value) =>
+                setInvoiceForm({ ...invoiceForm, gym_id: value })
+              }
+              options={gymOptions}
+            />
+          ) : (
+            <SelectField
+              label={t("platform.invoiceGroup")}
+              value={invoiceForm.group_id}
+              onChange={(value) =>
+                setInvoiceForm({ ...invoiceForm, group_id: value })
+              }
+              options={[
+                { value: "", label: "—" },
+                ...groups.map((group) => ({
+                  value: group.id,
+                  label: group.name,
+                })),
+              ]}
+            />
+          )}
+          <DateField
+            label={t("platform.periodStart")}
+            value={invoiceForm.period_start}
+            onChange={(value) =>
+              setInvoiceForm({
+                ...invoiceForm,
+                period_start: value ?? monthStart(),
+              })
+            }
+            required
+          />
+          <DateField
+            label={t("platform.periodEnd")}
+            value={invoiceForm.period_end}
+            onChange={(value) =>
+              setInvoiceForm({
+                ...invoiceForm,
+                period_end: value ?? today(),
+              })
+            }
+            required
+          />
+          <DateField
+            label={t("platform.dueOn")}
+            value={invoiceForm.due_on}
+            onChange={(value) =>
+              setInvoiceForm({ ...invoiceForm, due_on: value ?? today() })
+            }
+            required
+          />
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={accrualTarget !== null}
+        title={t("platform.accrue")}
+        description={t("platform.accrualHint")}
+        onClose={() => setAccrualTarget(null)}
+        footer={
+          <>
+            <Button variant="text" onClick={() => setAccrualTarget(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button loading={saving} onClick={() => void accruePeriod()}>
+              {t("common.confirm")}
+            </Button>
+          </>
+        }
+      >
+        <div className="stack">
+          {error ? (
+            <div className="m3-inline-alert" role="alert">
+              {error}
+            </div>
+          ) : null}
+          <TextField
+            label={t("platform.accrualPeriod")}
+            value={accrualForm.period}
+            onChange={(event) =>
+              setAccrualForm({ ...accrualForm, period: event.target.value })
+            }
+          />
+          {accrualTarget?.group_id ? (
+            <SelectField
+              label={t("platform.accrualBranch")}
+              value={accrualForm.branch_gym_id}
+              onChange={(value) =>
+                setAccrualForm({ ...accrualForm, branch_gym_id: value })
+              }
+              options={[
+                { value: "*", label: t("platform.allBranches") },
+                ...groupMembers(accrualTarget.group_id).map((member) => ({
+                  value: member.gym_id,
+                  label: gymName(member.gym_id),
+                })),
+              ]}
+            />
+          ) : null}
         </div>
       </Dialog>
 
@@ -970,7 +1408,11 @@ export function PlatformFinancePage() {
         }
       >
         <div className="stack">
-          {error ? <div className="m3-inline-alert">{error}</div> : null}
+          {error ? (
+            <div className="m3-inline-alert" role="alert">
+              {error}
+            </div>
+          ) : null}
           <TextField
             label={t("platform.amount")}
             value={paymentAmount}
@@ -1018,37 +1460,87 @@ export function PlatformFinancePage() {
 
       <Dialog
         open={groupOpen}
-        title={t("platform.newGroup")}
-        onClose={() => setGroupOpen(false)}
+        title={groupEditing ? t("platform.editGroup") : t("platform.newGroup")}
+        onClose={() => {
+          setGroupOpen(false)
+          setGroupEditing(null)
+        }}
         footer={
           <>
-            <Button variant="text" onClick={() => setGroupOpen(false)}>
+            <Button
+              variant="text"
+              onClick={() => {
+                setGroupOpen(false)
+                setGroupEditing(null)
+              }}
+            >
               {t("common.cancel")}
             </Button>
-            <Button
-              loading={saving}
-              disabled={!groupForm.name.trim() || !groupForm.gym_id}
-              onClick={() => void createGroup()}
-            >
+            <Button loading={saving} onClick={() => void saveGroup()}>
               {t("common.save")}
             </Button>
           </>
         }
       >
         <div className="stack">
+          {error ? (
+            <div className="m3-inline-alert" role="alert">
+              {error}
+            </div>
+          ) : null}
           <TextField
             label={t("platform.name")}
             value={groupForm.name}
+            disabled={groupEditing !== null}
             onChange={(event) =>
               setGroupForm({ ...groupForm, name: event.target.value })
             }
           />
-          <SelectField
-            label={t("platform.gym")}
-            value={groupForm.gym_id}
-            onChange={(value) => setGroupForm({ ...groupForm, gym_id: value })}
-            options={gymOptions}
-          />
+          <strong>{t("platform.groupMembers")}</strong>
+          {groupForm.members.map((member, index) => (
+            <div
+              className="row"
+              style={{ gap: 8, alignItems: "flex-end" }}
+              key={member.key}
+            >
+              <SelectField
+                containerClassName="grow"
+                label={`${t("platform.gym")} ${formatNumber(index + 1)}`}
+                value={member.gym_id}
+                onChange={(value) =>
+                  updateGroupMember(member.key, { gym_id: value })
+                }
+                options={gymOptions}
+              />
+              <TextField
+                label={t("platform.allocationLabel", {
+                  index: formatNumber(index + 1),
+                })}
+                value={member.percent}
+                inputMode="decimal"
+                onChange={(event) =>
+                  updateGroupMember(member.key, {
+                    percent: event.target.value,
+                  })
+                }
+              />
+              {groupForm.members.length > 1 ? (
+                <Button
+                  variant="text"
+                  onClick={() => removeGroupMember(member.key)}
+                >
+                  {t("common.delete")}
+                </Button>
+              ) : null}
+            </div>
+          ))}
+          <Button
+            variant="text"
+            icon={<Plus size={16} />}
+            onClick={addGroupMember}
+          >
+            {t("platform.addGroupMember")}
+          </Button>
         </div>
       </Dialog>
 

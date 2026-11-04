@@ -188,6 +188,7 @@ test.describe("role UI acceptance", () => {
     const agreementDate = page
       .getByRole("dialog")
       .filter({ has: page.getByRole("grid") })
+    await agreementDate.getByRole("button", { name: "قبلی" }).click()
     await agreementDate
       .getByRole("gridcell")
       .filter({ hasText: /^۱$/ })
@@ -199,7 +200,7 @@ test.describe("role UI acceptance", () => {
     const agreementCard = page
       .locator(".m3-card--outlined")
       .filter({ hasText: "SUBSCRIPTION · v1" })
-      .filter({ hasText: gym.id })
+      .filter({ hasText: gym.name })
       .last()
     await expect(agreementCard).toBeVisible()
     await expect(agreementCard).toContainText("DRAFT")
@@ -250,7 +251,7 @@ test.describe("role UI acceptance", () => {
     await page.getByRole("tab", { name: "صورتحساب‌ها" }).click()
     await page.getByRole("button", { name: "صورتحساب جدید" }).click()
     const invoiceDialog = page.getByRole("dialog")
-    await choose(page, invoiceDialog, "باشگاه", gym.name)
+    await choose(page, invoiceDialog, "باشگاه صورتحساب", gym.name)
     await submitDialog(invoiceDialog)
     await expect(page.getByText("ذخیره شد.").first()).toBeVisible()
 
@@ -331,7 +332,7 @@ test.describe("role UI acceptance", () => {
     await page.getByRole("tab", { name: "صورتحساب‌ها" }).click()
     await page.getByRole("button", { name: "صورتحساب جدید" }).click()
     const secondInvoiceDialog = page.getByRole("dialog")
-    await choose(page, secondInvoiceDialog, "باشگاه", cancelGym.name)
+    await choose(page, secondInvoiceDialog, "باشگاه صورتحساب", cancelGym.name)
     await submitDialog(secondInvoiceDialog)
     await expect(page.getByText("ذخیره شد.").first()).toBeVisible()
 

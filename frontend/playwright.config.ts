@@ -31,12 +31,13 @@ export default defineConfig({
         /coach-finance\.spec\.ts/,
         /superuser-context\.spec\.ts/,
         /role-ui-acceptance\.spec\.ts/,
+        /platform-group-billing\.spec\.ts/,
       ],
     },
     {
       name: "ui-acceptance",
       use: { ...devices["Desktop Chrome"] },
-      testMatch: /role-ui-acceptance\.spec\.ts/,
+      testMatch: /(role-ui-acceptance|platform-group-billing)\.spec\.ts/,
     },
     {
       name: "superuser",
