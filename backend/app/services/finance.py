@@ -3660,6 +3660,59 @@ def _expire_stale_memberships(
         session.add(row)
 
 
+def _membership_end_date_as_of(
+    session: Session, membership: FinanceMembership, as_of: date
+) -> date:
+    """Reverse later freeze extensions from the immutable resume audit rows."""
+    events = session.exec(
+        select(FinanceAudit).where(
+            FinanceAudit.gym_id == membership.gym_id,
+            FinanceAudit.target_type == "finance_membership",
+            FinanceAudit.target_id == membership.id,
+            FinanceAudit.action == "finance.membership.resumed",
+        )
+    ).all()
+    future_paused = 0
+    audited_paused = 0
+    for event in events:
+        detail = event.detail or {}
+        resume_on = detail.get("resume_on")
+        paused_days = detail.get("paused_days")
+        if resume_on is None or paused_days is None:
+            continue
+        audited_paused += int(paused_days)
+        if date.fromisoformat(str(resume_on)) > as_of:
+            future_paused += int(paused_days)
+    if membership.frozen_days > audited_paused:
+        # Do not guess a historical end date from today's mutable row.
+        raise HTTPException(
+            status_code=409, detail="membership_history_incomplete"
+        )
+    return membership.end_date - timedelta(days=future_paused)
+
+
+def _renewals_due_as_of(
+    session: Session, *, gym_id: uuid.UUID, as_of: date
+) -> int:
+    rows = session.exec(
+        select(FinanceMembership).where(FinanceMembership.gym_id == gym_id)
+    ).all()
+    count = 0
+    for row in rows:
+        if row.start_date > as_of:
+            continue
+        if row.cancelled_at is not None and row.cancelled_at <= as_of:
+            continue
+        if row.status == "CANCELLED" and row.cancelled_at is None:
+            # A cancelled row without its cancellation date cannot be
+            # reconstructed; fail closed rather than use today's status.
+            continue
+        end_date = _membership_end_date_as_of(session, row, as_of)
+        if as_of <= end_date <= as_of + timedelta(days=30):
+            count += 1
+    return count
+
+
 def list_memberships(
     session: Session, *, gym_id: uuid.UUID, athlete_user_id: uuid.UUID | None
 ) -> FinanceMembershipsPublic:
@@ -4166,6 +4219,110 @@ def _earning_settled_irr(session: Session, earning_id: uuid.UUID) -> int:
 
 def _earning_reserved_irr(session: Session, earning_id: uuid.UUID) -> int:
     return _earning_settlement_irr(session, earning_id, "RECORDED")
+
+
+def _earning_business_date(
+    session: Session, earning: FinanceCoachEarning
+) -> date:
+    """Return the authoritative business date that recognized this earning."""
+    if earning.receipt_id is not None:
+        receipt = session.get(FinanceReceipt, earning.receipt_id)
+        if receipt is not None:
+            return receipt.received_on
+    if earning.credit_movement_id is not None:
+        movement = session.get(FinanceCreditMovement, earning.credit_movement_id)
+        if movement is not None:
+            if movement.applied_on is not None:
+                return movement.applied_on
+            return gym_local_date(session, earning.gym_id, movement.created_at)
+    if earning.journal_id is not None:
+        journal = session.get(FinanceJournal, earning.journal_id)
+        if journal is not None:
+            return journal.posting_date
+    return gym_local_date(session, earning.gym_id, earning.created_at)
+
+
+def _settlement_cancellation_date(
+    session: Session, settlement: FinanceCoachSettlement
+) -> date | None:
+    if settlement.status != "CANCELLED":
+        return None
+    if settlement.cancel_journal_id is not None:
+        journal = session.get(FinanceJournal, settlement.cancel_journal_id)
+        if journal is not None:
+            return journal.posting_date
+    if settlement.cancelled_at is not None:
+        return gym_local_date(
+            session, settlement.gym_id, settlement.cancelled_at
+        )
+    return None
+
+
+def _earning_paid_as_of(
+    session: Session, earning_id: uuid.UUID, as_of: date
+) -> int:
+    """Settled plus reserved amounts that existed on ``as_of``."""
+    rows = session.exec(
+        select(FinanceCoachSettlementItem, FinanceCoachSettlement)
+        .join(
+            FinanceCoachSettlement,
+            col(FinanceCoachSettlementItem.settlement_id)
+            == col(FinanceCoachSettlement.id),
+        )
+        .where(FinanceCoachSettlementItem.earning_id == earning_id)
+    ).all()
+    total = 0
+    for item, settlement in rows:
+        if settlement.paid_on > as_of:
+            continue
+        cancelled_on = _settlement_cancellation_date(session, settlement)
+        if cancelled_on is not None and cancelled_on <= as_of:
+            continue
+        total += item.amount_irr
+    return total
+
+
+def _earning_adjustment_as_of(
+    session: Session, earning_id: uuid.UUID, as_of: date
+) -> int:
+    rows = session.exec(
+        select(FinanceCoachEarningAdjustment).where(
+            FinanceCoachEarningAdjustment.earning_id == earning_id
+        )
+    ).all()
+    total = 0
+    for row in rows:
+        if row.journal_id is not None:
+            journal = session.get(FinanceJournal, row.journal_id)
+            adjustment_date = (
+                journal.posting_date
+                if journal is not None
+                else gym_local_date(session, row.gym_id, row.created_at)
+            )
+        else:
+            adjustment_date = gym_local_date(session, row.gym_id, row.created_at)
+        if adjustment_date <= as_of:
+            total += row.applied_irr
+    return total
+
+
+def _coach_payable_as_of(
+    session: Session, gym_id: uuid.UUID, as_of: date
+) -> int:
+    rows = session.exec(
+        select(FinanceCoachEarning).where(FinanceCoachEarning.gym_id == gym_id)
+    ).all()
+    total = 0
+    for row in rows:
+        if _earning_business_date(session, row) > as_of:
+            continue
+        total += max(
+            row.coach_share_irr
+            - _earning_paid_as_of(session, row.id, as_of)
+            - _earning_adjustment_as_of(session, row.id, as_of),
+            0,
+        )
+    return total
 
 
 def _earning_public(
@@ -5608,26 +5765,11 @@ def gym_summary(
         due_on, _ = effective_due(session, invoice, paid_irr=paid)
         if due_on is not None and due_on < to_date:
             overdue += balance
-    renewals = session.exec(
-        select(FinanceMembership).where(
-            FinanceMembership.gym_id == gym_id,
-            col(FinanceMembership.status).in_(("ACTIVE", "FROZEN")),
-            FinanceMembership.end_date >= to_date,
-            FinanceMembership.end_date <= to_date + timedelta(days=30),
-        )
-    ).all()
-    earnings = session.exec(
-        select(FinanceCoachEarning).where(FinanceCoachEarning.gym_id == gym_id)
-    ).all()
-    coach_payable = sum(
-        max(
-            row.coach_share_irr
-            - _earning_settled_irr(session, row.id)
-            - _earning_reserved_irr(session, row.id)
-            - _earning_adjustment_irr(session, row.id),
-            0,
-        )
-        for row in earnings
+    renewals_due = _renewals_due_as_of(
+        session, gym_id=gym_id, as_of=to_date
+    )
+    coach_payable = _coach_payable_as_of(
+        session, gym_id=gym_id, as_of=to_date
     )
     from app.services.platform import platform_standing
 
@@ -5653,7 +5795,7 @@ def gym_summary(
         sales_irr=sales,
         receivable_irr=receivable,
         overdue_irr=overdue,
-        renewals_due=len(renewals),
+        renewals_due=renewals_due,
         coach_payable_irr=coach_payable,
         platform_payable_irr=platform_payable,
     )
