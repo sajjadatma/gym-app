@@ -94,3 +94,15 @@ See `docs/finance/date-semantics.md` §6. Summary:
 - `unbilled_overdue_irr` is intentionally `0` under the owner-facing policy; unbilled aging is not implemented.
 
 Posted journal facts are not rewritten. The read model no longer rewrites historical recognized revenue for discount cancellations.
+
+## 6. 5A.7 final assessment
+
+The Phase 5A.7 review confirmed the tested reconciliation boundary cases and
+zero-delta result, but found that the approved 5A.0 requirement for **100% of
+financial report endpoints covered by date-semantics conformance tests** is not
+met. The unresolved items include current-state `renewals_due` and
+`coach_payable_irr` in the gym summary, current-state CSV balance rows, missing
+historical evidence for the platform per-gym report/export, and legacy backfill
+differences. These are recorded as LOCAL NO-GO blockers in
+`docs/release/phase5a-local-go-no-go.md`; they are not reclassified as accepted
+Phase 5B items.

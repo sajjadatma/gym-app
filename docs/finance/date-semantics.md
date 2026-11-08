@@ -3,7 +3,7 @@
 **Date:** 2026-11-04
 **Branch:** `feat/ascora-finance`
 **Scope:** Local-first financial reporting and read models
-**Status:** Approved local decision record for 5A.3; implemented and tested
+**Status:** Approved local decision record for 5A.3; implemented and tested. **5A.7 found that the 5A.0 100% endpoint-conformance baseline is not met; see §7.**
 
 ## 1. Approval record
 
@@ -99,13 +99,13 @@ No external signature, auditor, legal opinion or production approval is claimed.
 
 | Endpoint | Range / as-of | Date basis | Amount basis | Status |
 |---|---|---|---|---|
-| `/finance/reports/summary` | inclusive `from_date..to_date`; balances as of `to_date` | journal posting date for cash/revenue/expense; invoice issue date for sales; effective due date for overdue | journal net; invoice total; as-of paid; platform total exposure | Canonical |
-| `/finance/reports/export` | inclusive; all row families filtered | journal/business dates as listed in §3.7 | same as summary + row amounts | Canonical (no `date_basis` column) |
-| `/finance/reports/offboarding-export` | all history; balances as of export time | same as export | same | Canonical |
+| `/finance/reports/summary` | inclusive `from_date..to_date`; balances as of `to_date` | journal posting date for cash/revenue/expense; invoice issue date for sales; effective due date for overdue | journal net; invoice total; as-of paid; platform total exposure | **Partially verified** — `renewals_due` and `coach_payable_irr` are current-state, not as-of `to_date`; see 5A.7 blocker |
+| `/finance/reports/export` | inclusive; all row families filtered | journal/business dates as listed in §3.7 | same as summary + row amounts | **Partially verified** — balance rows use current paid/status; no `date_basis`; not every row family has a range test |
+| `/finance/reports/offboarding-export` | all history; balances as of export time | same as export | same | **Current-only** — no as-of historical semantics; only tenant/header test evidence |
 | `/finance/reminders` | `gym_today` + horizon | first unpaid installment due date / invoice due date | remaining installment amount | Canonical |
 | `/finance/invoices`, `/invoices/{id}` | current | effective due date; `gym_today` | current paid/balance | Canonical |
 | `/finance/platform/invoices` | current | invoice `issued_on` / `due_on` | current paid/balance | Current-only read |
-| `/finance/platform/dues` | optional `as_of` | billed invoice `due_on`; unbilled `recognized_on` | billed net, unbilled net, total exposure | Canonical |
+| `/finance/platform/dues` | current (no `as_of` parameter) | billed invoice `due_on`; unbilled `recognized_on` | billed net, unbilled net, total exposure | **Current-only verified** — documentation corrected in 5A.7 |
 | `/finance/platform/payments` | current | `received_on` | gym-scoped allocation | Safe |
 | `/finance/my/account` | current | current document dates | current balances/advance | Current-only |
 | `/finance/my/earnings`, `/my/settlements`, `/my/coach-summary` | current | `created_at`, `vesting_date`, `paid_on` | current shares/settlements | Current-only |
@@ -120,8 +120,8 @@ No external signature, auditor, legal opinion or production approval is claimed.
 |---|---|---|---|---|
 | `/platform/reports/overview` | inclusive; balances/MRR as of `to_date` | headline journal `posting_date`; by-gym `recognized_on`; costs `incurred_on`; invoiced `issued_on` + cancellation `cancelled_on` | journal net; per-gym recognized; total exposure; gross minus cancellation | Canonical |
 | `/platform/reports/export` | same | same | same | Canonical |
-| `/platform/reports/gyms/{gym_id}` | inclusive; as of `to_date` | same by-gym basis | same | Canonical |
-| `/platform/gyms/{gym_id}/export` | same | same | same | Canonical |
+| `/platform/reports/gyms/{gym_id}` | inclusive; as of `to_date` | same by-gym basis | same | **Partially verified** — current-period Playwright evidence only; no historical boundary test |
+| `/platform/gyms/{gym_id}/export` | same | same | same | **Unverified** — no date-semantics test evidence |
 | `/platform/dues`, `/dues/{gym_id}` | optional `as_of` | billed `due_on`; unbilled `recognized_on` | billed/unbilled split; as-of payments/credit | Canonical |
 | `/platform/reminders` | optional `as_of` | invoice `issued_on`/`due_on` | as-of invoice balance | Canonical |
 | `/platform/receivables` | current | `recognized_on`/`due_on` | current amount/paid | Current-only |
@@ -166,3 +166,22 @@ No external signature, auditor, legal opinion or production approval is claimed.
 11. **Closed-period guard scope:** the gym guard rejects backdated postings after any closed period; platform has no equivalent period lock.
 
 These limitations do not change posted journal facts and are recorded for Phase 5B.
+
+## 7. 5A.7 assessment
+
+The Phase 5A.7 final assessment re-audited this matrix against the approved
+5A.0 baseline. The baseline requires **100% of financial report endpoints
+covered by date-semantics conformance tests**. That criterion is **not met**:
+
+- `GET /finance/reports/summary` mixes as-of range fields with current-state
+  `renewals_due` and `coach_payable_irr`.
+- `GET /finance/reports/export` and `GET /finance/reports/offboarding-export`
+  include current-state `BALANCE` rows and have no `date_basis` column.
+- `GET /platform/reports/gyms/{gym_id}` has only current-period test evidence.
+- `GET /platform/gyms/{gym_id}/export` has no date-semantics test evidence.
+- Legacy reporting-date backfills can still differ from the original ledger
+  business date.
+
+These are recorded as **LOCAL NO-GO blockers** in
+`docs/release/phase5a-local-go-no-go.md`. They are not silently reclassified
+as accepted Phase 5B items.
