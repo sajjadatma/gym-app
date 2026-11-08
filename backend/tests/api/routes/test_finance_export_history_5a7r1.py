@@ -232,6 +232,16 @@ def test_platform_balance_rows_use_as_of_payments_credits_and_cancellation(
     assert before_receivable[6] == "recognized_on;as_of_to_date"
     assert int(before_line[4]) == 500_000
     assert before_line[6] == "issued_on;as_of_to_date"
+    before_standing = client.get(
+        f"/api/v1/platform/dues/{gym_id}",
+        headers=superuser_headers,
+        params={"as_of": "2026-11-19"},
+    )
+    assert before_standing.status_code == 200, before_standing.text
+    assert (
+        before_standing.json()["total_exposure_irr"]
+        == int(before_receivable[4])
+    )
     assert not [
         row for row in before[1:] if row[1] == "platform_payment_allocation"
     ]
@@ -251,6 +261,16 @@ def test_platform_balance_rows_use_as_of_payments_credits_and_cancellation(
     assert int(after_receivable[4]) == 300_000
     assert int(after_line[4]) == 300_000
     assert int(allocation[4]) == 200_000
+    after_standing = client.get(
+        f"/api/v1/platform/dues/{gym_id}",
+        headers=superuser_headers,
+        params={"as_of": "2026-11-30"},
+    )
+    assert after_standing.status_code == 200, after_standing.text
+    assert (
+        after_standing.json()["total_exposure_irr"]
+        == int(after_receivable[4])
+    )
 
     # A later cancellation must not rewrite the earlier exported period.
     cancel_gym, cancel_owner = make_owner(

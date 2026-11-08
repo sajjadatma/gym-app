@@ -1103,9 +1103,16 @@ def test_reporting_date_repair_uses_authoritative_source_events(
 
     subscription_id = uuid.uuid4()
     commission_id = uuid.uuid4()
+    advance_commission_id = uuid.uuid4()
     manual_id = uuid.uuid4()
+    ascora_receivable_id = uuid.uuid4()
+    ambiguous_invoice_id = uuid.uuid4()
+    ambiguous_journal_one_id = uuid.uuid4()
+    ambiguous_journal_two_id = uuid.uuid4()
+    ambiguous_movement_id = uuid.uuid4()
     receipt_id = uuid.uuid4()
     line_id = uuid.uuid4()
+    earning_id = uuid.uuid4()
     invoice_id = uuid.uuid4()
     period_id = uuid.uuid4()
     account_id = uuid.uuid4()
@@ -1314,12 +1321,146 @@ def test_reporting_date_repair_uses_authoritative_source_events(
                        (id, gym_id, agreement_id, source_type, source_id,
                         source_key, amount_irr, paid_irr, recognized_on,
                         due_on, status, snapshot, created_at)
+                       VALUES (:id, :gym_id, NULL, 'COMMISSION', :line_id,
+                               :source_key, 100, 0, NULL, '2026-11-30',
+                               'OPEN', '{}', '2026-11-10T00:00:00Z')"""
+                ),
+                {
+                    "id": advance_commission_id,
+                    "gym_id": gym_id,
+                    "line_id": line_id,
+                    "source_key": f"advance:{movement_id}:{line_id}",
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_receivable
+                       (id, gym_id, agreement_id, source_type, source_id,
+                        source_key, amount_irr, paid_irr, recognized_on,
+                        due_on, status, snapshot, created_at)
                        VALUES (:id, :gym_id, NULL, 'MANUAL', NULL,
                                'legacy-manual', 100, 0, '2026-11-10',
                                '2026-11-30', 'OPEN', '{}',
                                '2026-11-10T00:00:00Z')"""
                 ),
                 {"id": manual_id, "gym_id": gym_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_invoice_line
+                       (id, invoice_id, line_number, kind, description, quantity,
+                        unit_price_irr, line_discount_irr, net_irr,
+                        discount_share_irr, payable_irr, coach_user_id,
+                        coach_allocation_status)
+                       VALUES (:id, :invoice_id, 1, 'PROGRAM', 'legacy line', 1,
+                               100, 0, 100, 0, 100, :user_id, 'SNAPSHOTTED')"""
+                ),
+                {"id": line_id, "invoice_id": invoice_id, "user_id": user_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_coach_earning
+                       (id, gym_id, coach_user_id, invoice_id, invoice_line_id,
+                        receipt_id, source_key, discount_funding, base_irr,
+                        discount_irr, coach_share_irr, platform_share_irr,
+                        gym_share_irr, status, vesting_mode, created_at)
+                       VALUES (:id, :gym_id, :user_id, :invoice_id, :line_id,
+                               :receipt_id, :source_key, 'GYM', 100, 0, 30, 0,
+                               70, 'CALCULATED', 'MANUAL',
+                               '2026-11-10T00:00:00Z')"""
+                ),
+                {
+                    "id": earning_id,
+                    "gym_id": gym_id,
+                    "user_id": user_id,
+                    "invoice_id": invoice_id,
+                    "line_id": line_id,
+                    "receipt_id": receipt_id,
+                    "source_key": f"legacy-earning:{earning_id}",
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_receivable
+                       (id, gym_id, agreement_id, source_type, source_id,
+                        source_key, amount_irr, paid_irr, recognized_on,
+                        due_on, status, snapshot, created_at)
+                       VALUES (:id, :gym_id, NULL, 'COACH_ASCORA_SHARE',
+                               :earning_id, :source_key, 30, 0, NULL,
+                               '2026-12-10', 'OPEN', '{}',
+                               '2026-11-10T00:00:00Z')"""
+                ),
+                {
+                    "id": ascora_receivable_id,
+                    "gym_id": gym_id,
+                    "earning_id": earning_id,
+                    "source_key": f"ascora:{invoice_id}:{line_id}:{earning_id}",
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_invoice
+                       (id, gym_id, customer_user_id, status, acquisition_source,
+                        discount_funding, invoice_number, issue_date, due_date,
+                        description, subtotal_irr, discount_irr, total_irr,
+                        created_at)
+                       VALUES (:id, :gym_id, :user_id, 'ISSUED', 'GYM', 'GYM',
+                               2, '2026-11-01', '2026-11-30', 'ambiguous invoice',
+                               50, 0, 50, '2026-11-01T00:00:00Z')"""
+                ),
+                {"id": ambiguous_invoice_id, "gym_id": gym_id, "user_id": user_id},
+            )
+            for journal_id, entry_number in (
+                (ambiguous_journal_one_id, 3),
+                (ambiguous_journal_two_id, 4),
+            ):
+                connection.execute(
+                    text(
+                        """INSERT INTO finance_journal
+                           (id, gym_id, period_id, entry_number, posting_date,
+                            event_type, description, source_type, source_id,
+                            created_at)
+                           VALUES (:id, :gym_id, :period_id, :entry_number,
+                                   '2026-11-05', 'ADVANCE_APPLIED',
+                                   'ambiguous advance', 'finance_invoice',
+                                   :invoice_id, '2026-11-10T00:00:00Z')"""
+                    ),
+                    {
+                        "id": journal_id,
+                        "gym_id": gym_id,
+                        "period_id": period_id,
+                        "entry_number": entry_number,
+                        "invoice_id": ambiguous_invoice_id,
+                    },
+                )
+                connection.execute(
+                    text(
+                        """INSERT INTO finance_journal_line
+                           (id, journal_id, account_id, debit_irr, credit_irr, memo)
+                           VALUES (gen_random_uuid(), :journal_id, :debit_account,
+                                   50, 0, 'ambiguous advance'),
+                                  (gen_random_uuid(), :journal_id, :credit_account,
+                                   0, 50, 'ambiguous advance')"""
+                    ),
+                    {
+                        "journal_id": journal_id,
+                        "debit_account": account_id,
+                        "credit_account": credit_account_id,
+                    },
+                )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_credit_movement
+                       (id, credit_id, kind, amount_irr, receipt_id, invoice_id,
+                        created_by_id, created_at)
+                       VALUES (:id, :credit_id, 'APPLIED', 50, NULL,
+                               :invoice_id, NULL, '2026-11-10T00:00:00Z')"""
+                ),
+                {
+                    "id": ambiguous_movement_id,
+                    "credit_id": customer_credit_id,
+                    "invoice_id": ambiguous_invoice_id,
+                },
             )
             connection.execute(
                 text(
@@ -1405,12 +1546,33 @@ def test_reporting_date_repair_uses_authoritative_source_events(
                     ),
                     {"id": commission_id},
                 ).scalar_one(),
+                "advance_commission": connection.execute(
+                    text(
+                        "SELECT recognized_on FROM platform_receivable "
+                        "WHERE id = :id"
+                    ),
+                    {"id": advance_commission_id},
+                ).scalar_one(),
                 "manual": connection.execute(
                     text(
                         "SELECT recognized_on FROM platform_receivable "
                         "WHERE id = :id"
                     ),
                     {"id": manual_id},
+                ).scalar_one(),
+                "ascora": connection.execute(
+                    text(
+                        "SELECT recognized_on FROM platform_receivable "
+                        "WHERE id = :id"
+                    ),
+                    {"id": ascora_receivable_id},
+                ).scalar_one(),
+                "ambiguous_movement": connection.execute(
+                    text(
+                        "SELECT applied_on FROM finance_credit_movement "
+                        "WHERE id = :id"
+                    ),
+                    {"id": ambiguous_movement_id},
                 ).scalar_one(),
                 "refund_credit": connection.execute(
                     text(
@@ -1453,7 +1615,10 @@ def test_reporting_date_repair_uses_authoritative_source_events(
 
     assert str(values["subscription"]) == "2026-11-01"
     assert str(values["commission"]) == "2026-11-03"
+    assert str(values["advance_commission"]) == "2026-11-04"
     assert str(values["manual"]) == "2026-11-10"
+    assert str(values["ascora"]) == "2026-11-03"
+    assert values["ambiguous_movement"] is None
     assert str(values["refund_credit"]) == "2026-11-07"
     assert str(values["cancel_credit"]) == "2026-11-06"
     assert str(values["movement"]) == "2026-11-04"

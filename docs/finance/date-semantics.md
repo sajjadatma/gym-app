@@ -114,7 +114,7 @@ No external signature, auditor, legal opinion or production approval is claimed.
 | `/finance/my/earnings`, `/my/settlements`, `/my/coach-summary` | current | `created_at`, `vesting_date`, `paid_on` | current shares/settlements | Current-only |
 | `/finance/journal` | no range filter | journal `posting_date` | debit/credit | Safe |
 | `/finance/periods` | current | `opened_at`, `period_start`, `period_end`, `closed_at` | lifecycle | Canonical |
-| `/finance/receipts`, `/receipts/{id}`, `/expenses`, `/expenses/{id}`, `/refunds`, `/credits`, `/memberships`, `/coach-*`, `/reconciliation` | current | document business dates | current amounts/status | Current-only |
+| `/finance/receipts`, `/receipts/{id}`, `/expenses`, `/expenses/{id}`, `/refunds`, `/credits`, `/memberships`, `/memberships/{id}`, `/memberships/{id}/refund-preview`, `/coach-*`, `/reconciliation` | current | document business dates | current amounts/status | Current-only |
 | `/finance/customers` | current | identity/roles directory | no financial balance | Non-reporting; excluded |
 | `/finance/accounts`, `/settings`, `/grants`, `/catalog` | — | — | configuration | Safe |
 
@@ -124,8 +124,8 @@ No external signature, auditor, legal opinion or production approval is claimed.
 |---|---|---|---|---|
 | `/platform/reports/overview` | inclusive; balances/MRR as of `to_date` | headline journal `posting_date`; by-gym `recognized_on`; costs `incurred_on`; invoiced `issued_on` + cancellation `cancelled_on` | journal net; per-gym recognized; total exposure; gross minus cancellation | **Fully verified** — `test_closed_synthetic_month_reconciles_with_zero_delta`, `test_platform_cancellation_does_not_rewrite_original_period`, `test_platform_discount_cancellation_is_period_stable`, `test_platform_overview_does_not_cross_net_credit_between_gyms` |
 | `/platform/reports/export` | same | same; explicit `date_basis` | same | **Fully verified** — `test_csv_exports_are_tenant_safe_and_keep_history`, `test_platform_per_gym_report_and_export_reconcile_across_periods` |
-| `/platform/reports/gyms/{gym_id}` | inclusive; as of `to_date` | same by-gym basis | same | **Fully verified** — `test_platform_per_gym_report_and_export_reconcile_across_periods` |
-| `/platform/gyms/{gym_id}/export` | same | same; explicit `date_basis` | same | **Fully verified** — `test_platform_per_gym_report_and_export_reconcile_across_periods` |
+| `/platform/reports/gyms/{gym_id}` | inclusive; as of `to_date` | same by-gym basis | same | **Fully verified** — `test_platform_per_gym_report_and_export_reconcile_across_periods`, `test_platform_per_gym_cancellation_and_credit_as_of` |
+| `/platform/gyms/{gym_id}/export` | same | same; explicit `date_basis` | same | **Fully verified** — `test_platform_per_gym_report_and_export_reconcile_across_periods`, `test_platform_per_gym_cancellation_and_credit_as_of` |
 | `/platform/dues`, `/dues/{gym_id}` | optional `as_of` | billed `due_on`; unbilled `recognized_on` | billed/unbilled split; as-of payments/credit | **Fully verified** — `test_platform_historical_standing_and_reminders_use_as_of_events`, `test_platform_historical_unbilled_ignores_future_payment` |
 | `/platform/reminders` | optional `as_of` | invoice `issued_on`/`due_on` | as-of invoice balance | **Fully verified** — `test_platform_historical_standing_and_reminders_use_as_of_events`, `test_platform_reminders_are_in_app_only_and_list_due_and_overdue` |
 | `/platform/receivables` | current | `recognized_on`/`due_on` | current amount/paid | Current-only |
@@ -158,6 +158,8 @@ No external signature, auditor, legal opinion or production approval is claimed.
 | Settlement/refund/cancellation after the as-of date | `test_gym_summary_coach_payable_uses_receipt_and_settlement_dates`, `test_gym_summary_coach_payable_excludes_later_refund_adjustment`, `test_gym_summary_coach_payable_restores_cancelled_settlement_after_cancel_date` |
 | CSV balance row equals summary/report for the same as-of | `test_gym_export_has_explicit_date_basis_and_matches_summary_as_of`, `test_platform_balance_rows_use_as_of_payments_credits_and_cancellation` |
 | Platform per-gym report reconciles to overview across periods | `test_platform_per_gym_report_and_export_reconcile_across_periods` |
+| Platform per-gym cancellation and credit as-of boundaries | `test_platform_per_gym_cancellation_and_credit_as_of` |
+| Incomplete legacy membership freeze history fails closed | `test_gym_summary_fails_closed_on_incomplete_membership_freeze_history` |
 
 ## 6. Remaining discrepancies / limitations
 

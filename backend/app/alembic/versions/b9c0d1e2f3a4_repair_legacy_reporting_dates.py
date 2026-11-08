@@ -32,6 +32,28 @@ depends_on = None
 def upgrade() -> None:
     op.execute(
         """
+        UPDATE finance_credit_movement m
+        SET applied_on = j.posting_date
+        FROM finance_journal j
+        JOIN finance_journal_line l ON l.journal_id = j.id
+        WHERE m.kind = 'APPLIED'
+          AND m.invoice_id IS NOT NULL
+          AND j.source_type = 'finance_invoice'
+          AND j.source_id = m.invoice_id
+          AND j.event_type = 'ADVANCE_APPLIED'
+          AND l.debit_irr = m.amount_irr
+          AND (
+              SELECT count(*)
+              FROM finance_journal j2
+              WHERE j2.source_type = 'finance_invoice'
+                AND j2.source_id = m.invoice_id
+                AND j2.event_type = 'ADVANCE_APPLIED'
+          ) = 1
+        """
+    )
+
+    op.execute(
+        """
         UPDATE platform_receivable pr
         SET recognized_on = (split_part(pr.source_key, ':', 4) || '-01')::date
         WHERE pr.source_type = 'SUBSCRIPTION'
@@ -119,27 +141,6 @@ def upgrade() -> None:
         "ALTER TABLE platform_credit ENABLE TRIGGER platform_credit_immutable"
     )
 
-    op.execute(
-        """
-        UPDATE finance_credit_movement m
-        SET applied_on = j.posting_date
-        FROM finance_journal j
-        JOIN finance_journal_line l ON l.journal_id = j.id
-        WHERE m.kind = 'APPLIED'
-          AND m.invoice_id IS NOT NULL
-          AND j.source_type = 'finance_invoice'
-          AND j.source_id = m.invoice_id
-          AND j.event_type = 'ADVANCE_APPLIED'
-          AND l.debit_irr = m.amount_irr
-          AND (
-              SELECT count(*)
-              FROM finance_journal j2
-              WHERE j2.source_type = 'finance_invoice'
-                AND j2.source_id = m.invoice_id
-                AND j2.event_type = 'ADVANCE_APPLIED'
-          ) = 1
-        """
-    )
 
 
 def downgrade() -> None:

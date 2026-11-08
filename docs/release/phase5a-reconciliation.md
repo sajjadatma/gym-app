@@ -83,8 +83,8 @@ Test file: `backend/tests/api/routes/test_finance_date_semantics_5a3.py` — **1
 ## 5. Remaining discrepancies / risks
 
 See `docs/finance/date-semantics.md` §6. Summary:
-- Legacy pre-5A.3 rows use `created_at::date` as `recognized_on`; new rows use the canonical business date. A migration backfill test covers the new columns.
-- CSV exports do not yet carry a `date_basis` column.
+- Legacy pre-5A.3 rows with an unambiguous source event are repaired by migration `b9c0d1e2f3a4`; source-less or ambiguous rows remain on `created_at` and are documented in `docs/finance/legacy-date-reconstruction.md`.
+- CSV exports now carry an explicit `date_basis` on every row.
 - Platform has no separate closed-period model.
 - Gym timezone is used for report boundaries but is not yet editable/audited through the API.
 - Reversed `from_date > to_date` is a caller contract, not rejected by every route.

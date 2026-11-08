@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
+from app.finance_models import FinanceMembership
 from app.services import finance as finance_service
 from tests.api.routes.test_finance_coach_agreements import make_coach
 from tests.api.routes.test_finance_coach_allocations import (
@@ -306,3 +307,36 @@ def test_gym_summary_coach_payable_restores_cancelled_settlement_after_cancel_da
     assert (
         summary_as_of(client, owner, as_of=today)["coach_payable_irr"] == 300_000
     )
+
+
+def test_gym_summary_fails_closed_on_incomplete_membership_freeze_history(
+    client: TestClient, superuser_headers: dict[str, str], db_session: Session
+) -> None:
+    gym, owner = make_owner(
+        client, superuser_headers, name="Incomplete Lifecycle Gym"
+    )
+    gym_id = str(gym["id"])
+    athlete = make_customer(client, owner, gym_id, prefix="incomplete")
+    created = create_membership(
+        client,
+        owner,
+        athlete,
+        start="2026-11-01",
+        end="2026-12-31",
+    )
+    assert created.status_code == 200, created.text
+    membership = db_session.get(
+        FinanceMembership, uuid.UUID(created.json()["id"])
+    )
+    assert membership is not None
+    membership.frozen_days = 5
+    db_session.add(membership)
+    db_session.commit()
+
+    response = client.get(
+        "/api/v1/finance/reports/summary",
+        headers=owner,
+        params={"from_date": "2026-11-01", "to_date": "2026-12-05"},
+    )
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"] == "membership_history_incomplete"

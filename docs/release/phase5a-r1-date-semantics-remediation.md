@@ -45,6 +45,7 @@ Tests:
 - `test_gym_summary_coach_payable_uses_receipt_and_settlement_dates`
 - `test_gym_summary_coach_payable_excludes_later_refund_adjustment`
 - `test_gym_summary_coach_payable_restores_cancelled_settlement_after_cancel_date`
+- `test_gym_summary_fails_closed_on_incomplete_membership_freeze_history`
 
 ## 3. DS-M2 — Financial CSV exports
 
@@ -60,7 +61,9 @@ Implemented:
   - `platform_invoice_line` uses `platform_invoice_line_paid_as_of`;
   - a cancellation only removes a line when `cancelled_on <= to_date`;
   - balance rows are included when their originating event is on/before
-    `to_date`, even if it predates `from_date`.
+    `to_date`, even if it predates `from_date`;
+  - exported platform receivable balances are checked against the
+    `/platform/dues/{gym_id}` standing for the same as-of date.
 - Offboarding export uses `balance_basis="as_of_export"` and dates balance
   summary rows at gym-local today.
 - Refunds recorded after `to_date` remain `BALANCE` rows at their local
@@ -81,16 +84,21 @@ The service already used period/as-of dates. 5A.7-R1 added direct
 endpoint-level conformance tests:
 
 - two gyms, two periods (November and December 2026), subscriptions,
-  invoices, partial payments, credits, cancellation and costs;
+  invoices, partial payments and costs;
 - `GET /platform/reports/gyms/{gym_id}` equals the matching
   `by_gym` row in `GET /platform/reports/overview` for November, December and
   the combined range;
 - `GET /platform/gyms/{gym_id}/export` metrics equal the detail endpoint and
   carry `date_basis`;
+- `GET /platform/reports/export` carries `date_basis` and its per-gym
+  contribution row equals the detail endpoint;
+- a separate test covers an as-of credit application and a later invoice
+  cancellation across period boundaries;
 - per-gym figures reconcile to the platform totals without cross-tenant
   netting.
 
-Test: `test_platform_per_gym_report_and_export_reconcile_across_periods`.
+Tests: `test_platform_per_gym_report_and_export_reconcile_across_periods`,
+`test_platform_per_gym_cancellation_and_credit_as_of`.
 
 ## 5. Legacy reporting dates
 
@@ -98,8 +106,8 @@ Migration `b9c0d1e2f3a4_repair_legacy_reporting_dates.py` repairs only rows
 with an unambiguous source event:
 
 - subscription receivables from the period in `source_key`;
-- commission receivables from the linked receipt/advance;
-- ASCORA coach-share receivables from the linked earning receipt/advance;
+- commission receivables from the linked receipt or advance;
+- ASCORA coach-share receivables from the linked earning receipt;
 - platform refund credits from the refund journal;
 - cancellation credits from the invoice `cancelled_on`;
 - applied customer-credit movements from a unique `ADVANCE_APPLIED` journal.
@@ -108,14 +116,17 @@ Amounts, journals, audit rows and immutable timestamps are preserved.
 Ambiguous or source-less rows are left unchanged. Details:
 `docs/finance/legacy-date-reconstruction.md`.
 
-Test: `test_reporting_date_repair_uses_authoritative_source_events`.
+Test: `test_reporting_date_repair_uses_authoritative_source_events`, which
+also proves that a manual (source-less) receivable keeps its existing date,
+an ambiguous two-journal advance is left unchanged, and credit amounts and
+journal dates are not rewritten.
 
 ## 6. Verification evidence
 
 | Check | Result |
 |---|---|
-| Full backend regression | **345 passed** in 233.42 s |
-| Migration suite | **16 passed** in 10.11 s; **16 passed** under `TZ=UTC` in 10.90 s |
+| Full backend regression | **347 passed** in 232.32 s |
+| Migration suite | **16 passed** in 9.24 s; **16 passed** under `TZ=UTC` in 8.57 s |
 | Full Playwright | **148 passed, 3 skipped**, no retry |
 | Frontend lint | Clean, 175 files |
 | Frontend build | Passed |
@@ -124,10 +135,11 @@ Test: `test_reporting_date_repair_uses_authoritative_source_events`.
 | Docker backup/restore with new migration applied | **PASS**, `ok:true`, `failures:[]`, **305.05 s**, 28 finance + 21 platform tables |
 | Local load (observational) | gym finance 177 ms, platform finance 166 ms, athlete finance 167 ms; DCL/load 42–45 ms |
 
-The CI application image was the cached 5A.6 image because the local Docker
-registry proxy timed out during a fresh build. The new forward-only migration
-was copied into the running backend and applied with `alembic upgrade head`
-before the drill. 5A.7-R1 adds no schema/table changes, so the backup/restore
+The CI application image was the cached 5A.6 image because Docker image pulls
+failed in this local environment with a credential/proxy error. The new
+forward-only migration was copied into the running backend and applied with
+`alembic upgrade head` before the drill; the retained drill log records the
+backup/restore, not the migration command. 5A.7-R1 adds no schema/table changes, so the backup/restore
 table set and verifier are unchanged.
 
 ## 7. Residual limitations

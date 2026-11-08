@@ -79,7 +79,7 @@ real-gym onboarding or public release.
 | Local restore ≤ 60 minutes | **PASS** | 305.05 s |
 | Upgrade → downgrade → upgrade | **PASS** | 16 migration tests; trigger survival test; `TZ=UTC` pass |
 | No athlete/role/program/finance history silently rewritten | **PASS for tested immutable families; Partial coverage** | Journals, lines, payments, allocations, invoice lines, credits/applications, finance invoice/receipt/credit/movement and sequences are checksummed; audit rows, cancellations/reversals and platform operations are not in the preservation snapshot, and athlete/role/program history is not included in the migration checksum snapshot (the drill only counts `athlete_profile` and program-version rows) |
-| Full local regression green | **PASS** | Backend **345 passed**; Playwright **148 passed/3 skipped** clean; lint/build/Ruff/Mypy clean |
+| Full local regression green | **PASS** | Backend **347 passed**; Playwright **148 passed/3 skipped** clean; lint/build/Ruff/Mypy clean |
 | Required role journeys pass; no cross-role data | **PASS** | 5A.5/5A.6 role matrix and Playwright; H6 closure |
 | Zero Critical/High usability defects blocking a required journey | **PASS** | 5A.5/5A.6 defect log; H1–H6 and IR-H1/H2 closed |
 | Key finance screens load without errors; load time recorded | **PASS** | 5A.7-R1 observational local measurement: gym finance 177 ms, platform finance 166 ms, athlete finance 167 ms wall time; navigation DCL/load 42–45 ms. Not a production SLA |
@@ -116,11 +116,11 @@ real-gym onboarding or public release.
 ### Recovery
 
 - 5A.7-R1 fresh Docker drill: **PASS**, `ok:true`, `failures:[]`, **305.05 s**.
-- The new migration `b9c0d1e2f3a4` was copied into the running CI backend and applied with `alembic upgrade head` before the drill; the drill then backed up and restored the migrated database.
+- The new migration `b9c0d1e2f3a4` was copied into the running CI backend and applied with `alembic upgrade head` before the drill; the drill log records the backup/restore, not the migration command itself.
 - Exact counts for **28 finance tables** and **21 platform tables**, including zero-count tables.
 - Live restore through `restore_compose.sh` passed and re-ran the verifier with `finance-counts.txt` and `platform-counts.txt`.
 - Balanced journals, allocation/credit/sequence consistency, upload checksum/size checks passed.
-- A fresh image build was not available because the local Docker registry proxy timed out; the drill used the cached 5A.6 application image with the new forward-only migration applied. Schema/table counts are unchanged by 5A.7-R1.
+- A fresh image build was not available because Docker image pulls failed in this local environment with a credential/proxy error (`error getting credentials - err: signal: terminated`). The drill used the cached 5A.6 application image with the new forward-only migration applied. Schema/table counts are unchanged by 5A.7-R1.
 
 ## 5. Date-semantics endpoint coverage matrix
 
@@ -142,7 +142,7 @@ The matrix was re-derived from the actual `@router.get` decorators in `backend/a
 | `GET /finance/my/earnings`, `/my/settlements`, `/my/coach-summary` | current | `created_at`, vesting date, `paid_on` | `coach-finance.spec.ts`, `test_coach_summary_aggregates_own_gyms_only` | **Current-only verified** |
 | `GET /finance/journal`, `/journal/{id}` | no range | journal `posting_date` | 5A.2/5A.3 journal tests; drill | **Safe / fully verified for posted-date integrity** |
 | `GET /finance/periods` | current lifecycle | `opened_at`, `period_start`, `period_end`, `closed_at` | 5A.3 closed-period tests | **Fully verified** |
-| `GET /finance/receipts`, `/receipts/{id}`, `/expenses`, `/expenses/{id}`, `/refunds`, `/credits`, `/memberships`, `/coach-*`, `/reconciliation` | current | document business dates | 5A.2/5A.3 tests | **Current-only verified** |
+| `GET /finance/receipts`, `/receipts/{id}`, `/expenses`, `/expenses/{id}`, `/refunds`, `/credits`, `/memberships`, `/memberships/{id}`, `/memberships/{id}/refund-preview`, `/coach-*`, `/reconciliation` | current | document business dates | 5A.2/5A.3 tests | **Current-only verified** |
 | `/finance/customers` | current | identity/roles directory only | 5A.6 boundary tests | **Non-reporting; excluded** |
 | `/finance/accounts`, `/settings`, `/grants`, `/catalog` | — | configuration | 5A.1/5A.2 | **Non-reporting; excluded** |
 
@@ -152,8 +152,8 @@ The matrix was re-derived from the actual `@router.get` decorators in `backend/a
 |---|---|---|---|---|
 | `GET /platform/reports/overview` | inclusive; balances/MRR as of `to_date` | headline journal `posting_date`; by-gym `recognized_on`; costs `incurred_on`; invoiced `issued_on` + cancellation `cancelled_on` | `test_closed_synthetic_month_reconciles_with_zero_delta`, `test_platform_cancellation_does_not_rewrite_original_period`, `test_platform_discount_cancellation_is_period_stable`, `test_platform_overview_does_not_cross_net_credit_between_gyms` | **Fully verified** |
 | `GET /platform/reports/export` | same | same; explicit `date_basis` | `test_csv_exports_are_tenant_safe_and_keep_history`, `test_platform_per_gym_report_and_export_reconcile_across_periods` | **Fully verified** |
-| `GET /platform/reports/gyms/{gym_id}` | inclusive; as of `to_date` | same by-gym basis | `test_platform_per_gym_report_and_export_reconcile_across_periods` | **Fully verified** |
-| `GET /platform/gyms/{gym_id}/export` | same | same; explicit `date_basis` | `test_platform_per_gym_report_and_export_reconcile_across_periods` | **Fully verified** |
+| `GET /platform/reports/gyms/{gym_id}` | inclusive; as of `to_date` | same by-gym basis | `test_platform_per_gym_report_and_export_reconcile_across_periods`, `test_platform_per_gym_cancellation_and_credit_as_of` | **Fully verified** |
+| `GET /platform/gyms/{gym_id}/export` | same | same; explicit `date_basis` | `test_platform_per_gym_report_and_export_reconcile_across_periods`, `test_platform_per_gym_cancellation_and_credit_as_of` | **Fully verified** |
 | `GET /platform/dues`, `/dues/{gym_id}` | optional `as_of` | billed `due_on`; unbilled `recognized_on`; as-of payments/credits | `test_platform_historical_standing_and_reminders_use_as_of_events`, `test_platform_historical_unbilled_ignores_future_payment` | **Fully verified** |
 | `GET /platform/reminders` | optional `as_of` | invoice `issued_on`/`due_on`; as-of balance | `test_platform_historical_standing_and_reminders_use_as_of_events`, `test_platform_reminders_are_in_app_only_and_list_due_and_overdue` | **Fully verified** |
 | `GET /platform/receivables` | current | `recognized_on`/`due_on` | 5A.2/5A.3 | **Current-only verified** |
@@ -168,7 +168,7 @@ The matrix was re-derived from the actual `@router.get` decorators in `backend/a
 | Item | Finding |
 |---|---|
 | Historical coach payable | Reconstructed at `to_date` from earning receipt/credit/journal dates, as-of settlement items and as-of refund adjustments. **Fully verified.** |
-| Membership renewal metrics | Reconstructed at `to_date` from membership start/cancel dates and audit-backed freeze/resume extensions; incomplete history fails closed. **Fully verified.** |
+| Membership renewal metrics | Reconstructed at `to_date` from membership start/cancel dates and audit-backed freeze/resume extensions; incomplete history fails closed and is tested. **Fully verified.** |
 | CSV balance rows | Platform receivable/invoice-line balances reconstructed from as-of payment allocations, credits and cancellation dates; every row carries `date_basis`. **Fully verified.** |
 | Legacy date backfill | Unambiguous source-linked rows repaired by `b9c0d1e2f3a4`; ambiguous or source-less rows remain documented limitations. **Partially repaired as explicitly documented; no invented dates.** |
 | Closed-period zero delta | Proven for the tested closed synthetic month and selected platform/gym reports. **PASS for the tested acceptance period.** |
@@ -180,8 +180,8 @@ The matrix was re-derived from the actual `@router.get` decorators in `backend/a
 
 | Check | Result | Notes |
 |---|---|---|
-| Full backend regression | **345 passed** in 233.42 s | 5A.7-R1 fresh run |
-| Migration tests | **16 passed** in 10.11 s | Also **16 passed under `TZ=UTC`** in 10.90 s |
+| Full backend regression | **347 passed** in 232.32 s | 5A.7-R1 final run |
+| Migration tests | **16 passed** in 9.24 s | Also **16 passed under `TZ=UTC`** in 8.57 s |
 | Concurrency suite | **9 passed** | 5A.6 evidence: 5 consecutive runs and `TZ=UTC` |
 | Finance staff boundary tests | **2 passed** | 5A.6 |
 | Full Playwright (5A.7-R1) | **148 passed, 3 skipped** | Clean run, no retry needed |
@@ -192,7 +192,7 @@ The matrix was re-derived from the actual `@router.get` decorators in `backend/a
 | Docker backup/restore drill | **PASS**, `ok:true`, `failures:[]`, **305.05 s** | New migration applied before drill; 28 finance + 21 platform tables exact |
 | Local load measurement | Gym finance **177 ms**, platform finance **166 ms**, athlete finance **167 ms** wall; DCL/load 42–45 ms | Observational measurement on the local reference machine; no retained raw log. Not a production SLA |
 
-The 5A.7-R1 full Playwright run was clean at 148 passed and 3 skipped, with no retry needed. The 10 additional backend tests are nine API-level date-semantics tests (historical renewals, coach payable, CSV date basis/as-of balances, platform per-gym reconciliation) plus one new legacy-repair migration test, bringing the migration suite to 16.
+The 5A.7-R1 full Playwright run was clean at 148 passed and 3 skipped, with no retry needed. The 12 additional backend tests are 11 API-level date-semantics tests (historical renewals and fail-closed history, coach payable, CSV date basis/as-of balances, platform per-gym reconciliation, cancellation/credit) plus one new legacy-repair migration test, bringing the migration suite to 16.
 
 ## 7. PRD decision status matrix (all 92 + ADD-01)
 
@@ -350,7 +350,7 @@ These are not hidden by LOCAL GO and are not implemented in Phase 5A:
 - Historical renewal reconstruction depends on append-only membership audit events; incomplete legacy freeze history fails closed rather than guessing.
 - Migration preservation evidence covers the tested immutable finance/platform families but not audit, cancellation/reversal or platform-operation rows. No data rewrite was observed.
 - Reporting-date columns remain mutable by direct SQL; this is a documented Medium residual risk, not a confirmed money error.
-- A fresh Docker application image could not be built because the local Docker registry proxy timed out. The backup/restore drill used the cached 5A.6 image with the new forward-only migration applied; schema and table counts are unchanged by 5A.7-R1.
+- A fresh Docker application image could not be built because Docker image pulls failed in this local environment with a credential/proxy error. The backup/restore drill used the cached 5A.6 image with the new forward-only migration applied; the retained drill log does not include the `alembic upgrade head` step. Schema and table counts are unchanged by 5A.7-R1.
 - The 5A.7-R1 decision is based on the evidence in this repository and the fresh runs listed above. No external approval is claimed.
 
 ## 11. Recommended next actions (not initiated)

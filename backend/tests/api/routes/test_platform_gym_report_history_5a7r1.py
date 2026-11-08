@@ -11,10 +11,13 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, func, select
 
 from app.platform_models import (
+    PlatformCredit,
+    PlatformCreditApplication,
     PlatformInvoice,
     PlatformInvoiceLine,
     PlatformReceivable,
 )
+from app.services.platform import platform_today
 from tests.api.routes.test_finance_foundation import make_owner
 from tests.api.routes.test_platform_invoices import (
     accrue,
@@ -34,12 +37,15 @@ def insert_invoice_for_receivable(
     gym_id: str,
     receivable: PlatformReceivable,
     issued_on: date,
+    credit: int = 0,
+    paid: int = 0,
 ) -> uuid.UUID:
     next_number = int(
         db_session.exec(
             select(func.coalesce(func.max(PlatformInvoice.invoice_number), 0))
         ).one()
     ) + 1
+    net_amount = receivable.amount_irr - credit
     invoice = PlatformInvoice(
         gym_id=uuid.UUID(gym_id),
         group_id=None,
@@ -50,7 +56,7 @@ def insert_invoice_for_receivable(
         due_on=issued_on + timedelta(days=30),
         status="ISSUED",
         discount_irr=0,
-        total_irr=receivable.amount_irr,
+        total_irr=net_amount,
     )
     db_session.add(invoice)
     db_session.flush()
@@ -62,12 +68,33 @@ def insert_invoice_for_receivable(
         description="synthetic per-gym history",
         gross_irr=receivable.amount_irr,
         discount_irr=0,
-        credit_irr=0,
-        amount_irr=receivable.amount_irr,
-        paid_irr=0,
+        credit_irr=credit,
+        amount_irr=net_amount,
+        paid_irr=paid,
     )
     db_session.add(line)
-    receivable.status = "INVOICED"
+    db_session.flush()
+    if credit:
+        platform_credit = PlatformCredit(
+            gym_id=uuid.UUID(gym_id),
+            source_type="REFUND",
+            source_id=None,
+            source_key=f"synthetic-credit:{uuid.uuid4().hex}",
+            amount_irr=credit,
+            recognized_on=issued_on,
+            reason="synthetic per-gym credit",
+        )
+        db_session.add(platform_credit)
+        db_session.flush()
+        db_session.add(
+            PlatformCreditApplication(
+                credit_id=platform_credit.id,
+                invoice_line_id=line.id,
+                amount_irr=credit,
+            )
+        )
+    receivable.paid_irr = paid
+    receivable.status = "PARTIAL" if paid else "INVOICED"
     db_session.add(receivable)
     db_session.commit()
     return invoice.id
@@ -308,9 +335,15 @@ def test_platform_per_gym_report_and_export_reconcile_across_periods(
         assert metrics_a["recognized_revenue_irr"] == detail_a["recognized_revenue_irr"]
         assert metrics_a["collected_fees_irr"] == detail_a["collected_fees_irr"]
         assert metrics_a["receivable_irr"] == detail_a["receivable_irr"]
+        assert metrics_a["overdue_irr"] == detail_a["overdue_irr"]
+        assert metrics_a["recorded_cost_irr"] == detail_a["recorded_cost_irr"]
+        assert metrics_a["contribution_irr"] == detail_a["contribution_irr"]
         assert metrics_b["recognized_revenue_irr"] == detail_b["recognized_revenue_irr"]
         assert metrics_b["collected_fees_irr"] == detail_b["collected_fees_irr"]
         assert metrics_b["receivable_irr"] == detail_b["receivable_irr"]
+        assert metrics_b["overdue_irr"] == detail_b["overdue_irr"]
+        assert metrics_b["recorded_cost_irr"] == detail_b["recorded_cost_irr"]
+        assert metrics_b["contribution_irr"] == detail_b["contribution_irr"]
         assert rows_a[0][-1] == "date_basis"
         assert rows_b[0][-1] == "date_basis"
         assert {
@@ -323,6 +356,28 @@ def test_platform_per_gym_report_and_export_reconcile_across_periods(
             for row in rows_a[1:]
             if len(row) >= 4
         }["receivable_irr"] == "as_of_to_date"
+
+        platform_export = client.get(
+            "/api/v1/platform/reports/export",
+            headers=superuser_headers,
+            params={"from_date": from_date, "to_date": to_date},
+        )
+        assert platform_export.status_code == 200, platform_export.text
+        platform_rows = csv_rows(platform_export.text)
+        assert platform_rows[0][-1] == "date_basis"
+        contribution = next(
+            row
+            for row in platform_rows[1:]
+            if row[1] == "gym"
+            and row[2] == gym_a_id
+            and row[3] == "contribution_irr"
+        )
+        assert int(contribution[4]) == detail_a["contribution_irr"]
+        assert contribution[5] == "range"
+        balance = next(
+            row for row in platform_rows[1:] if row[3] == "receivable_irr"
+        )
+        assert balance[5] == "as_of_to_date"
 
         # A's collected cash must never appear in B's per-gym row.
         if (from_date, to_date) == ("2026-11-01", "2026-11-30"):
@@ -350,3 +405,133 @@ def test_platform_per_gym_report_and_export_reconcile_across_periods(
             assert detail_b["collected_fees_irr"] == 100_000
             assert detail_a["receivable_irr"] == 800_000
             assert detail_b["receivable_irr"] == 500_000
+
+
+def test_platform_per_gym_cancellation_and_credit_as_of(
+    client: TestClient,
+    superuser_headers: dict[str, str],
+    db_session: Session,
+) -> None:
+    cancel_gym, _ = make_owner(
+        client, superuser_headers, name="History Cancel Per Gym"
+    )
+    cancel_gym_id = str(cancel_gym["id"])
+    cancel_agreement = subscription_agreement(
+        client, superuser_headers, cancel_gym_id, amount=500_000
+    )
+    assert (
+        accrue(client, superuser_headers, cancel_agreement["id"]).status_code
+        == 200
+    )
+    cancel_receivable = receivable_for_period(
+        db_session, gym_id=cancel_gym_id, period="2026-11"
+    )
+    insert_invoice_for_receivable(
+        db_session,
+        gym_id=cancel_gym_id,
+        receivable=cancel_receivable,
+        issued_on=date(2026, 11, 5),
+    )
+    invoice_id = db_session.exec(
+        select(PlatformInvoice.id).where(
+            PlatformInvoice.gym_id == uuid.UUID(cancel_gym_id)
+        )
+    ).one()
+    cancelled = client.post(
+        f"/api/v1/platform/invoices/{invoice_id}/cancel",
+        headers={**superuser_headers, "Idempotency-Key": uuid.uuid4().hex},
+        json={"reason": "synthetic per-gym cancellation"},
+    )
+    assert cancelled.status_code == 200, cancelled.text
+
+    before = gym_report(
+        client,
+        superuser_headers,
+        gym_id=cancel_gym_id,
+        from_date="2026-11-01",
+        to_date=(platform_today() - timedelta(days=1)).isoformat(),
+    )
+    after = gym_report(
+        client,
+        superuser_headers,
+        gym_id=cancel_gym_id,
+        from_date="2026-11-01",
+        to_date="2026-11-30",
+    )
+    assert before["recognized_revenue_irr"] == 500_000
+    assert before["receivable_irr"] == 500_000
+    assert after["recognized_revenue_irr"] == 500_000
+    assert after["receivable_irr"] == 500_000
+    overview_after = overview(
+        client,
+        superuser_headers,
+        from_date="2026-11-01",
+        to_date="2026-11-30",
+    )
+    by_gym_after = {
+        str(row["gym_id"]): row for row in overview_after["by_gym"]
+    }
+    assert after == by_gym_after[cancel_gym_id]
+
+    credit_gym, _ = make_owner(
+        client, superuser_headers, name="History Credit Per Gym"
+    )
+    credit_gym_id = str(credit_gym["id"])
+    credit_agreement = subscription_agreement(
+        client, superuser_headers, credit_gym_id, amount=300_000
+    )
+    assert (
+        accrue(client, superuser_headers, credit_agreement["id"]).status_code
+        == 200
+    )
+    credit_receivable = receivable_for_period(
+        db_session, gym_id=credit_gym_id, period="2026-11"
+    )
+    insert_invoice_for_receivable(
+        db_session,
+        gym_id=credit_gym_id,
+        receivable=credit_receivable,
+        issued_on=date(2026, 11, 10),
+        credit=100_000,
+        paid=100_000,
+    )
+
+    before_credit = gym_report(
+        client,
+        superuser_headers,
+        gym_id=credit_gym_id,
+        from_date="2026-11-01",
+        to_date="2026-11-09",
+    )
+    credit_period = gym_report(
+        client,
+        superuser_headers,
+        gym_id=credit_gym_id,
+        from_date="2026-11-10",
+        to_date="2026-11-30",
+    )
+    combined_credit = gym_report(
+        client,
+        superuser_headers,
+        gym_id=credit_gym_id,
+        from_date="2026-11-01",
+        to_date="2026-11-30",
+    )
+    assert before_credit["recognized_revenue_irr"] == 300_000
+    assert before_credit["receivable_irr"] == 300_000
+    # The credit posts in its own period, so that period contains only the
+    # negative adjustment; the combined period nets to the expected revenue.
+    assert credit_period["recognized_revenue_irr"] == -100_000
+    assert credit_period["receivable_irr"] == 200_000
+    assert combined_credit["recognized_revenue_irr"] == 200_000
+    assert combined_credit["receivable_irr"] == 200_000
+    overview_credit = overview(
+        client,
+        superuser_headers,
+        from_date="2026-11-01",
+        to_date="2026-11-30",
+    )
+    by_gym_credit = {
+        str(row["gym_id"]): row for row in overview_credit["by_gym"]
+    }
+    assert combined_credit == by_gym_credit[credit_gym_id]
