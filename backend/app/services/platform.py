@@ -1841,6 +1841,61 @@ def _invoice_public(
     )
 
 
+def platform_invoice_line_paid_as_of(
+    session: Session, line: Any, as_of: date
+) -> int:
+    from app.platform_models import PlatformPayment, PlatformPaymentAllocation
+
+    value = session.exec(
+        select(
+            func.coalesce(func.sum(PlatformPaymentAllocation.amount_irr), 0)
+        )
+        .join(
+            PlatformPayment,
+            col(PlatformPaymentAllocation.payment_id) == col(PlatformPayment.id),
+        )
+        .where(
+            PlatformPaymentAllocation.invoice_line_id == line.id,
+            PlatformPayment.received_on <= as_of,
+        )
+    ).one()
+    return int(value)
+
+
+def platform_receivable_paid_as_of(
+    session: Session, receivable: Any, as_of: date
+) -> int:
+    from app.platform_models import (
+        PlatformInvoice,
+        PlatformInvoiceLine,
+    )
+
+    lines = session.exec(
+        select(PlatformInvoiceLine)
+        .join(
+            PlatformInvoice,
+            col(PlatformInvoiceLine.invoice_id) == col(PlatformInvoice.id),
+        )
+        .where(
+            PlatformInvoiceLine.receivable_id == receivable.id,
+            PlatformInvoice.issued_on <= as_of,
+            or_(
+                col(PlatformInvoice.cancelled_on).is_(None),
+                col(PlatformInvoice.cancelled_on) > as_of,
+            ),
+        )
+    ).all()
+    if not lines:
+        return 0
+    cash = sum(
+        platform_invoice_line_paid_as_of(session, line, as_of) for line in lines
+    )
+    noncash = sum(
+        line.discount_irr + line.credit_irr for line in lines
+    )
+    return min(receivable.amount_irr, cash + noncash)
+
+
 def accrue_subscription_period(
     session: Session,
     *,

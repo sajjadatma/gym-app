@@ -1532,6 +1532,7 @@ def _gym_report_rows(
     gym_id: uuid.UUID,
     from_date: date,
     to_date: date,
+    balance_basis: str = "as_of_to_date",
 ) -> list[list[Any]]:
     from app.finance_models import (
         FinanceCoachEarning,
@@ -1543,12 +1544,21 @@ def _gym_report_rows(
         FinanceRefund,
     )
     from app.platform_models import PlatformInvoiceLine
+    from app.services.finance import gym_local_date
 
     def in_range(value: date | None) -> bool:
         return value is not None and from_date <= value <= to_date
 
     rows: list[list[Any]] = [
-        ["metric_family", "row_type", "reference", "date", "amount_irr", "status"]
+        [
+            "metric_family",
+            "row_type",
+            "reference",
+            "date",
+            "amount_irr",
+            "status",
+            "date_basis",
+        ]
     ]
     summary = gym_summary(
         session, gym_id=gym_id, from_date=from_date, to_date=to_date
@@ -1562,6 +1572,7 @@ def _gym_report_rows(
         "sales_irr",
         "receivable_irr",
         "overdue_irr",
+        "renewals_due",
         "coach_payable_irr",
         "platform_payable_irr",
         "recognized_revenue_irr",
@@ -1581,6 +1592,7 @@ def _gym_report_rows(
             in {
                 "receivable_irr",
                 "overdue_irr",
+                "renewals_due",
                 "coach_payable_irr",
                 "platform_payable_irr",
             }
@@ -1588,7 +1600,18 @@ def _gym_report_rows(
             if field == "sales_irr"
             else "CASHFLOW"
         )
-        rows.append([family, "summary", field, "", getattr(summary, field), ""])
+        is_balance = family == "BALANCE"
+        rows.append(
+            [
+                family,
+                "summary",
+                field,
+                to_date.isoformat() if is_balance else "",
+                getattr(summary, field),
+                "",
+                balance_basis if is_balance else "range",
+            ]
+        )
 
     for invoice in session.exec(
         select(FinanceInvoice).where(FinanceInvoice.gym_id == gym_id)
@@ -1603,6 +1626,7 @@ def _gym_report_rows(
                 invoice.issue_date.isoformat() if invoice.issue_date else "",
                 invoice.total_irr,
                 invoice.status,
+                "issue_date",
             ]
         )
     for receipt in session.exec(
@@ -1618,6 +1642,7 @@ def _gym_report_rows(
                 receipt.received_on.isoformat(),
                 receipt.amount_irr,
                 receipt.status,
+                "received_on",
             ]
         )
     for refund in session.exec(
@@ -1630,12 +1655,14 @@ def _gym_report_rows(
         )
         if refund.status == "REJECTED":
             continue
-        if refund.status == "RECORDED" and refund_journal is not None:
+        if (
+            refund.status == "RECORDED"
+            and refund_journal is not None
+            and refund_journal.posting_date <= to_date
+        ):
             refund_family = "CASHFLOW"
             refund_date = refund_journal.posting_date
         else:
-            from app.services.finance import gym_local_date
-
             refund_family = "BALANCE"
             refund_date = gym_local_date(
                 session, gym_id, refund.created_at
@@ -1650,6 +1677,9 @@ def _gym_report_rows(
                 refund_date.isoformat(),
                 refund.amount_irr,
                 refund.status,
+                "posting_date"
+                if refund_family == "CASHFLOW"
+                else "created_at_local",
             ]
         )
     for expense in session.exec(
@@ -1676,6 +1706,9 @@ def _gym_report_rows(
                 expense_date.isoformat(),
                 expense.amount_irr,
                 expense.status,
+                "posting_date"
+                if expense_family == "CASHFLOW"
+                else "spent_on",
             ]
         )
     for earning in session.exec(
@@ -1701,6 +1734,9 @@ def _gym_report_rows(
                 earning_date.isoformat(),
                 earning.coach_share_irr,
                 earning.status,
+                "journal_posting_date"
+                if earning_journal is not None
+                else "created_at_local",
             ]
         )
     for settlement in session.exec(
@@ -1718,6 +1754,7 @@ def _gym_report_rows(
                 settlement.paid_on.isoformat(),
                 settlement.amount_irr,
                 settlement.status,
+                "paid_on",
             ]
         )
     from app.platform_models import (
@@ -1740,21 +1777,39 @@ def _gym_report_rows(
                 agreement.effective_from.isoformat(),
                 agreement.subscription_amount_irr,
                 agreement.status,
+                "effective_from",
             ]
         )
+    from app.services import platform as platform_service
+
     for receivable in session.exec(
         select(PlatformReceivable).where(PlatformReceivable.gym_id == gym_id)
     ).all():
-        if not in_range(receivable.recognized_on or receivable.created_at.date()):
+        recognized_on = receivable.recognized_on or gym_local_date(
+            session, gym_id, receivable.created_at
+        )
+        if recognized_on > to_date:
             continue
+        paid_as_of = platform_service.platform_receivable_paid_as_of(
+            session, receivable, to_date
+        )
+        balance = max(receivable.amount_irr - paid_as_of, 0)
+        status = (
+            "PAID"
+            if balance <= 0
+            else "PARTIAL"
+            if paid_as_of > 0
+            else "OPEN"
+        )
         rows.append(
             [
                 "BALANCE",
                 "platform_receivable",
                 receivable.source_key,
-                receivable.due_on.isoformat(),
-                max(receivable.amount_irr - receivable.paid_irr, 0),
-                receivable.status,
+                recognized_on.isoformat(),
+                balance,
+                status,
+                f"recognized_on;{balance_basis}",
             ]
         )
     from app.platform_models import PlatformPaymentAllocation
@@ -1798,6 +1853,7 @@ def _gym_report_rows(
                 payment.received_on.isoformat(),
                 int(allocated),
                 "RECORDED",
+                "received_on",
             ]
         )
 
@@ -1810,18 +1866,28 @@ def _gym_report_rows(
         .where(PlatformInvoiceLine.gym_id == gym_id)
     ).all():
         invoice = session.get(PlatformInvoice, line.invoice_id)
-        if invoice is None or invoice.status == "CANCELLED":
+        if invoice is None:
             continue
-        if not in_range(invoice.issued_on):
+        if invoice.status == "CANCELLED":
+            if invoice.cancelled_on is None:
+                continue
+            if invoice.cancelled_on <= to_date:
+                continue
+        if invoice.issued_on > to_date:
             continue
+        paid_as_of = platform_service.platform_invoice_line_paid_as_of(
+            session, line, to_date
+        )
+        balance = max(line.amount_irr - paid_as_of, 0)
         rows.append(
             [
                 "BALANCE",
                 "platform_invoice_line",
                 line.source_key,
                 invoice.issued_on.isoformat(),
-                max(line.amount_irr - line.paid_irr, 0),
-                "PAID" if line.paid_irr >= line.amount_irr else "OPEN",
+                balance,
+                "PAID" if balance <= 0 else "OPEN",
+                f"issued_on;{balance_basis}",
             ]
         )
     return rows
@@ -1878,5 +1944,6 @@ def export_gym_offboarding(
             gym_id=ctx.gym.id,
             from_date=date(2000, 1, 1),
             to_date=gym_today(session, ctx.gym.id),
+            balance_basis="as_of_export",
         )
     )
