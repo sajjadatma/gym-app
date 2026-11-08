@@ -518,13 +518,65 @@ def export_platform_report(
         session, from_date=from_date, to_date=to_date
     )
     rows: list[list[Any]] = [
-        ["metric_family", "scope", "gym_id", "metric", "value_irr"]
+        [
+            "metric_family",
+            "scope",
+            "gym_id",
+            "metric",
+            "value_irr",
+            "date_basis",
+        ]
     ]
-    rows.append(["CASHFLOW", "platform", "", "collected_fees_irr", overview.collected_fees_irr])
-    rows.append(["ACCRUAL", "platform", "", "recognized_platform_revenue_irr", overview.recognized_platform_revenue_irr])
-    rows.append(["ACCRUAL", "platform", "", "estimated_operating_profit_irr", overview.estimated_operating_profit_irr])
-    rows.append(["BALANCE", "platform", "", "receivable_irr", overview.receivable_irr])
-    rows.append(["BALANCE", "platform", "", "overdue_irr", overview.overdue_irr])
+    rows.append(
+        [
+            "CASHFLOW",
+            "platform",
+            "",
+            "collected_fees_irr",
+            overview.collected_fees_irr,
+            "range",
+        ]
+    )
+    rows.append(
+        [
+            "ACCRUAL",
+            "platform",
+            "",
+            "recognized_platform_revenue_irr",
+            overview.recognized_platform_revenue_irr,
+            "range",
+        ]
+    )
+    rows.append(
+        [
+            "ACCRUAL",
+            "platform",
+            "",
+            "estimated_operating_profit_irr",
+            overview.estimated_operating_profit_irr,
+            "range",
+        ]
+    )
+    rows.append(
+        [
+            "BALANCE",
+            "platform",
+            "",
+            "receivable_irr",
+            overview.receivable_irr,
+            "as_of_to_date",
+        ]
+    )
+    rows.append(
+        [
+            "BALANCE",
+            "platform",
+            "",
+            "overdue_irr",
+            overview.overdue_irr,
+            "as_of_to_date",
+        ]
+    )
     for row in overview.by_gym:
         rows.append(
             [
@@ -533,6 +585,7 @@ def export_platform_report(
                 str(row.gym_id),
                 "contribution_irr",
                 row.contribution_irr,
+                "range",
             ]
         )
     return _platform_csv(rows)
@@ -551,13 +604,38 @@ def export_platform_gym_report(
         session, gym_id=gym_id, from_date=from_date, to_date=to_date
     )
     rows: list[list[Any]] = [
-        ["metric_family", "metric", "value_irr"],
-        ["ACCRUAL", "recognized_revenue_irr", detail.recognized_revenue_irr],
-        ["CASHFLOW", "collected_fees_irr", detail.collected_fees_irr],
-        ["BALANCE", "receivable_irr", detail.receivable_irr],
-        ["BALANCE", "overdue_irr", detail.overdue_irr],
-        ["ACCRUAL", "recorded_cost_irr", detail.recorded_cost_irr],
-        ["ACCRUAL", "contribution_irr", detail.contribution_irr],
+        ["metric_family", "metric", "value_irr", "date_basis"],
+        [
+            "ACCRUAL",
+            "recognized_revenue_irr",
+            detail.recognized_revenue_irr,
+            "range",
+        ],
+        [
+            "CASHFLOW",
+            "collected_fees_irr",
+            detail.collected_fees_irr,
+            "range",
+        ],
+        [
+            "BALANCE",
+            "receivable_irr",
+            detail.receivable_irr,
+            "as_of_to_date",
+        ],
+        ["BALANCE", "overdue_irr", detail.overdue_irr, "as_of_to_date"],
+        [
+            "ACCRUAL",
+            "recorded_cost_irr",
+            detail.recorded_cost_irr,
+            "range",
+        ],
+        [
+            "ACCRUAL",
+            "contribution_irr",
+            detail.contribution_irr,
+            "range",
+        ],
     ]
     return _platform_csv(rows)
 
