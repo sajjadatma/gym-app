@@ -1091,3 +1091,371 @@ def test_platform_credit_immutability_trigger_survives_migration(
         assert_trigger_active()
     finally:
         engine.dispose()
+
+
+def test_reporting_date_repair_uses_authoritative_source_events(
+    migrated_database: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_alembic_database(monkeypatch, migrated_database)
+    config = _alembic_config()
+    command.upgrade(config, "a7b8c9d0e1f2")
+    gym_id, user_id = _seed_gym(migrated_database)
+
+    subscription_id = uuid.uuid4()
+    commission_id = uuid.uuid4()
+    manual_id = uuid.uuid4()
+    receipt_id = uuid.uuid4()
+    line_id = uuid.uuid4()
+    invoice_id = uuid.uuid4()
+    period_id = uuid.uuid4()
+    account_id = uuid.uuid4()
+    credit_account_id = uuid.uuid4()
+    advance_journal_id = uuid.uuid4()
+    refund_journal_id = uuid.uuid4()
+    customer_credit_id = uuid.uuid4()
+    movement_id = uuid.uuid4()
+    refund_id = uuid.uuid4()
+    refund_credit_id = uuid.uuid4()
+    cancellation_id = uuid.uuid4()
+    cancellation_credit_id = uuid.uuid4()
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO finance_account
+                       (id, gym_id, code, name, type, created_at)
+                       VALUES (:debit, :gym_id, '1000', 'Cash', 'ASSET', now()),
+                              (:credit, :gym_id, '3000', 'Equity', 'EQUITY', now())"""
+                ),
+                {
+                    "debit": account_id,
+                    "credit": credit_account_id,
+                    "gym_id": gym_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_period
+                       (id, gym_id, opened_at, closed_at, closed_by_id, created_at)
+                       VALUES (:id, :gym_id, now(), NULL, NULL, now())"""
+                ),
+                {"id": period_id, "gym_id": gym_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_invoice
+                       (id, gym_id, customer_user_id, status, acquisition_source,
+                        discount_funding, invoice_number, issue_date, due_date,
+                        description, subtotal_irr, discount_irr, total_irr,
+                        created_at)
+                       VALUES (:id, :gym_id, :user_id, 'ISSUED', 'GYM', 'GYM',
+                               1, '2026-11-01', '2026-11-30', 'legacy invoice',
+                               100, 0, 100, '2026-11-01T00:00:00Z')"""
+                ),
+                {"id": invoice_id, "gym_id": gym_id, "user_id": user_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_receipt
+                       (id, gym_id, customer_user_id, receipt_number, method,
+                        amount_irr, reference, received_on, status,
+                        verification_source, created_at)
+                       VALUES (:id, :gym_id, :user_id, 1, 'CASH', 100,
+                               'legacy-receipt', '2026-11-03', 'CONFIRMED',
+                               'STAFF_ATTESTATION', '2026-11-10T00:00:00Z')"""
+                ),
+                {"id": receipt_id, "gym_id": gym_id, "user_id": user_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_customer_credit
+                       (id, gym_id, customer_user_id, balance_irr, updated_at)
+                       VALUES (:id, :gym_id, :user_id, 0, now())"""
+                ),
+                {
+                    "id": customer_credit_id,
+                    "gym_id": gym_id,
+                    "user_id": user_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_journal
+                       (id, gym_id, period_id, entry_number, posting_date,
+                        event_type, description, source_type, source_id,
+                        created_at)
+                       VALUES (:id, :gym_id, :period_id, 1, '2026-11-04',
+                               'ADVANCE_APPLIED', 'legacy advance',
+                               'finance_invoice', :invoice_id,
+                               '2026-11-10T00:00:00Z')"""
+                ),
+                {
+                    "id": advance_journal_id,
+                    "gym_id": gym_id,
+                    "period_id": period_id,
+                    "invoice_id": invoice_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_journal_line
+                       (id, journal_id, account_id, debit_irr, credit_irr, memo)
+                       VALUES (gen_random_uuid(), :journal_id, :debit_account,
+                               100, 0, 'legacy advance'),
+                              (gen_random_uuid(), :journal_id, :credit_account,
+                               0, 100, 'legacy advance')"""
+                ),
+                {
+                    "journal_id": advance_journal_id,
+                    "debit_account": account_id,
+                    "credit_account": credit_account_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_credit_movement
+                       (id, credit_id, kind, amount_irr, receipt_id, invoice_id,
+                        created_by_id, created_at)
+                       VALUES (:id, :credit_id, 'APPLIED', 100, NULL,
+                               :invoice_id, NULL, '2026-11-10T00:00:00Z')"""
+                ),
+                {
+                    "id": movement_id,
+                    "credit_id": customer_credit_id,
+                    "invoice_id": invoice_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_journal
+                       (id, gym_id, period_id, entry_number, posting_date,
+                        event_type, description, created_at)
+                       VALUES (:id, :gym_id, :period_id, 2, '2026-11-07',
+                               'REFUND_RECORDED', 'legacy refund',
+                               '2026-11-10T00:00:00Z')"""
+                ),
+                {
+                    "id": refund_journal_id,
+                    "gym_id": gym_id,
+                    "period_id": period_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_journal_line
+                       (id, journal_id, account_id, debit_irr, credit_irr, memo)
+                       VALUES (gen_random_uuid(), :journal_id, :debit_account,
+                               100, 0, 'legacy refund'),
+                              (gen_random_uuid(), :journal_id, :credit_account,
+                               0, 100, 'legacy refund')"""
+                ),
+                {
+                    "journal_id": refund_journal_id,
+                    "debit_account": credit_account_id,
+                    "credit_account": account_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_refund
+                       (id, gym_id, customer_user_id, source, invoice_id,
+                        amount_irr, method, reason, status, journal_id,
+                        created_at)
+                       VALUES (:id, :gym_id, :user_id, 'INVOICE', :invoice_id,
+                               100, 'CASH', 'legacy refund', 'RECORDED',
+                               :journal_id, '2026-11-10T00:00:00Z')"""
+                ),
+                {
+                    "id": refund_id,
+                    "gym_id": gym_id,
+                    "user_id": user_id,
+                    "invoice_id": invoice_id,
+                    "journal_id": refund_journal_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_receivable
+                       (id, gym_id, agreement_id, source_type, source_id,
+                        source_key, amount_irr, paid_irr, recognized_on,
+                        due_on, status, snapshot, created_at)
+                       VALUES (:id, :gym_id, NULL, 'SUBSCRIPTION', NULL,
+                               :source_key, 100, 0, NULL, '2026-11-01',
+                               'OPEN', '{}', '2026-11-10T00:00:00Z')"""
+                ),
+                {
+                    "id": subscription_id,
+                    "gym_id": gym_id,
+                    "source_key": f"subscription:{uuid.uuid4()}:{gym_id}:2026-11",
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_receivable
+                       (id, gym_id, agreement_id, source_type, source_id,
+                        source_key, amount_irr, paid_irr, recognized_on,
+                        due_on, status, snapshot, created_at)
+                       VALUES (:id, :gym_id, NULL, 'COMMISSION', :line_id,
+                               :source_key, 100, 0, NULL, '2026-11-30',
+                               'OPEN', '{}', '2026-11-10T00:00:00Z')"""
+                ),
+                {
+                    "id": commission_id,
+                    "gym_id": gym_id,
+                    "line_id": line_id,
+                    "source_key": f"receipt:{receipt_id}:{line_id}",
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_receivable
+                       (id, gym_id, agreement_id, source_type, source_id,
+                        source_key, amount_irr, paid_irr, recognized_on,
+                        due_on, status, snapshot, created_at)
+                       VALUES (:id, :gym_id, NULL, 'MANUAL', NULL,
+                               'legacy-manual', 100, 0, '2026-11-10',
+                               '2026-11-30', 'OPEN', '{}',
+                               '2026-11-10T00:00:00Z')"""
+                ),
+                {"id": manual_id, "gym_id": gym_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_invoice
+                       (id, gym_id, group_id, invoice_number, period_start,
+                        period_end, issued_on, due_on, status, discount_irr,
+                        total_irr, cancelled_on, created_at)
+                       VALUES (:id, :gym_id, NULL, 1, '2026-11-01',
+                               '2026-11-30', '2026-11-01', '2026-11-30',
+                               'ISSUED', 0, 100, NULL,
+                               '2026-11-01T00:00:00Z')"""
+                ),
+                {"id": invoice_id, "gym_id": gym_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_invoice_cancellation
+                       (id, invoice_id, reason, journal_id, created_by_id,
+                        created_at)
+                       VALUES (:id, :invoice_id, 'legacy cancellation', NULL,
+                               NULL, '2026-11-10T00:00:00Z')"""
+                ),
+                {"id": cancellation_id, "invoice_id": invoice_id},
+            )
+            connection.execute(
+                text(
+                    "UPDATE platform_invoice SET status = 'CANCELLED', "
+                    "cancelled_on = '2026-11-06' WHERE id = :id"
+                ),
+                {"id": invoice_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_credit
+                       (id, gym_id, source_type, source_id, source_key,
+                        amount_irr, recognized_on, reason, created_at)
+                       VALUES (:id, :gym_id, 'REFUND', :refund_id,
+                               'legacy-refund-credit', 100, NULL,
+                               'legacy refund', '2026-11-10T00:00:00Z')"""
+                ),
+                {
+                    "id": refund_credit_id,
+                    "gym_id": gym_id,
+                    "refund_id": refund_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO platform_credit
+                       (id, gym_id, source_type, source_id, source_key,
+                        amount_irr, recognized_on, reason, created_at)
+                       VALUES (:id, :gym_id, 'INVOICE_CANCELLATION',
+                               :cancellation_id, 'legacy-cancel-credit', 100,
+                               NULL, 'legacy cancellation',
+                               '2026-11-10T00:00:00Z')"""
+                ),
+                {
+                    "id": cancellation_credit_id,
+                    "gym_id": gym_id,
+                    "cancellation_id": cancellation_id,
+                },
+            )
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "head")
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as connection:
+            values = {
+                "subscription": connection.execute(
+                    text(
+                        "SELECT recognized_on FROM platform_receivable "
+                        "WHERE id = :id"
+                    ),
+                    {"id": subscription_id},
+                ).scalar_one(),
+                "commission": connection.execute(
+                    text(
+                        "SELECT recognized_on FROM platform_receivable "
+                        "WHERE id = :id"
+                    ),
+                    {"id": commission_id},
+                ).scalar_one(),
+                "manual": connection.execute(
+                    text(
+                        "SELECT recognized_on FROM platform_receivable "
+                        "WHERE id = :id"
+                    ),
+                    {"id": manual_id},
+                ).scalar_one(),
+                "refund_credit": connection.execute(
+                    text(
+                        "SELECT recognized_on FROM platform_credit "
+                        "WHERE id = :id"
+                    ),
+                    {"id": refund_credit_id},
+                ).scalar_one(),
+                "cancel_credit": connection.execute(
+                    text(
+                        "SELECT recognized_on FROM platform_credit "
+                        "WHERE id = :id"
+                    ),
+                    {"id": cancellation_credit_id},
+                ).scalar_one(),
+                "movement": connection.execute(
+                    text(
+                        "SELECT applied_on FROM finance_credit_movement "
+                        "WHERE id = :id"
+                    ),
+                    {"id": movement_id},
+                ).scalar_one(),
+                "credit_amount": connection.execute(
+                    text(
+                        "SELECT amount_irr FROM platform_credit "
+                        "WHERE id = :id"
+                    ),
+                    {"id": refund_credit_id},
+                ).scalar_one(),
+                "refund_journal_date": connection.execute(
+                    text(
+                        "SELECT posting_date FROM finance_journal "
+                        "WHERE id = :id"
+                    ),
+                    {"id": refund_journal_id},
+                ).scalar_one(),
+            }
+    finally:
+        engine.dispose()
+
+    assert str(values["subscription"]) == "2026-11-01"
+    assert str(values["commission"]) == "2026-11-03"
+    assert str(values["manual"]) == "2026-11-10"
+    assert str(values["refund_credit"]) == "2026-11-07"
+    assert str(values["cancel_credit"]) == "2026-11-06"
+    assert str(values["movement"]) == "2026-11-04"
+    assert values["credit_amount"] == 100
+    assert str(values["refund_journal_date"]) == "2026-11-07"
