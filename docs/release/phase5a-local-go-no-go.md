@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-08
 **Branch:** `feat/ascora-finance`
-**Assessed commit:** `d3a6079` plus the 5A.7-R1 change set (final commit recorded below)
+**Assessed code commit:** `58adec1` (Phase 5A.7-R1 code and evidence); the report itself is committed at the branch tip
 **Scope:** Final local acceptance gate for ASCORA Finance Phase 5A
 **Environment:** Local PostgreSQL, FastAPI backend, Vite frontend, Playwright and Docker Compose
 **Data:** Synthetic and disposable only
