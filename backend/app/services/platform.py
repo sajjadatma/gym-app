@@ -1893,7 +1893,7 @@ def platform_receivable_paid_as_of(
     noncash = sum(
         line.discount_irr + line.credit_irr for line in lines
     )
-    return min(receivable.amount_irr, cash + noncash)
+    return int(min(int(receivable.amount_irr), cash + noncash))
 
 
 def accrue_subscription_period(

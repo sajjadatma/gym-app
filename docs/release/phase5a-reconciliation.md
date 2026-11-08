@@ -89,20 +89,30 @@ See `docs/finance/date-semantics.md` §6. Summary:
 - Gym timezone is used for report boundaries but is not yet editable/audited through the API.
 - Reversed `from_date > to_date` is a caller contract, not rejected by every route.
 - Cross-gym platform reports use the platform default `Asia/Tehran`; gym-scoped owner views use the gym timezone.
-- Historical membership status/renewals and coach payable remain current-state reads; they are not as-of reconstructed.
-- Export balance rows use current paid/status values for platform receivables/invoice lines.
+- Historical membership renewals and coach payable are now reconstructed at the requested as-of date from membership audit events, receipt/credit dates, settlement dates and refund-adjustment journal dates.
+- Export balance rows reconstruct platform receivable/invoice-line paid amounts from as-of payment allocations, credits and cancellation dates; every CSV row carries `date_basis`.
 - `unbilled_overdue_irr` is intentionally `0` under the owner-facing policy; unbilled aging is not implemented.
 
 Posted journal facts are not rewritten. The read model no longer rewrites historical recognized revenue for discount cancellations.
 
-## 6. 5A.7 final assessment
+## 6. 5A.7-R1 remediation
 
-The Phase 5A.7 review confirmed the tested reconciliation boundary cases and
-zero-delta result, but found that the approved 5A.0 requirement for **100% of
-financial report endpoints covered by date-semantics conformance tests** is not
-met. The unresolved items include current-state `renewals_due` and
-`coach_payable_irr` in the gym summary, current-state CSV balance rows, missing
-historical evidence for the platform per-gym report/export, and legacy backfill
-differences. These are recorded as LOCAL NO-GO blockers in
-`docs/release/phase5a-local-go-no-go.md`; they are not reclassified as accepted
-Phase 5B items.
+The original 5A.7 review found that the approved 5A.0 requirement for **100% of
+financial report endpoints covered by date-semantics conformance tests** was
+not met. Phase 5A.7-R1 resolved those blockers:
+
+- Gym summary `renewals_due` and `coach_payable_irr` are reconstructed at
+  `to_date`; later freezes, resumes, settlements, cancellations and refund
+  adjustments do not rewrite earlier values.
+- Financial CSV exports calculate platform balance rows as of `to_date`, emit
+  an explicit `date_basis` for every row, and preserve earlier periods when a
+  cancellation happens later. Offboarding balances are labelled `as_of_export`.
+- Platform per-gym reports and exports have direct multi-period tests that
+  reconcile to the platform overview and prove no cross-tenant netting.
+- Legacy reporting dates with an unambiguous source event are repaired by
+  migration `b9c0d1e2f3a4`; remaining irrecoverable cases are documented in
+  `docs/finance/legacy-date-reconstruction.md`.
+
+The closed-period zero-delta and reconciliation boundary tests remain green.
+The final LOCAL GO / NO-GO decision is recorded in
+`docs/release/phase5a-local-go-no-go.md` after the full 5A.7-R1 verification.

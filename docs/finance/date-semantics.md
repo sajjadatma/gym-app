@@ -3,7 +3,7 @@
 **Date:** 2026-11-04
 **Branch:** `feat/ascora-finance`
 **Scope:** Local-first financial reporting and read models
-**Status:** Approved local decision record for 5A.3; implemented and tested. **5A.7 found that the 5A.0 100% endpoint-conformance baseline is not met; see §7.**
+**Status:** Approved local decision record for 5A.3; implemented and tested. **5A.7-R1 remediated the date-semantics blockers; see §7.**
 
 ## 1. Approval record
 
@@ -64,7 +64,7 @@ No external signature, auditor, legal opinion or production approval is claimed.
    - cancellation replacement credit: cancellation date (excluded from recognized revenue).
 3. Per-gym platform recognized revenue uses `recognized_on`; the headline uses `posting_date`. New data must reconcile to 0 IRR for a closed period.
 4. Group volume discount journals post at `invoice.issued_on`, not `period_end`.
-5. Historical rows backfilled by migration use `created_at::date` as `recognized_on`; a legacy boundary delta is possible only for data created before 5A.3 and is documented as a backfill limitation.
+5. Pre-5A.3 rows with an unambiguous source event are repaired by migration `b9c0d1e2f3a4`; rows without an authoritative source remain on the `created_at` backfill and are documented as a legacy limitation in `docs/finance/legacy-date-reconstruction.md`.
 
 ### 3.5 Historical as-of
 
@@ -74,6 +74,8 @@ No external signature, auditor, legal opinion or production approval is claimed.
 4. Credit availability uses `recognized_on`/`created_at` and application dates `<= as_of`. Applied credits in gym invoice paid-as-of use the explicit `applied_on` business date, falling back to the creation date for legacy rows.
 5. Gym summary uses `to_date` as the as-of date; paid amounts use receipt `received_on` and applied-credit dates.
 6. Mutable `paid_irr`, `status` and `balance_irr` are not used as historical billed facts. Unbilled historical exposure uses the receivable gross amount and available credit as of the date; it does not subtract a later payment from `paid_irr`.
+7. Gym summary `renewals_due` is reconstructed at `to_date`: membership `start_date <= to_date`, not cancelled on/before the date, and the end date as of that date inside the 30-day window. Later freeze/resume extensions are reversed using append-only `finance.membership.resumed` audit events. Incomplete legacy freeze history fails closed with `membership_history_incomplete`.
+8. Gym summary `coach_payable_irr` is reconstructed at `to_date` from earning business dates (receipt `received_on`, credit `applied_on`, or journal `posting_date`), settlement items with `paid_on <= to_date` that were not cancelled on/before the date, and refund adjustments whose journal posted on/before the date.
 
 ### 3.6 Sales, voids, cancellations and closed periods
 
@@ -87,11 +89,12 @@ No external signature, auditor, legal opinion or production approval is claimed.
 
 ### 3.7 Exports
 
-1. Date-filtered exports apply the requested range to every row family.
+1. Date-filtered exports apply the requested range to event rows. Balance rows (summary balances, platform receivable and platform invoice-line balances) are as-of `to_date` and are included when their originating event is on or before `to_date`, even if it predates `from_date`.
 2. Cash rows use the cash event date: recorded refund journal `posting_date`, paid expense journal `posting_date`, coach earning journal `posting_date`, settlement `paid_on`, platform payment `received_on`. Unrecorded refunds are `BALANCE` rows dated in the gym-local calendar, and rejected refunds are omitted because they are not a liability or cash movement.
 3. Accrual rows use the business accrual date: unpaid expense `spent_on`, platform receivable `recognized_on`, agreement `effective_from`.
-4. Offboarding export is all-history; its balance metrics are current/as-of the export time, and it uses gym-local today as the upper bound.
-5. CSV does not yet include a separate `date_basis` column; the row family and the matrix below define the basis. This is a remaining reporting-format limitation, not an accounting ambiguity.
+4. Offboarding export is all-history; its balance metrics are as-of the export time, and it uses gym-local today as the upper bound. Balance rows are labelled `as_of_export`.
+5. Every CSV row now carries an explicit `date_basis` column: `range`, `as_of_to_date`, `as_of_export`, `issue_date`, `received_on`, `posting_date`, `spent_on`, `paid_on`, `recognized_on`, `created_at_local`, or a combined balance basis such as `recognized_on;as_of_to_date`.
+6. Platform report exports also carry `date_basis`: `range` for accrual/cash metrics and `as_of_to_date` for receivable/overdue balances.
 
 ## 4. Endpoint → date/basis matrix
 
@@ -99,10 +102,10 @@ No external signature, auditor, legal opinion or production approval is claimed.
 
 | Endpoint | Range / as-of | Date basis | Amount basis | Status |
 |---|---|---|---|---|
-| `/finance/reports/summary` | inclusive `from_date..to_date`; balances as of `to_date` | journal posting date for cash/revenue/expense; invoice issue date for sales; effective due date for overdue | journal net; invoice total; as-of paid; platform total exposure | **Partially verified** — `renewals_due` and `coach_payable_irr` are current-state, not as-of `to_date`; see 5A.7 blocker |
-| `/finance/reports/export` | inclusive; all row families filtered | journal/business dates as listed in §3.7 | same as summary + row amounts | **Partially verified** — balance rows use current paid/status; no `date_basis`; not every row family has a range test |
-| `/finance/reports/offboarding-export` | all history; balances as of export time | same as export | same | **Current-only** — no as-of historical semantics; only tenant/header test evidence |
-| `/finance/reminders` | `gym_today` + horizon | first unpaid installment due date / invoice due date | remaining installment amount | Canonical |
+| `/finance/reports/summary` | inclusive `from_date..to_date`; balances as of `to_date` | journal posting date for cash/revenue/expense; invoice issue date for sales; effective due date for overdue; membership/coaching lifecycle as of `to_date` | journal net; invoice total; as-of paid; historical renewals; historical coach payable; platform total exposure | **Fully verified** — incl. `test_gym_summary_renewals_are_reconstructed_at_the_requested_date`, `test_gym_summary_coach_payable_uses_receipt_and_settlement_dates`, `test_gym_summary_coach_payable_excludes_later_refund_adjustment`, `test_gym_summary_coach_payable_restores_cancelled_settlement_after_cancel_date` |
+| `/finance/reports/export` | range for event rows; balances as of `to_date` | journal/business dates as listed in §3.7; explicit `date_basis` per row | same as summary + as-of row balances | **Fully verified** — incl. `test_gym_export_has_explicit_date_basis_and_matches_summary_as_of`, `test_platform_balance_rows_use_as_of_payments_credits_and_cancellation`, `test_export_uses_business_dates_for_refunds_and_expenses`, `test_paid_expense_export_uses_paid_journal_date` |
+| `/finance/reports/offboarding-export` | all history; balances as of export time, labelled `as_of_export` | same as export, with explicit `date_basis` | same as export; as-of export time | **Fully verified for its as-of-export contract** — `test_offboarding_export_labels_balances_as_of_export` |
+| `/finance/reminders` | `gym_today` + horizon | first unpaid installment due date / invoice due date | remaining installment amount | **Fully verified** — `test_effective_due_date_uses_first_unpaid_installment`, `test_reminders_report_due_installments_and_renewals` |
 | `/finance/invoices`, `/invoices/{id}` | current | effective due date; `gym_today` | current paid/balance | Canonical |
 | `/finance/platform/invoices` | current | invoice `issued_on` / `due_on` | current paid/balance | Current-only read |
 | `/finance/platform/dues` | current (no `as_of` parameter) | billed invoice `due_on`; unbilled `recognized_on` | billed net, unbilled net, total exposure | **Current-only verified** — documentation corrected in 5A.7 |
@@ -111,19 +114,20 @@ No external signature, auditor, legal opinion or production approval is claimed.
 | `/finance/my/earnings`, `/my/settlements`, `/my/coach-summary` | current | `created_at`, `vesting_date`, `paid_on` | current shares/settlements | Current-only |
 | `/finance/journal` | no range filter | journal `posting_date` | debit/credit | Safe |
 | `/finance/periods` | current | `opened_at`, `period_start`, `period_end`, `closed_at` | lifecycle | Canonical |
-| `/finance/expenses`, `/refunds`, `/credits`, `/memberships`, `/coach-*`, `/reconciliation` | current | document business dates | current amounts/status | Current-only |
+| `/finance/receipts`, `/receipts/{id}`, `/expenses`, `/expenses/{id}`, `/refunds`, `/credits`, `/memberships`, `/coach-*`, `/reconciliation` | current | document business dates | current amounts/status | Current-only |
+| `/finance/customers` | current | identity/roles directory | no financial balance | Non-reporting; excluded |
 | `/finance/accounts`, `/settings`, `/grants`, `/catalog` | — | — | configuration | Safe |
 
 ### 4.2 ASCORA platform
 
 | Endpoint | Range / as-of | Date basis | Amount basis | Status |
 |---|---|---|---|---|
-| `/platform/reports/overview` | inclusive; balances/MRR as of `to_date` | headline journal `posting_date`; by-gym `recognized_on`; costs `incurred_on`; invoiced `issued_on` + cancellation `cancelled_on` | journal net; per-gym recognized; total exposure; gross minus cancellation | Canonical |
-| `/platform/reports/export` | same | same | same | Canonical |
-| `/platform/reports/gyms/{gym_id}` | inclusive; as of `to_date` | same by-gym basis | same | **Partially verified** — current-period Playwright evidence only; no historical boundary test |
-| `/platform/gyms/{gym_id}/export` | same | same | same | **Unverified** — no date-semantics test evidence |
-| `/platform/dues`, `/dues/{gym_id}` | optional `as_of` | billed `due_on`; unbilled `recognized_on` | billed/unbilled split; as-of payments/credit | Canonical |
-| `/platform/reminders` | optional `as_of` | invoice `issued_on`/`due_on` | as-of invoice balance | Canonical |
+| `/platform/reports/overview` | inclusive; balances/MRR as of `to_date` | headline journal `posting_date`; by-gym `recognized_on`; costs `incurred_on`; invoiced `issued_on` + cancellation `cancelled_on` | journal net; per-gym recognized; total exposure; gross minus cancellation | **Fully verified** — `test_closed_synthetic_month_reconciles_with_zero_delta`, `test_platform_cancellation_does_not_rewrite_original_period`, `test_platform_discount_cancellation_is_period_stable`, `test_platform_overview_does_not_cross_net_credit_between_gyms` |
+| `/platform/reports/export` | same | same; explicit `date_basis` | same | **Fully verified** — `test_csv_exports_are_tenant_safe_and_keep_history`, `test_platform_per_gym_report_and_export_reconcile_across_periods` |
+| `/platform/reports/gyms/{gym_id}` | inclusive; as of `to_date` | same by-gym basis | same | **Fully verified** — `test_platform_per_gym_report_and_export_reconcile_across_periods` |
+| `/platform/gyms/{gym_id}/export` | same | same; explicit `date_basis` | same | **Fully verified** — `test_platform_per_gym_report_and_export_reconcile_across_periods` |
+| `/platform/dues`, `/dues/{gym_id}` | optional `as_of` | billed `due_on`; unbilled `recognized_on` | billed/unbilled split; as-of payments/credit | **Fully verified** — `test_platform_historical_standing_and_reminders_use_as_of_events`, `test_platform_historical_unbilled_ignores_future_payment` |
+| `/platform/reminders` | optional `as_of` | invoice `issued_on`/`due_on` | as-of invoice balance | **Fully verified** — `test_platform_historical_standing_and_reminders_use_as_of_events`, `test_platform_reminders_are_in_app_only_and_list_due_and_overdue` |
 | `/platform/receivables` | current | `recognized_on`/`due_on` | current amount/paid | Current-only |
 | `/platform/invoices`, `/invoices/{id}` | current | `issued_on`/`due_on` | current paid/balance | Current-only |
 | `/platform/payments` | current | `received_on` | payment/allocation | Safe |
@@ -150,38 +154,50 @@ No external signature, auditor, legal opinion or production approval is claimed.
 | Discount cancellation is period-stable for per-gym revenue | `test_platform_discount_cancellation_is_period_stable` |
 | Void receivable uses the void posting date | `test_void_receivable_uses_void_posting_date` |
 | Paid expense export uses the paid journal date | `test_paid_expense_export_uses_paid_journal_date` |
+| Membership freeze/resume after the as-of date | `test_gym_summary_renewals_are_reconstructed_at_the_requested_date` |
+| Settlement/refund/cancellation after the as-of date | `test_gym_summary_coach_payable_uses_receipt_and_settlement_dates`, `test_gym_summary_coach_payable_excludes_later_refund_adjustment`, `test_gym_summary_coach_payable_restores_cancelled_settlement_after_cancel_date` |
+| CSV balance row equals summary/report for the same as-of | `test_gym_export_has_explicit_date_basis_and_matches_summary_as_of`, `test_platform_balance_rows_use_as_of_payments_credits_and_cancellation` |
+| Platform per-gym report reconciles to overview across periods | `test_platform_per_gym_report_and_export_reconcile_across_periods` |
 
 ## 6. Remaining discrepancies / limitations
 
-1. **Historical backfill:** platform receivables/credits created before this change use `created_at::date` as `recognized_on`; a legacy range can differ from the journal if the original receipt/posting date was different. New data uses the canonical business date. A migration backfill test covers the new columns.
-2. **CSV format:** exports do not yet carry a `date_basis` column. Row family and the matrix define the basis.
+1. **Historical backfill:** legacy rows with an unambiguous source event are repaired. Rows without a source event, or with an ambiguous applied-advance match, remain on the `created_at` backfill and are documented in `docs/finance/legacy-date-reconstruction.md`.
+2. **CSV format:** resolved; every financial CSV row carries `date_basis`.
 3. **Platform closed periods:** there is no platform period model; platform invoice issuance/cancellation dates are controlled at creation/cancellation time. A future platform period lock would require a separate approved change.
 4. **Timezone editing:** `FinanceSettings.timezone` is used for calculations but remains read-only through the API; changing it requires a direct local settings row. A validated edit/audit workflow is a Phase 5B hardening item.
 5. **Range validation:** `from_date <= to_date` is the caller contract; not every route rejects a reversed range yet. This is a low-risk API validation gap.
 6. **Platform aggregate timezone:** cross-gym platform reports use the platform default `Asia/Tehran`, not a per-gym timezone; gym-scoped owner views use the gym timezone.
-7. **Historical current-only reads:** membership renewal status and coach payable in gym summary remain current-state reads, not as-of reconstructed.
-8. **Export balance rows:** platform receivable/invoice-line balance rows in CSV use current paid/status values.
+7. **Membership history dependency:** historical renewals use append-only membership audit events. Incomplete legacy freeze history fails closed rather than guessing.
+8. **Export balance rows:** platform receivable/invoice-line balance rows are reconstructed as of `to_date` from payment allocations, credits and cancellation dates; legacy rows without those facts remain limited.
 9. **Unbilled aging:** `unbilled_overdue_irr` is intentionally `0`; unbilled aging is not implemented.
 10. **Receivable public read model:** `PlatformReceivablePublic` does not expose `recognized_on`.
 11. **Closed-period guard scope:** the gym guard rejects backdated postings after any closed period; platform has no equivalent period lock.
 
 These limitations do not change posted journal facts and are recorded for Phase 5B.
 
-## 7. 5A.7 assessment
+## 7. 5A.7-R1 remediation
 
-The Phase 5A.7 final assessment re-audited this matrix against the approved
-5A.0 baseline. The baseline requires **100% of financial report endpoints
-covered by date-semantics conformance tests**. That criterion is **not met**:
+Phase 5A.7-R1 resolved the date-semantics blockers identified by the original
+5A.7 assessment:
 
-- `GET /finance/reports/summary` mixes as-of range fields with current-state
-  `renewals_due` and `coach_payable_irr`.
-- `GET /finance/reports/export` and `GET /finance/reports/offboarding-export`
-  include current-state `BALANCE` rows and have no `date_basis` column.
-- `GET /platform/reports/gyms/{gym_id}` has only current-period test evidence.
-- `GET /platform/gyms/{gym_id}/export` has no date-semantics test evidence.
-- Legacy reporting-date backfills can still differ from the original ledger
-  business date.
+1. `GET /finance/reports/summary` now reconstructs `renewals_due` and
+   `coach_payable_irr` at `to_date` from authoritative lifecycle, receipt,
+   credit, settlement and refund-adjustment records. Later freezes, resumes,
+   settlements, cancellations and adjustments do not rewrite earlier values.
+2. `GET /finance/reports/export` and `offboarding-export` now carry an
+   explicit `date_basis` column and calculate platform receivable/invoice-line
+   balances as of `to_date`. Later cancellations no longer erase earlier
+   periods, and offboarding balances are labelled `as_of_export`.
+3. `GET /platform/reports/gyms/{gym_id}` and
+   `GET /platform/gyms/{gym_id}/export` now have direct historical
+   conformance tests across two gyms and multiple periods, including
+   reconciliation to `/platform/reports/overview` and no cross-tenant netting.
+4. Legacy reporting dates are repaired from unambiguous source events, with
+   irrecoverable/ambiguous cases documented separately.
 
-These are recorded as **LOCAL NO-GO blockers** in
-`docs/release/phase5a-local-go-no-go.md`. They are not silently reclassified
-as accepted Phase 5B items.
+The matrix above was re-derived from the actual `@router.get` decorators in
+`backend/app/api/routes/finance.py` and `backend/app/api/routes/platform.py`;
+configuration-only and identity-directory endpoints are explicitly excluded.
+The 5A.0 100% conformance criterion is met for the reporting contract as
+recorded here. The final LOCAL GO / NO-GO decision is recorded in
+`docs/release/phase5a-local-go-no-go.md` after the full 5A.7-R1 verification.

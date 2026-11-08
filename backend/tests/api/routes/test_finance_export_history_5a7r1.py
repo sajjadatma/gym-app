@@ -4,7 +4,6 @@ import csv
 import io
 import uuid
 from datetime import UTC, date, datetime, timedelta
-from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
