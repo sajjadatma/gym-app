@@ -116,33 +116,30 @@ test("gym admin completes contract, sale, payment, settlement and report journey
   await page.getByRole("button", { name: "قرارداد جدید" }).click()
   await page.getByRole("button", { name: "انتخاب کنید مربی" }).click()
   await page.getByRole("option", { name: "رضا مربی" }).click()
-  await page.getByRole("button", { name: "حق عضویت باشگاه" }).click()
-  await page.getByRole("option", { name: "برنامه تغذیه" }).click()
   await expect(page.getByRole("textbox", { name: "درصد پلتفرم" })).toHaveValue(
-    /۱۲/,
+    /۱۵/,
   )
   await expect(page.getByText("درصد باقی‌مانده").locator("..")).toContainText(
-    "−۲٪",
+    "۰٪",
   )
-  await page.getByRole("textbox", { name: /درصد باشگاه/ }).fill("38")
-  await page.getByRole("textbox", { name: /درصد مربی/ }).fill("50")
-  await expect(page.locator(".m3-dialog .m3-remaining strong")).toHaveText("۰٪")
   await page.getByRole("button", { name: "ذخیره و اعمال" }).click()
-  await expect(page.getByText("برنامه تغذیه").last()).toBeVisible()
-  const nutritionRow = page.getByRole("row", { name: /برنامه تغذیه/ }).last()
-  await nutritionRow.getByRole("button", { name: "ویرایش" }).click()
+  await expect(page.getByText("برنامه تمرینی").last()).toBeVisible()
+  const trainingRow = page.getByRole("row", { name: /برنامه تمرینی/ }).last()
+  await trainingRow.getByRole("button", { name: "ویرایش" }).click()
   const coachShare = page.getByRole("textbox", { name: /درصد مربی/ })
   await expect(coachShare).toHaveValue("۵۰")
   await coachShare.fill("49")
   await expect(page.locator(".m3-dialog .m3-remaining strong")).toHaveText("۰٪")
   await page.getByRole("button", { name: "ذخیره و اعمال فوری" }).click()
-  await expect(page.getByText("برنامه تغذیه").last()).toBeVisible()
+  await expect(page.getByText("برنامه تمرینی").last()).toBeVisible()
 
   await page.getByRole("link", { name: "فروش و پرداخت‌ها" }).click()
   await expect(
     page.getByRole("heading", { name: "فروش و پرداخت‌ها" }),
   ).toBeVisible()
   await page.getByRole("button", { name: "فروش جدید" }).click()
+  await page.getByRole("button", { name: "حق عضویت باشگاه" }).click()
+  await page.getByRole("option", { name: "برنامه تمرینی" }).click()
   await page.getByLabel("توضیح فروش").fill("فروش تست مرورگر")
   await page.getByLabel("مبلغ پایه (تومان)").fill("1000000")
   await page.getByRole("button", { name: /مربی \(اختیاری\)/ }).click()
@@ -215,6 +212,14 @@ test("finance screens stay RTL and do not overflow on mobile", async ({
     () => document.documentElement.scrollWidth - window.innerWidth,
   )
   expect(salesOverflow).toBeLessThanOrEqual(1)
+  await page.getByRole("button", { name: "پلن و درخواست‌ها" }).click()
+  await expect(
+    page.getByRole("heading", { name: "پلن‌های فروش مربی" }),
+  ).toBeVisible()
+  const planOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  )
+  expect(planOverflow).toBeLessThanOrEqual(1)
 })
 
 test("global administrator manages platform contracts and sees cross-gym overview", async ({
@@ -257,4 +262,65 @@ test("global administrator manages platform contracts and sees cross-gym overvie
   await page.getByRole("link", { name: "مالیات‌ها" }).click()
   await expect(page.getByRole("heading", { name: "مالیات‌ها" })).toBeVisible()
   await expect(page.getByText("Value-added tax")).toBeVisible()
+})
+
+test("coach sells a training plan and receives an athlete request", async ({
+  page,
+  request,
+}) => {
+  await ensureSeededPlatformPolicy(request)
+  const planTitle = `پلن آزمون ${Date.now()}`
+  const athleteNote = `درخواست آزمون ${Date.now()}`
+
+  await page.context().clearCookies()
+  await login(page, ADMIN_EMAIL, ADMIN_PASSWORD)
+  await page.getByRole("button", { name: "پلن و درخواست‌ها" }).click()
+  await expect(
+    page.getByRole("heading", { name: "پلن‌های فروش مربی" }),
+  ).toBeVisible()
+  await page.getByRole("button", { name: "پلن جدید" }).first().click()
+  await page.getByRole("button", { name: "انتخاب کنید مربی" }).click()
+  await page.getByRole("option", { name: "رضا مربی" }).click()
+  await page.getByRole("textbox", { name: "عنوان پلن" }).fill(planTitle)
+  await page.getByRole("textbox", { name: "قیمت پایه (تومان)" }).fill("1000000")
+  await page
+    .getByRole("textbox", { name: "توضیحات" })
+    .fill("برنامه اختصاصی بر اساس پرونده ورزشکار")
+  await page.getByRole("button", { name: "ذخیره و اعمال" }).click()
+  const planRow = page.getByRole("row", { name: new RegExp(planTitle) })
+  await expect(planRow).toBeVisible()
+  await expect(planRow.getByText("فعال")).toBeVisible()
+
+  await page.context().clearCookies()
+  await login(page, "nima@example.com", ADMIN_PASSWORD)
+  await page.getByRole("button", { name: "برنامه من" }).click()
+  await expect(page.getByText("پلن تمرینی مربی")).toBeVisible()
+  await expect(page.getByText(planTitle)).toBeVisible()
+  await page.getByRole("button", { name: "خرید و ارسال درخواست" }).click()
+  await page.getByRole("textbox", { name: "توضیح برای مربی" }).fill(athleteNote)
+  await page
+    .getByRole("button", { name: "پرداخت آزمایشی و ثبت درخواست" })
+    .click()
+  await expect(page.getByText("درخواست برنامه برای مربی ثبت شد.")).toBeVisible()
+  await expect(page.getByText("در انتظار ساخت برنامه").first()).toBeVisible()
+
+  await page.context().clearCookies()
+  await login(page, "reza@example.com", ADMIN_PASSWORD)
+  await page.getByRole("button", { name: "پلن و درخواست‌ها" }).click()
+  await expect(page.getByText(athleteNote)).toBeVisible()
+  await expect(page.getByText("نیما ورزشکار").first()).toBeVisible()
+
+  await page.getByRole("button", { name: "ورزشکاران" }).click()
+  await page
+    .getByRole("button", { name: /نیما ورزشکار/ })
+    .first()
+    .click()
+  await page.getByRole("button", { name: "ساخت برنامه" }).first().click()
+  await page.getByRole("button", { name: "درخواست خرید" }).click()
+  await page.getByRole("option", { name: new RegExp(planTitle) }).click()
+  await page
+    .getByRole("textbox", { name: "عنوان برنامه" })
+    .fill("برنامه خریداری‌شده")
+  await page.getByRole("button", { name: "ایجاد" }).click()
+  await expect(page).toHaveURL(/\/programs\/[^/]+\/edit/)
 })

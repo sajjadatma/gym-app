@@ -1,19 +1,35 @@
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { CalendarDays, ClipboardList, Printer, UserRound } from "lucide-react"
+import {
+  CalendarDays,
+  ClipboardList,
+  Printer,
+  ShoppingBag,
+  UserRound,
+} from "lucide-react"
+import { useState } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
 import { AthletesService, ProgramsService } from "@/client"
 import {
   Button,
   Card,
+  Dialog,
   EmptyState,
   ErrorState,
   PageHeader,
   Spinner,
   StatusBadge,
+  TextField,
 } from "@/components/M3"
 import { useI18n } from "@/i18n"
+import {
+  getTrainingOffer,
+  listAthleteProgramRequests,
+  purchaseTrainingPlan,
+} from "@/lib/finance-api"
+import { formatToman } from "@/lib/finance-ui"
+import { useSnackbar } from "@/snackbar"
 
 export function MyProgramPage() {
   const { t, formatDate, formatNumber } = useI18n()
@@ -36,6 +52,57 @@ export function MyProgramPage() {
       ).data.data,
     enabled: Boolean(activeGymId && me?.id && activeRole === "ATHLETE"),
   })
+  const offerQuery = useQuery({
+    queryKey: ["finance-training-offer", activeGymId],
+    queryFn: () => getTrainingOffer(activeGymId!),
+    enabled: Boolean(activeGymId && activeRole === "ATHLETE"),
+  })
+  const requestsQuery = useQuery({
+    queryKey: ["finance-athlete-requests", activeGymId],
+    queryFn: () => listAthleteProgramRequests(activeGymId!),
+    enabled: Boolean(activeGymId && activeRole === "ATHLETE"),
+  })
+  const queryClient = useQueryClient()
+  const { show } = useSnackbar()
+  const [purchaseOpen, setPurchaseOpen] = useState(false)
+  const [purchaseKey, setPurchaseKey] = useState("")
+  const [purchaseNote, setPurchaseNote] = useState("")
+  const [purchaseError, setPurchaseError] = useState<string | null>(null)
+  const [purchasing, setPurchasing] = useState(false)
+
+  function openPurchase() {
+    setPurchaseKey(crypto.randomUUID())
+    setPurchaseNote("")
+    setPurchaseError(null)
+    setPurchaseOpen(true)
+  }
+
+  async function buyPlan() {
+    const offer = offerQuery.data
+    if (!offer) return
+    setPurchasing(true)
+    setPurchaseError(null)
+    try {
+      const result = await purchaseTrainingPlan(activeGymId!, {
+        plan_id: offer.plan.id,
+        note: purchaseNote.trim() || null,
+        idempotency_key: purchaseKey,
+      })
+      if (!result.request) {
+        setPurchaseError(t("finance.purchase.failed"))
+        return
+      }
+      await queryClient.invalidateQueries({
+        queryKey: ["finance-athlete-requests", activeGymId],
+      })
+      setPurchaseOpen(false)
+      show(t("finance.purchase.success"), "success")
+    } catch (err) {
+      setPurchaseError(translateApiError(err, t))
+    } finally {
+      setPurchasing(false)
+    }
+  }
 
   if (!activeGym) {
     return (
@@ -154,6 +221,88 @@ export function MyProgramPage() {
 
       <div style={{ height: 20 }} />
 
+      <Card>
+        <div className="m3-section__header">
+          <div>
+            <h2 className="m3-section__title">{t("finance.purchase.title")}</h2>
+            <p className="m3-section__subtitle">
+              {t("finance.purchase.subtitle")}
+            </p>
+          </div>
+          <ShoppingBag size={22} className="muted" />
+        </div>
+        {offerQuery.isLoading ? (
+          <Spinner label={t("common.loading")} />
+        ) : offerQuery.data ? (
+          <div className="stack-sm">
+            <div className="row row--between">
+              <strong>{offerQuery.data.plan.title}</strong>
+              <span className="m3-status m3-status--active">
+                {formatToman(offerQuery.data.total_amount_irr, formatNumber)}
+              </span>
+            </div>
+            {offerQuery.data.plan.description ? (
+              <p className="muted" style={{ fontSize: 13 }}>
+                {offerQuery.data.plan.description}
+              </p>
+            ) : null}
+            <div className="m3-entity-card__meta">
+              <span>
+                {t("finance.purchase.basePrice")}:{" "}
+                {formatToman(offerQuery.data.plan.base_price_irr, formatNumber)}
+              </span>
+              <span>
+                {t("finance.purchase.tax")}:{" "}
+                {formatToman(offerQuery.data.tax_amount_irr, formatNumber)}
+              </span>
+              <span>
+                {t("finance.purchase.coach")}:{" "}
+                {offerQuery.data.plan.coach_name ?? "—"}
+              </span>
+            </div>
+            <div className="row">
+              <Button onClick={openPurchase}>
+                {t("finance.purchase.buy")}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="muted" style={{ fontSize: 13 }}>
+            {t("finance.purchase.unavailable")}
+          </p>
+        )}
+        {requestsQuery.data?.length ? (
+          <div className="stack-sm" style={{ marginTop: 18 }}>
+            <h3 className="m3-section__title">
+              {t("finance.purchase.myRequests")}
+            </h3>
+            {requestsQuery.data.map((request) => (
+              <div key={request.id} className="m3-version-row">
+                <div className="m3-version-row__main">
+                  <ClipboardList size={18} className="muted" />
+                  <div>
+                    <div className="m3-version-row__title">
+                      {request.plan_title}
+                    </div>
+                    <div className="m3-version-row__meta">
+                      {formatDate(request.created_at)} ·{" "}
+                      {formatToman(request.total_amount_irr, formatNumber)}
+                    </div>
+                  </div>
+                </div>
+                <span className="m3-status">
+                  {request.status === "REQUESTED"
+                    ? t("finance.requests.statusRequested")
+                    : t("finance.requests.statusFulfilled")}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </Card>
+
+      <div style={{ height: 20 }} />
+
       <div className="grid-2">
         <Card>
           <div className="m3-section__header">
@@ -252,6 +401,57 @@ export function MyProgramPage() {
           </div>
         </Card>
       </div>
+
+      <Dialog
+        open={purchaseOpen}
+        title={t("finance.purchase.dialogTitle")}
+        onClose={() => setPurchaseOpen(false)}
+        footer={
+          <>
+            <Button
+              variant="text"
+              onClick={() => setPurchaseOpen(false)}
+              disabled={purchasing}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={() => void buyPlan()} loading={purchasing}>
+              {t("finance.purchase.pay")}
+            </Button>
+          </>
+        }
+      >
+        {offerQuery.data ? (
+          <div className="stack-sm">
+            <strong>{offerQuery.data.plan.title}</strong>
+            <div className="m3-entity-card__meta">
+              <span>
+                {t("finance.purchase.basePrice")}:{" "}
+                {formatToman(offerQuery.data.plan.base_price_irr, formatNumber)}
+              </span>
+              <span>
+                {t("finance.purchase.tax")}:{" "}
+                {formatToman(offerQuery.data.tax_amount_irr, formatNumber)}
+              </span>
+              <span>
+                {t("finance.purchase.total")}:{" "}
+                {formatToman(offerQuery.data.total_amount_irr, formatNumber)}
+              </span>
+            </div>
+            <TextField
+              label={t("finance.purchase.noteLabel")}
+              value={purchaseNote}
+              onChange={(event) => setPurchaseNote(event.target.value)}
+              multiline
+              helper={t("finance.purchase.noteHint")}
+            />
+            <p className="m3-field__message">
+              {t("finance.purchase.simulation")}
+            </p>
+            {purchaseError ? <ErrorState message={purchaseError} /> : null}
+          </div>
+        ) : null}
+      </Dialog>
     </>
   )
 }

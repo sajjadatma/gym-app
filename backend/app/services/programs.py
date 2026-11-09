@@ -298,6 +298,9 @@ def version_summary(
         status=cast(ProgramStatus, version.status),
         coach_id=version.coach_id,
         coach_name=version.coach_name,
+        origin=version.origin,
+        free_reason=version.free_reason,
+        purchase_request_id=version.purchase_request_id,
         start_date=version.start_date,
         end_date=version.end_date,
         created_at=version.created_at,
@@ -415,6 +418,10 @@ def create_version_with_allocated_number(
     end_date: date | None,
     coach_id: uuid.UUID | None,
     coach_name: str | None,
+    origin: str = "LEGACY",
+    purchase_request_id: uuid.UUID | None = None,
+    free_reason: str | None = None,
+    free_granted_by_id: uuid.UUID | None = None,
 ) -> WorkoutProgramVersion:
     last_error: IntegrityError | None = None
     for _attempt in range(VERSION_ALLOCATION_ATTEMPTS):
@@ -431,6 +438,10 @@ def create_version_with_allocated_number(
                     end_date=end_date,
                     coach_id=coach_id,
                     coach_name=coach_name,
+                    origin=origin,
+                    purchase_request_id=purchase_request_id,
+                    free_reason=free_reason,
+                    free_granted_by_id=free_granted_by_id,
                 )
                 session.add(version)
                 session.flush()

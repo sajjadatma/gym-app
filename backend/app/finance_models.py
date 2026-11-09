@@ -24,6 +24,8 @@ PaymentStatus = Literal["SUCCEEDED", "FAILED", "CANCELLED"]
 PaymentOutcome = Literal["SUCCESS", "FAILURE", "CANCELLATION"]
 AllocationParty = Literal["PLATFORM", "GYM", "COACH"]
 SettlementStatus = Literal["PENDING", "COMPLETED", "CANCELLED"]
+ProgramRequestStatus = Literal["REQUESTED", "FULFILLED", "CANCELLED"]
+ProgramOrigin = Literal["LEGACY", "PURCHASED", "FREE"]
 
 
 def finance_now() -> datetime:
@@ -209,6 +211,88 @@ class FinanceCoachContract(SQLModel, table=True):
     activated_at: datetime | None = Field(default=None)
 
 
+class FinanceCoachPlan(SQLModel, table=True):
+    __tablename__ = "finance_coach_plan"
+    __table_args__ = (
+        CheckConstraint(
+            "category = 'TRAINING'",
+            name="ck_finance_coach_plan_category",
+        ),
+        CheckConstraint(
+            "base_price_irr > 0",
+            name="ck_finance_coach_plan_price",
+        ),
+        Index(
+            "uq_finance_coach_plan_active",
+            "gym_id",
+            "coach_user_id",
+            "category",
+            unique=True,
+            postgresql_where=text("is_active"),
+            sqlite_where=text("is_active"),
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(
+        foreign_key="gym.id", ondelete="CASCADE", index=True
+    )
+    coach_user_id: uuid.UUID = Field(
+        foreign_key="user.id", ondelete="RESTRICT", index=True
+    )
+    category: str = Field(default="TRAINING", max_length=20)
+    title: str = Field(max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    base_price_irr: int
+    is_active: bool = Field(default=True)
+    created_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT"
+    )
+    created_at: datetime = Field(default_factory=finance_now)
+    updated_at: datetime = Field(default_factory=finance_now)
+
+
+class FinanceProgramRequest(SQLModel, table=True):
+    __tablename__ = "finance_program_request"
+    __table_args__ = (
+        UniqueConstraint(
+            "sale_id", name="uq_finance_program_request_sale"
+        ),
+        CheckConstraint(
+            "status IN ('REQUESTED', 'FULFILLED', 'CANCELLED')",
+            name="ck_finance_program_request_status",
+        ),
+        CheckConstraint(
+            "base_price_irr >= 0 AND total_amount_irr >= 0",
+            name="ck_finance_program_request_amounts",
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    gym_id: uuid.UUID = Field(
+        foreign_key="gym.id", ondelete="CASCADE", index=True
+    )
+    athlete_user_id: uuid.UUID = Field(
+        foreign_key="user.id", ondelete="RESTRICT", index=True
+    )
+    coach_user_id: uuid.UUID = Field(
+        foreign_key="user.id", ondelete="RESTRICT", index=True
+    )
+    plan_id: uuid.UUID = Field(
+        foreign_key="finance_coach_plan.id", ondelete="RESTRICT", index=True
+    )
+    sale_id: uuid.UUID = Field(
+        foreign_key="finance_sale.id", ondelete="RESTRICT", index=True
+    )
+    plan_title: str = Field(max_length=200)
+    base_price_irr: int
+    total_amount_irr: int
+    note: str | None = Field(default=None, max_length=1000)
+    status: str = Field(default="REQUESTED", max_length=20)
+    created_at: datetime = Field(default_factory=finance_now)
+    fulfilled_at: datetime | None = Field(default=None)
+
+
 class FinanceSale(SQLModel, table=True):
     __tablename__ = "finance_sale"
     __table_args__ = (
@@ -253,6 +337,15 @@ class FinanceSale(SQLModel, table=True):
     coach_amount_irr: int
     coach_user_id: uuid.UUID | None = Field(
         default=None, foreign_key="user.id", ondelete="RESTRICT", index=True
+    )
+    athlete_user_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="RESTRICT", index=True
+    )
+    coach_plan_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="finance_coach_plan.id",
+        ondelete="RESTRICT",
+        index=True,
     )
     coach_contract_id: uuid.UUID | None = Field(
         default=None, foreign_key="finance_coach_contract.id", ondelete="RESTRICT"
@@ -605,12 +698,60 @@ class FinanceSalePublic(SQLModel):
     coach_amount_irr: int
     coach_user_id: uuid.UUID | None = None
     coach_name: str | None = None
+    athlete_user_id: uuid.UUID | None = None
+    coach_plan_id: uuid.UUID | None = None
     coach_contract_id: uuid.UUID | None = None
     platform_contract_id: uuid.UUID
     platform_source: str
     refunded_irr: int = 0
     payment_status: str | None = None
     created_at: datetime
+
+
+class FinanceCoachPlanPublic(SQLModel):
+    id: uuid.UUID
+    gym_id: uuid.UUID
+    coach_user_id: uuid.UUID
+    coach_name: str | None = None
+    category: FinanceCategory
+    title: str
+    description: str | None = None
+    base_price_irr: int
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class FinanceProgramRequestPublic(SQLModel):
+    id: uuid.UUID
+    gym_id: uuid.UUID
+    athlete_user_id: uuid.UUID
+    athlete_name: str | None = None
+    coach_user_id: uuid.UUID
+    coach_name: str | None = None
+    plan_id: uuid.UUID
+    sale_id: uuid.UUID
+    plan_title: str
+    base_price_irr: int
+    total_amount_irr: int
+    note: str | None = None
+    status: ProgramRequestStatus
+    created_at: datetime
+    fulfilled_at: datetime | None = None
+
+
+class FinanceTrainingOfferPublic(SQLModel):
+    plan: FinanceCoachPlanPublic
+    coach_contract_id: uuid.UUID
+    taxes: list[FinanceTaxLinePublic] = Field(default_factory=list)
+    tax_amount_irr: int
+    total_amount_irr: int
+    platform_bp: int
+    gym_bp: int
+    coach_bp: int
+    platform_amount_irr: int
+    gym_amount_irr: int
+    coach_amount_irr: int
 
 
 class FinancePaymentAllocationPublic(SQLModel):
@@ -634,6 +775,12 @@ class FinancePaymentPublic(SQLModel):
     paid_at: datetime | None = None
     created_at: datetime
     allocations: list[FinancePaymentAllocationPublic] = Field(default_factory=list)
+
+
+class FinancePlanPurchasePublic(SQLModel):
+    sale: FinanceSalePublic
+    payment: FinancePaymentPublic
+    request: FinanceProgramRequestPublic | None = None
 
 
 class FinanceSettlementItemPublic(SQLModel):
@@ -781,6 +928,28 @@ class FinanceCoachContractUpdate(SQLModel):
     platform_bp: int = Field(ge=0, le=10000)
     gym_bp: int = Field(ge=0, le=10000)
     coach_bp: int = Field(ge=0, le=10000)
+
+
+class FinanceCoachPlanCreate(SQLModel):
+    coach_user_id: uuid.UUID | None = None
+    title: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    base_price_irr: int = Field(gt=0)
+    is_active: bool = True
+
+
+class FinanceCoachPlanUpdate(SQLModel):
+    title: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    base_price_irr: int = Field(gt=0)
+    is_active: bool = True
+
+
+class FinancePlanPurchaseCreate(SQLModel):
+    plan_id: uuid.UUID
+    note: str | None = Field(default=None, max_length=1000)
+    idempotency_key: str = Field(min_length=1, max_length=100)
+    outcome: PaymentOutcome = "SUCCESS"
 
 
 class FinanceSalePreviewRequest(SQLModel):

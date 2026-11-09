@@ -37,7 +37,6 @@ import {
 import { useSnackbar } from "@/snackbar"
 
 const CATEGORY_OPTIONS: { value: FinanceCategory; label: string }[] = [
-  { value: "MEMBERSHIP", label: categoryLabel("MEMBERSHIP") },
   { value: "NUTRITION", label: categoryLabel("NUTRITION") },
   { value: "TRAINING", label: categoryLabel("TRAINING") },
 ]
@@ -52,10 +51,10 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     coachId: "",
-    category: "MEMBERSHIP" as FinanceCategory,
+    category: "TRAINING" as FinanceCategory,
     effectiveFrom: todayIso(),
     effectiveTo: "",
-    gymPercent: "40",
+    gymPercent: "35",
     coachPercent: "50",
   })
   const contracts = useQuery({
@@ -111,10 +110,10 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
     setError(null)
     setForm({
       coachId: "",
-      category: "MEMBERSHIP",
+      category: "TRAINING",
       effectiveFrom: todayIso(),
       effectiveTo: "",
-      gymPercent: "40",
+      gymPercent: "35",
       coachPercent: "50",
     })
     setOpen(true)

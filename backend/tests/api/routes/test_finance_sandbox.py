@@ -65,7 +65,7 @@ def create_default_contract(
     *,
     membership_bp: int = 1000,
     nutrition_bp: int = 1200,
-    training_bp: int = 1500,
+    training_bp: int = 1000,
 ) -> dict[str, Any]:
     today = date.today().isoformat()
     response = client.post(
@@ -171,7 +171,7 @@ def create_coach_contract(
     platform_bp: int = 1000,
     gym_bp: int = 4000,
     coach_bp: int = 5000,
-    category: str = "MEMBERSHIP",
+    category: str = "TRAINING",
     effective_from: str | None = None,
 ) -> dict[str, Any]:
     response = client.post(
@@ -203,7 +203,7 @@ def preview_sale(
     base_amount_irr: int = 1_000_000,
     tax_ids: list[str] | None = None,
     coach_id: str | None = None,
-    category: str = "MEMBERSHIP",
+    category: str = "TRAINING",
     sold_on: str | None = None,
 ) -> dict[str, Any]:
     response = client.post(
@@ -229,7 +229,7 @@ def create_sale(
     base_amount_irr: int = 1_000_000,
     tax_ids: list[str] | None = None,
     coach_id: str | None = None,
-    category: str = "MEMBERSHIP",
+    category: str = "TRAINING",
     description: str = "فروش آزمایشی",
 ) -> dict[str, Any]:
     response = client.post(
@@ -355,7 +355,11 @@ def test_platform_category_and_gym_override_sources(
     assert nutrition.json()["contract_id"] == override["id"]
 
     preview = preview_sale(
-        client, env["owner"], env["gym_id"], base_amount_irr=1_000_000
+        client,
+        env["owner"],
+        env["gym_id"],
+        base_amount_irr=1_000_000,
+        category="MEMBERSHIP",
     )
     assert preview["platform_bp"] == 800
     assert preview["gym_amount_irr"] == 920_000
@@ -398,7 +402,7 @@ def test_coach_contract_validation_and_platform_tampering(
         headers=env["owner"],
         json={
             "coach_user_id": env["coach_id"],
-            "category": "MEMBERSHIP",
+            "category": "TRAINING",
             "effective_from": date.today().isoformat(),
             "platform_bp": 1000,
             "gym_bp": 4000,
@@ -413,7 +417,7 @@ def test_coach_contract_validation_and_platform_tampering(
         headers=env["owner"],
         json={
             "coach_user_id": env["coach_id"],
-            "category": "MEMBERSHIP",
+            "category": "TRAINING",
             "effective_from": date.today().isoformat(),
             "platform_bp": 1200,
             "gym_bp": 4000,
@@ -436,7 +440,7 @@ def test_coach_contract_validation_and_platform_tampering(
         headers=env["owner"],
         json={
             "coach_user_id": outsider["member"]["user_id"],
-            "category": "MEMBERSHIP",
+            "category": "TRAINING",
             "effective_from": date.today().isoformat(),
             "platform_bp": 1000,
             "gym_bp": 4000,
@@ -555,20 +559,20 @@ def test_new_contracts_replace_active_versions(
         env["owner"],
         env["gym_id"],
         env["coach_id"],
-        platform_bp=1100,
+        platform_bp=1000,
         gym_bp=3000,
-        coach_bp=5900,
+        coach_bp=6000,
     )
     second_coach = client.post(
         f"/api/v1/finance/gyms/{env['gym_id']}/coach-contracts",
         headers=env["owner"],
         json={
             "coach_user_id": env["coach_id"],
-            "category": "MEMBERSHIP",
+            "category": "TRAINING",
             "effective_from": date.today().isoformat(),
-            "platform_bp": 1100,
+            "platform_bp": 1000,
             "gym_bp": 3000,
-            "coach_bp": 5900,
+            "coach_bp": 6000,
         },
     )
     assert second_coach.status_code == 200, second_coach.text
@@ -1166,7 +1170,7 @@ def test_editing_gym_contract_and_coach_contract_creates_replacing_versions(
             "scope": "GYM",
             "gym_id": env["gym_id"],
             "effective_from": date.today().isoformat(),
-            "rates": platform_rates(800, 1000, 1200),
+            "rates": platform_rates(800, 1000, 800),
         },
     )
     assert gym_contract.status_code == 200, gym_contract.text
@@ -1189,7 +1193,7 @@ def test_editing_gym_contract_and_coach_contract_creates_replacing_versions(
         json={
             "name": "اختصاصی دوم",
             "effective_from": date.today().isoformat(),
-            "rates": platform_rates(2000, 1000, 1200),
+            "rates": platform_rates(2000, 1000, 2000),
         },
     )
     assert edited_gym.status_code == 200, edited_gym.text
@@ -1265,7 +1269,7 @@ def test_platform_edit_rejected_when_coach_share_would_conflict(
         json={
             "name": "درصد ناسازگار",
             "effective_from": date.today().isoformat(),
-            "rates": platform_rates(6000, 1200, 1500),
+            "rates": platform_rates(1000, 1200, 6000),
         },
     )
     assert conflict.status_code == 409

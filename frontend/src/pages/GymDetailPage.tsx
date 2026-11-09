@@ -314,6 +314,37 @@ export function GymDetailPage({ gymId }: { gymId: string }) {
           <Card>
             <div className="m3-section__header">
               <div>
+                <h2 className="m3-section__title">
+                  {t("gyms.membershipTitle")}
+                </h2>
+                <p className="m3-section__subtitle">
+                  {t("gyms.membershipSubtitle")}
+                </p>
+              </div>
+              <ShieldCheck size={22} className="muted" />
+            </div>
+            <p className="muted" style={{ fontSize: 13 }}>
+              {t("gyms.membershipDescription")}
+            </p>
+            <Button
+              variant="tonal"
+              style={{ marginTop: 14 }}
+              onClick={() =>
+                navigate({
+                  to: "/gyms/$gymId/finance/sales",
+                  params: { gymId },
+                })
+              }
+            >
+              {t("gyms.membershipSale")}
+            </Button>
+          </Card>
+        ) : null}
+
+        {gym.stats && canManage ? (
+          <Card>
+            <div className="m3-section__header">
+              <div>
                 <h2 className="m3-section__title">{t("dashboard.title")}</h2>
                 <p className="m3-section__subtitle">
                   {t("dashboard.adminSubtitle")}

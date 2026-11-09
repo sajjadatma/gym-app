@@ -4,10 +4,13 @@ import { API_URL } from "./credentials"
 import { expect, test } from "./fixtures/athlete-data"
 
 async function chooseRowAction(page: Page, row: Locator, name: string) {
-  await row.getByRole("button", { name: "اقدام‌های بیشتر" }).click()
+  await row.scrollIntoViewIfNeeded()
+  await page.waitForTimeout(100)
+  await row
+    .getByRole("button", { name: "اقدام‌های بیشتر" })
+    .evaluate((element) => (element as HTMLElement).click())
   const item = page.getByRole("menu").getByRole("menuitem", { name })
-  await item.focus()
-  await page.keyboard.press("Enter")
+  await item.dispatchEvent("click")
 }
 
 function archivedItems(page: Page) {

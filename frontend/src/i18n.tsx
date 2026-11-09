@@ -1222,6 +1222,98 @@ const fa = {
   "finance.party.platform": "پلتفرم",
   "finance.party.gym": "باشگاه",
   "finance.party.coach": "مربی",
+  "nav.coachPlan": "پلن و درخواست‌ها",
+  "gyms.membershipTitle": "حق عضویت باشگاه",
+  "gyms.membershipSubtitle": "مستقل از مربی و پلن‌های تمرینی",
+  "gyms.membershipDescription":
+    "حق عضویت فقط متعلق به باشگاه است و سهم مربی ندارد. فروش آن را از بخش مالی همین باشگاه ثبت کنید.",
+  "gyms.membershipSale": "ثبت فروش عضویت",
+  "finance.plans.title": "پلن‌های فروش مربی",
+  "finance.plans.subtitle":
+    "هر مربی در هر باشگاه حداکثر یک پلن تمرینی فعال دارد.",
+  "finance.plans.new": "پلن جدید",
+  "finance.plans.note":
+    "قیمت پایه است و مالیات هنگام خرید اضافه می‌شود. سهم‌ها از قرارداد جاری خوانده می‌شوند.",
+  "finance.plans.empty": "هنوز پلنی ثبت نشده است",
+  "finance.plans.emptyHint":
+    "برای فروش برنامه اختصاصی، یک پلن تمرینی فعال بسازید.",
+  "finance.plans.listTitle": "پلن‌های تمرینی",
+  "finance.plans.planTitle": "عنوان پلن",
+  "finance.plans.description": "توضیحات",
+  "finance.plans.price": "قیمت پایه",
+  "finance.plans.priceToman": "قیمت پایه (تومان)",
+  "finance.plans.toman": "تومان",
+  "finance.plans.updatedAt": "آخرین ویرایش",
+  "finance.plans.active": "فعال",
+  "finance.plans.inactive": "غیرفعال",
+  "finance.plans.activeHint":
+    "با فعال‌کردن این پلن، پلن فعال قبلی همان مربی در همین باشگاه غیرفعال می‌شود.",
+  "finance.plans.dialogTitle": "پلن تمرینی جدید",
+  "finance.plans.editTitle": "ویرایش پلن تمرینی",
+  "finance.plans.save": "ذخیره و اعمال",
+  "finance.plans.errorRequired": "عنوان و قیمت معتبر لازم است.",
+  "finance.plans.errorCoach": "یک مربی از همین باشگاه انتخاب کنید.",
+  "finance.requests.title": "درخواست‌های برنامه",
+  "finance.requests.athlete": "ورزشکار",
+  "finance.requests.amount": "مبلغ پرداخت‌شده",
+  "finance.requests.note": "توضیح ورزشکار",
+  "finance.requests.createdAt": "تاریخ درخواست",
+  "finance.requests.empty": "هنوز درخواستی ثبت نشده است",
+  "finance.requests.emptyHint":
+    "درخواست‌ها فقط پس از پرداخت موفق خرید پلن ایجاد می‌شوند.",
+  "finance.requests.statusRequested": "در انتظار ساخت برنامه",
+  "finance.requests.statusFulfilled": "برنامه ساخته شده",
+  "finance.sales.membershipClubOnly":
+    "حق عضویت فقط به باشگاه و پلتفرم تعلق دارد؛ مربی و سهم مربی در آن وجود ندارد.",
+  "finance.purchase.title": "پلن تمرینی مربی",
+  "finance.purchase.subtitle":
+    "پلن فعال مربی فعلی شما؛ پرداخت آزمایشی و ارسال درخواست برنامه",
+  "finance.purchase.basePrice": "قیمت پایه",
+  "finance.purchase.tax": "مالیات",
+  "finance.purchase.total": "مبلغ قابل پرداخت",
+  "finance.purchase.coach": "مربی",
+  "finance.purchase.buy": "خرید و ارسال درخواست",
+  "finance.purchase.myRequests": "درخواست‌های من",
+  "finance.purchase.unavailable":
+    "در حال حاضر پلن فعالی برای مربی فعلی شما تعریف نشده است.",
+  "finance.purchase.dialogTitle": "خرید پلن تمرینی",
+  "finance.purchase.pay": "پرداخت آزمایشی و ثبت درخواست",
+  "finance.purchase.noteLabel": "توضیح برای مربی",
+  "finance.purchase.noteHint":
+    "هدف، محدودیت یا نکته‌ای که مربی برای ساخت برنامه باید بداند.",
+  "finance.purchase.simulation":
+    "این پرداخت آزمایشی است؛ هیچ پول واقعی جابه‌جا نمی‌شود.",
+  "finance.purchase.success": "درخواست برنامه برای مربی ثبت شد.",
+  "finance.purchase.failed": "پرداخت موفق نبود؛ درخواستی ثبت نشد.",
+  "program.originPurchased": "خریداری‌شده",
+  "program.originFree": "رایگان",
+  "program.originLegacy": "سابقه پیشین",
+  "program.purchaseRequest": "درخواست خرید",
+  "program.purchaseRequestNone": "بدون خرید / سابقه",
+  "program.purchaseRequestHint":
+    "برای برنامه خریداری‌شده، درخواست پرداخت‌شده ورزشکار را انتخاب کنید.",
+  "program.freeReason": "دلیل برنامه رایگان",
+  "program.freeReasonHint":
+    "اگر برنامه رایگان است، دلیل آن را ثبت کنید. این برنامه به‌عنوان استثنا نگه داشته می‌شود.",
+  "errors.membership_coach_forbidden":
+    "حق عضویت باشگاه به مربی یا قرارداد مربی متصل نمی‌شود.",
+  "errors.program_purchase_required":
+    "برای ساخت برنامه، خرید موفق ورزشکار یا ثبت برنامه رایگان لازم است.",
+  "errors.program_request_not_found": "درخواست برنامه پیدا نشد.",
+  "errors.program_request_already_fulfilled":
+    "این درخواست قبلاً به برنامه تبدیل شده است.",
+  "errors.program_request_coach_mismatch":
+    "درخواست به مربی فعلی این ورزشکار تعلق ندارد.",
+  "errors.free_reason_too_short": "دلیل برنامه رایگان را کامل‌تر بنویسید.",
+  "errors.coach_plan_not_found": "پلن تمرینی پیدا نشد.",
+  "errors.invalid_plan_price": "قیمت پلن باید بزرگ‌تر از صفر باشد.",
+  "errors.plan_title_required": "عنوان پلن لازم است.",
+  "errors.training_plan_not_available":
+    "پلن تمرینی فعالی برای این مربی وجود ندارد.",
+  "errors.current_coach_required": "ابتدا باید مربی فعلی ورزشکار مشخص باشد.",
+  "errors.athlete_access_required": "این بخش فقط برای ورزشکار است.",
+  "errors.idempotency_key_reused":
+    "این کلید پرداخت قبلاً برای خرید دیگری استفاده شده است.",
 } as const
 
 type TranslationKey = keyof typeof fa
@@ -2446,6 +2538,99 @@ const en: Record<TranslationKey, string> = {
   "finance.party.platform": "Platform",
   "finance.party.gym": "Gym",
   "finance.party.coach": "Coach",
+  "nav.coachPlan": "Plan & requests",
+  "gyms.membershipTitle": "Gym membership",
+  "gyms.membershipSubtitle": "Independent of coaches and training plans",
+  "gyms.membershipDescription":
+    "Membership belongs to the gym and has no coach share. Record its sale in this gym's finance section.",
+  "gyms.membershipSale": "Record membership sale",
+  "finance.plans.title": "Coach sales plans",
+  "finance.plans.subtitle":
+    "Each coach has at most one active training plan per gym.",
+  "finance.plans.new": "New plan",
+  "finance.plans.note":
+    "The price is the base amount; tax is added at purchase. Shares come from the current contract.",
+  "finance.plans.empty": "No plans yet",
+  "finance.plans.emptyHint":
+    "Create an active training plan to sell a personalized program.",
+  "finance.plans.listTitle": "Training plans",
+  "finance.plans.planTitle": "Plan title",
+  "finance.plans.description": "Description",
+  "finance.plans.price": "Base price",
+  "finance.plans.priceToman": "Base price (Toman)",
+  "finance.plans.toman": "Toman",
+  "finance.plans.updatedAt": "Last updated",
+  "finance.plans.active": "Active",
+  "finance.plans.inactive": "Inactive",
+  "finance.plans.activeHint":
+    "Activating this plan deactivates the coach's previous active plan in this gym.",
+  "finance.plans.dialogTitle": "New training plan",
+  "finance.plans.editTitle": "Edit training plan",
+  "finance.plans.save": "Save and apply",
+  "finance.plans.errorRequired": "A valid title and price are required.",
+  "finance.plans.errorCoach": "Select a coach from this gym.",
+  "finance.requests.title": "Program requests",
+  "finance.requests.athlete": "Athlete",
+  "finance.requests.amount": "Amount paid",
+  "finance.requests.note": "Athlete note",
+  "finance.requests.createdAt": "Requested at",
+  "finance.requests.empty": "No requests yet",
+  "finance.requests.emptyHint":
+    "Requests are created only after a successful plan purchase.",
+  "finance.requests.statusRequested": "Waiting for program",
+  "finance.requests.statusFulfilled": "Program created",
+  "finance.sales.membershipClubOnly":
+    "Membership belongs only to the gym and platform; there is no coach or coach share.",
+  "finance.purchase.title": "Coach training plan",
+  "finance.purchase.subtitle":
+    "Your current coach's active plan; simulated payment and program request",
+  "finance.purchase.basePrice": "Base price",
+  "finance.purchase.tax": "Tax",
+  "finance.purchase.total": "Amount to pay",
+  "finance.purchase.coach": "Coach",
+  "finance.purchase.buy": "Buy and send request",
+  "finance.purchase.myRequests": "My requests",
+  "finance.purchase.unavailable":
+    "Your current coach does not have an active plan yet.",
+  "finance.purchase.dialogTitle": "Buy training plan",
+  "finance.purchase.pay": "Simulate payment and create request",
+  "finance.purchase.noteLabel": "Note for the coach",
+  "finance.purchase.noteHint":
+    "Goals, limitations or anything the coach should know.",
+  "finance.purchase.simulation":
+    "This is a simulated payment; no real money moves.",
+  "finance.purchase.success": "The program request was sent to the coach.",
+  "finance.purchase.failed": "Payment did not succeed; no request was created.",
+  "program.originPurchased": "Purchased",
+  "program.originFree": "Free",
+  "program.originLegacy": "Legacy",
+  "program.purchaseRequest": "Purchase request",
+  "program.purchaseRequestNone": "No purchase / legacy",
+  "program.purchaseRequestHint":
+    "For a purchased program, select the athlete's paid request.",
+  "program.freeReason": "Free-program reason",
+  "program.freeReasonHint":
+    "Record why this program is free. It is stored as a tracked exception.",
+  "errors.membership_coach_forbidden":
+    "Gym membership cannot be linked to a coach or coach contract.",
+  "errors.program_purchase_required":
+    "A successful purchase or a recorded free exception is required to create a program.",
+  "errors.program_request_not_found": "Program request not found.",
+  "errors.program_request_already_fulfilled":
+    "This request has already been used for a program.",
+  "errors.program_request_coach_mismatch":
+    "The request does not belong to the athlete's current coach.",
+  "errors.free_reason_too_short": "Enter a fuller reason for the free program.",
+  "errors.coach_plan_not_found": "Coach plan not found.",
+  "errors.invalid_plan_price": "The plan price must be greater than zero.",
+  "errors.plan_title_required": "A plan title is required.",
+  "errors.training_plan_not_available":
+    "This coach has no active training plan.",
+  "errors.current_coach_required":
+    "The athlete must have a current coach first.",
+  "errors.athlete_access_required": "This section is for athletes only.",
+  "errors.idempotency_key_reused":
+    "This payment key was already used for another purchase.",
 }
 
 const dictionaries: Record<Locale, Record<TranslationKey, string>> = { fa, en }

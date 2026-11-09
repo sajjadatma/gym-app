@@ -55,6 +55,7 @@ import {
 } from "@/components/M3"
 import { type RowActionItem, RowActionMenu } from "@/components/RowActionMenu"
 import { type TranslationKey, useI18n } from "@/i18n"
+import { listGymProgramRequests, type ProgramRequest } from "@/lib/finance-api"
 import { MAX_UPLOAD_BYTES } from "@/lib/upload"
 import { useAsyncPicker } from "@/lib/use-async-picker"
 import { useSnackbar } from "@/snackbar"
@@ -326,6 +327,13 @@ function ProgramReviewCard({
               </span>
               {version.coach_name ? <span>{version.coach_name}</span> : null}
               <span>
+                {version.origin === "PURCHASED"
+                  ? t("program.originPurchased")
+                  : version.origin === "FREE"
+                    ? t("program.originFree")
+                    : t("program.originLegacy")}
+              </span>
+              <span>
                 {version.start_date
                   ? t("program.startDate") +
                     ": " +
@@ -409,6 +417,8 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
   const [programGoal, setProgramGoal] = useState("")
   const [programStart, setProgramStart] = useState<string | null>(null)
   const [programEnd, setProgramEnd] = useState<string | null>(null)
+  const [programPurchaseRequest, setProgramPurchaseRequest] = useState("")
+  const [programFreeReason, setProgramFreeReason] = useState("")
   const [deleteTarget, setDeleteTarget] =
     useState<ProgramVersionSummary | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -476,6 +486,18 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
     staleTime: 0,
     refetchOnWindowFocus: true,
   })
+
+  const programRequestsQuery = useQuery({
+    queryKey: ["finance-program-requests", activeGymId],
+    queryFn: () => listGymProgramRequests(activeGymId!),
+    enabled: Boolean(activeGymId),
+  })
+  const openProgramRequests: ProgramRequest[] = (
+    programRequestsQuery.data ?? []
+  ).filter(
+    (request) =>
+      request.athlete_user_id === athleteId && request.status === "REQUESTED",
+  )
 
   const coachPicker = useAsyncPicker<CoachPublic>({
     queryKey: ["async-gym-coaches", activeGymId],
@@ -601,6 +623,8 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
     setProgramGoal("")
     setProgramStart(null)
     setProgramEnd(null)
+    setProgramPurchaseRequest("")
+    setProgramFreeReason("")
     setError(null)
     setProgramOpen(true)
   }
@@ -620,6 +644,8 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
           goal: programGoal || null,
           start_date: programStart,
           end_date: programEnd,
+          purchase_request_id: programPurchaseRequest || null,
+          free_reason: programFreeReason.trim() || null,
         },
       })
       setProgramOpen(false)
@@ -627,8 +653,13 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
       setProgramGoal("")
       setProgramStart(null)
       setProgramEnd(null)
+      setProgramPurchaseRequest("")
+      setProgramFreeReason("")
       await queryClient.invalidateQueries({
         queryKey: ["programs", activeGymId, athleteId],
+      })
+      await queryClient.invalidateQueries({
+        queryKey: ["finance-program-requests", activeGymId],
       })
       navigate({
         to: "/gyms/$gymId/programs/$versionId/edit",
@@ -1689,6 +1720,25 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
             label={t("program.goal")}
             value={programGoal}
             onChange={(event) => setProgramGoal(event.target.value)}
+          />
+          <SelectField
+            label={t("program.purchaseRequest")}
+            value={programPurchaseRequest}
+            onChange={setProgramPurchaseRequest}
+            options={[
+              { value: "", label: t("program.purchaseRequestNone") },
+              ...openProgramRequests.map((request) => ({
+                value: request.id,
+                label: `${request.plan_title} — ${formatDate(request.created_at)}`,
+              })),
+            ]}
+            helper={t("program.purchaseRequestHint")}
+          />
+          <TextField
+            label={t("program.freeReason")}
+            value={programFreeReason}
+            onChange={(event) => setProgramFreeReason(event.target.value)}
+            helper={t("program.freeReasonHint")}
           />
           <div className="grid-2">
             <DateField

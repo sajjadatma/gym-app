@@ -104,6 +104,9 @@ test("admin creates catalog entries; coach selects them; day categories reach at
     .getByRole("button", { name: "ساخت برنامه", exact: true })
     .click()
   await dialog.getByLabel(/عنوان برنامه/).fill(`برنامه دسته نمونه ${suffix}`)
+  await dialog
+    .getByLabel(/دلیل برنامه رایگان/)
+    .fill("ثبت آزمایشی برنامه دسته‌بندی")
   await dialog.getByRole("button", { name: "ایجاد", exact: true }).click()
   await expect(page).toHaveURL(/\/programs\/[^/]+\/edit$/)
   const versionId =

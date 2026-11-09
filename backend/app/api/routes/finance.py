@@ -8,19 +8,32 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Response
 
-from app.api.deps import CurrentSuperuser, CurrentUser, SessionDep
+from app.api.deps import (
+    CurrentSuperuser,
+    CurrentUser,
+    GymContextDep,
+    SessionDep,
+    get_current_assignment,
+)
 from app.finance_models import (
     FinanceAuditPublic,
     FinanceCoachContractCreate,
     FinanceCoachContractPublic,
     FinanceCoachContractUpdate,
     FinanceCoachOptionPublic,
+    FinanceCoachPlan,
+    FinanceCoachPlanCreate,
+    FinanceCoachPlanPublic,
+    FinanceCoachPlanUpdate,
     FinancePaymentPublic,
     FinancePaymentSimulate,
+    FinancePlanPurchaseCreate,
+    FinancePlanPurchasePublic,
     FinancePlatformContractCreate,
     FinancePlatformContractPublic,
     FinancePlatformContractUpdate,
     FinancePlatformPolicyPublic,
+    FinanceProgramRequestPublic,
     FinanceRefundCreate,
     FinanceRefundPublic,
     FinanceReportPublic,
@@ -33,6 +46,7 @@ from app.finance_models import (
     FinanceTaxCreate,
     FinanceTaxPublic,
     FinanceTaxUpdate,
+    FinanceTrainingOfferPublic,
 )
 from app.services import finance as finance_service
 
@@ -383,6 +397,178 @@ def archive_coach_contract(
     finance_service.require_gym_finance_admin(session, current_user, gym_id)
     return finance_service.archive_coach_contract(
         session, actor=current_user, gym_id=gym_id, contract_id=contract_id
+    )
+
+
+@router.get(
+    "/gyms/{gym_id}/coach-plans",
+    response_model=list[FinanceCoachPlanPublic],
+)
+def list_coach_plans(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    ctx: GymContextDep,
+    gym_id: uuid.UUID,
+    coach_user_id: uuid.UUID | None = None,
+) -> Any:
+    if ctx.gym.id != gym_id or not ctx.is_staff:
+        raise HTTPException(status_code=403, detail="gym_staff_required")
+    if not ctx.is_admin:
+        if coach_user_id is not None and coach_user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="gym_admin_required")
+        coach_user_id = current_user.id
+    return finance_service.list_coach_plans(
+        session, gym_id=gym_id, coach_user_id=coach_user_id
+    )
+
+
+@router.post(
+    "/gyms/{gym_id}/coach-plans",
+    response_model=FinanceCoachPlanPublic,
+)
+def create_coach_plan(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    ctx: GymContextDep,
+    gym_id: uuid.UUID,
+    body: FinanceCoachPlanCreate,
+) -> Any:
+    if ctx.gym.id != gym_id or not ctx.is_staff:
+        raise HTTPException(status_code=403, detail="gym_staff_required")
+    coach_user_id = body.coach_user_id or current_user.id
+    if not ctx.is_admin and coach_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="gym_admin_required")
+    return finance_service.create_coach_plan(
+        session,
+        actor=current_user,
+        gym_id=gym_id,
+        coach_user_id=coach_user_id,
+        title=body.title,
+        description=body.description,
+        base_price_irr=body.base_price_irr,
+        is_active=body.is_active,
+    )
+
+
+@router.put(
+    "/gyms/{gym_id}/coach-plans/{plan_id}",
+    response_model=FinanceCoachPlanPublic,
+)
+def update_coach_plan(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    ctx: GymContextDep,
+    gym_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    body: FinanceCoachPlanUpdate,
+) -> Any:
+    if ctx.gym.id != gym_id or not ctx.is_staff:
+        raise HTTPException(status_code=403, detail="gym_staff_required")
+    plan = session.get(FinanceCoachPlan, plan_id)
+    if plan is None or plan.gym_id != gym_id:
+        raise HTTPException(status_code=404, detail="coach_plan_not_found")
+    if not ctx.is_admin and plan.coach_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="gym_admin_required")
+    return finance_service.update_coach_plan(
+        session,
+        actor=current_user,
+        gym_id=gym_id,
+        plan_id=plan_id,
+        title=body.title,
+        description=body.description,
+        base_price_irr=body.base_price_irr,
+        is_active=body.is_active,
+    )
+
+
+@router.get(
+    "/gyms/{gym_id}/athlete/training-offer",
+    response_model=FinanceTrainingOfferPublic | None,
+)
+def read_athlete_training_offer(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    ctx: GymContextDep,
+    gym_id: uuid.UUID,
+) -> Any:
+    if ctx.gym.id != gym_id or not ctx.is_athlete:
+        raise HTTPException(status_code=403, detail="athlete_access_required")
+    assignment = get_current_assignment(session, gym_id, current_user.id)
+    if assignment is None:
+        return None
+    return finance_service.training_plan_offer(
+        session, gym_id=gym_id, coach_user_id=assignment.coach_user_id
+    )
+
+
+@router.post(
+    "/gyms/{gym_id}/athlete/training-purchases",
+    response_model=FinancePlanPurchasePublic,
+)
+def purchase_athlete_training_plan(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    ctx: GymContextDep,
+    gym_id: uuid.UUID,
+    body: FinancePlanPurchaseCreate,
+) -> Any:
+    if ctx.gym.id != gym_id or not ctx.is_athlete:
+        raise HTTPException(status_code=403, detail="athlete_access_required")
+    assignment = get_current_assignment(session, gym_id, current_user.id)
+    if assignment is None:
+        raise HTTPException(status_code=400, detail="current_coach_required")
+    return finance_service.purchase_training_plan(
+        session,
+        actor=current_user,
+        gym_id=gym_id,
+        athlete_user_id=current_user.id,
+        coach_user_id=assignment.coach_user_id,
+        plan_id=body.plan_id,
+        note=body.note,
+        idempotency_key=body.idempotency_key,
+        outcome=body.outcome,
+    )
+
+
+@router.get(
+    "/gyms/{gym_id}/athlete/program-requests",
+    response_model=list[FinanceProgramRequestPublic],
+)
+def list_athlete_program_requests(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    ctx: GymContextDep,
+    gym_id: uuid.UUID,
+) -> Any:
+    if ctx.gym.id != gym_id or not ctx.is_athlete:
+        raise HTTPException(status_code=403, detail="athlete_access_required")
+    return finance_service.list_program_requests(
+        session, gym_id=gym_id, athlete_user_id=current_user.id
+    )
+
+
+@router.get(
+    "/gyms/{gym_id}/program-requests",
+    response_model=list[FinanceProgramRequestPublic],
+)
+def list_gym_program_requests(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    ctx: GymContextDep,
+    gym_id: uuid.UUID,
+) -> Any:
+    if ctx.gym.id != gym_id or not ctx.is_staff:
+        raise HTTPException(status_code=403, detail="gym_staff_required")
+    coach_user_id = None if ctx.is_admin else current_user.id
+    return finance_service.list_program_requests(
+        session, gym_id=gym_id, coach_user_id=coach_user_id
     )
 
 

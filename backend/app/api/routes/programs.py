@@ -14,10 +14,12 @@ from app.api.deps import (
     GymContextDep,
     SessionDep,
     get_athlete_access,
+    get_current_assignment,
 )
 from app.core.audit import audit
 from app.models import (
     Message,
+    ProgramSourceRequest,
     ProgramTemplate,
     ProgramTemplateDetail,
     ProgramVersionCreate,
@@ -30,6 +32,7 @@ from app.models import (
     WorkoutProgram,
     WorkoutProgramVersion,
 )
+from app.services import finance as finance_service
 from app.services.programs import (
     bump_version_revision,
     create_version_with_allocated_number,
@@ -64,6 +67,46 @@ def _staff_access(
     if access.profile.is_archived:
         raise HTTPException(status_code=409, detail="athlete_archived")
     return access
+
+
+def _program_creation_source(
+    *,
+    session: Session,
+    gym_id: uuid.UUID,
+    athlete_user_id: uuid.UUID,
+    access: AthleteAccess,
+    current_user: User,
+    purchase_request_id: uuid.UUID | None,
+    free_reason: str | None,
+) -> tuple[dict[str, Any], User | None]:
+    assignment = access.assignment or get_current_assignment(
+        session, gym_id, athlete_user_id
+    )
+    coach_user_id = (
+        assignment.coach_user_id if assignment else current_user.id
+    )
+    source = finance_service.resolve_program_creation_source(
+        session,
+        gym_id=gym_id,
+        athlete_user_id=athlete_user_id,
+        coach_user_id=coach_user_id,
+        purchase_request_id=purchase_request_id,
+        free_reason=free_reason,
+    )
+    if source["origin"] == "FREE":
+        source["free_granted_by_id"] = current_user.id
+    coach = session.get(User, source["coach_user_id"])
+    return source, coach
+
+
+def _mark_program_request_fulfilled(
+    session: Session, source: dict[str, Any]
+) -> None:
+    request = source.get("request")
+    if request is not None:
+        request.status = "FULFILLED"
+        request.fulfilled_at = datetime.now(UTC)
+        session.add(request)
 
 
 @router.get(
@@ -115,11 +158,20 @@ def create_program(
     ctx: GymContextDep,
     body: ProgramVersionCreate,
 ) -> Any:
-    _staff_access(
+    access = _staff_access(
         session=session,
         ctx=ctx,
         current_user=current_user,
         athlete_user_id=athlete_user_id,
+    )
+    source, version_coach = _program_creation_source(
+        session=session,
+        gym_id=ctx.gym.id,
+        athlete_user_id=athlete_user_id,
+        access=access,
+        current_user=current_user,
+        purchase_request_id=body.purchase_request_id,
+        free_reason=body.free_reason,
     )
     program = get_or_create_program(
         session,
@@ -127,17 +179,31 @@ def create_program(
         athlete_user_id=athlete_user_id,
         created_by_id=current_user.id,
     )
-    version = create_version_with_allocated_number(
-        session,
-        program_id=program.id,
-        title=body.title,
-        goal=body.goal,
-        notes=body.notes,
-        start_date=body.start_date,
-        end_date=body.end_date,
-        coach_id=current_user.id,
-        coach_name=current_user.full_name or current_user.email,
-    )
+    try:
+        version = create_version_with_allocated_number(
+            session,
+            program_id=program.id,
+            title=body.title,
+            goal=body.goal,
+            notes=body.notes,
+            start_date=body.start_date,
+            end_date=body.end_date,
+            coach_id=source["coach_user_id"],
+            coach_name=(
+                (version_coach.full_name or version_coach.email)
+                if version_coach
+                else (current_user.full_name or current_user.email)
+            ),
+            origin=source["origin"],
+            purchase_request_id=source["purchase_request_id"],
+            free_reason=source["free_reason"],
+            free_granted_by_id=source["free_granted_by_id"],
+        )
+    except IntegrityError as exc:
+        raise HTTPException(
+            status_code=409, detail="program_request_already_fulfilled"
+        ) from exc
+    _mark_program_request_fulfilled(session, source)
 
     if body.template_id:
         template = session.get(ProgramTemplate, body.template_id)
@@ -262,29 +328,53 @@ def create_new_draft(
     session: SessionDep,
     current_user: CurrentUser,
     ctx: GymContextDep,
+    body: ProgramSourceRequest | None = None,
 ) -> Any:
-    source, program, access = load_version_context(
+    source_version, program, access = load_version_context(
         session,
         ctx=ctx,
         current_user=current_user,
         version_id=version_id,
     )
     ensure_staff_write(access)
-    version = create_version_with_allocated_number(
-        session,
-        program_id=program.id,
-        title=source.title,
-        goal=source.goal,
-        notes=source.notes,
-        start_date=source.start_date,
-        end_date=source.end_date,
-        coach_id=current_user.id,
-        coach_name=current_user.full_name or current_user.email,
+    creation_source, version_coach = _program_creation_source(
+        session=session,
+        gym_id=ctx.gym.id,
+        athlete_user_id=program.athlete_user_id,
+        access=access,
+        current_user=current_user,
+        purchase_request_id=body.purchase_request_id if body else None,
+        free_reason=body.free_reason if body else None,
     )
+    try:
+        version = create_version_with_allocated_number(
+            session,
+            program_id=program.id,
+            title=source_version.title,
+            goal=source_version.goal,
+            notes=source_version.notes,
+            start_date=source_version.start_date,
+            end_date=source_version.end_date,
+            coach_id=creation_source["coach_user_id"],
+            coach_name=(
+                (version_coach.full_name or version_coach.email)
+                if version_coach
+                else (current_user.full_name or current_user.email)
+            ),
+            origin=creation_source["origin"],
+            purchase_request_id=creation_source["purchase_request_id"],
+            free_reason=creation_source["free_reason"],
+            free_granted_by_id=creation_source["free_granted_by_id"],
+        )
+    except IntegrityError as exc:
+        raise HTTPException(
+            status_code=409, detail="program_request_already_fulfilled"
+        ) from exc
+    _mark_program_request_fulfilled(session, creation_source)
     insert_structure(
         session,
         version_id=version.id,
-        structure=structure_from_version(session, source),
+        structure=structure_from_version(session, source_version),
     )
     session.commit()
     session.refresh(version)

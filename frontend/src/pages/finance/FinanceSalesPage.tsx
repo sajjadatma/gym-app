@@ -364,6 +364,7 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
               setForm((prev) => ({
                 ...prev,
                 category: value as FinanceCategory,
+                coachId: value === "MEMBERSHIP" ? "" : prev.coachId,
               }))
             }
             options={CATEGORY_OPTIONS}
@@ -396,21 +397,27 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
             suffix={t("finance.unit.toman")}
             required
           />
-          <SelectField
-            label={t("finance.sales.coachOptional")}
-            value={form.coachId}
-            onChange={(value) => {
-              setForm((prev) => ({ ...prev, coachId: value }))
-              setPreview(null)
-            }}
-            options={[
-              { value: "", label: t("finance.sales.noCoach") },
-              ...(coaches.data ?? []).map((coach) => ({
-                value: coach.user_id,
-                label: coach.name,
-              })),
-            ]}
-          />
+          {form.category !== "MEMBERSHIP" ? (
+            <SelectField
+              label={t("finance.sales.coachOptional")}
+              value={form.coachId}
+              onChange={(value) => {
+                setForm((prev) => ({ ...prev, coachId: value }))
+                setPreview(null)
+              }}
+              options={[
+                { value: "", label: t("finance.sales.noCoach") },
+                ...(coaches.data ?? []).map((coach) => ({
+                  value: coach.user_id,
+                  label: coach.name,
+                })),
+              ]}
+            />
+          ) : (
+            <p className="m3-field__message">
+              {t("finance.sales.membershipClubOnly")}
+            </p>
+          )}
         </div>
         <fieldset className="m3-check-group">
           <legend>{t("finance.sales.applicableTaxes")}</legend>

@@ -28,6 +28,9 @@ test("admin builds, saves and publishes a program through the UI", async ({
   await expect(createDialog.getByLabel(/عنوان برنامه/)).toHaveValue("")
   await expect(createDialog.getByLabel(/هدف/)).toHaveValue("")
   await createDialog.getByLabel(/عنوان برنامه/).fill("برنامه آزمون رابط")
+  await createDialog
+    .getByLabel(/دلیل برنامه رایگان/)
+    .fill("ثبت آزمایشی برنامه رابط")
   await createDialog.getByRole("button", { name: "ایجاد" }).click()
 
   await expect(page).toHaveURL(/\/programs\/[^/]+\/edit$/)
@@ -142,6 +145,9 @@ test("numbered day builder caps program days to the athlete's training-day count
     .click()
   const createDialog = page.getByRole("dialog")
   await createDialog.getByLabel(/عنوان برنامه/).fill("برنامه دو روزه")
+  await createDialog
+    .getByLabel(/دلیل برنامه رایگان/)
+    .fill("ثبت آزمایشی برنامه دو روزه")
   await createDialog.getByRole("button", { name: "ایجاد" }).click()
 
   await expect(page).toHaveURL(/\/programs\/[^/]+\/edit$/)

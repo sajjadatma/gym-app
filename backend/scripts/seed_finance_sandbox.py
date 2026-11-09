@@ -11,12 +11,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from sqlmodel import Session, select  # noqa: E402
+from sqlmodel import Session, col, select  # noqa: E402
 
 from app.core.config import settings  # noqa: E402
 from app.core.db import engine  # noqa: E402
 from app.finance_models import (  # noqa: E402
     FinanceCoachContract,
+    FinanceCoachPlan,
     FinancePlatformContract,
     FinanceSale,
     FinanceTaxDefinition,
@@ -97,7 +98,7 @@ def main() -> None:
             select(FinanceCoachContract).where(
                 FinanceCoachContract.gym_id == gym.id,
                 FinanceCoachContract.coach_user_id == coach.id,
-                FinanceCoachContract.category == "MEMBERSHIP",
+                FinanceCoachContract.category == "TRAINING",
                 FinanceCoachContract.status == "ACTIVE",
             )
         ).first()
@@ -107,11 +108,11 @@ def main() -> None:
                 actor=owner,
                 gym_id=gym.id,
                 coach_user_id=coach.id,
-                category="MEMBERSHIP",
+                category="TRAINING",
                 effective_from=date(2026, 1, 1),
                 effective_to=None,
-                platform_bp=1000,
-                gym_bp=4000,
+                platform_bp=1500,
+                gym_bp=3500,
                 coach_bp=5000,
             )
             finance_service.activate_coach_contract(
@@ -121,10 +122,30 @@ def main() -> None:
                 contract_id=draft["id"],
             )
 
+        plan = session.exec(
+            select(FinanceCoachPlan).where(
+                FinanceCoachPlan.gym_id == gym.id,
+                FinanceCoachPlan.coach_user_id == coach.id,
+                FinanceCoachPlan.category == "TRAINING",
+                col(FinanceCoachPlan.is_active).is_(True),
+            )
+        ).first()
+        if plan is None:
+            finance_service.create_coach_plan(
+                session,
+                actor=owner,
+                gym_id=gym.id,
+                coach_user_id=coach.id,
+                title="برنامه تمرینی اختصاصی",
+                description="برنامه اختصاصی بر اساس پرونده ورزشکار",
+                base_price_irr=5_000_000,
+                is_active=True,
+            )
+
         existing_sale = session.exec(
             select(FinanceSale).where(
                 FinanceSale.gym_id == gym.id,
-                FinanceSale.description == "فروش نمونه عضویت با مالیات",
+                FinanceSale.description == "فروش نمونه برنامه تمرینی با مالیات",
             )
         ).first()
         if existing_sale is None:
@@ -137,8 +158,8 @@ def main() -> None:
                 session,
                 actor=owner,
                 gym_id=gym.id,
-                category="MEMBERSHIP",
-                description="فروش نمونه عضویت با مالیات",
+                category="TRAINING",
+                description="فروش نمونه برنامه تمرینی با مالیات",
                 base_amount_irr=10_000_000,
                 tax_ids=[vat.id],
                 coach_user_id=coach.id,

@@ -838,11 +838,22 @@ class WorkoutProgramVersion(SQLModel, table=True):
             "status IN ('DRAFT', 'ACTIVE', 'ARCHIVED')",
             name="ck_program_version_status",
         ),
+        CheckConstraint(
+            "origin IN ('LEGACY', 'PURCHASED', 'FREE')",
+            name="ck_program_version_origin",
+        ),
         Index(
             "uq_program_version_active",
             "program_id",
             unique=True,
             postgresql_where=text("status = 'ACTIVE'"),
+        ),
+        Index(
+            "uq_program_version_purchase_request",
+            "purchase_request_id",
+            unique=True,
+            postgresql_where=text("purchase_request_id IS NOT NULL"),
+            sqlite_where=text("purchase_request_id IS NOT NULL"),
         ),
     )
 
@@ -862,6 +873,16 @@ class WorkoutProgramVersion(SQLModel, table=True):
         default=None, foreign_key="user.id", ondelete="SET NULL"
     )
     coach_name: str | None = Field(default=None, max_length=255)
+    origin: str = Field(default="LEGACY", max_length=20)
+    purchase_request_id: uuid.UUID | None = Field(
+        default=None,
+        foreign_key="finance_program_request.id",
+        ondelete="SET NULL",
+    )
+    free_reason: str | None = Field(default=None, max_length=500)
+    free_granted_by_id: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", ondelete="SET NULL"
+    )
     created_at: datetime = Field(default_factory=get_datetime_utc)
     published_at: datetime | None = Field(default=None)
     archived_at: datetime | None = Field(default=None)
@@ -1014,6 +1035,13 @@ class ProgramVersionCreate(SQLModel):
     start_date: date | None = None
     end_date: date | None = None
     template_id: uuid.UUID | None = None
+    purchase_request_id: uuid.UUID | None = None
+    free_reason: str | None = Field(default=None, max_length=500)
+
+
+class ProgramSourceRequest(SQLModel):
+    purchase_request_id: uuid.UUID | None = None
+    free_reason: str | None = Field(default=None, max_length=500)
 
 
 class ProgramVersionUpdate(SQLModel):
@@ -1044,6 +1072,9 @@ class ProgramVersionSummary(SQLModel):
     status: ProgramStatus
     coach_id: uuid.UUID | None = None
     coach_name: str | None = None
+    origin: str = "LEGACY"
+    free_reason: str | None = None
+    purchase_request_id: uuid.UUID | None = None
     start_date: date | None = None
     end_date: date | None = None
     created_at: datetime

@@ -2,7 +2,7 @@
 
 import { type Client, formDataBodySerializer, type Options as Options2, type TDataShape, urlSearchParamsBodySerializer } from './client';
 import { client } from './client.gen';
-import type { athletesArchiveAthleteData, athletesArchiveAthleteErrors, athletesArchiveAthleteResponses, athletesBulkImportAthletesData, athletesBulkImportAthletesErrors, athletesBulkImportAthletesResponses, athletesCreateAthleteData, athletesCreateAthleteErrors, athletesCreateAthleteResponses, athletesDeleteAthleteData, athletesDeleteAthleteErrors, athletesDeleteAthleteResponses, athletesDownloadAthleteImportTemplateData, athletesDownloadAthleteImportTemplateErrors, athletesDownloadAthleteImportTemplateResponses, athletesDownloadBodyFileData, athletesDownloadBodyFileErrors, athletesDownloadBodyFileResponses, athletesListAthletesData, athletesListAthletesErrors, athletesListAthletesResponses, athletesListBodyFilesData, athletesListBodyFilesErrors, athletesListBodyFilesResponses, athletesPreviewAthleteImportData, athletesPreviewAthleteImportErrors, athletesPreviewAthleteImportResponses, athletesReadAthleteData, athletesReadAthleteErrors, athletesReadAthleteResponses, athletesReadMyAthleteProfileData, athletesReadMyAthleteProfileErrors, athletesReadMyAthleteProfileResponses, athletesReassignCoachData, athletesReassignCoachErrors, athletesReassignCoachResponses, athletesRestoreAthleteData, athletesRestoreAthleteErrors, athletesRestoreAthleteResponses, athletesUpdateAthleteData, athletesUpdateAthleteErrors, athletesUpdateAthleteResponses, athletesUpdateMyAthleteProfileData, athletesUpdateMyAthleteProfileErrors, athletesUpdateMyAthleteProfileResponses, athletesUploadBodyFileData, athletesUploadBodyFileErrors, athletesUploadBodyFileResponses, exerciseCategoriesCreateExerciseCategoryData, exerciseCategoriesCreateExerciseCategoryErrors, exerciseCategoriesCreateExerciseCategoryResponses, exerciseCategoriesListExerciseCategoriesData, exerciseCategoriesListExerciseCategoriesErrors, exerciseCategoriesListExerciseCategoriesResponses, exercisesCreateExerciseData, exercisesCreateExerciseErrors, exercisesCreateExerciseResponses, exercisesListExercisesData, exercisesListExercisesErrors, exercisesListExercisesResponses, exercisesUpdateExerciseData, exercisesUpdateExerciseErrors, exercisesUpdateExerciseResponses, gymsCreateGymData, gymsCreateGymErrors, gymsCreateGymResponses, gymsCreateMemberData, gymsCreateMemberErrors, gymsCreateMemberResponses, gymsDeleteGymBrandingLogoData, gymsDeleteGymBrandingLogoErrors, gymsDeleteGymBrandingLogoResponses, gymsListCoachesData, gymsListCoachesErrors, gymsListCoachesResponses, gymsListGymsData, gymsListGymsResponses, gymsListMembersData, gymsListMembersErrors, gymsListMembersResponses, gymsReadGymData, gymsReadGymErrors, gymsReadGymResponses, gymsTransferOwnershipData, gymsTransferOwnershipErrors, gymsTransferOwnershipResponses, gymsUpdateGymData, gymsUpdateGymErrors, gymsUpdateGymResponses, gymsUpdateMemberData, gymsUpdateMemberErrors, gymsUpdateMemberResponses, gymsUploadBrandingLogoData, gymsUploadBrandingLogoErrors, gymsUploadBrandingLogoResponses, loginAcceptInvitationData, loginAcceptInvitationErrors, loginAcceptInvitationResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginLogoutData, loginLogoutResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, peopleDownloadPersonBodyFileData, peopleDownloadPersonBodyFileErrors, peopleDownloadPersonBodyFileResponses, peopleReadPersonOverviewData, peopleReadPersonOverviewErrors, peopleReadPersonOverviewResponses, programsArchiveProgramVersionData, programsArchiveProgramVersionErrors, programsArchiveProgramVersionResponses, programsCreateNewDraftData, programsCreateNewDraftErrors, programsCreateNewDraftResponses, programsCreateProgramData, programsCreateProgramErrors, programsCreateProgramResponses, programsDeleteProgramVersionData, programsDeleteProgramVersionErrors, programsDeleteProgramVersionResponses, programsListProgramsData, programsListProgramsErrors, programsListProgramsResponses, programsPublishProgramVersionData, programsPublishProgramVersionErrors, programsPublishProgramVersionResponses, programsReadProgramVersionData, programsReadProgramVersionErrors, programsReadProgramVersionResponses, programsSaveAsTemplateData, programsSaveAsTemplateErrors, programsSaveAsTemplateResponses, programsUpdateProgramVersionData, programsUpdateProgramVersionErrors, programsUpdateProgramVersionResponses, superuserAthletesArchiveAthleteData, superuserAthletesArchiveAthleteErrors, superuserAthletesArchiveAthleteResponses, superuserAthletesCreateAthleteData, superuserAthletesCreateAthleteErrors, superuserAthletesCreateAthleteResponses, superuserAthletesDeleteAthleteData, superuserAthletesDeleteAthleteErrors, superuserAthletesDeleteAthleteResponses, superuserAthletesListAthletesData, superuserAthletesListAthletesErrors, superuserAthletesListAthletesResponses, superuserAthletesRestoreAthleteData, superuserAthletesRestoreAthleteErrors, superuserAthletesRestoreAthleteResponses, superuserAthletesTransferAthleteData, superuserAthletesTransferAthleteErrors, superuserAthletesTransferAthleteResponses, superuserAthletesUpdateAthleteData, superuserAthletesUpdateAthleteErrors, superuserAthletesUpdateAthleteResponses, superuserCoachesArchiveCoachData, superuserCoachesArchiveCoachErrors, superuserCoachesArchiveCoachResponses, superuserCoachesCreateCoachData, superuserCoachesCreateCoachErrors, superuserCoachesCreateCoachResponses, superuserCoachesDeleteCoachData, superuserCoachesDeleteCoachErrors, superuserCoachesDeleteCoachResponses, superuserCoachesListCoachesData, superuserCoachesListCoachesErrors, superuserCoachesListCoachesResponses, superuserCoachesRestoreCoachData, superuserCoachesRestoreCoachErrors, superuserCoachesRestoreCoachResponses, superuserCoachesTransferCoachData, superuserCoachesTransferCoachErrors, superuserCoachesTransferCoachResponses, superuserCoachesUpdateCoachData, superuserCoachesUpdateCoachErrors, superuserCoachesUpdateCoachResponses, templatesApplyTemplateData, templatesApplyTemplateErrors, templatesApplyTemplateResponses, templatesCreateTemplateData, templatesCreateTemplateErrors, templatesCreateTemplateResponses, templatesListTemplatesData, templatesListTemplatesErrors, templatesListTemplatesResponses, templatesReadTemplateData, templatesReadTemplateErrors, templatesReadTemplateResponses, templatesUpdateTemplateData, templatesUpdateTemplateErrors, templatesUpdateTemplateResponses, usersReadUserMeData, usersReadUserMeResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsReadinessCheckData, utilsReadinessCheckResponses } from './types.gen';
+import type { athletesArchiveAthleteData, athletesArchiveAthleteErrors, athletesArchiveAthleteResponses, athletesBulkImportAthletesData, athletesBulkImportAthletesErrors, athletesBulkImportAthletesResponses, athletesCreateAthleteData, athletesCreateAthleteErrors, athletesCreateAthleteResponses, athletesDeleteAthleteData, athletesDeleteAthleteErrors, athletesDeleteAthleteResponses, athletesDownloadAthleteImportTemplateData, athletesDownloadAthleteImportTemplateErrors, athletesDownloadAthleteImportTemplateResponses, athletesDownloadBodyFileData, athletesDownloadBodyFileErrors, athletesDownloadBodyFileResponses, athletesListAthletesData, athletesListAthletesErrors, athletesListAthletesResponses, athletesListBodyFilesData, athletesListBodyFilesErrors, athletesListBodyFilesResponses, athletesPreviewAthleteImportData, athletesPreviewAthleteImportErrors, athletesPreviewAthleteImportResponses, athletesReadAthleteData, athletesReadAthleteErrors, athletesReadAthleteResponses, athletesReadMyAthleteProfileData, athletesReadMyAthleteProfileErrors, athletesReadMyAthleteProfileResponses, athletesReassignCoachData, athletesReassignCoachErrors, athletesReassignCoachResponses, athletesRestoreAthleteData, athletesRestoreAthleteErrors, athletesRestoreAthleteResponses, athletesUpdateAthleteData, athletesUpdateAthleteErrors, athletesUpdateAthleteResponses, athletesUpdateMyAthleteProfileData, athletesUpdateMyAthleteProfileErrors, athletesUpdateMyAthleteProfileResponses, athletesUploadBodyFileData, athletesUploadBodyFileErrors, athletesUploadBodyFileResponses, exerciseCategoriesCreateExerciseCategoryData, exerciseCategoriesCreateExerciseCategoryErrors, exerciseCategoriesCreateExerciseCategoryResponses, exerciseCategoriesListExerciseCategoriesData, exerciseCategoriesListExerciseCategoriesErrors, exerciseCategoriesListExerciseCategoriesResponses, exercisesCreateExerciseData, exercisesCreateExerciseErrors, exercisesCreateExerciseResponses, exercisesListExercisesData, exercisesListExercisesErrors, exercisesListExercisesResponses, exercisesUpdateExerciseData, exercisesUpdateExerciseErrors, exercisesUpdateExerciseResponses, financeActivateCoachContractData, financeActivateCoachContractErrors, financeActivateCoachContractResponses, financeActivatePlatformContractData, financeActivatePlatformContractErrors, financeActivatePlatformContractResponses, financeArchiveCoachContractData, financeArchiveCoachContractErrors, financeArchiveCoachContractResponses, financeArchivePlatformContractData, financeArchivePlatformContractErrors, financeArchivePlatformContractResponses, financeAutoSettleData, financeAutoSettleErrors, financeAutoSettleResponses, financeCancelSettlementData, financeCancelSettlementErrors, financeCancelSettlementResponses, financeCompleteSettlementData, financeCompleteSettlementErrors, financeCompleteSettlementResponses, financeCreateCoachContractData, financeCreateCoachContractErrors, financeCreateCoachContractResponses, financeCreateCoachPlanData, financeCreateCoachPlanErrors, financeCreateCoachPlanResponses, financeCreatePlatformContractData, financeCreatePlatformContractErrors, financeCreatePlatformContractResponses, financeCreateRefundData, financeCreateRefundErrors, financeCreateRefundResponses, financeCreateSaleData, financeCreateSaleErrors, financeCreateSaleResponses, financeCreateSettlementData, financeCreateSettlementErrors, financeCreateSettlementResponses, financeCreateTaxData, financeCreateTaxErrors, financeCreateTaxResponses, financeExportFinanceReportData, financeExportFinanceReportErrors, financeExportFinanceReportResponses, financeFinanceOverviewData, financeFinanceOverviewErrors, financeFinanceOverviewResponses, financeFinanceReportsData, financeFinanceReportsErrors, financeFinanceReportsResponses, financeListAthleteProgramRequestsData, financeListAthleteProgramRequestsErrors, financeListAthleteProgramRequestsResponses, financeListAuditData, financeListAuditErrors, financeListAuditResponses, financeListCoachContractsData, financeListCoachContractsErrors, financeListCoachContractsResponses, financeListCoachPlansData, financeListCoachPlansErrors, financeListCoachPlansResponses, financeListGymCoachesData, financeListGymCoachesErrors, financeListGymCoachesResponses, financeListGymProgramRequestsData, financeListGymProgramRequestsErrors, financeListGymProgramRequestsResponses, financeListPaymentsData, financeListPaymentsErrors, financeListPaymentsResponses, financeListPlatformContractsData, financeListPlatformContractsErrors, financeListPlatformContractsResponses, financeListSalesData, financeListSalesErrors, financeListSalesResponses, financeListSettlementsData, financeListSettlementsErrors, financeListSettlementsResponses, financeListTaxesData, financeListTaxesErrors, financeListTaxesResponses, financePreviewSaleData, financePreviewSaleErrors, financePreviewSaleResponses, financePurchaseAthleteTrainingPlanData, financePurchaseAthleteTrainingPlanErrors, financePurchaseAthleteTrainingPlanResponses, financeReadAthleteTrainingOfferData, financeReadAthleteTrainingOfferErrors, financeReadAthleteTrainingOfferResponses, financeReadPlatformPolicyData, financeReadPlatformPolicyErrors, financeReadPlatformPolicyResponses, financeReadSaleData, financeReadSaleErrors, financeReadSaleResponses, financeSimulatePaymentData, financeSimulatePaymentErrors, financeSimulatePaymentResponses, financeUpdateCoachContractData, financeUpdateCoachContractErrors, financeUpdateCoachContractResponses, financeUpdateCoachPlanData, financeUpdateCoachPlanErrors, financeUpdateCoachPlanResponses, financeUpdatePlatformContractData, financeUpdatePlatformContractErrors, financeUpdatePlatformContractResponses, financeUpdateTaxData, financeUpdateTaxErrors, financeUpdateTaxResponses, gymsCreateGymData, gymsCreateGymErrors, gymsCreateGymResponses, gymsCreateMemberData, gymsCreateMemberErrors, gymsCreateMemberResponses, gymsDeleteGymBrandingLogoData, gymsDeleteGymBrandingLogoErrors, gymsDeleteGymBrandingLogoResponses, gymsListCoachesData, gymsListCoachesErrors, gymsListCoachesResponses, gymsListGymsData, gymsListGymsResponses, gymsListMembersData, gymsListMembersErrors, gymsListMembersResponses, gymsReadGymData, gymsReadGymErrors, gymsReadGymResponses, gymsTransferOwnershipData, gymsTransferOwnershipErrors, gymsTransferOwnershipResponses, gymsUpdateGymData, gymsUpdateGymErrors, gymsUpdateGymResponses, gymsUpdateMemberData, gymsUpdateMemberErrors, gymsUpdateMemberResponses, gymsUploadBrandingLogoData, gymsUploadBrandingLogoErrors, gymsUploadBrandingLogoResponses, loginAcceptInvitationData, loginAcceptInvitationErrors, loginAcceptInvitationResponses, loginLoginAccessTokenData, loginLoginAccessTokenErrors, loginLoginAccessTokenResponses, loginLogoutData, loginLogoutResponses, loginRecoverPasswordData, loginRecoverPasswordErrors, loginRecoverPasswordResponses, loginResetPasswordData, loginResetPasswordErrors, loginResetPasswordResponses, peopleDownloadPersonBodyFileData, peopleDownloadPersonBodyFileErrors, peopleDownloadPersonBodyFileResponses, peopleReadPersonOverviewData, peopleReadPersonOverviewErrors, peopleReadPersonOverviewResponses, programsArchiveProgramVersionData, programsArchiveProgramVersionErrors, programsArchiveProgramVersionResponses, programsCreateNewDraftData, programsCreateNewDraftErrors, programsCreateNewDraftResponses, programsCreateProgramData, programsCreateProgramErrors, programsCreateProgramResponses, programsDeleteProgramVersionData, programsDeleteProgramVersionErrors, programsDeleteProgramVersionResponses, programsListProgramsData, programsListProgramsErrors, programsListProgramsResponses, programsPublishProgramVersionData, programsPublishProgramVersionErrors, programsPublishProgramVersionResponses, programsReadProgramVersionData, programsReadProgramVersionErrors, programsReadProgramVersionResponses, programsSaveAsTemplateData, programsSaveAsTemplateErrors, programsSaveAsTemplateResponses, programsUpdateProgramVersionData, programsUpdateProgramVersionErrors, programsUpdateProgramVersionResponses, superuserAthletesArchiveAthleteData, superuserAthletesArchiveAthleteErrors, superuserAthletesArchiveAthleteResponses, superuserAthletesCreateAthleteData, superuserAthletesCreateAthleteErrors, superuserAthletesCreateAthleteResponses, superuserAthletesDeleteAthleteData, superuserAthletesDeleteAthleteErrors, superuserAthletesDeleteAthleteResponses, superuserAthletesListAthletesData, superuserAthletesListAthletesErrors, superuserAthletesListAthletesResponses, superuserAthletesRestoreAthleteData, superuserAthletesRestoreAthleteErrors, superuserAthletesRestoreAthleteResponses, superuserAthletesTransferAthleteData, superuserAthletesTransferAthleteErrors, superuserAthletesTransferAthleteResponses, superuserAthletesUpdateAthleteData, superuserAthletesUpdateAthleteErrors, superuserAthletesUpdateAthleteResponses, superuserCoachesArchiveCoachData, superuserCoachesArchiveCoachErrors, superuserCoachesArchiveCoachResponses, superuserCoachesCreateCoachData, superuserCoachesCreateCoachErrors, superuserCoachesCreateCoachResponses, superuserCoachesDeleteCoachData, superuserCoachesDeleteCoachErrors, superuserCoachesDeleteCoachResponses, superuserCoachesListCoachesData, superuserCoachesListCoachesErrors, superuserCoachesListCoachesResponses, superuserCoachesRestoreCoachData, superuserCoachesRestoreCoachErrors, superuserCoachesRestoreCoachResponses, superuserCoachesTransferCoachData, superuserCoachesTransferCoachErrors, superuserCoachesTransferCoachResponses, superuserCoachesUpdateCoachData, superuserCoachesUpdateCoachErrors, superuserCoachesUpdateCoachResponses, templatesApplyTemplateData, templatesApplyTemplateErrors, templatesApplyTemplateResponses, templatesCreateTemplateData, templatesCreateTemplateErrors, templatesCreateTemplateResponses, templatesListTemplatesData, templatesListTemplatesErrors, templatesListTemplatesResponses, templatesReadTemplateData, templatesReadTemplateErrors, templatesReadTemplateResponses, templatesUpdateTemplateData, templatesUpdateTemplateErrors, templatesUpdateTemplateResponses, usersReadUserMeData, usersReadUserMeResponses, usersUpdatePasswordMeData, usersUpdatePasswordMeErrors, usersUpdatePasswordMeResponses, usersUpdateUserMeData, usersUpdateUserMeErrors, usersUpdateUserMeResponses, utilsHealthCheckData, utilsHealthCheckResponses, utilsReadinessCheckData, utilsReadinessCheckResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -289,6 +289,520 @@ export class GymsService {
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
             url: '/api/v1/gyms/{gym_id}/coaches',
+            ...options
+        });
+    }
+}
+
+export class FinanceService {
+    /**
+     * List Platform Contracts
+     */
+    public static listPlatformContracts<ThrowOnError extends boolean = true>(options?: Options<financeListPlatformContractsData, ThrowOnError>) {
+        return (options?.client ?? client).get<financeListPlatformContractsResponses, financeListPlatformContractsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/platform-contracts',
+            ...options
+        });
+    }
+
+    /**
+     * Create Platform Contract
+     */
+    public static createPlatformContract<ThrowOnError extends boolean = true>(options: Options<financeCreatePlatformContractData, ThrowOnError>) {
+        return (options.client ?? client).post<financeCreatePlatformContractResponses, financeCreatePlatformContractErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/platform-contracts',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    /**
+     * Update Platform Contract
+     */
+    public static updatePlatformContract<ThrowOnError extends boolean = true>(options: Options<financeUpdatePlatformContractData, ThrowOnError>) {
+        return (options.client ?? client).put<financeUpdatePlatformContractResponses, financeUpdatePlatformContractErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/platform-contracts/{contract_id}',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    /**
+     * Activate Platform Contract
+     */
+    public static activatePlatformContract<ThrowOnError extends boolean = true>(options: Options<financeActivatePlatformContractData, ThrowOnError>) {
+        return (options.client ?? client).post<financeActivatePlatformContractResponses, financeActivatePlatformContractErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/platform-contracts/{contract_id}/activate',
+            ...options
+        });
+    }
+
+    /**
+     * Archive Platform Contract
+     */
+    public static archivePlatformContract<ThrowOnError extends boolean = true>(options: Options<financeArchivePlatformContractData, ThrowOnError>) {
+        return (options.client ?? client).post<financeArchivePlatformContractResponses, financeArchivePlatformContractErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/platform-contracts/{contract_id}/archive',
+            ...options
+        });
+    }
+
+    /**
+     * Read Platform Policy
+     */
+    public static readPlatformPolicy<ThrowOnError extends boolean = true>(options: Options<financeReadPlatformPolicyData, ThrowOnError>) {
+        return (options.client ?? client).get<financeReadPlatformPolicyResponses, financeReadPlatformPolicyErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/platform-policy',
+            ...options
+        });
+    }
+
+    /**
+     * List Taxes
+     */
+    public static listTaxes<ThrowOnError extends boolean = true>(options?: Options<financeListTaxesData, ThrowOnError>) {
+        return (options?.client ?? client).get<financeListTaxesResponses, financeListTaxesErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/taxes',
+            ...options
+        });
+    }
+
+    /**
+     * Create Tax
+     */
+    public static createTax<ThrowOnError extends boolean = true>(options: Options<financeCreateTaxData, ThrowOnError>) {
+        return (options.client ?? client).post<financeCreateTaxResponses, financeCreateTaxErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/taxes',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    /**
+     * Update Tax
+     */
+    public static updateTax<ThrowOnError extends boolean = true>(options: Options<financeUpdateTaxData, ThrowOnError>) {
+        return (options.client ?? client).patch<financeUpdateTaxResponses, financeUpdateTaxErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/taxes/{tax_id}',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    /**
+     * Finance Overview
+     */
+    public static financeOverview<ThrowOnError extends boolean = true>(options: Options<financeFinanceOverviewData, ThrowOnError>) {
+        return (options.client ?? client).get<financeFinanceOverviewResponses, financeFinanceOverviewErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/overview',
+            ...options
+        });
+    }
+
+    /**
+     * Finance Reports
+     */
+    public static financeReports<ThrowOnError extends boolean = true>(options: Options<financeFinanceReportsData, ThrowOnError>) {
+        return (options.client ?? client).get<financeFinanceReportsResponses, financeFinanceReportsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/reports',
+            ...options
+        });
+    }
+
+    /**
+     * Export Finance Report
+     */
+    public static exportFinanceReport<ThrowOnError extends boolean = true>(options: Options<financeExportFinanceReportData, ThrowOnError>) {
+        return (options.client ?? client).get<financeExportFinanceReportResponses, financeExportFinanceReportErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/reports/export',
+            ...options
+        });
+    }
+
+    /**
+     * List Coach Contracts
+     */
+    public static listCoachContracts<ThrowOnError extends boolean = true>(options: Options<financeListCoachContractsData, ThrowOnError>) {
+        return (options.client ?? client).get<financeListCoachContractsResponses, financeListCoachContractsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/coach-contracts',
+            ...options
+        });
+    }
+
+    /**
+     * Create Coach Contract
+     */
+    public static createCoachContract<ThrowOnError extends boolean = true>(options: Options<financeCreateCoachContractData, ThrowOnError>) {
+        return (options.client ?? client).post<financeCreateCoachContractResponses, financeCreateCoachContractErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/coach-contracts',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    /**
+     * Update Coach Contract
+     */
+    public static updateCoachContract<ThrowOnError extends boolean = true>(options: Options<financeUpdateCoachContractData, ThrowOnError>) {
+        return (options.client ?? client).put<financeUpdateCoachContractResponses, financeUpdateCoachContractErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/coach-contracts/{contract_id}',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    /**
+     * Activate Coach Contract
+     */
+    public static activateCoachContract<ThrowOnError extends boolean = true>(options: Options<financeActivateCoachContractData, ThrowOnError>) {
+        return (options.client ?? client).post<financeActivateCoachContractResponses, financeActivateCoachContractErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/coach-contracts/{contract_id}/activate',
+            ...options
+        });
+    }
+
+    /**
+     * Archive Coach Contract
+     */
+    public static archiveCoachContract<ThrowOnError extends boolean = true>(options: Options<financeArchiveCoachContractData, ThrowOnError>) {
+        return (options.client ?? client).post<financeArchiveCoachContractResponses, financeArchiveCoachContractErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/coach-contracts/{contract_id}/archive',
+            ...options
+        });
+    }
+
+    /**
+     * List Coach Plans
+     */
+    public static listCoachPlans<ThrowOnError extends boolean = true>(options: Options<financeListCoachPlansData, ThrowOnError>) {
+        return (options.client ?? client).get<financeListCoachPlansResponses, financeListCoachPlansErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/coach-plans',
+            ...options
+        });
+    }
+
+    /**
+     * Create Coach Plan
+     */
+    public static createCoachPlan<ThrowOnError extends boolean = true>(options: Options<financeCreateCoachPlanData, ThrowOnError>) {
+        return (options.client ?? client).post<financeCreateCoachPlanResponses, financeCreateCoachPlanErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/coach-plans',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    /**
+     * Update Coach Plan
+     */
+    public static updateCoachPlan<ThrowOnError extends boolean = true>(options: Options<financeUpdateCoachPlanData, ThrowOnError>) {
+        return (options.client ?? client).put<financeUpdateCoachPlanResponses, financeUpdateCoachPlanErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/coach-plans/{plan_id}',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    /**
+     * Read Athlete Training Offer
+     */
+    public static readAthleteTrainingOffer<ThrowOnError extends boolean = true>(options: Options<financeReadAthleteTrainingOfferData, ThrowOnError>) {
+        return (options.client ?? client).get<financeReadAthleteTrainingOfferResponses, financeReadAthleteTrainingOfferErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/athlete/training-offer',
+            ...options
+        });
+    }
+
+    /**
+     * Purchase Athlete Training Plan
+     */
+    public static purchaseAthleteTrainingPlan<ThrowOnError extends boolean = true>(options: Options<financePurchaseAthleteTrainingPlanData, ThrowOnError>) {
+        return (options.client ?? client).post<financePurchaseAthleteTrainingPlanResponses, financePurchaseAthleteTrainingPlanErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/athlete/training-purchases',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    /**
+     * List Athlete Program Requests
+     */
+    public static listAthleteProgramRequests<ThrowOnError extends boolean = true>(options: Options<financeListAthleteProgramRequestsData, ThrowOnError>) {
+        return (options.client ?? client).get<financeListAthleteProgramRequestsResponses, financeListAthleteProgramRequestsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/athlete/program-requests',
+            ...options
+        });
+    }
+
+    /**
+     * List Gym Program Requests
+     */
+    public static listGymProgramRequests<ThrowOnError extends boolean = true>(options: Options<financeListGymProgramRequestsData, ThrowOnError>) {
+        return (options.client ?? client).get<financeListGymProgramRequestsResponses, financeListGymProgramRequestsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/program-requests',
+            ...options
+        });
+    }
+
+    /**
+     * List Gym Coaches
+     */
+    public static listGymCoaches<ThrowOnError extends boolean = true>(options: Options<financeListGymCoachesData, ThrowOnError>) {
+        return (options.client ?? client).get<financeListGymCoachesResponses, financeListGymCoachesErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/coaches',
+            ...options
+        });
+    }
+
+    /**
+     * List Sales
+     */
+    public static listSales<ThrowOnError extends boolean = true>(options: Options<financeListSalesData, ThrowOnError>) {
+        return (options.client ?? client).get<financeListSalesResponses, financeListSalesErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/sales',
+            ...options
+        });
+    }
+
+    /**
+     * Create Sale
+     */
+    public static createSale<ThrowOnError extends boolean = true>(options: Options<financeCreateSaleData, ThrowOnError>) {
+        return (options.client ?? client).post<financeCreateSaleResponses, financeCreateSaleErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/sales',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    /**
+     * Preview Sale
+     */
+    public static previewSale<ThrowOnError extends boolean = true>(options: Options<financePreviewSaleData, ThrowOnError>) {
+        return (options.client ?? client).post<financePreviewSaleResponses, financePreviewSaleErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/sales/preview',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    /**
+     * Read Sale
+     */
+    public static readSale<ThrowOnError extends boolean = true>(options: Options<financeReadSaleData, ThrowOnError>) {
+        return (options.client ?? client).get<financeReadSaleResponses, financeReadSaleErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/sales/{sale_id}',
+            ...options
+        });
+    }
+
+    /**
+     * Simulate Payment
+     */
+    public static simulatePayment<ThrowOnError extends boolean = true>(options: Options<financeSimulatePaymentData, ThrowOnError>) {
+        return (options.client ?? client).post<financeSimulatePaymentResponses, financeSimulatePaymentErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/sales/{sale_id}/payments',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    /**
+     * List Payments
+     */
+    public static listPayments<ThrowOnError extends boolean = true>(options: Options<financeListPaymentsData, ThrowOnError>) {
+        return (options.client ?? client).get<financeListPaymentsResponses, financeListPaymentsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/payments',
+            ...options
+        });
+    }
+
+    /**
+     * Create Refund
+     */
+    public static createRefund<ThrowOnError extends boolean = true>(options: Options<financeCreateRefundData, ThrowOnError>) {
+        return (options.client ?? client).post<financeCreateRefundResponses, financeCreateRefundErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/payments/{payment_id}/refunds',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    /**
+     * List Settlements
+     */
+    public static listSettlements<ThrowOnError extends boolean = true>(options: Options<financeListSettlementsData, ThrowOnError>) {
+        return (options.client ?? client).get<financeListSettlementsResponses, financeListSettlementsErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/settlements',
+            ...options
+        });
+    }
+
+    /**
+     * Create Settlement
+     */
+    public static createSettlement<ThrowOnError extends boolean = true>(options: Options<financeCreateSettlementData, ThrowOnError>) {
+        return (options.client ?? client).post<financeCreateSettlementResponses, financeCreateSettlementErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/settlements',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        });
+    }
+
+    /**
+     * Complete Settlement
+     */
+    public static completeSettlement<ThrowOnError extends boolean = true>(options: Options<financeCompleteSettlementData, ThrowOnError>) {
+        return (options.client ?? client).post<financeCompleteSettlementResponses, financeCompleteSettlementErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/settlements/{settlement_id}/complete',
+            ...options
+        });
+    }
+
+    /**
+     * Cancel Settlement
+     */
+    public static cancelSettlement<ThrowOnError extends boolean = true>(options: Options<financeCancelSettlementData, ThrowOnError>) {
+        return (options.client ?? client).post<financeCancelSettlementResponses, financeCancelSettlementErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/settlements/{settlement_id}/cancel',
+            ...options
+        });
+    }
+
+    /**
+     * Auto Settle
+     */
+    public static autoSettle<ThrowOnError extends boolean = true>(options: Options<financeAutoSettleData, ThrowOnError>) {
+        return (options.client ?? client).post<financeAutoSettleResponses, financeAutoSettleErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/settlements/auto',
+            ...options
+        });
+    }
+
+    /**
+     * List Audit
+     */
+    public static listAudit<ThrowOnError extends boolean = true>(options: Options<financeListAuditData, ThrowOnError>) {
+        return (options.client ?? client).get<financeListAuditResponses, financeListAuditErrors, ThrowOnError>({
+            responseType: 'json',
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/api/v1/finance/gyms/{gym_id}/audit',
             ...options
         });
     }
@@ -902,7 +1416,11 @@ export class ProgramsService {
             responseType: 'json',
             security: [{ scheme: 'bearer', type: 'http' }],
             url: '/api/v1/program-versions/{version_id}/new-draft',
-            ...options
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
         });
     }
 

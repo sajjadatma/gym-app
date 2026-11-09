@@ -80,6 +80,58 @@ export type CoachOption = {
   email: string
 }
 
+export type CoachPlan = {
+  id: string
+  gym_id: string
+  coach_user_id: string
+  coach_name: string | null
+  category: FinanceCategory
+  title: string
+  description: string | null
+  base_price_irr: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type TrainingOffer = {
+  plan: CoachPlan
+  coach_contract_id: string
+  taxes: TaxLine[]
+  tax_amount_irr: number
+  total_amount_irr: number
+  platform_bp: number
+  gym_bp: number
+  coach_bp: number
+  platform_amount_irr: number
+  gym_amount_irr: number
+  coach_amount_irr: number
+}
+
+export type ProgramRequest = {
+  id: string
+  gym_id: string
+  athlete_user_id: string
+  athlete_name: string | null
+  coach_user_id: string
+  coach_name: string | null
+  plan_id: string
+  sale_id: string
+  plan_title: string
+  base_price_irr: number
+  total_amount_irr: number
+  note: string | null
+  status: "REQUESTED" | "FULFILLED" | "CANCELLED"
+  created_at: string
+  fulfilled_at: string | null
+}
+
+export type PlanPurchase = {
+  sale: Sale
+  payment: Payment
+  request: ProgramRequest | null
+}
+
 export type SalePreview = {
   gym_id: string
   category: FinanceCategory
@@ -120,6 +172,8 @@ export type Sale = {
   coach_amount_irr: number
   coach_user_id: string | null
   coach_name: string | null
+  athlete_user_id: string | null
+  coach_plan_id: string | null
   coach_contract_id: string | null
   platform_contract_id: string
   platform_source: string
@@ -395,6 +449,88 @@ export async function archiveCoachContract(gymId: string, id: string) {
 export async function listGymCoaches(gymId: string) {
   return (await api.get<CoachOption[]>(`/api/v1/finance/gyms/${gymId}/coaches`))
     .data
+}
+
+export async function listCoachPlans(gymId: string, coachUserId?: string) {
+  return (
+    await api.get<CoachPlan[]>(`/api/v1/finance/gyms/${gymId}/coach-plans`, {
+      params: coachUserId ? { coach_user_id: coachUserId } : undefined,
+    })
+  ).data
+}
+
+export async function createCoachPlan(
+  gymId: string,
+  body: {
+    coach_user_id?: string | null
+    title: string
+    description?: string | null
+    base_price_irr: number
+    is_active: boolean
+  },
+) {
+  return (
+    await api.post<CoachPlan>(`/api/v1/finance/gyms/${gymId}/coach-plans`, body)
+  ).data
+}
+
+export async function updateCoachPlan(
+  gymId: string,
+  id: string,
+  body: {
+    title: string
+    description?: string | null
+    base_price_irr: number
+    is_active: boolean
+  },
+) {
+  return (
+    await api.put<CoachPlan>(
+      `/api/v1/finance/gyms/${gymId}/coach-plans/${id}`,
+      body,
+    )
+  ).data
+}
+
+export async function getTrainingOffer(gymId: string) {
+  return (
+    await api.get<TrainingOffer | null>(
+      `/api/v1/finance/gyms/${gymId}/athlete/training-offer`,
+    )
+  ).data
+}
+
+export async function purchaseTrainingPlan(
+  gymId: string,
+  body: {
+    plan_id: string
+    note?: string | null
+    idempotency_key: string
+    outcome?: "SUCCESS" | "FAILURE" | "CANCELLATION"
+  },
+) {
+  return (
+    await api.post<PlanPurchase>(
+      `/api/v1/finance/gyms/${gymId}/athlete/training-purchases`,
+      body,
+    )
+  ).data
+}
+
+export async function listAthleteProgramRequests(gymId: string) {
+  return (
+    await api.get<ProgramRequest[]>(
+      `/api/v1/finance/gyms/${gymId}/athlete/program-requests`,
+    )
+  ).data
+}
+
+export async function listGymProgramRequests(gymId: string) {
+  return (
+    await api.get<ProgramRequest[]>(
+      `/api/v1/finance/gyms/${gymId}/program-requests`,
+    )
+  ).data
 }
 
 export async function previewSale(

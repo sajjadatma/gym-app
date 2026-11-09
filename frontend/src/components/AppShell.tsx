@@ -19,6 +19,7 @@ import {
   Sun,
   UserRound,
   Users,
+  Wallet,
   X,
 } from "lucide-react"
 import {
@@ -284,6 +285,12 @@ export function AppShell() {
         icon: Users,
       },
       {
+        to: clubPath("/coach-plan"),
+        params: clubParams,
+        label: "nav.coachPlan",
+        icon: Wallet,
+      },
+      {
         to: clubPath("/exercises"),
         params: clubParams,
         label: "nav.exercises",
@@ -312,6 +319,12 @@ export function AppShell() {
         params: clubParams,
         label: "nav.finance",
         icon: Landmark,
+      },
+      {
+        to: clubPath("/coach-plan"),
+        params: clubParams,
+        label: "nav.coachPlan",
+        icon: Wallet,
       },
       {
         to: clubPath("/athletes"),

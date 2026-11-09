@@ -6,15 +6,18 @@ from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
 from app.finance_models import (
     FinanceAllocation,
     FinanceAudit,
     FinanceCoachContract,
+    FinanceCoachPlan,
     FinancePayment,
     FinancePlatformContract,
     FinancePlatformRate,
+    FinanceProgramRequest,
     FinanceRefund,
     FinanceRefundAdjustment,
     FinanceSale,
@@ -31,12 +34,13 @@ from app.models import (
 )
 
 CATEGORIES = ("MEMBERSHIP", "NUTRITION", "TRAINING")
+COACH_CATEGORIES = ("NUTRITION", "TRAINING")
 PARTIES = ("PLATFORM", "GYM", "COACH")
 MAX_BP = 10000
 
 
 def finance_today() -> date:
-    return datetime.now(UTC).date()
+    return date.today()
 
 
 def record_finance_audit(
@@ -472,6 +476,7 @@ def _sync_active_coach_contracts(session: Session, *, actor: User) -> None:
     rows = session.exec(
         select(FinanceCoachContract).where(
             FinanceCoachContract.status == "ACTIVE",
+            col(FinanceCoachContract.category).in_(COACH_CATEGORIES),
             FinanceCoachContract.effective_from <= today,
             or_(
                 col(FinanceCoachContract.effective_to).is_(None),
@@ -913,6 +918,10 @@ def _validate_coach_contract_values(
     coach_bp: int,
 ) -> dict[str, Any]:
     _validate_category(category)
+    if category not in COACH_CATEGORIES:
+        raise HTTPException(
+            status_code=400, detail="membership_coach_forbidden"
+        )
     if effective_to is not None and effective_to < effective_from:
         raise HTTPException(status_code=400, detail="invalid_effective_dates")
     if effective_from > finance_today():
@@ -1098,6 +1107,10 @@ def activate_coach_contract(
         return coach_contract_public(session, row)
     if row.status == "ARCHIVED":
         raise HTTPException(status_code=409, detail="contract_archived")
+    if row.category not in COACH_CATEGORIES:
+        raise HTTPException(
+            status_code=400, detail="membership_coach_forbidden"
+        )
     if row.effective_from > finance_today():
         raise HTTPException(status_code=400, detail="effective_date_future")
     policy = resolve_platform_policy(
@@ -1187,6 +1200,525 @@ def resolve_coach_contract(
 
 
 # ---------------------------------------------------------------------------
+# Coach plans and program requests
+# ---------------------------------------------------------------------------
+
+
+def coach_plan_public(
+    session: Session, row: FinanceCoachPlan
+) -> dict[str, Any]:
+    coach = session.get(User, row.coach_user_id)
+    return {
+        "id": row.id,
+        "gym_id": row.gym_id,
+        "coach_user_id": row.coach_user_id,
+        "coach_name": (coach.full_name or coach.email) if coach else None,
+        "category": row.category,
+        "title": row.title,
+        "description": row.description,
+        "base_price_irr": row.base_price_irr,
+        "is_active": row.is_active,
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
+    }
+
+
+def _require_coach_plan_coach(
+    session: Session, *, gym_id: uuid.UUID, coach_user_id: uuid.UUID
+) -> None:
+    _coach_membership(session, gym_id=gym_id, coach_user_id=coach_user_id)
+
+
+def _deactivate_other_coach_plans(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    coach_user_id: uuid.UUID,
+    exclude_id: uuid.UUID | None = None,
+) -> None:
+    statement = select(FinanceCoachPlan).where(
+        FinanceCoachPlan.gym_id == gym_id,
+        FinanceCoachPlan.coach_user_id == coach_user_id,
+        FinanceCoachPlan.category == "TRAINING",
+        col(FinanceCoachPlan.is_active).is_(True),
+    )
+    if exclude_id is not None:
+        statement = statement.where(FinanceCoachPlan.id != exclude_id)
+    rows = session.exec(statement).all()
+    for row in rows:
+        row.is_active = False
+        row.updated_at = datetime.now(UTC)
+        session.add(row)
+    if rows:
+        session.flush()
+
+
+def list_coach_plans(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    coach_user_id: uuid.UUID | None = None,
+) -> list[dict[str, Any]]:
+    statement = select(FinanceCoachPlan).where(FinanceCoachPlan.gym_id == gym_id)
+    if coach_user_id is not None:
+        statement = statement.where(
+            FinanceCoachPlan.coach_user_id == coach_user_id
+        )
+    rows = session.exec(
+        statement.order_by(
+            col(FinanceCoachPlan.is_active).desc(),
+            col(FinanceCoachPlan.updated_at).desc(),
+        )
+    ).all()
+    return [coach_plan_public(session, row) for row in rows]
+
+
+def create_coach_plan(
+    session: Session,
+    *,
+    actor: User,
+    gym_id: uuid.UUID,
+    coach_user_id: uuid.UUID,
+    title: str,
+    description: str | None,
+    base_price_irr: int,
+    is_active: bool,
+) -> dict[str, Any]:
+    _require_coach_plan_coach(
+        session, gym_id=gym_id, coach_user_id=coach_user_id
+    )
+    if base_price_irr <= 0:
+        raise HTTPException(status_code=400, detail="invalid_plan_price")
+    if not title.strip():
+        raise HTTPException(status_code=400, detail="plan_title_required")
+    if is_active:
+        _deactivate_other_coach_plans(
+            session, gym_id=gym_id, coach_user_id=coach_user_id
+        )
+    row = FinanceCoachPlan(
+        gym_id=gym_id,
+        coach_user_id=coach_user_id,
+        category="TRAINING",
+        title=title.strip(),
+        description=description.strip() if description else None,
+        base_price_irr=base_price_irr,
+        is_active=is_active,
+        created_by_id=actor.id,
+        updated_at=datetime.now(UTC),
+    )
+    session.add(row)
+    session.flush()
+    record_finance_audit(
+        session,
+        actor=actor,
+        gym_id=gym_id,
+        action="coach_plan.created",
+        entity_type="coach_plan",
+        entity_id=row.id,
+        detail={"coach_user_id": str(coach_user_id), "is_active": is_active},
+    )
+    session.commit()
+    session.refresh(row)
+    return coach_plan_public(session, row)
+
+
+def update_coach_plan(
+    session: Session,
+    *,
+    actor: User,
+    gym_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    title: str,
+    description: str | None,
+    base_price_irr: int,
+    is_active: bool,
+) -> dict[str, Any]:
+    row = session.get(FinanceCoachPlan, plan_id)
+    if row is None or row.gym_id != gym_id:
+        raise HTTPException(status_code=404, detail="coach_plan_not_found")
+    if base_price_irr <= 0:
+        raise HTTPException(status_code=400, detail="invalid_plan_price")
+    if not title.strip():
+        raise HTTPException(status_code=400, detail="plan_title_required")
+    if is_active:
+        _deactivate_other_coach_plans(
+            session,
+            gym_id=gym_id,
+            coach_user_id=row.coach_user_id,
+            exclude_id=row.id,
+        )
+    row.title = title.strip()
+    row.description = description.strip() if description else None
+    row.base_price_irr = base_price_irr
+    row.is_active = is_active
+    row.updated_at = datetime.now(UTC)
+    session.add(row)
+    record_finance_audit(
+        session,
+        actor=actor,
+        gym_id=gym_id,
+        action="coach_plan.updated",
+        entity_type="coach_plan",
+        entity_id=row.id,
+        detail={"is_active": is_active},
+    )
+    session.commit()
+    session.refresh(row)
+    return coach_plan_public(session, row)
+
+
+def active_coach_training_plan(
+    session: Session, *, gym_id: uuid.UUID, coach_user_id: uuid.UUID
+) -> FinanceCoachPlan | None:
+    return session.exec(
+        select(FinanceCoachPlan).where(
+            FinanceCoachPlan.gym_id == gym_id,
+            FinanceCoachPlan.coach_user_id == coach_user_id,
+            FinanceCoachPlan.category == "TRAINING",
+            col(FinanceCoachPlan.is_active).is_(True),
+        )
+    ).first()
+
+
+def _default_vat_tax_id(session: Session) -> list[uuid.UUID]:
+    vat = session.exec(
+        select(FinanceTaxDefinition).where(
+            col(FinanceTaxDefinition.is_default_vat).is_(True),
+            col(FinanceTaxDefinition.is_active).is_(True),
+        )
+    ).first()
+    return [vat.id] if vat else []
+
+
+def training_plan_offer(
+    session: Session, *, gym_id: uuid.UUID, coach_user_id: uuid.UUID
+) -> dict[str, Any] | None:
+    plan = active_coach_training_plan(
+        session, gym_id=gym_id, coach_user_id=coach_user_id
+    )
+    if plan is None:
+        return None
+    preview = preview_sale(
+        session,
+        gym_id=gym_id,
+        category="TRAINING",
+        base_amount_irr=plan.base_price_irr,
+        tax_ids=_default_vat_tax_id(session),
+        coach_user_id=coach_user_id,
+        sold_on=finance_today(),
+    )
+    return {
+        "plan": coach_plan_public(session, plan),
+        "coach_contract_id": preview["coach_contract_id"],
+        "taxes": preview["taxes"],
+        "tax_amount_irr": preview["tax_amount_irr"],
+        "total_amount_irr": preview["total_amount_irr"],
+        "platform_bp": preview["platform_bp"],
+        "gym_bp": preview["gym_bp"],
+        "coach_bp": preview["coach_bp"],
+        "platform_amount_irr": preview["platform_amount_irr"],
+        "gym_amount_irr": preview["gym_amount_irr"],
+        "coach_amount_irr": preview["coach_amount_irr"],
+    }
+
+
+def program_request_public(
+    session: Session, row: FinanceProgramRequest
+) -> dict[str, Any]:
+    athlete = session.get(User, row.athlete_user_id)
+    coach = session.get(User, row.coach_user_id)
+    return {
+        "id": row.id,
+        "gym_id": row.gym_id,
+        "athlete_user_id": row.athlete_user_id,
+        "athlete_name": (
+            (athlete.full_name or athlete.email) if athlete else None
+        ),
+        "coach_user_id": row.coach_user_id,
+        "coach_name": (coach.full_name or coach.email) if coach else None,
+        "plan_id": row.plan_id,
+        "sale_id": row.sale_id,
+        "plan_title": row.plan_title,
+        "base_price_irr": row.base_price_irr,
+        "total_amount_irr": row.total_amount_irr,
+        "note": row.note,
+        "status": row.status,
+        "created_at": row.created_at,
+        "fulfilled_at": row.fulfilled_at,
+    }
+
+
+def list_program_requests(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    coach_user_id: uuid.UUID | None = None,
+    athlete_user_id: uuid.UUID | None = None,
+) -> list[dict[str, Any]]:
+    statement = select(FinanceProgramRequest).where(
+        FinanceProgramRequest.gym_id == gym_id
+    )
+    if coach_user_id is not None:
+        statement = statement.where(
+            FinanceProgramRequest.coach_user_id == coach_user_id
+        )
+    if athlete_user_id is not None:
+        statement = statement.where(
+            FinanceProgramRequest.athlete_user_id == athlete_user_id
+        )
+    rows = session.exec(
+        statement.order_by(col(FinanceProgramRequest.created_at).desc())
+    ).all()
+    return [program_request_public(session, row) for row in rows]
+
+
+def _create_program_request_after_payment(
+    session: Session,
+    *,
+    actor: User,
+    sale: FinanceSale,
+    plan: FinanceCoachPlan,
+    athlete_user_id: uuid.UUID,
+    note: str | None,
+) -> dict[str, Any]:
+    existing = session.exec(
+        select(FinanceProgramRequest).where(
+            FinanceProgramRequest.sale_id == sale.id
+        )
+    ).first()
+    if existing is not None:
+        return program_request_public(session, existing)
+    request = FinanceProgramRequest(
+        gym_id=sale.gym_id,
+        athlete_user_id=athlete_user_id,
+        coach_user_id=sale.coach_user_id or plan.coach_user_id,
+        plan_id=plan.id,
+        sale_id=sale.id,
+        plan_title=plan.title,
+        base_price_irr=sale.base_amount_irr,
+        total_amount_irr=sale.total_amount_irr,
+        note=note.strip() if note else None,
+        status="REQUESTED",
+    )
+    session.add(request)
+    try:
+        session.flush()
+    except IntegrityError:
+        session.rollback()
+        existing = session.exec(
+            select(FinanceProgramRequest).where(
+                FinanceProgramRequest.sale_id == sale.id
+            )
+        ).first()
+        if existing is None:
+            raise
+        return program_request_public(session, existing)
+    record_finance_audit(
+        session,
+        actor=actor,
+        gym_id=sale.gym_id,
+        action="program_request.created",
+        entity_type="program_request",
+        entity_id=request.id,
+        detail={
+            "sale_id": str(sale.id),
+            "plan_id": str(plan.id),
+            "coach_user_id": str(request.coach_user_id),
+        },
+    )
+    session.commit()
+    session.refresh(request)
+    return program_request_public(session, request)
+
+
+def purchase_training_plan(
+    session: Session,
+    *,
+    actor: User,
+    gym_id: uuid.UUID,
+    athlete_user_id: uuid.UUID,
+    coach_user_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    note: str | None,
+    idempotency_key: str,
+    outcome: str,
+) -> dict[str, Any]:
+    key = idempotency_key.strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="idempotency_key_required")
+    existing_payment = session.exec(
+        select(FinancePayment).where(
+            FinancePayment.gym_id == gym_id,
+            FinancePayment.idempotency_key == key,
+        )
+    ).first()
+    if existing_payment is not None:
+        existing_sale = session.get(FinanceSale, existing_payment.sale_id)
+        if existing_sale is None:
+            raise HTTPException(status_code=404, detail="sale_not_found")
+        if existing_sale.athlete_user_id != athlete_user_id:
+            raise HTTPException(
+                status_code=409, detail="idempotency_key_reused"
+            )
+        existing_request = session.exec(
+            select(FinanceProgramRequest).where(
+                FinanceProgramRequest.sale_id == existing_sale.id
+            )
+        ).first()
+        if (
+            existing_payment.status == "SUCCEEDED"
+            and existing_request is None
+            and existing_sale.coach_plan_id is not None
+        ):
+            existing_plan = session.get(
+                FinanceCoachPlan, existing_sale.coach_plan_id
+            )
+            if existing_plan is not None:
+                repaired_request = _create_program_request_after_payment(
+                    session,
+                    actor=actor,
+                    sale=existing_sale,
+                    plan=existing_plan,
+                    athlete_user_id=athlete_user_id,
+                    note=note,
+                )
+                return {
+                    "sale": sale_public(session, existing_sale),
+                    "payment": payment_public(session, existing_payment),
+                    "request": repaired_request,
+                }
+        return {
+            "sale": sale_public(session, existing_sale),
+            "payment": payment_public(session, existing_payment),
+            "request": (
+                program_request_public(session, existing_request)
+                if existing_request
+                else None
+            ),
+        }
+
+    plan = session.exec(
+        select(FinanceCoachPlan).where(
+            FinanceCoachPlan.id == plan_id,
+            FinanceCoachPlan.gym_id == gym_id,
+            FinanceCoachPlan.coach_user_id == coach_user_id,
+            FinanceCoachPlan.category == "TRAINING",
+            col(FinanceCoachPlan.is_active).is_(True),
+        )
+    ).first()
+    if plan is None:
+        raise HTTPException(
+            status_code=404, detail="training_plan_not_available"
+        )
+    sale = create_sale(
+        session,
+        actor=actor,
+        gym_id=gym_id,
+        category="TRAINING",
+        description=f"خرید پلن تمرینی: {plan.title}"[:255],
+        base_amount_irr=plan.base_price_irr,
+        tax_ids=_default_vat_tax_id(session),
+        coach_user_id=coach_user_id,
+        sold_on=finance_today(),
+    )
+    sale.athlete_user_id = athlete_user_id
+    sale.coach_plan_id = plan.id
+    session.add(sale)
+    session.commit()
+    session.refresh(sale)
+    payment = simulate_payment(
+        session,
+        actor=actor,
+        gym_id=gym_id,
+        sale_id=sale.id,
+        outcome=outcome,
+        idempotency_key=key,
+        note=note,
+    )
+    request: dict[str, Any] | None = None
+    if payment["status"] == "SUCCEEDED":
+        request = _create_program_request_after_payment(
+            session,
+            actor=actor,
+            sale=sale,
+            plan=plan,
+            athlete_user_id=athlete_user_id,
+            note=note,
+        )
+    session.refresh(sale)
+    return {
+        "sale": sale_public(session, sale),
+        "payment": payment,
+        "request": request,
+    }
+
+
+def resolve_program_creation_source(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    athlete_user_id: uuid.UUID,
+    coach_user_id: uuid.UUID,
+    purchase_request_id: uuid.UUID | None,
+    free_reason: str | None,
+) -> dict[str, Any]:
+    active_plan = active_coach_training_plan(
+        session, gym_id=gym_id, coach_user_id=coach_user_id
+    )
+    if purchase_request_id is not None:
+        request = session.exec(
+            select(FinanceProgramRequest)
+            .where(
+                FinanceProgramRequest.id == purchase_request_id,
+                FinanceProgramRequest.gym_id == gym_id,
+                FinanceProgramRequest.athlete_user_id == athlete_user_id,
+            )
+            .with_for_update()
+        ).first()
+        if request is None:
+            raise HTTPException(
+                status_code=404, detail="program_request_not_found"
+            )
+        if request.status != "REQUESTED":
+            raise HTTPException(
+                status_code=409, detail="program_request_already_fulfilled"
+            )
+        if request.coach_user_id != coach_user_id:
+            raise HTTPException(
+                status_code=400, detail="program_request_coach_mismatch"
+            )
+        return {
+            "origin": "PURCHASED",
+            "purchase_request_id": request.id,
+            "free_reason": None,
+            "free_granted_by_id": None,
+            "coach_user_id": request.coach_user_id,
+            "request": request,
+        }
+    if free_reason and free_reason.strip():
+        if len(free_reason.strip()) < 3:
+            raise HTTPException(status_code=400, detail="free_reason_too_short")
+        return {
+            "origin": "FREE",
+            "purchase_request_id": None,
+            "free_reason": free_reason.strip(),
+            "free_granted_by_id": None,
+            "coach_user_id": coach_user_id,
+            "request": None,
+        }
+    if active_plan is None:
+        return {
+            "origin": "FREE",
+            "purchase_request_id": None,
+            "free_reason": "ثبت خودکار: پلن فروش فعالی وجود ندارد",
+            "free_granted_by_id": None,
+            "coach_user_id": coach_user_id,
+            "request": None,
+        }
+    raise HTTPException(status_code=400, detail="program_purchase_required")
+
+
+# ---------------------------------------------------------------------------
 # Sales
 # ---------------------------------------------------------------------------
 
@@ -1202,6 +1734,10 @@ def preview_sale(
     sold_on: date,
 ) -> dict[str, Any]:
     _validate_category(category)
+    if category == "MEMBERSHIP" and coach_user_id is not None:
+        raise HTTPException(
+            status_code=400, detail="membership_coach_forbidden"
+        )
     if base_amount_irr <= 0:
         raise HTTPException(status_code=400, detail="invalid_base_amount")
     if sold_on > finance_today():
@@ -1407,6 +1943,8 @@ def sale_public(session: Session, sale: FinanceSale) -> dict[str, Any]:
         "coach_amount_irr": sale.coach_amount_irr,
         "coach_user_id": sale.coach_user_id,
         "coach_name": (coach.full_name or coach.email) if coach else None,
+        "athlete_user_id": sale.athlete_user_id,
+        "coach_plan_id": sale.coach_plan_id,
         "coach_contract_id": sale.coach_contract_id,
         "platform_contract_id": sale.platform_contract_id,
         "platform_source": sale.platform_source,
