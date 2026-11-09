@@ -13,6 +13,9 @@
   - `gym_finance_sandbox_v2_test`
 - No existing database (`gym_dev`, `gym_stage`, `gym_test`, `gym_app`, Neon or others) was migrated, seeded or reset.
 - Local configuration: `.env.finance-sandbox` (git-ignored).
+- Frontend dev also uses a git-ignored `frontend/.env` with
+  `VITE_API_URL=http://localhost:8010`; the Vite server proxies `/api` to the
+  same local backend.
 - Local URLs:
   - UI: <http://localhost:5180>
   - API: <http://127.0.0.1:8010>
