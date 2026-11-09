@@ -143,7 +143,7 @@ Approved example:
 
 | Check | Result |
 |---|---|
-| Full backend suite (dedicated `_test` DB) | **170 passed** in 88.93 s |
+| Full backend suite (dedicated `_test` DB) | **171 passed** in 86.65 s |
 | Migration suite | **4 passed**; also **4 passed** under `TZ=UTC` |
 | Backend lint (Ruff) | Clean |
 | Backend types (Mypy) | Clean (45 source files) |

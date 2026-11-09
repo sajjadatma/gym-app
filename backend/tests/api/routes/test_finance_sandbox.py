@@ -927,3 +927,24 @@ def test_auto_settlement_completes_eligible_allocations(
     assert report["as_of"]["unsettled_platform_irr"] == 0
     assert report["as_of"]["unsettled_gym_irr"] == 0
     assert report["as_of"]["completed_settlements_irr"] == sale["total_amount_irr"]
+
+
+def test_duplicate_tax_selection_is_rejected(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    env = make_finance_gym(client, superuser_headers)
+    create_default_contract(client, superuser_headers)
+    vat = create_vat(client, superuser_headers)
+    response = client.post(
+        f"/api/v1/finance/gyms/{env['gym_id']}/sales/preview",
+        headers=env["owner"],
+        json={
+            "category": "MEMBERSHIP",
+            "base_amount_irr": 1_000_000,
+            "tax_ids": [vat["id"], vat["id"]],
+            "coach_user_id": None,
+            "sold_on": date.today().isoformat(),
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"] == "duplicate_tax"

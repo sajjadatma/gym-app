@@ -567,6 +567,8 @@ def _tax_lines(
 ) -> tuple[list[dict[str, Any]], int]:
     if not tax_ids:
         return [], 0
+    if len(tax_ids) != len(set(tax_ids)):
+        raise HTTPException(status_code=400, detail="duplicate_tax")
     rows = session.exec(
         select(FinanceTaxDefinition).where(
             col(FinanceTaxDefinition.id).in_(tax_ids)
