@@ -1228,3 +1228,7 @@ class PersonOverview(SQLModel):
 # Resolve forward references used by athlete response models.
 for _model in (AthleteDetail, AthleteSelfDetail, AthleteCreated):
     _model.model_rebuild()
+
+
+# Import finance tables so SQLModel/Alembic metadata includes them.
+from app import finance_models as finance_models  # noqa: E402,F401

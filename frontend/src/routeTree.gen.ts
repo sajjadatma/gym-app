@@ -19,6 +19,7 @@ import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as AppAthletesRouteImport } from './routes/_app.athletes'
 import { Route as AppCoachesRouteImport } from './routes/_app.coaches'
 import { Route as AppExercisesRouteImport } from './routes/_app.exercises'
+import { Route as AppFinanceRouteImport } from './routes/_app.finance'
 import { Route as AppGymsRouteImport } from './routes/_app.gyms'
 import { Route as AppMembersRouteImport } from './routes/_app.members'
 import { Route as AppMyRouteImport } from './routes/_app.my'
@@ -28,6 +29,10 @@ import { Route as PrintVersionIdRouteImport } from './routes/print.$versionId'
 import { Route as AppAthletesIndexRouteImport } from './routes/_app.athletes.index'
 import { Route as AppAthletesAthleteIdRouteImport } from './routes/_app.athletes.$athleteId'
 import { Route as AppAthletesArchivedRouteImport } from './routes/_app.athletes.archived'
+import { Route as AppFinanceIndexRouteImport } from './routes/_app.finance.index'
+import { Route as AppFinancePlatformContractsRouteImport } from './routes/_app.finance.platform-contracts'
+import { Route as AppFinanceReportsRouteImport } from './routes/_app.finance.reports'
+import { Route as AppFinanceTaxesRouteImport } from './routes/_app.finance.taxes'
 import { Route as AppGymsIndexRouteImport } from './routes/_app.gyms.index'
 import { Route as AppGymsGymIdRouteImport } from './routes/_app.gyms.$gymId'
 import { Route as AppMyIndexRouteImport } from './routes/_app.my.index'
@@ -38,6 +43,7 @@ import { Route as AppTemplatesNewRouteImport } from './routes/_app.templates.new
 import { Route as AppGymsGymIdIndexRouteImport } from './routes/_app.gyms.$gymId.index'
 import { Route as AppGymsGymIdAthletesRouteImport } from './routes/_app.gyms.$gymId.athletes'
 import { Route as AppGymsGymIdExercisesRouteImport } from './routes/_app.gyms.$gymId.exercises'
+import { Route as AppGymsGymIdFinanceRouteImport } from './routes/_app.gyms.$gymId.finance'
 import { Route as AppGymsGymIdMembersRouteImport } from './routes/_app.gyms.$gymId.members'
 import { Route as AppGymsGymIdMyRouteImport } from './routes/_app.gyms.$gymId.my'
 import { Route as AppGymsGymIdSettingsRouteImport } from './routes/_app.gyms.$gymId.settings'
@@ -48,6 +54,12 @@ import { Route as AppTemplatesTemplateIdEditRouteImport } from './routes/_app.te
 import { Route as AppGymsGymIdAthletesIndexRouteImport } from './routes/_app.gyms.$gymId.athletes.index'
 import { Route as AppGymsGymIdAthletesAthleteIdRouteImport } from './routes/_app.gyms.$gymId.athletes.$athleteId'
 import { Route as AppGymsGymIdAthletesArchivedRouteImport } from './routes/_app.gyms.$gymId.athletes.archived'
+import { Route as AppGymsGymIdFinanceIndexRouteImport } from './routes/_app.gyms.$gymId.finance.index'
+import { Route as AppGymsGymIdFinanceContractsRouteImport } from './routes/_app.gyms.$gymId.finance.contracts'
+import { Route as AppGymsGymIdFinanceReportsRouteImport } from './routes/_app.gyms.$gymId.finance.reports'
+import { Route as AppGymsGymIdFinanceSalesRouteImport } from './routes/_app.gyms.$gymId.finance.sales'
+import { Route as AppGymsGymIdFinanceSettlementsRouteImport } from './routes/_app.gyms.$gymId.finance.settlements'
+import { Route as AppGymsGymIdFinanceTaxesRouteImport } from './routes/_app.gyms.$gymId.finance.taxes'
 import { Route as AppGymsGymIdMyIndexRouteImport } from './routes/_app.gyms.$gymId.my.index'
 import { Route as AppGymsGymIdMyProfileRouteImport } from './routes/_app.gyms.$gymId.my.profile'
 import { Route as AppGymsGymIdTemplatesIndexRouteImport } from './routes/_app.gyms.$gymId.templates.index'
@@ -105,6 +117,11 @@ const AppExercisesRoute = AppExercisesRouteImport.update({
   path: '/exercises',
   getParentRoute: () => AppRoute,
 } as any)
+const AppFinanceRoute = AppFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppGymsRoute = AppGymsRouteImport.update({
   id: '/gyms',
   path: '/gyms',
@@ -149,6 +166,27 @@ const AppAthletesArchivedRoute = AppAthletesArchivedRouteImport.update({
   id: '/archived',
   path: '/archived',
   getParentRoute: () => AppAthletesRoute,
+} as any)
+const AppFinanceIndexRoute = AppFinanceIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppFinanceRoute,
+} as any)
+const AppFinancePlatformContractsRoute =
+  AppFinancePlatformContractsRouteImport.update({
+    id: '/platform-contracts',
+    path: '/platform-contracts',
+    getParentRoute: () => AppFinanceRoute,
+  } as any)
+const AppFinanceReportsRoute = AppFinanceReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppFinanceRoute,
+} as any)
+const AppFinanceTaxesRoute = AppFinanceTaxesRouteImport.update({
+  id: '/taxes',
+  path: '/taxes',
+  getParentRoute: () => AppFinanceRoute,
 } as any)
 const AppGymsIndexRoute = AppGymsIndexRouteImport.update({
   id: '/',
@@ -198,6 +236,11 @@ const AppGymsGymIdAthletesRoute = AppGymsGymIdAthletesRouteImport.update({
 const AppGymsGymIdExercisesRoute = AppGymsGymIdExercisesRouteImport.update({
   id: '/exercises',
   path: '/exercises',
+  getParentRoute: () => AppGymsGymIdRoute,
+} as any)
+const AppGymsGymIdFinanceRoute = AppGymsGymIdFinanceRouteImport.update({
+  id: '/finance',
+  path: '/finance',
   getParentRoute: () => AppGymsGymIdRoute,
 } as any)
 const AppGymsGymIdMembersRoute = AppGymsGymIdMembersRouteImport.update({
@@ -255,6 +298,42 @@ const AppGymsGymIdAthletesArchivedRoute =
     path: '/archived',
     getParentRoute: () => AppGymsGymIdAthletesRoute,
   } as any)
+const AppGymsGymIdFinanceIndexRoute =
+  AppGymsGymIdFinanceIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppGymsGymIdFinanceRoute,
+  } as any)
+const AppGymsGymIdFinanceContractsRoute =
+  AppGymsGymIdFinanceContractsRouteImport.update({
+    id: '/contracts',
+    path: '/contracts',
+    getParentRoute: () => AppGymsGymIdFinanceRoute,
+  } as any)
+const AppGymsGymIdFinanceReportsRoute =
+  AppGymsGymIdFinanceReportsRouteImport.update({
+    id: '/reports',
+    path: '/reports',
+    getParentRoute: () => AppGymsGymIdFinanceRoute,
+  } as any)
+const AppGymsGymIdFinanceSalesRoute =
+  AppGymsGymIdFinanceSalesRouteImport.update({
+    id: '/sales',
+    path: '/sales',
+    getParentRoute: () => AppGymsGymIdFinanceRoute,
+  } as any)
+const AppGymsGymIdFinanceSettlementsRoute =
+  AppGymsGymIdFinanceSettlementsRouteImport.update({
+    id: '/settlements',
+    path: '/settlements',
+    getParentRoute: () => AppGymsGymIdFinanceRoute,
+  } as any)
+const AppGymsGymIdFinanceTaxesRoute =
+  AppGymsGymIdFinanceTaxesRouteImport.update({
+    id: '/taxes',
+    path: '/taxes',
+    getParentRoute: () => AppGymsGymIdFinanceRoute,
+  } as any)
 const AppGymsGymIdMyIndexRoute = AppGymsGymIdMyIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -306,6 +385,7 @@ export interface FileRoutesByFullPath {
   '/athletes': typeof AppAthletesRouteWithChildren
   '/coaches': typeof AppCoachesRoute
   '/exercises': typeof AppExercisesRoute
+  '/finance': typeof AppFinanceRouteWithChildren
   '/gyms': typeof AppGymsRouteWithChildren
   '/members': typeof AppMembersRoute
   '/my': typeof AppMyRouteWithChildren
@@ -314,16 +394,21 @@ export interface FileRoutesByFullPath {
   '/print/$versionId': typeof PrintVersionIdRoute
   '/athletes/$athleteId': typeof AppAthletesAthleteIdRoute
   '/athletes/archived': typeof AppAthletesArchivedRoute
+  '/finance/platform-contracts': typeof AppFinancePlatformContractsRoute
+  '/finance/reports': typeof AppFinanceReportsRoute
+  '/finance/taxes': typeof AppFinanceTaxesRoute
   '/gyms/$gymId': typeof AppGymsGymIdRouteWithChildren
   '/my/profile': typeof AppMyProfileRoute
   '/people/$userId': typeof AppPeopleUserIdRoute
   '/templates/new': typeof AppTemplatesNewRoute
   '/athletes/': typeof AppAthletesIndexRoute
+  '/finance/': typeof AppFinanceIndexRoute
   '/gyms/': typeof AppGymsIndexRoute
   '/my/': typeof AppMyIndexRoute
   '/templates/': typeof AppTemplatesIndexRoute
   '/gyms/$gymId/athletes': typeof AppGymsGymIdAthletesRouteWithChildren
   '/gyms/$gymId/exercises': typeof AppGymsGymIdExercisesRoute
+  '/gyms/$gymId/finance': typeof AppGymsGymIdFinanceRouteWithChildren
   '/gyms/$gymId/members': typeof AppGymsGymIdMembersRoute
   '/gyms/$gymId/my': typeof AppGymsGymIdMyRouteWithChildren
   '/gyms/$gymId/settings': typeof AppGymsGymIdSettingsRoute
@@ -334,9 +419,15 @@ export interface FileRoutesByFullPath {
   '/gyms/$gymId/': typeof AppGymsGymIdIndexRoute
   '/gyms/$gymId/athletes/$athleteId': typeof AppGymsGymIdAthletesAthleteIdRoute
   '/gyms/$gymId/athletes/archived': typeof AppGymsGymIdAthletesArchivedRoute
+  '/gyms/$gymId/finance/contracts': typeof AppGymsGymIdFinanceContractsRoute
+  '/gyms/$gymId/finance/reports': typeof AppGymsGymIdFinanceReportsRoute
+  '/gyms/$gymId/finance/sales': typeof AppGymsGymIdFinanceSalesRoute
+  '/gyms/$gymId/finance/settlements': typeof AppGymsGymIdFinanceSettlementsRoute
+  '/gyms/$gymId/finance/taxes': typeof AppGymsGymIdFinanceTaxesRoute
   '/gyms/$gymId/my/profile': typeof AppGymsGymIdMyProfileRoute
   '/gyms/$gymId/templates/new': typeof AppGymsGymIdTemplatesNewRoute
   '/gyms/$gymId/athletes/': typeof AppGymsGymIdAthletesIndexRoute
+  '/gyms/$gymId/finance/': typeof AppGymsGymIdFinanceIndexRoute
   '/gyms/$gymId/my/': typeof AppGymsGymIdMyIndexRoute
   '/gyms/$gymId/templates/': typeof AppGymsGymIdTemplatesIndexRoute
   '/gyms/$gymId/my/programs/$versionId': typeof AppGymsGymIdMyProgramsVersionIdRoute
@@ -357,10 +448,14 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/athletes/$athleteId': typeof AppAthletesAthleteIdRoute
   '/athletes/archived': typeof AppAthletesArchivedRoute
+  '/finance/platform-contracts': typeof AppFinancePlatformContractsRoute
+  '/finance/reports': typeof AppFinanceReportsRoute
+  '/finance/taxes': typeof AppFinanceTaxesRoute
   '/my/profile': typeof AppMyProfileRoute
   '/people/$userId': typeof AppPeopleUserIdRoute
   '/templates/new': typeof AppTemplatesNewRoute
   '/athletes': typeof AppAthletesIndexRoute
+  '/finance': typeof AppFinanceIndexRoute
   '/gyms': typeof AppGymsIndexRoute
   '/my': typeof AppMyIndexRoute
   '/templates': typeof AppTemplatesIndexRoute
@@ -373,9 +468,15 @@ export interface FileRoutesByTo {
   '/gyms/$gymId': typeof AppGymsGymIdIndexRoute
   '/gyms/$gymId/athletes/$athleteId': typeof AppGymsGymIdAthletesAthleteIdRoute
   '/gyms/$gymId/athletes/archived': typeof AppGymsGymIdAthletesArchivedRoute
+  '/gyms/$gymId/finance/contracts': typeof AppGymsGymIdFinanceContractsRoute
+  '/gyms/$gymId/finance/reports': typeof AppGymsGymIdFinanceReportsRoute
+  '/gyms/$gymId/finance/sales': typeof AppGymsGymIdFinanceSalesRoute
+  '/gyms/$gymId/finance/settlements': typeof AppGymsGymIdFinanceSettlementsRoute
+  '/gyms/$gymId/finance/taxes': typeof AppGymsGymIdFinanceTaxesRoute
   '/gyms/$gymId/my/profile': typeof AppGymsGymIdMyProfileRoute
   '/gyms/$gymId/templates/new': typeof AppGymsGymIdTemplatesNewRoute
   '/gyms/$gymId/athletes': typeof AppGymsGymIdAthletesIndexRoute
+  '/gyms/$gymId/finance': typeof AppGymsGymIdFinanceIndexRoute
   '/gyms/$gymId/my': typeof AppGymsGymIdMyIndexRoute
   '/gyms/$gymId/templates': typeof AppGymsGymIdTemplatesIndexRoute
   '/gyms/$gymId/my/programs/$versionId': typeof AppGymsGymIdMyProgramsVersionIdRoute
@@ -393,6 +494,7 @@ export interface FileRoutesById {
   '/_app/athletes': typeof AppAthletesRouteWithChildren
   '/_app/coaches': typeof AppCoachesRoute
   '/_app/exercises': typeof AppExercisesRoute
+  '/_app/finance': typeof AppFinanceRouteWithChildren
   '/_app/gyms': typeof AppGymsRouteWithChildren
   '/_app/members': typeof AppMembersRoute
   '/_app/my': typeof AppMyRouteWithChildren
@@ -402,16 +504,21 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/athletes/$athleteId': typeof AppAthletesAthleteIdRoute
   '/_app/athletes/archived': typeof AppAthletesArchivedRoute
+  '/_app/finance/platform-contracts': typeof AppFinancePlatformContractsRoute
+  '/_app/finance/reports': typeof AppFinanceReportsRoute
+  '/_app/finance/taxes': typeof AppFinanceTaxesRoute
   '/_app/gyms/$gymId': typeof AppGymsGymIdRouteWithChildren
   '/_app/my/profile': typeof AppMyProfileRoute
   '/_app/people/$userId': typeof AppPeopleUserIdRoute
   '/_app/templates/new': typeof AppTemplatesNewRoute
   '/_app/athletes/': typeof AppAthletesIndexRoute
+  '/_app/finance/': typeof AppFinanceIndexRoute
   '/_app/gyms/': typeof AppGymsIndexRoute
   '/_app/my/': typeof AppMyIndexRoute
   '/_app/templates/': typeof AppTemplatesIndexRoute
   '/_app/gyms/$gymId/athletes': typeof AppGymsGymIdAthletesRouteWithChildren
   '/_app/gyms/$gymId/exercises': typeof AppGymsGymIdExercisesRoute
+  '/_app/gyms/$gymId/finance': typeof AppGymsGymIdFinanceRouteWithChildren
   '/_app/gyms/$gymId/members': typeof AppGymsGymIdMembersRoute
   '/_app/gyms/$gymId/my': typeof AppGymsGymIdMyRouteWithChildren
   '/_app/gyms/$gymId/settings': typeof AppGymsGymIdSettingsRoute
@@ -422,9 +529,15 @@ export interface FileRoutesById {
   '/_app/gyms/$gymId/': typeof AppGymsGymIdIndexRoute
   '/_app/gyms/$gymId/athletes/$athleteId': typeof AppGymsGymIdAthletesAthleteIdRoute
   '/_app/gyms/$gymId/athletes/archived': typeof AppGymsGymIdAthletesArchivedRoute
+  '/_app/gyms/$gymId/finance/contracts': typeof AppGymsGymIdFinanceContractsRoute
+  '/_app/gyms/$gymId/finance/reports': typeof AppGymsGymIdFinanceReportsRoute
+  '/_app/gyms/$gymId/finance/sales': typeof AppGymsGymIdFinanceSalesRoute
+  '/_app/gyms/$gymId/finance/settlements': typeof AppGymsGymIdFinanceSettlementsRoute
+  '/_app/gyms/$gymId/finance/taxes': typeof AppGymsGymIdFinanceTaxesRoute
   '/_app/gyms/$gymId/my/profile': typeof AppGymsGymIdMyProfileRoute
   '/_app/gyms/$gymId/templates/new': typeof AppGymsGymIdTemplatesNewRoute
   '/_app/gyms/$gymId/athletes/': typeof AppGymsGymIdAthletesIndexRoute
+  '/_app/gyms/$gymId/finance/': typeof AppGymsGymIdFinanceIndexRoute
   '/_app/gyms/$gymId/my/': typeof AppGymsGymIdMyIndexRoute
   '/_app/gyms/$gymId/templates/': typeof AppGymsGymIdTemplatesIndexRoute
   '/_app/gyms/$gymId/my/programs/$versionId': typeof AppGymsGymIdMyProgramsVersionIdRoute
@@ -443,6 +556,7 @@ export interface FileRouteTypes {
     | '/athletes'
     | '/coaches'
     | '/exercises'
+    | '/finance'
     | '/gyms'
     | '/members'
     | '/my'
@@ -451,16 +565,21 @@ export interface FileRouteTypes {
     | '/print/$versionId'
     | '/athletes/$athleteId'
     | '/athletes/archived'
+    | '/finance/platform-contracts'
+    | '/finance/reports'
+    | '/finance/taxes'
     | '/gyms/$gymId'
     | '/my/profile'
     | '/people/$userId'
     | '/templates/new'
     | '/athletes/'
+    | '/finance/'
     | '/gyms/'
     | '/my/'
     | '/templates/'
     | '/gyms/$gymId/athletes'
     | '/gyms/$gymId/exercises'
+    | '/gyms/$gymId/finance'
     | '/gyms/$gymId/members'
     | '/gyms/$gymId/my'
     | '/gyms/$gymId/settings'
@@ -471,9 +590,15 @@ export interface FileRouteTypes {
     | '/gyms/$gymId/'
     | '/gyms/$gymId/athletes/$athleteId'
     | '/gyms/$gymId/athletes/archived'
+    | '/gyms/$gymId/finance/contracts'
+    | '/gyms/$gymId/finance/reports'
+    | '/gyms/$gymId/finance/sales'
+    | '/gyms/$gymId/finance/settlements'
+    | '/gyms/$gymId/finance/taxes'
     | '/gyms/$gymId/my/profile'
     | '/gyms/$gymId/templates/new'
     | '/gyms/$gymId/athletes/'
+    | '/gyms/$gymId/finance/'
     | '/gyms/$gymId/my/'
     | '/gyms/$gymId/templates/'
     | '/gyms/$gymId/my/programs/$versionId'
@@ -494,10 +619,14 @@ export interface FileRouteTypes {
     | '/'
     | '/athletes/$athleteId'
     | '/athletes/archived'
+    | '/finance/platform-contracts'
+    | '/finance/reports'
+    | '/finance/taxes'
     | '/my/profile'
     | '/people/$userId'
     | '/templates/new'
     | '/athletes'
+    | '/finance'
     | '/gyms'
     | '/my'
     | '/templates'
@@ -510,9 +639,15 @@ export interface FileRouteTypes {
     | '/gyms/$gymId'
     | '/gyms/$gymId/athletes/$athleteId'
     | '/gyms/$gymId/athletes/archived'
+    | '/gyms/$gymId/finance/contracts'
+    | '/gyms/$gymId/finance/reports'
+    | '/gyms/$gymId/finance/sales'
+    | '/gyms/$gymId/finance/settlements'
+    | '/gyms/$gymId/finance/taxes'
     | '/gyms/$gymId/my/profile'
     | '/gyms/$gymId/templates/new'
     | '/gyms/$gymId/athletes'
+    | '/gyms/$gymId/finance'
     | '/gyms/$gymId/my'
     | '/gyms/$gymId/templates'
     | '/gyms/$gymId/my/programs/$versionId'
@@ -529,6 +664,7 @@ export interface FileRouteTypes {
     | '/_app/athletes'
     | '/_app/coaches'
     | '/_app/exercises'
+    | '/_app/finance'
     | '/_app/gyms'
     | '/_app/members'
     | '/_app/my'
@@ -538,16 +674,21 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/athletes/$athleteId'
     | '/_app/athletes/archived'
+    | '/_app/finance/platform-contracts'
+    | '/_app/finance/reports'
+    | '/_app/finance/taxes'
     | '/_app/gyms/$gymId'
     | '/_app/my/profile'
     | '/_app/people/$userId'
     | '/_app/templates/new'
     | '/_app/athletes/'
+    | '/_app/finance/'
     | '/_app/gyms/'
     | '/_app/my/'
     | '/_app/templates/'
     | '/_app/gyms/$gymId/athletes'
     | '/_app/gyms/$gymId/exercises'
+    | '/_app/gyms/$gymId/finance'
     | '/_app/gyms/$gymId/members'
     | '/_app/gyms/$gymId/my'
     | '/_app/gyms/$gymId/settings'
@@ -558,9 +699,15 @@ export interface FileRouteTypes {
     | '/_app/gyms/$gymId/'
     | '/_app/gyms/$gymId/athletes/$athleteId'
     | '/_app/gyms/$gymId/athletes/archived'
+    | '/_app/gyms/$gymId/finance/contracts'
+    | '/_app/gyms/$gymId/finance/reports'
+    | '/_app/gyms/$gymId/finance/sales'
+    | '/_app/gyms/$gymId/finance/settlements'
+    | '/_app/gyms/$gymId/finance/taxes'
     | '/_app/gyms/$gymId/my/profile'
     | '/_app/gyms/$gymId/templates/new'
     | '/_app/gyms/$gymId/athletes/'
+    | '/_app/gyms/$gymId/finance/'
     | '/_app/gyms/$gymId/my/'
     | '/_app/gyms/$gymId/templates/'
     | '/_app/gyms/$gymId/my/programs/$versionId'
@@ -650,6 +797,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppExercisesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/finance': {
+      id: '/_app/finance'
+      path: '/finance'
+      fullPath: '/finance'
+      preLoaderRoute: typeof AppFinanceRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/gyms': {
       id: '/_app/gyms'
       path: '/gyms'
@@ -712,6 +866,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/athletes/archived'
       preLoaderRoute: typeof AppAthletesArchivedRouteImport
       parentRoute: typeof AppAthletesRoute
+    }
+    '/_app/finance/': {
+      id: '/_app/finance/'
+      path: '/'
+      fullPath: '/finance/'
+      preLoaderRoute: typeof AppFinanceIndexRouteImport
+      parentRoute: typeof AppFinanceRoute
+    }
+    '/_app/finance/platform-contracts': {
+      id: '/_app/finance/platform-contracts'
+      path: '/platform-contracts'
+      fullPath: '/finance/platform-contracts'
+      preLoaderRoute: typeof AppFinancePlatformContractsRouteImport
+      parentRoute: typeof AppFinanceRoute
+    }
+    '/_app/finance/reports': {
+      id: '/_app/finance/reports'
+      path: '/reports'
+      fullPath: '/finance/reports'
+      preLoaderRoute: typeof AppFinanceReportsRouteImport
+      parentRoute: typeof AppFinanceRoute
+    }
+    '/_app/finance/taxes': {
+      id: '/_app/finance/taxes'
+      path: '/taxes'
+      fullPath: '/finance/taxes'
+      preLoaderRoute: typeof AppFinanceTaxesRouteImport
+      parentRoute: typeof AppFinanceRoute
     }
     '/_app/gyms/': {
       id: '/_app/gyms/'
@@ -781,6 +963,13 @@ declare module '@tanstack/react-router' {
       path: '/exercises'
       fullPath: '/gyms/$gymId/exercises'
       preLoaderRoute: typeof AppGymsGymIdExercisesRouteImport
+      parentRoute: typeof AppGymsGymIdRoute
+    }
+    '/_app/gyms/$gymId/finance': {
+      id: '/_app/gyms/$gymId/finance'
+      path: '/finance'
+      fullPath: '/gyms/$gymId/finance'
+      preLoaderRoute: typeof AppGymsGymIdFinanceRouteImport
       parentRoute: typeof AppGymsGymIdRoute
     }
     '/_app/gyms/$gymId/members': {
@@ -853,6 +1042,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGymsGymIdAthletesArchivedRouteImport
       parentRoute: typeof AppGymsGymIdAthletesRoute
     }
+    '/_app/gyms/$gymId/finance/': {
+      id: '/_app/gyms/$gymId/finance/'
+      path: '/'
+      fullPath: '/gyms/$gymId/finance/'
+      preLoaderRoute: typeof AppGymsGymIdFinanceIndexRouteImport
+      parentRoute: typeof AppGymsGymIdFinanceRoute
+    }
+    '/_app/gyms/$gymId/finance/contracts': {
+      id: '/_app/gyms/$gymId/finance/contracts'
+      path: '/contracts'
+      fullPath: '/gyms/$gymId/finance/contracts'
+      preLoaderRoute: typeof AppGymsGymIdFinanceContractsRouteImport
+      parentRoute: typeof AppGymsGymIdFinanceRoute
+    }
+    '/_app/gyms/$gymId/finance/reports': {
+      id: '/_app/gyms/$gymId/finance/reports'
+      path: '/reports'
+      fullPath: '/gyms/$gymId/finance/reports'
+      preLoaderRoute: typeof AppGymsGymIdFinanceReportsRouteImport
+      parentRoute: typeof AppGymsGymIdFinanceRoute
+    }
+    '/_app/gyms/$gymId/finance/sales': {
+      id: '/_app/gyms/$gymId/finance/sales'
+      path: '/sales'
+      fullPath: '/gyms/$gymId/finance/sales'
+      preLoaderRoute: typeof AppGymsGymIdFinanceSalesRouteImport
+      parentRoute: typeof AppGymsGymIdFinanceRoute
+    }
+    '/_app/gyms/$gymId/finance/settlements': {
+      id: '/_app/gyms/$gymId/finance/settlements'
+      path: '/settlements'
+      fullPath: '/gyms/$gymId/finance/settlements'
+      preLoaderRoute: typeof AppGymsGymIdFinanceSettlementsRouteImport
+      parentRoute: typeof AppGymsGymIdFinanceRoute
+    }
+    '/_app/gyms/$gymId/finance/taxes': {
+      id: '/_app/gyms/$gymId/finance/taxes'
+      path: '/taxes'
+      fullPath: '/gyms/$gymId/finance/taxes'
+      preLoaderRoute: typeof AppGymsGymIdFinanceTaxesRouteImport
+      parentRoute: typeof AppGymsGymIdFinanceRoute
+    }
     '/_app/gyms/$gymId/my/': {
       id: '/_app/gyms/$gymId/my/'
       path: '/'
@@ -921,6 +1152,24 @@ const AppAthletesRouteWithChildren = AppAthletesRoute._addFileChildren(
   AppAthletesRouteChildren,
 )
 
+interface AppFinanceRouteChildren {
+  AppFinancePlatformContractsRoute: typeof AppFinancePlatformContractsRoute
+  AppFinanceReportsRoute: typeof AppFinanceReportsRoute
+  AppFinanceTaxesRoute: typeof AppFinanceTaxesRoute
+  AppFinanceIndexRoute: typeof AppFinanceIndexRoute
+}
+
+const AppFinanceRouteChildren: AppFinanceRouteChildren = {
+  AppFinancePlatformContractsRoute: AppFinancePlatformContractsRoute,
+  AppFinanceReportsRoute: AppFinanceReportsRoute,
+  AppFinanceTaxesRoute: AppFinanceTaxesRoute,
+  AppFinanceIndexRoute: AppFinanceIndexRoute,
+}
+
+const AppFinanceRouteWithChildren = AppFinanceRoute._addFileChildren(
+  AppFinanceRouteChildren,
+)
+
 interface AppGymsGymIdAthletesRouteChildren {
   AppGymsGymIdAthletesAthleteIdRoute: typeof AppGymsGymIdAthletesAthleteIdRoute
   AppGymsGymIdAthletesArchivedRoute: typeof AppGymsGymIdAthletesArchivedRoute
@@ -935,6 +1184,27 @@ const AppGymsGymIdAthletesRouteChildren: AppGymsGymIdAthletesRouteChildren = {
 
 const AppGymsGymIdAthletesRouteWithChildren =
   AppGymsGymIdAthletesRoute._addFileChildren(AppGymsGymIdAthletesRouteChildren)
+
+interface AppGymsGymIdFinanceRouteChildren {
+  AppGymsGymIdFinanceContractsRoute: typeof AppGymsGymIdFinanceContractsRoute
+  AppGymsGymIdFinanceReportsRoute: typeof AppGymsGymIdFinanceReportsRoute
+  AppGymsGymIdFinanceSalesRoute: typeof AppGymsGymIdFinanceSalesRoute
+  AppGymsGymIdFinanceSettlementsRoute: typeof AppGymsGymIdFinanceSettlementsRoute
+  AppGymsGymIdFinanceTaxesRoute: typeof AppGymsGymIdFinanceTaxesRoute
+  AppGymsGymIdFinanceIndexRoute: typeof AppGymsGymIdFinanceIndexRoute
+}
+
+const AppGymsGymIdFinanceRouteChildren: AppGymsGymIdFinanceRouteChildren = {
+  AppGymsGymIdFinanceContractsRoute: AppGymsGymIdFinanceContractsRoute,
+  AppGymsGymIdFinanceReportsRoute: AppGymsGymIdFinanceReportsRoute,
+  AppGymsGymIdFinanceSalesRoute: AppGymsGymIdFinanceSalesRoute,
+  AppGymsGymIdFinanceSettlementsRoute: AppGymsGymIdFinanceSettlementsRoute,
+  AppGymsGymIdFinanceTaxesRoute: AppGymsGymIdFinanceTaxesRoute,
+  AppGymsGymIdFinanceIndexRoute: AppGymsGymIdFinanceIndexRoute,
+}
+
+const AppGymsGymIdFinanceRouteWithChildren =
+  AppGymsGymIdFinanceRoute._addFileChildren(AppGymsGymIdFinanceRouteChildren)
 
 interface AppGymsGymIdMyRouteChildren {
   AppGymsGymIdMyProfileRoute: typeof AppGymsGymIdMyProfileRoute
@@ -973,6 +1243,7 @@ const AppGymsGymIdTemplatesRouteWithChildren =
 interface AppGymsGymIdRouteChildren {
   AppGymsGymIdAthletesRoute: typeof AppGymsGymIdAthletesRouteWithChildren
   AppGymsGymIdExercisesRoute: typeof AppGymsGymIdExercisesRoute
+  AppGymsGymIdFinanceRoute: typeof AppGymsGymIdFinanceRouteWithChildren
   AppGymsGymIdMembersRoute: typeof AppGymsGymIdMembersRoute
   AppGymsGymIdMyRoute: typeof AppGymsGymIdMyRouteWithChildren
   AppGymsGymIdSettingsRoute: typeof AppGymsGymIdSettingsRoute
@@ -984,6 +1255,7 @@ interface AppGymsGymIdRouteChildren {
 const AppGymsGymIdRouteChildren: AppGymsGymIdRouteChildren = {
   AppGymsGymIdAthletesRoute: AppGymsGymIdAthletesRouteWithChildren,
   AppGymsGymIdExercisesRoute: AppGymsGymIdExercisesRoute,
+  AppGymsGymIdFinanceRoute: AppGymsGymIdFinanceRouteWithChildren,
   AppGymsGymIdMembersRoute: AppGymsGymIdMembersRoute,
   AppGymsGymIdMyRoute: AppGymsGymIdMyRouteWithChildren,
   AppGymsGymIdSettingsRoute: AppGymsGymIdSettingsRoute,
@@ -1044,6 +1316,7 @@ interface AppRouteChildren {
   AppAthletesRoute: typeof AppAthletesRouteWithChildren
   AppCoachesRoute: typeof AppCoachesRoute
   AppExercisesRoute: typeof AppExercisesRoute
+  AppFinanceRoute: typeof AppFinanceRouteWithChildren
   AppGymsRoute: typeof AppGymsRouteWithChildren
   AppMembersRoute: typeof AppMembersRoute
   AppMyRoute: typeof AppMyRouteWithChildren
@@ -1058,6 +1331,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAthletesRoute: AppAthletesRouteWithChildren,
   AppCoachesRoute: AppCoachesRoute,
   AppExercisesRoute: AppExercisesRoute,
+  AppFinanceRoute: AppFinanceRouteWithChildren,
   AppGymsRoute: AppGymsRouteWithChildren,
   AppMembersRoute: AppMembersRoute,
   AppMyRoute: AppMyRouteWithChildren,

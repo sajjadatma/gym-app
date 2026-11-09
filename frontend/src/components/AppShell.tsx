@@ -12,6 +12,7 @@ import {
   ClipboardList,
   Dumbbell,
   Globe2,
+  Landmark,
   LayoutDashboard,
   LogOut,
   Moon,
@@ -242,6 +243,7 @@ export function AppShell() {
       ? [
           { to: "/", label: "nav.dashboard", icon: LayoutDashboard },
           { to: "/gyms", label: "nav.gyms", icon: Building2 },
+          { to: "/finance", label: "nav.finance", icon: Landmark },
           { to: "/coaches", label: "nav.coaches", icon: UserRound },
           { to: "/athletes", label: "nav.athletes", icon: Users },
         ]
@@ -305,6 +307,12 @@ export function AppShell() {
       ...(isSuperuser
         ? []
         : ([{ to: "/gyms", label: "nav.gyms", icon: Building2 }] as NavItem[])),
+      {
+        to: clubPath("/finance"),
+        params: clubParams,
+        label: "nav.finance",
+        icon: Landmark,
+      },
       {
         to: clubPath("/athletes"),
         params: clubParams,

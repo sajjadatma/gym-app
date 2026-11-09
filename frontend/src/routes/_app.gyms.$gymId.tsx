@@ -47,7 +47,7 @@ function ClubLayout() {
       ? true
       : section === "my"
         ? isAthlete
-        : section === "members"
+        : section === "members" || section === "finance"
           ? isAdmin
           : STAFF_SECTIONS.has(section)
             ? isStaff
