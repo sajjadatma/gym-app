@@ -22,7 +22,7 @@ import {
 } from "@/lib/finance-ui"
 
 export function FinanceReportsPage({ gymId }: { gymId?: string }) {
-  const { t, formatNumber } = useI18n()
+  const { t, formatNumber, formatDate } = useI18n()
   const { gyms, isSuperuser } = useAuth()
   const [gymFilter, setGymFilter] = useState("")
   const [fromDate, setFromDate] = useState(daysAgoIso(29))
@@ -128,8 +128,8 @@ export function FinanceReportsPage({ gymId }: { gymId?: string }) {
           <SectionCard
             title={t("finance.reports.activityTitle")}
             subtitle={t("finance.reports.activitySubtitle", {
-              from: report.data.from_date,
-              to: report.data.to_date,
+              from: formatDate(report.data.from_date),
+              to: formatDate(report.data.to_date),
             })}
           >
             <div className="m3-stat-grid">
@@ -171,7 +171,7 @@ export function FinanceReportsPage({ gymId }: { gymId?: string }) {
           <SectionCard
             title={t("finance.reports.asOfTitle")}
             subtitle={t("finance.reports.asOfSubtitle", {
-              date: report.data.as_of.date,
+              date: formatDate(report.data.as_of.date),
             })}
           >
             <div className="m3-stat-grid">

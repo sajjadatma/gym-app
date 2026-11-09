@@ -16,7 +16,7 @@ import { daysAgoIso, formatToman, todayIso } from "@/lib/finance-ui"
 type Props = { gymId?: string }
 
 export function FinanceOverviewPage({ gymId }: Props) {
-  const { t, formatNumber } = useI18n()
+  const { t, formatNumber, formatDate } = useI18n()
   const { isSuperuser, activeGym } = useAuth()
   const from = daysAgoIso(29)
   const to = todayIso()
@@ -62,46 +62,50 @@ export function FinanceOverviewPage({ gymId }: Props) {
         <ShieldCheck size={18} aria-hidden />
         <span>{t("finance.overview.testNote")}</span>
       </div>
-      <div className="m3-stat-grid">
-        <Stat
-          label={t("finance.metric.baseSales")}
-          value={activity.base_sales_irr}
-        />
-        <Stat label={t("finance.metric.taxes")} value={activity.taxes_irr} />
-        <Stat
-          label={t("finance.metric.totalPayments")}
-          value={activity.total_payments_irr}
-          primary
-        />
-        <Stat
-          label={t("finance.metric.platformShare")}
-          value={activity.platform_share_irr}
-        />
-        <Stat
-          label={t("finance.metric.gymShare")}
-          value={activity.gym_share_irr}
-        />
-        <Stat
-          label={t("finance.metric.coachShare")}
-          value={activity.coach_share_irr}
-        />
-        <Stat
-          label={t("finance.metric.refunds")}
-          value={activity.refunds_irr}
-        />
-        <Stat
-          label={t("finance.metric.pendingSettlements")}
-          value={asOf.pending_settlements_irr}
-        />
-        <Stat
-          label={t("finance.metric.completedSettlements")}
-          value={activity.completed_settlements_irr}
-        />
-      </div>
+      <SectionCard
+        title={t("finance.reports.activityTitle")}
+        subtitle={t("finance.reports.activitySubtitle", {
+          from: formatDate(from),
+          to: formatDate(to),
+        })}
+      >
+        <div className="m3-stat-grid">
+          <Stat
+            label={t("finance.metric.baseSales")}
+            value={activity.base_sales_irr}
+          />
+          <Stat label={t("finance.metric.taxes")} value={activity.taxes_irr} />
+          <Stat
+            label={t("finance.metric.totalPayments")}
+            value={activity.total_payments_irr}
+            primary
+          />
+          <Stat
+            label={t("finance.metric.platformShare")}
+            value={activity.platform_share_irr}
+          />
+          <Stat
+            label={t("finance.metric.gymShare")}
+            value={activity.gym_share_irr}
+          />
+          <Stat
+            label={t("finance.metric.coachShare")}
+            value={activity.coach_share_irr}
+          />
+          <Stat
+            label={t("finance.metric.refunds")}
+            value={activity.refunds_irr}
+          />
+          <Stat
+            label={t("finance.metric.completedSettlements")}
+            value={activity.completed_settlements_irr}
+          />
+        </div>
+      </SectionCard>
       <SectionCard
         title={t("finance.overview.asOfTitle")}
         subtitle={t("finance.overview.asOfSubtitle", {
-          date: report.data.as_of.date,
+          date: formatDate(report.data.as_of.date),
         })}
       >
         <div className="m3-stat-grid">
