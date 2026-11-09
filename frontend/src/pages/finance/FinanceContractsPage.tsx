@@ -42,7 +42,7 @@ const CATEGORY_OPTIONS: { value: FinanceCategory; label: string }[] = [
 ]
 
 export function FinanceContractsPage({ gymId }: { gymId: string }) {
-  const { t, formatNumber, formatDate } = useI18n()
+  const { t, formatNumber, formatDate, normalizeDigits } = useI18n()
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
   const [open, setOpen] = useState(false)
@@ -69,11 +69,9 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
     queryFn: () => getPlatformPolicy(gymId, form.category, form.effectiveFrom),
     enabled: open,
   })
-  const platformPercent = policy.data
-    ? Number(percentFromBp(policy.data.platform_bp))
-    : null
-  const gymPercent = Number(form.gymPercent) || 0
-  const coachPercent = Number(form.coachPercent) || 0
+  const platformPercent = policy.data ? policy.data.platform_bp / 100 : null
+  const gymPercent = Number(normalizeDigits(form.gymPercent)) || 0
+  const coachPercent = Number(normalizeDigits(form.coachPercent)) || 0
   const remaining =
     platformPercent === null
       ? null

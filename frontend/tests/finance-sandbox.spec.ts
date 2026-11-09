@@ -73,9 +73,12 @@ test("gym admin completes contract, sale, payment, settlement and report journey
   await expect(page.getByRole("textbox", { name: "درصد پلتفرم" })).toHaveValue(
     /۱۲/,
   )
+  await expect(page.getByText("درصد باقی‌مانده").locator("..")).toContainText(
+    "−۲٪",
+  )
   await page.getByRole("textbox", { name: /درصد باشگاه/ }).fill("38")
   await page.getByRole("textbox", { name: /درصد مربی/ }).fill("50")
-  await expect(page.locator(".m3-dialog").getByText("۰٪")).toBeVisible()
+  await expect(page.locator(".m3-dialog .m3-remaining strong")).toHaveText("۰٪")
   await page.getByRole("button", { name: "ذخیره پیش‌نویس" }).click()
   await expect(page.getByText("برنامه تغذیه").last()).toBeVisible()
 
