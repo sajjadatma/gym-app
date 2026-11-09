@@ -23,6 +23,7 @@ import {
   createPlatformContract,
   listPlatformContracts,
   type PlatformContract,
+  updatePlatformContract,
 } from "@/lib/finance-api"
 import { bpFromPercent, percentFromBp, todayIso } from "@/lib/finance-ui"
 import { useSnackbar } from "@/snackbar"
@@ -34,11 +35,12 @@ const CATEGORIES = [
 ]
 
 export function FinancePlatformContractsPage() {
-  const { t, formatDate } = useI18n()
+  const { t, formatDate, normalizeDigits } = useI18n()
   const { gyms } = useAuth()
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
   const [open, setOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -55,24 +57,80 @@ export function FinancePlatformContractsPage() {
     queryFn: () => listPlatformContracts(),
   })
 
+  function openCreate() {
+    setEditingId(null)
+    setError(null)
+    setForm({
+      name: "",
+      scope: "DEFAULT",
+      gymId: "",
+      effectiveFrom: todayIso(),
+      effectiveTo: "",
+      rates: { MEMBERSHIP: "10", NUTRITION: "12", TRAINING: "15" },
+    })
+    setOpen(true)
+  }
+
+  function openEdit(row: PlatformContract) {
+    const rateValue = (
+      category: PlatformContract["rates"][number]["category"],
+    ) =>
+      percentFromBp(
+        row.rates.find((rate) => rate.category === category)?.percent_bp ?? 0,
+      )
+    setEditingId(row.id)
+    setError(null)
+    setForm({
+      name: row.name,
+      scope: row.scope,
+      gymId: row.gym_id ?? "",
+      effectiveFrom: todayIso(),
+      effectiveTo:
+        row.effective_to && row.effective_to >= todayIso()
+          ? row.effective_to
+          : "",
+      rates: {
+        MEMBERSHIP: rateValue("MEMBERSHIP"),
+        NUTRITION: rateValue("NUTRITION"),
+        TRAINING: rateValue("TRAINING"),
+      },
+    })
+    setOpen(true)
+  }
+
   async function submit() {
     const rates = CATEGORIES.map((category) => ({
       category: category.key,
-      percent_bp: bpFromPercent(Number(form.rates[category.key]) || 0),
+      percent_bp: bpFromPercent(
+        Number(normalizeDigits(form.rates[category.key])) || 0,
+      ),
     }))
     setSaving(true)
     setError(null)
     try {
-      await createPlatformContract({
-        name: form.name.trim(),
-        scope: form.scope,
-        gym_id: form.scope === "GYM" ? form.gymId : null,
-        effective_from: form.effectiveFrom,
-        effective_to: form.effectiveTo || null,
-        rates,
-      })
+      if (editingId) {
+        await updatePlatformContract(editingId, {
+          name: form.name.trim(),
+          effective_from: form.effectiveFrom,
+          effective_to: form.effectiveTo || null,
+          rates,
+        })
+      } else {
+        await createPlatformContract({
+          name: form.name.trim(),
+          scope: form.scope,
+          gym_id: form.scope === "GYM" ? form.gymId : null,
+          effective_from: form.effectiveFrom,
+          effective_to: form.effectiveTo || null,
+          rates,
+        })
+      }
       await queryClient.invalidateQueries({
         queryKey: ["finance-platform-contracts"],
+      })
+      await queryClient.invalidateQueries({ queryKey: ["finance-policy"] })
+      await queryClient.invalidateQueries({
+        queryKey: ["finance-coach-contracts"],
       })
       show(t("common.success"), "success")
       setOpen(false)
@@ -126,7 +184,7 @@ export function FinancePlatformContractsPage() {
         title={t("finance.platformContracts.title")}
         subtitle={t("finance.platformContracts.subtitle")}
         actions={
-          <Button icon={<Plus size={17} />} onClick={() => setOpen(true)}>
+          <Button icon={<Plus size={17} />} onClick={openCreate}>
             {t("finance.platformContracts.new")}
           </Button>
         }
@@ -216,6 +274,13 @@ export function FinancePlatformContractsPage() {
                       </td>
                       <td>
                         <div className="m3-inline-actions">
+                          <Button
+                            size="sm"
+                            variant="text"
+                            onClick={() => openEdit(row)}
+                          >
+                            {t("common.edit")}
+                          </Button>
                           {row.status === "DRAFT" ? (
                             <Button
                               size="sm"
@@ -246,7 +311,11 @@ export function FinancePlatformContractsPage() {
 
       <Dialog
         open={open}
-        title={t("finance.platformContracts.dialogTitle")}
+        title={
+          editingId
+            ? t("finance.platformContracts.editTitle")
+            : t("finance.platformContracts.dialogTitle")
+        }
         description={t("finance.platformContracts.dialogDescription")}
         onClose={() => setOpen(false)}
         size="lg"
@@ -260,7 +329,7 @@ export function FinancePlatformContractsPage() {
               {t("common.cancel")}
             </Button>
             <Button onClick={() => void submit()} loading={saving}>
-              {t("finance.common.saveDraft")}
+              {t("finance.common.saveApply")}
             </Button>
           </>
         }
@@ -290,6 +359,7 @@ export function FinancePlatformContractsPage() {
               },
               { value: "GYM", label: t("finance.platformContracts.gymScope") },
             ]}
+            disabled={Boolean(editingId)}
           />
           {form.scope === "GYM" ? (
             <SelectField
@@ -300,6 +370,7 @@ export function FinancePlatformContractsPage() {
               }
               options={gyms.map((gym) => ({ value: gym.id, label: gym.name }))}
               required
+              disabled={Boolean(editingId)}
             />
           ) : null}
           <DateField

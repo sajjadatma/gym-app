@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 import pytest
@@ -97,6 +97,8 @@ def create_gym_override(
     gym_id: str,
     *,
     membership_bp: int = 800,
+    nutrition_bp: int = 1200,
+    training_bp: int = 1500,
 ) -> dict[str, Any]:
     today = date.today().isoformat()
     response = client.post(
@@ -107,16 +109,24 @@ def create_gym_override(
             "scope": "GYM",
             "gym_id": gym_id,
             "effective_from": today,
-            "rates": [{"category": "MEMBERSHIP", "percent_bp": membership_bp}],
+            "rates": platform_rates(membership_bp, nutrition_bp, training_bp),
         },
     )
     assert response.status_code == 200, response.text
-    activated = client.post(
-        f"/api/v1/finance/platform-contracts/{response.json()['id']}/activate",
-        headers=superuser_headers,
-    )
-    assert activated.status_code == 200, activated.text
-    return activated.json()
+    assert response.json()["status"] == "ACTIVE"
+    return response.json()
+
+
+def platform_rates(
+    membership_bp: int = 1000,
+    nutrition_bp: int = 1200,
+    training_bp: int = 1500,
+) -> list[dict[str, int]]:
+    return [
+        {"category": "MEMBERSHIP", "percent_bp": membership_bp},
+        {"category": "NUTRITION", "percent_bp": nutrition_bp},
+        {"category": "TRAINING", "percent_bp": training_bp},
+    ]
 
 
 def create_vat(
@@ -312,7 +322,7 @@ def test_platform_category_and_gym_override_sources(
     client: TestClient, superuser_headers: dict[str, str]
 ) -> None:
     env = make_finance_gym(client, superuser_headers)
-    default = create_default_contract(client, superuser_headers)
+    create_default_contract(client, superuser_headers)
     override = create_gym_override(
         client, superuser_headers, env["gym_id"], membership_bp=800
     )
@@ -341,8 +351,8 @@ def test_platform_category_and_gym_override_sources(
     )
     assert nutrition.status_code == 200, nutrition.text
     assert nutrition.json()["platform_bp"] == 1200
-    assert nutrition.json()["source"] == "PLATFORM_DEFAULT"
-    assert nutrition.json()["contract_id"] == default["id"]
+    assert nutrition.json()["source"] == "GYM_OVERRIDE"
+    assert nutrition.json()["contract_id"] == override["id"]
 
     preview = preview_sale(
         client, env["owner"], env["gym_id"], base_amount_irr=1_000_000
@@ -520,33 +530,35 @@ def test_role_permissions_and_cross_gym_isolation(
     assert any(row["id"] == sale["id"] for row in all_sales.json())
 
 
-def test_overlapping_contracts_are_rejected(
+def test_new_contracts_replace_active_versions(
     client: TestClient, superuser_headers: dict[str, str]
 ) -> None:
     env = make_finance_gym(client, superuser_headers)
-    create_default_contract(client, superuser_headers)
-    second = client.post(
+    first_default = create_default_contract(client, superuser_headers)
+    second_default = create_default_contract(
+        client, superuser_headers, membership_bp=1100
+    )
+    defaults = client.get(
         "/api/v1/finance/platform-contracts",
         headers=superuser_headers,
-        json={
-            "name": "overlap",
-            "scope": "DEFAULT",
-            "effective_from": date.today().isoformat(),
-            "rates": [
-                {"category": category, "percent_bp": 1000}
-                for category in ("MEMBERSHIP", "NUTRITION", "TRAINING")
-            ],
-        },
-    )
-    assert second.status_code == 200, second.text
-    activated = client.post(
-        f"/api/v1/finance/platform-contracts/{second.json()['id']}/activate",
-        headers=superuser_headers,
-    )
-    assert activated.status_code == 409
-    assert activated.json()["detail"] == "platform_contract_overlap"
+        params={"scope": "DEFAULT"},
+    ).json()
+    assert [row["id"] for row in defaults if row["status"] == "ACTIVE"] == [
+        second_default["id"]
+    ]
+    assert next(
+        row for row in defaults if row["id"] == first_default["id"]
+    )["status"] == "ARCHIVED"
 
-    create_coach_contract(client, env["owner"], env["gym_id"], env["coach_id"])
+    first_coach = create_coach_contract(
+        client,
+        env["owner"],
+        env["gym_id"],
+        env["coach_id"],
+        platform_bp=1100,
+        gym_bp=3000,
+        coach_bp=5900,
+    )
     second_coach = client.post(
         f"/api/v1/finance/gyms/{env['gym_id']}/coach-contracts",
         headers=env["owner"],
@@ -554,93 +566,80 @@ def test_overlapping_contracts_are_rejected(
             "coach_user_id": env["coach_id"],
             "category": "MEMBERSHIP",
             "effective_from": date.today().isoformat(),
-            "platform_bp": 1000,
+            "platform_bp": 1100,
             "gym_bp": 3000,
-            "coach_bp": 6000,
+            "coach_bp": 5900,
         },
     )
     assert second_coach.status_code == 200, second_coach.text
-    coach_overlap = client.post(
-        f"/api/v1/finance/gyms/{env['gym_id']}/coach-contracts/{second_coach.json()['id']}/activate",
+    assert second_coach.json()["status"] == "ACTIVE"
+    assert second_coach.json()["version"] == 2
+    coach_rows = client.get(
+        f"/api/v1/finance/gyms/{env['gym_id']}/coach-contracts",
         headers=env["owner"],
-    )
-    assert coach_overlap.status_code == 409
-    assert coach_overlap.json()["detail"] == "coach_contract_overlap"
+    ).json()
+    assert [row["id"] for row in coach_rows if row["status"] == "ACTIVE"] == [
+        second_coach.json()["id"]
+    ]
+    assert next(
+        row for row in coach_rows if row["id"] == first_coach["id"]
+    )["status"] == "ARCHIVED"
 
 
-def test_historical_snapshot_and_stale_coach_contract_successor(
+def test_editing_archived_platform_contract_creates_new_active_version(
     client: TestClient, superuser_headers: dict[str, str]
 ) -> None:
     env = make_finance_gym(client, superuser_headers)
     old_default = create_default_contract(client, superuser_headers)
-    vat = create_vat(client, superuser_headers)
-    old_coach = create_coach_contract(
-        client, env["owner"], env["gym_id"], env["coach_id"]
-    )
-    old_sale = create_sale(
-        client,
-        env["owner"],
-        env["gym_id"],
-        tax_ids=[vat["id"]],
-        coach_id=env["coach_id"],
-    )
-    client.post(
-        f"/api/v1/finance/platform-contracts/{old_default['id']}/archive",
-        headers=superuser_headers,
-    )
     new_default = create_default_contract(
         client, superuser_headers, membership_bp=2000
     )
     assert new_default["id"] != old_default["id"]
+    defaults = client.get(
+        "/api/v1/finance/platform-contracts",
+        headers=superuser_headers,
+        params={"scope": "DEFAULT"},
+    ).json()
+    assert next(
+        row for row in defaults if row["id"] == old_default["id"]
+    )["status"] == "ARCHIVED"
 
-    stored = client.get(
-        f"/api/v1/finance/gyms/{env['gym_id']}/sales/{old_sale['id']}",
-        headers=env["owner"],
-    )
-    assert stored.status_code == 200
-    assert stored.json()["platform_bp"] == 1000
-    assert stored.json()["platform_amount_irr"] == 110_000
-    assert stored.json()["coach_contract_id"] == old_coach["id"]
-
-    stale = client.post(
-        f"/api/v1/finance/gyms/{env['gym_id']}/sales/preview",
-        headers=env["owner"],
+    edited = client.put(
+        f"/api/v1/finance/platform-contracts/{old_default['id']}",
+        headers=superuser_headers,
         json={
-            "category": "MEMBERSHIP",
-            "base_amount_irr": 1_000_000,
-            "tax_ids": [],
-            "coach_user_id": env["coach_id"],
-            "sold_on": date.today().isoformat(),
+            "name": "پیش‌فرض بایگانی‌شده ویرایش‌شده",
+            "effective_from": date.today().isoformat(),
+            "rates": platform_rates(3000, 1200, 1500),
         },
     )
-    assert stale.status_code == 400
-    assert stale.json()["detail"] == "coach_contract_outdated"
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["status"] == "ACTIVE"
+    assert edited.json()["version"] == 3
 
-    client.post(
-        f"/api/v1/finance/gyms/{env['gym_id']}/coach-contracts/{old_coach['id']}/archive",
+    defaults = client.get(
+        "/api/v1/finance/platform-contracts",
+        headers=superuser_headers,
+        params={"scope": "DEFAULT"},
+    ).json()
+    assert [row["id"] for row in defaults if row["status"] == "ACTIVE"] == [
+        edited.json()["id"]
+    ]
+    assert next(
+        row for row in defaults if row["id"] == new_default["id"]
+    )["status"] == "ARCHIVED"
+    policy = client.get(
+        "/api/v1/finance/platform-policy",
         headers=env["owner"],
+        params={
+            "gym_id": env["gym_id"],
+            "category": "MEMBERSHIP",
+            "on_date": date.today().isoformat(),
+        },
     )
-    successor = create_coach_contract(
-        client,
-        env["owner"],
-        env["gym_id"],
-        env["coach_id"],
-        platform_bp=2000,
-        gym_bp=3000,
-        coach_bp=5000,
-    )
-    preview = preview_sale(
-        client,
-        env["owner"],
-        env["gym_id"],
-        base_amount_irr=1_000_000,
-        coach_id=env["coach_id"],
-    )
-    assert preview["platform_bp"] == 2000
-    assert preview["platform_amount_irr"] == 200_000
-    assert preview["gym_amount_irr"] == 300_000
-    assert preview["coach_amount_irr"] == 500_000
-    assert successor["version"] == 2
+    assert policy.status_code == 200, policy.text
+    assert policy.json()["platform_bp"] == 3000
+    assert policy.json()["contract_id"] == edited.json()["id"]
 
 
 def test_rounding_residual_is_consistent(
@@ -948,3 +947,386 @@ def test_duplicate_tax_selection_is_rejected(
     )
     assert response.status_code == 400
     assert response.json()["detail"] == "duplicate_tax"
+
+
+def test_platform_contracts_are_immediate_editable_and_replace_by_scope(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    env = make_finance_gym(client, superuser_headers)
+    first = client.post(
+        "/api/v1/finance/platform-contracts",
+        headers=superuser_headers,
+        json={
+            "name": "پیش‌فرض اول",
+            "scope": "DEFAULT",
+            "effective_from": date.today().isoformat(),
+            "rates": platform_rates(),
+        },
+    )
+    assert first.status_code == 200, first.text
+    assert first.json()["status"] == "ACTIVE"
+    assert first.json()["version"] == 1
+    assert first.json()["activated_at"] is not None
+
+    second = client.post(
+        "/api/v1/finance/platform-contracts",
+        headers=superuser_headers,
+        json={
+            "name": "پیش‌فرض دوم",
+            "scope": "DEFAULT",
+            "effective_from": date.today().isoformat(),
+            "rates": platform_rates(1100, 1300, 1600),
+        },
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["status"] == "ACTIVE"
+    assert second.json()["version"] == 2
+
+    defaults = client.get(
+        "/api/v1/finance/platform-contracts",
+        headers=superuser_headers,
+        params={"scope": "DEFAULT"},
+    ).json()
+    assert [row["id"] for row in defaults if row["status"] == "ACTIVE"] == [
+        second.json()["id"]
+    ]
+    assert next(row for row in defaults if row["id"] == first.json()["id"])[
+        "status"
+    ] == "ARCHIVED"
+
+    gym_contract = client.post(
+        "/api/v1/finance/platform-contracts",
+        headers=superuser_headers,
+        json={
+            "name": "اختصاصی باشگاه",
+            "scope": "GYM",
+            "gym_id": env["gym_id"],
+            "effective_from": date.today().isoformat(),
+            "rates": platform_rates(800, 900, 1000),
+        },
+    )
+    assert gym_contract.status_code == 200, gym_contract.text
+    assert gym_contract.json()["status"] == "ACTIVE"
+    for category, expected in (
+        ("MEMBERSHIP", 800),
+        ("NUTRITION", 900),
+        ("TRAINING", 1000),
+    ):
+        policy = client.get(
+            "/api/v1/finance/platform-policy",
+            headers=env["owner"],
+            params={
+                "gym_id": env["gym_id"],
+                "category": category,
+                "on_date": date.today().isoformat(),
+            },
+        )
+        assert policy.status_code == 200, policy.text
+        assert policy.json()["platform_bp"] == expected
+        assert policy.json()["source"] == "GYM_OVERRIDE"
+        assert policy.json()["contract_id"] == gym_contract.json()["id"]
+
+    edited = client.put(
+        f"/api/v1/finance/platform-contracts/{gym_contract.json()['id']}",
+        headers=superuser_headers,
+        json={
+            "name": "اختصاصی ویرایش‌شده",
+            "effective_from": date.today().isoformat(),
+            "rates": platform_rates(700, 950, 1100),
+        },
+    )
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["status"] == "ACTIVE"
+    assert edited.json()["version"] == 2
+    gym_rows = client.get(
+        "/api/v1/finance/platform-contracts",
+        headers=superuser_headers,
+        params={"scope": "GYM", "gym_id": env["gym_id"]},
+    ).json()
+    assert [row["id"] for row in gym_rows if row["status"] == "ACTIVE"] == [
+        edited.json()["id"]
+    ]
+    assert next(
+        row for row in gym_rows if row["id"] == gym_contract.json()["id"]
+    )["status"] == "ARCHIVED"
+    policy = client.get(
+        "/api/v1/finance/platform-policy",
+        headers=env["owner"],
+        params={
+            "gym_id": env["gym_id"],
+            "category": "MEMBERSHIP",
+            "on_date": date.today().isoformat(),
+        },
+    )
+    assert policy.json()["platform_bp"] == 700
+    assert policy.json()["contract_id"] == edited.json()["id"]
+
+    archived = client.post(
+        f"/api/v1/finance/platform-contracts/{edited.json()['id']}/archive",
+        headers=superuser_headers,
+    )
+    assert archived.status_code == 200, archived.text
+    fallback = client.get(
+        "/api/v1/finance/platform-policy",
+        headers=env["owner"],
+        params={
+            "gym_id": env["gym_id"],
+            "category": "MEMBERSHIP",
+            "on_date": date.today().isoformat(),
+        },
+    )
+    assert fallback.json()["platform_bp"] == 1100
+    assert fallback.json()["source"] == "PLATFORM_DEFAULT"
+    assert fallback.json()["contract_id"] == second.json()["id"]
+
+
+def test_editing_default_contract_rebases_coach_and_preserves_snapshot(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    env = make_finance_gym(client, superuser_headers)
+    old_default = create_default_contract(client, superuser_headers)
+    vat = create_vat(client, superuser_headers)
+    old_coach = create_coach_contract(
+        client, env["owner"], env["gym_id"], env["coach_id"]
+    )
+    old_sale = create_sale(
+        client,
+        env["owner"],
+        env["gym_id"],
+        tax_ids=[vat["id"]],
+        coach_id=env["coach_id"],
+    )
+    pay(client, env["owner"], env["gym_id"], old_sale["id"])
+
+    edited = client.put(
+        f"/api/v1/finance/platform-contracts/{old_default['id']}",
+        headers=superuser_headers,
+        json={
+            "name": "پیش‌فرض ویرایش‌شده",
+            "effective_from": date.today().isoformat(),
+            "rates": platform_rates(1500, 1200, 1500),
+        },
+    )
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["status"] == "ACTIVE"
+    assert edited.json()["version"] == 2
+    assert edited.json()["id"] != old_default["id"]
+
+    stored = client.get(
+        f"/api/v1/finance/gyms/{env['gym_id']}/sales/{old_sale['id']}",
+        headers=env["owner"],
+    )
+    assert stored.status_code == 200
+    assert stored.json()["platform_bp"] == 1000
+    assert stored.json()["platform_amount_irr"] == 110_000
+    assert stored.json()["coach_contract_id"] == old_coach["id"]
+
+    coach_rows = client.get(
+        f"/api/v1/finance/gyms/{env['gym_id']}/coach-contracts",
+        headers=env["owner"],
+    ).json()
+    active = [row for row in coach_rows if row["status"] == "ACTIVE"]
+    assert len(active) == 1
+    assert active[0]["platform_bp"] == 1500
+    assert active[0]["gym_bp"] == 3500
+    assert active[0]["coach_bp"] == 5000
+    assert active[0]["version"] == 2
+    assert next(
+        row for row in coach_rows if row["id"] == old_coach["id"]
+    )["status"] == "ARCHIVED"
+
+    preview = preview_sale(
+        client,
+        env["owner"],
+        env["gym_id"],
+        base_amount_irr=1_000_000,
+        coach_id=env["coach_id"],
+    )
+    assert preview["platform_bp"] == 1500
+    assert preview["gym_bp"] == 3500
+    assert preview["coach_bp"] == 5000
+    assert preview["platform_amount_irr"] == 150_000
+    assert preview["gym_amount_irr"] == 350_000
+    assert preview["coach_amount_irr"] == 500_000
+
+
+def test_editing_gym_contract_and_coach_contract_creates_replacing_versions(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    env = make_finance_gym(client, superuser_headers)
+    create_default_contract(client, superuser_headers)
+    create_coach_contract(
+        client, env["owner"], env["gym_id"], env["coach_id"]
+    )
+    gym_contract = client.post(
+        "/api/v1/finance/platform-contracts",
+        headers=superuser_headers,
+        json={
+            "name": "اختصاصی اول",
+            "scope": "GYM",
+            "gym_id": env["gym_id"],
+            "effective_from": date.today().isoformat(),
+            "rates": platform_rates(800, 1000, 1200),
+        },
+    )
+    assert gym_contract.status_code == 200, gym_contract.text
+
+    rebased_after_create = client.get(
+        f"/api/v1/finance/gyms/{env['gym_id']}/coach-contracts",
+        headers=env["owner"],
+    ).json()
+    active_after_create = [
+        row for row in rebased_after_create if row["status"] == "ACTIVE"
+    ]
+    assert len(active_after_create) == 1
+    assert active_after_create[0]["platform_bp"] == 800
+    assert active_after_create[0]["gym_bp"] == 4200
+    assert active_after_create[0]["coach_bp"] == 5000
+
+    edited_gym = client.put(
+        f"/api/v1/finance/platform-contracts/{gym_contract.json()['id']}",
+        headers=superuser_headers,
+        json={
+            "name": "اختصاصی دوم",
+            "effective_from": date.today().isoformat(),
+            "rates": platform_rates(2000, 1000, 1200),
+        },
+    )
+    assert edited_gym.status_code == 200, edited_gym.text
+    assert edited_gym.json()["version"] == 2
+
+    rebased_after_edit = client.get(
+        f"/api/v1/finance/gyms/{env['gym_id']}/coach-contracts",
+        headers=env["owner"],
+    ).json()
+    active_after_edit = [
+        row for row in rebased_after_edit if row["status"] == "ACTIVE"
+    ]
+    assert len(active_after_edit) == 1
+    assert active_after_edit[0]["platform_bp"] == 2000
+    assert active_after_edit[0]["gym_bp"] == 3000
+    assert active_after_edit[0]["coach_bp"] == 5000
+    assert active_after_edit[0]["version"] == 3
+    assert next(
+        row
+        for row in rebased_after_edit
+        if row["id"] == active_after_create[0]["id"]
+    )["status"] == "ARCHIVED"
+
+    updated_coach = client.put(
+        f"/api/v1/finance/gyms/{env['gym_id']}/coach-contracts/{active_after_edit[0]['id']}",
+        headers=env["owner"],
+        json={
+            "effective_from": date.today().isoformat(),
+            "platform_bp": 2000,
+            "gym_bp": 2000,
+            "coach_bp": 6000,
+        },
+    )
+    assert updated_coach.status_code == 200, updated_coach.text
+    assert updated_coach.json()["status"] == "ACTIVE"
+    assert updated_coach.json()["version"] == 4
+    assert updated_coach.json()["coach_bp"] == 6000
+    coach_rows = client.get(
+        f"/api/v1/finance/gyms/{env['gym_id']}/coach-contracts",
+        headers=env["owner"],
+    ).json()
+    active = [row for row in coach_rows if row["status"] == "ACTIVE"]
+    assert len(active) == 1
+    assert active[0]["id"] == updated_coach.json()["id"]
+    assert next(
+        row
+        for row in coach_rows
+        if row["id"] == active_after_edit[0]["id"]
+    )["status"] == "ARCHIVED"
+
+    preview = preview_sale(
+        client,
+        env["owner"],
+        env["gym_id"],
+        coach_id=env["coach_id"],
+    )
+    assert preview["platform_bp"] == 2000
+    assert preview["gym_bp"] == 2000
+    assert preview["coach_bp"] == 6000
+    assert preview["coach_amount_irr"] == 600_000
+
+
+def test_platform_edit_rejected_when_coach_share_would_conflict(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    env = make_finance_gym(client, superuser_headers)
+    default = create_default_contract(client, superuser_headers)
+    create_coach_contract(client, env["owner"], env["gym_id"], env["coach_id"])
+
+    conflict = client.put(
+        f"/api/v1/finance/platform-contracts/{default['id']}",
+        headers=superuser_headers,
+        json={
+            "name": "درصد ناسازگار",
+            "effective_from": date.today().isoformat(),
+            "rates": platform_rates(6000, 1200, 1500),
+        },
+    )
+    assert conflict.status_code == 409
+    assert conflict.json()["detail"] == "coach_contract_platform_conflict"
+
+    defaults = client.get(
+        "/api/v1/finance/platform-contracts",
+        headers=superuser_headers,
+        params={"scope": "DEFAULT"},
+    ).json()
+    active_defaults = [row for row in defaults if row["status"] == "ACTIVE"]
+    assert len(active_defaults) == 1
+    assert active_defaults[0]["id"] == default["id"]
+    policy = client.get(
+        "/api/v1/finance/platform-policy",
+        headers=env["owner"],
+        params={
+            "gym_id": env["gym_id"],
+            "category": "MEMBERSHIP",
+            "on_date": date.today().isoformat(),
+        },
+    )
+    assert policy.json()["platform_bp"] == 1000
+    coach_rows = client.get(
+        f"/api/v1/finance/gyms/{env['gym_id']}/coach-contracts",
+        headers=env["owner"],
+    ).json()
+    active_coaches = [row for row in coach_rows if row["status"] == "ACTIVE"]
+    assert len(active_coaches) == 1
+    assert active_coaches[0]["platform_bp"] == 1000
+    assert active_coaches[0]["gym_bp"] == 4000
+    assert active_coaches[0]["coach_bp"] == 5000
+
+
+def test_platform_contract_requires_all_categories_and_immediate_dates(
+    client: TestClient, superuser_headers: dict[str, str]
+) -> None:
+    env = make_finance_gym(client, superuser_headers)
+    partial = client.post(
+        "/api/v1/finance/platform-contracts",
+        headers=superuser_headers,
+        json={
+            "name": "ناقص",
+            "scope": "GYM",
+            "gym_id": env["gym_id"],
+            "effective_from": date.today().isoformat(),
+            "rates": [{"category": "MEMBERSHIP", "percent_bp": 800}],
+        },
+    )
+    assert partial.status_code == 400
+    assert partial.json()["detail"] == "contract_requires_all_categories"
+
+    future = client.post(
+        "/api/v1/finance/platform-contracts",
+        headers=superuser_headers,
+        json={
+            "name": "آینده",
+            "scope": "DEFAULT",
+            "effective_from": (date.today() + timedelta(days=1)).isoformat(),
+            "rates": platform_rates(),
+        },
+    )
+    assert future.status_code == 400
+    assert future.json()["detail"] == "effective_date_future"

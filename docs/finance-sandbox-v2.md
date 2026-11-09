@@ -35,19 +35,21 @@
 ### Platform contracts
 
 - Default rates per category (`MEMBERSHIP`, `NUTRITION`, `TRAINING`).
-- Gym-specific overrides, with per-category fallback to the default.
-- Effective dates, versions, draft/active/archived status.
-- Overlapping active contracts are rejected.
-- Effective platform percentage reports its source (`PLATFORM_DEFAULT` or `GYM_OVERRIDE`).
+- A gym-specific contract fully replaces the default for that gym; when no current gym contract exists (or it is archived), the default applies.
+- Every saved contract is active immediately; there is no separate draft/activation step.
+- Each save or edit creates a new version and archives the previous current contract. Only one active default and one active contract per gym are allowed.
+- All three category rates are required. Saved contracts report their source (`PLATFORM_DEFAULT` or `GYM_OVERRIDE`).
+- All contracts, including archived versions, can be edited; editing creates a new current version.
 
 ### Coach contracts
 
 - Per gym, coach and sales category.
-- Platform percentage is resolved server-side, displayed read-only, and revalidated on creation/activation and sale creation.
+- Platform percentage is resolved server-side, displayed read-only, and revalidated on save and sale creation.
 - Gym and coach percentages are gym-admin controlled.
+- Saving or editing activates the contract immediately and archives the previous active version for the same gym, coach and category.
 - Exact 100% allocation is enforced in the backend database/service and in the form.
 - Coach must be an active `COACH` member of the same gym.
-- Sales reject a stale contract when the current platform policy no longer matches it; a successor contract is required.
+- When a platform contract changes, active coach contracts are automatically versioned: the coach share stays fixed and the gym share absorbs the difference. A platform change that would make the gym share negative is rejected until the coach contract is adjusted.
 
 ### Sales, taxes and allocation
 
@@ -146,12 +148,12 @@ Approved example:
 
 | Check | Result |
 |---|---|
-| Full backend suite (dedicated `_test` DB) | **171 passed** in 86.65 s |
+| Full backend suite (dedicated `_test` DB) | **176 passed** |
 | Migration suite | **4 passed**; also **4 passed** under `TZ=UTC` |
 | Backend lint (Ruff) | Clean |
 | Backend types (Mypy) | Clean (45 source files) |
 | Finance browser journey | **4 passed** (admin, mobile/RTL, global admin) |
-| Full Playwright suite | **113 passed, 18 skipped**, one known mobile-admin archive-menu flake; it passed on immediate retry |
+| Full Playwright suite | **114 passed, 18 skipped**; the known mobile-admin archive-menu flake passed on retry |
 | Frontend lint | Clean |
 | Frontend build | Passed |
 
@@ -163,7 +165,7 @@ The mobile-admin archive flake is pre-existing test instability in the archive r
 - No partial payment; one successful simulated payment covers the full sale.
 - A refund is blocked while a settlement is pending; complete or cancel the pending settlement first.
 - Platform has no closed-period lock; the implementation does not add one.
-- Contract overlap is validated by the service, not a database exclusion constraint.
+- Contract uniqueness is enforced by partial unique indexes for the active default, active gym contract and active coach contract. Overlap windows are no longer used because a new save replaces the current contract.
 - The full superuser-context Playwright spec was not used as acceptance evidence because it exercises unrelated invitation email flows; the finance global-admin journey is covered by `finance-sandbox.spec.ts`.
 - The work is committed locally and **not pushed**; no deployment, merge or production data is involved.
 
@@ -178,7 +180,7 @@ The mobile-admin archive flake is pre-existing test instability in the archive r
    - دسته فروش را انتخاب کنید.
    - درصد پلتفرم را ببینید؛ این عدد خواندنی است و از قرارداد پلتفرم می‌آید.
    - درصد باشگاه و مربی را وارد کنید تا «درصد باقی‌مانده» صفر شود.
-   - ذخیره کنید و سپس قرارداد را فعال کنید.
+   - «ذخیره و اعمال فوری» را بزنید؛ قرارداد بلافاصله فعال می‌شود. برای تغییر، «ویرایش» را بزنید.
 4. «فروش و پرداخت‌ها» را باز کنید و «فروش جدید» را بزنید:
    - دسته، توضیح و مبلغ پایه به تومان را وارد کنید.
    - مالیات پیش‌فرض را انتخاب کنید.
@@ -196,7 +198,8 @@ The mobile-admin archive flake is pre-existing test instability in the archive r
 2. «مالی» را باز کنید و نمای کلی سراسری و مقایسه باشگاه‌ها را ببینید.
 3. «قراردادهای پلتفرم» را باز کنید:
    - قرارداد پیش‌فرض یا اختصاصی باشگاه بسازید.
-   - درصد هر دسته را وارد کنید، پیش‌نویس را ذخیره و سپس فعال کنید.
+   - درصد هر سه دسته را وارد کنید و «ذخیره و اعمال» را بزنید؛ قرارداد بلافاصله جایگزین قرارداد جاری همان دامنه/باشگاه می‌شود.
+   - برای هر ردیف، از «ویرایش» می‌توانید نسخه جدید بسازید؛ نسخه قبلی در سوابق می‌ماند.
 4. «مالیات‌ها» را باز کنید؛ مالیات پیش‌فرض یا مالیات ثابت/درصدی جدید اضافه کنید.
 5. «گزارش‌ها» را باز کنید؛ باشگاه، دسته و بازه تاریخ را فیلتر کنید و CSV بگیرید.
 

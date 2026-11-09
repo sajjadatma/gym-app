@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FileSignature, Plus } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { translateApiError } from "@/api"
 import { DateField } from "@/components/DateField"
 import {
@@ -25,6 +25,7 @@ import {
   getPlatformPolicy,
   listCoachContracts,
   listGymCoaches,
+  updateCoachContract,
 } from "@/lib/finance-api"
 import {
   bpFromPercent,
@@ -46,6 +47,7 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
   const [open, setOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
@@ -76,6 +78,15 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
     platformPercent === null
       ? null
       : 100 - platformPercent - gymPercent - coachPercent
+  useEffect(() => {
+    if (!open || !editingId || !policy.data) return
+    const nextGym =
+      Math.round((100 - policy.data.platform_bp / 100 - coachPercent) * 100) /
+      100
+    if (Math.abs(nextGym - gymPercent) > 0.0001) {
+      setForm((prev) => ({ ...prev, gymPercent: String(nextGym) }))
+    }
+  }, [open, editingId, policy.data, coachPercent, gymPercent])
   const formError = (() => {
     if (!form.coachId) return t("finance.contracts.errorCoach")
     if (!form.effectiveFrom) return t("finance.contracts.errorDate")
@@ -95,20 +106,60 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
     return null
   })()
 
+  function openCreate() {
+    setEditingId(null)
+    setError(null)
+    setForm({
+      coachId: "",
+      category: "MEMBERSHIP",
+      effectiveFrom: todayIso(),
+      effectiveTo: "",
+      gymPercent: "40",
+      coachPercent: "50",
+    })
+    setOpen(true)
+  }
+
+  function openEdit(row: CoachContract) {
+    const today = todayIso()
+    setEditingId(row.id)
+    setError(null)
+    setForm({
+      coachId: row.coach_user_id,
+      category: row.category,
+      effectiveFrom: today,
+      effectiveTo:
+        row.effective_to && row.effective_to >= today ? row.effective_to : "",
+      gymPercent: percentFromBp(row.gym_bp),
+      coachPercent: percentFromBp(row.coach_bp),
+    })
+    setOpen(true)
+  }
+
   async function submit() {
     if (formError || !policy.data) return
     setSaving(true)
     setError(null)
     try {
-      await createCoachContract(gymId, {
-        coach_user_id: form.coachId,
-        category: form.category,
-        effective_from: form.effectiveFrom,
-        effective_to: form.effectiveTo || null,
-        platform_bp: policy.data.platform_bp,
-        gym_bp: bpFromPercent(gymPercent),
-        coach_bp: bpFromPercent(coachPercent),
-      })
+      if (editingId) {
+        await updateCoachContract(gymId, editingId, {
+          effective_from: form.effectiveFrom,
+          effective_to: form.effectiveTo || null,
+          platform_bp: policy.data.platform_bp,
+          gym_bp: bpFromPercent(gymPercent),
+          coach_bp: bpFromPercent(coachPercent),
+        })
+      } else {
+        await createCoachContract(gymId, {
+          coach_user_id: form.coachId,
+          category: form.category,
+          effective_from: form.effectiveFrom,
+          effective_to: form.effectiveTo || null,
+          platform_bp: policy.data.platform_bp,
+          gym_bp: bpFromPercent(gymPercent),
+          coach_bp: bpFromPercent(coachPercent),
+        })
+      }
       await queryClient.invalidateQueries({
         queryKey: ["finance-coach-contracts", gymId],
       })
@@ -155,7 +206,7 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
         title={t("finance.contracts.title")}
         subtitle={t("finance.contracts.subtitle")}
         actions={
-          <Button icon={<Plus size={17} />} onClick={() => setOpen(true)}>
+          <Button icon={<Plus size={17} />} onClick={openCreate}>
             {t("finance.contracts.new")}
           </Button>
         }
@@ -179,7 +230,7 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
           title={t("finance.contracts.empty")}
           description={t("finance.contracts.emptyHint")}
           action={
-            <Button icon={<Plus size={17} />} onClick={() => setOpen(true)}>
+            <Button icon={<Plus size={17} />} onClick={openCreate}>
               {t("finance.contracts.new")}
             </Button>
           }
@@ -224,6 +275,13 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
                     </td>
                     <td>
                       <div className="m3-inline-actions">
+                        <Button
+                          size="sm"
+                          variant="text"
+                          onClick={() => openEdit(row)}
+                        >
+                          {t("common.edit")}
+                        </Button>
                         {row.status === "DRAFT" ? (
                           <Button
                             size="sm"
@@ -254,7 +312,11 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
 
       <Dialog
         open={open}
-        title={t("finance.contracts.dialogTitle")}
+        title={
+          editingId
+            ? t("finance.contracts.editTitle")
+            : t("finance.contracts.dialogTitle")
+        }
         description={t("finance.contracts.dialogDescription")}
         onClose={() => setOpen(false)}
         size="lg"
@@ -272,7 +334,7 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
               loading={saving}
               disabled={Boolean(formError) || policy.isLoading}
             >
-              {t("finance.contracts.saveDraft")}
+              {t("finance.contracts.saveApply")}
             </Button>
           </>
         }
@@ -289,6 +351,7 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
               label: `${coach.name} (${coach.email})`,
             }))}
             required
+            disabled={Boolean(editingId)}
           />
           <SelectField
             label={t("finance.table.category")}
@@ -301,6 +364,7 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
             }
             options={CATEGORY_OPTIONS}
             required
+            disabled={Boolean(editingId)}
           />
           <DateField
             label={t("finance.contracts.effectiveFrom")}
@@ -342,6 +406,10 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
             inputMode="decimal"
             suffix="٪"
             required
+            readOnly={Boolean(editingId)}
+            helper={
+              editingId ? t("finance.contracts.gymAutoAdjusted") : undefined
+            }
           />
           <TextField
             label={t("finance.table.coachPercent")}

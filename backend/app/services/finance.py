@@ -120,26 +120,130 @@ def _validate_bp(value: int, detail: str = "invalid_percentage") -> None:
         raise HTTPException(status_code=400, detail=detail)
 
 
-def _overlaps(
+def _validate_platform_rates(rates: list[dict[str, Any]]) -> None:
+    if not rates:
+        raise HTTPException(status_code=400, detail="contract_rates_required")
+    seen: set[str] = set()
+    for rate in rates:
+        category = rate["category"]
+        _validate_category(category)
+        if category in seen:
+            raise HTTPException(status_code=400, detail="duplicate_contract_category")
+        seen.add(category)
+        _validate_bp(int(rate["percent_bp"]))
+    if seen != set(CATEGORIES):
+        raise HTTPException(
+            status_code=400, detail="contract_requires_all_categories"
+        )
+
+
+def _next_platform_version(
+    session: Session, *, scope: str, gym_id: uuid.UUID | None
+) -> int:
+    return int(
+        session.exec(
+            select(func.coalesce(func.max(FinancePlatformContract.version), 0)).where(
+                FinancePlatformContract.scope == scope,
+                FinancePlatformContract.gym_id == gym_id,
+            )
+        ).one()
+    ) + 1
+
+
+def _archive_active_platform_contracts(
+    session: Session, *, scope: str, gym_id: uuid.UUID | None
+) -> None:
+    rows = session.exec(
+        select(FinancePlatformContract).where(
+            FinancePlatformContract.scope == scope,
+            FinancePlatformContract.gym_id == gym_id,
+            FinancePlatformContract.status == "ACTIVE",
+        )
+    ).all()
+    for row in rows:
+        row.status = "ARCHIVED"
+        session.add(row)
+    if rows:
+        session.flush()
+
+
+def _add_platform_contract(
     session: Session,
     *,
-    model: Any,
-    filters: list[Any],
+    actor: User,
+    name: str,
+    scope: str,
+    gym_id: uuid.UUID | None,
     effective_from: date,
     effective_to: date | None,
+    rates: list[dict[str, Any]],
+) -> FinancePlatformContract:
+    version = _next_platform_version(session, scope=scope, gym_id=gym_id)
+    contract = FinancePlatformContract(
+        name=name.strip(),
+        scope=scope,
+        gym_id=gym_id,
+        version=version,
+        status="ACTIVE",
+        effective_from=effective_from,
+        effective_to=effective_to,
+        created_by_id=actor.id,
+        activated_at=datetime.now(UTC),
+    )
+    session.add(contract)
+    session.flush()
+    for rate in rates:
+        session.add(
+            FinancePlatformRate(
+                contract_id=contract.id,
+                category=rate["category"],
+                percent_bp=int(rate["percent_bp"]),
+            )
+        )
+    session.flush()
+    return contract
+
+
+def _next_coach_version(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    coach_user_id: uuid.UUID,
+    category: str,
+) -> int:
+    return int(
+        session.exec(
+            select(func.coalesce(func.max(FinanceCoachContract.version), 0)).where(
+                FinanceCoachContract.gym_id == gym_id,
+                FinanceCoachContract.coach_user_id == coach_user_id,
+                FinanceCoachContract.category == category,
+            )
+        ).one()
+    ) + 1
+
+
+def _archive_active_coach_contracts(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    coach_user_id: uuid.UUID,
+    category: str,
     exclude_id: uuid.UUID | None = None,
-) -> bool:
-    statement = select(model).where(
-        *filters,
-        model.effective_from <= (effective_to or date.max),
-        or_(
-            col(model.effective_to).is_(None),
-            col(model.effective_to) >= effective_from,
-        ),
+) -> None:
+    statement = select(FinanceCoachContract).where(
+        FinanceCoachContract.gym_id == gym_id,
+        FinanceCoachContract.coach_user_id == coach_user_id,
+        FinanceCoachContract.category == category,
+        FinanceCoachContract.status == "ACTIVE",
     )
     if exclude_id is not None:
-        statement = statement.where(col(model.id) != exclude_id)
-    return session.exec(statement).first() is not None
+        statement = statement.where(FinanceCoachContract.id != exclude_id)
+    rows = session.exec(statement).all()
+    for row in rows:
+        row.status = "ARCHIVED"
+        session.add(row)
+    if rows:
+        session.flush()
 
 
 def _platform_contract_public(
@@ -211,48 +315,22 @@ def create_platform_contract(
         raise HTTPException(status_code=400, detail="contract_name_required")
     if effective_to is not None and effective_to < effective_from:
         raise HTTPException(status_code=400, detail="invalid_effective_dates")
-    if not rates:
-        raise HTTPException(status_code=400, detail="contract_rates_required")
-    seen: set[str] = set()
-    for rate in rates:
-        category = rate["category"]
-        _validate_category(category)
-        if category in seen:
-            raise HTTPException(status_code=400, detail="duplicate_contract_category")
-        seen.add(category)
-        _validate_bp(int(rate["percent_bp"]))
-    if scope == "DEFAULT" and seen != set(CATEGORIES):
-        raise HTTPException(
-            status_code=400, detail="default_contract_requires_all_categories"
-        )
-    version = int(
-        session.exec(
-            select(func.coalesce(func.max(FinancePlatformContract.version), 0)).where(
-                FinancePlatformContract.scope == scope,
-                FinancePlatformContract.gym_id == gym_id,
-            )
-        ).one()
-    ) + 1
-    contract = FinancePlatformContract(
-        name=name.strip(),
+    if effective_from > finance_today():
+        raise HTTPException(status_code=400, detail="effective_date_future")
+    _validate_platform_rates(rates)
+
+    _archive_active_platform_contracts(session, scope=scope, gym_id=gym_id)
+    contract = _add_platform_contract(
+        session,
+        actor=actor,
+        name=name,
         scope=scope,
         gym_id=gym_id,
-        version=version,
-        status="DRAFT",
         effective_from=effective_from,
         effective_to=effective_to,
-        created_by_id=actor.id,
+        rates=rates,
     )
-    session.add(contract)
-    session.flush()
-    for rate in rates:
-        session.add(
-            FinancePlatformRate(
-                contract_id=contract.id,
-                category=rate["category"],
-                percent_bp=int(rate["percent_bp"]),
-            )
-        )
+    _sync_active_coach_contracts(session, actor=actor)
     record_finance_audit(
         session,
         actor=actor,
@@ -260,7 +338,61 @@ def create_platform_contract(
         action="platform_contract.created",
         entity_type="platform_contract",
         entity_id=contract.id,
-        detail={"scope": scope, "version": version},
+        detail={"scope": scope, "version": contract.version},
+    )
+    session.commit()
+    session.refresh(contract)
+    return _platform_contract_public(session, contract)
+
+
+def update_platform_contract(
+    session: Session,
+    *,
+    actor: User,
+    contract_id: uuid.UUID,
+    name: str,
+    effective_from: date,
+    effective_to: date | None,
+    rates: list[dict[str, Any]],
+) -> dict[str, Any]:
+    original = session.get(FinancePlatformContract, contract_id)
+    if original is None:
+        raise HTTPException(status_code=404, detail="platform_contract_not_found")
+    if not name.strip():
+        raise HTTPException(status_code=400, detail="contract_name_required")
+    if effective_to is not None and effective_to < effective_from:
+        raise HTTPException(status_code=400, detail="invalid_effective_dates")
+    if effective_from > finance_today():
+        raise HTTPException(status_code=400, detail="effective_date_future")
+    _validate_platform_rates(rates)
+
+    _archive_active_platform_contracts(
+        session, scope=original.scope, gym_id=original.gym_id
+    )
+    contract = _add_platform_contract(
+        session,
+        actor=actor,
+        name=name,
+        scope=original.scope,
+        gym_id=original.gym_id,
+        effective_from=effective_from,
+        effective_to=effective_to,
+        rates=rates,
+    )
+    _sync_active_coach_contracts(session, actor=actor)
+    record_finance_audit(
+        session,
+        actor=actor,
+        gym_id=original.gym_id,
+        action="platform_contract.updated",
+        entity_type="platform_contract",
+        entity_id=contract.id,
+        detail={
+            "scope": original.scope,
+            "version": contract.version,
+            "previous_contract_id": str(original.id),
+            "previous_version": original.version,
+        },
     )
     session.commit()
     session.refresh(contract)
@@ -277,22 +409,16 @@ def activate_platform_contract(
         return _platform_contract_public(session, contract)
     if contract.status == "ARCHIVED":
         raise HTTPException(status_code=409, detail="contract_archived")
-    if _overlaps(
-        session,
-        model=FinancePlatformContract,
-        filters=[
-            FinancePlatformContract.scope == contract.scope,
-            FinancePlatformContract.status == "ACTIVE",
-            FinancePlatformContract.gym_id == contract.gym_id,
-        ],
-        effective_from=contract.effective_from,
-        effective_to=contract.effective_to,
-        exclude_id=contract.id,
-    ):
-        raise HTTPException(status_code=409, detail="platform_contract_overlap")
+    if contract.effective_from > finance_today():
+        raise HTTPException(status_code=400, detail="effective_date_future")
+    _archive_active_platform_contracts(
+        session, scope=contract.scope, gym_id=contract.gym_id
+    )
     contract.status = "ACTIVE"
     contract.activated_at = datetime.now(UTC)
     session.add(contract)
+    session.flush()
+    _sync_active_coach_contracts(session, actor=actor)
     record_finance_audit(
         session,
         actor=actor,
@@ -315,8 +441,12 @@ def archive_platform_contract(
         raise HTTPException(status_code=404, detail="platform_contract_not_found")
     if contract.status == "ARCHIVED":
         return _platform_contract_public(session, contract)
+    was_active = contract.status == "ACTIVE"
     contract.status = "ARCHIVED"
     session.add(contract)
+    session.flush()
+    if was_active:
+        _sync_active_coach_contracts(session, actor=actor)
     record_finance_audit(
         session,
         actor=actor,
@@ -329,6 +459,94 @@ def archive_platform_contract(
     session.commit()
     session.refresh(contract)
     return _platform_contract_public(session, contract)
+
+
+def _sync_active_coach_contracts(session: Session, *, actor: User) -> None:
+    """Keep active coach contracts aligned with the current platform policy.
+
+    Coach percentages stay fixed; the gym share absorbs platform changes.
+    A platform change that would leave the gym with a negative share is
+    rejected so the caller can adjust coach contracts first.
+    """
+    today = finance_today()
+    rows = session.exec(
+        select(FinanceCoachContract).where(
+            FinanceCoachContract.status == "ACTIVE",
+            FinanceCoachContract.effective_from <= today,
+            or_(
+                col(FinanceCoachContract.effective_to).is_(None),
+                col(FinanceCoachContract.effective_to) >= today,
+            ),
+        )
+    ).all()
+    for row in rows:
+        try:
+            policy = resolve_platform_policy(
+                session,
+                gym_id=row.gym_id,
+                category=row.category,
+                on_date=today,
+            )
+        except HTTPException as exc:
+            if exc.detail == "platform_policy_missing":
+                continue
+            raise
+        if (
+            row.platform_bp == policy["platform_bp"]
+            and row.platform_contract_id == policy["contract_id"]
+            and row.platform_source == policy["source"]
+        ):
+            continue
+        new_gym_bp = MAX_BP - policy["platform_bp"] - row.coach_bp
+        if new_gym_bp < 0:
+            raise HTTPException(
+                status_code=409, detail="coach_contract_platform_conflict"
+            )
+        previous_id = row.id
+        previous_version = row.version
+        row.status = "ARCHIVED"
+        session.add(row)
+        session.flush()
+        successor = FinanceCoachContract(
+            gym_id=row.gym_id,
+            coach_user_id=row.coach_user_id,
+            category=row.category,
+            version=_next_coach_version(
+                session,
+                gym_id=row.gym_id,
+                coach_user_id=row.coach_user_id,
+                category=row.category,
+            ),
+            status="ACTIVE",
+            effective_from=today,
+            effective_to=row.effective_to,
+            platform_bp=policy["platform_bp"],
+            gym_bp=new_gym_bp,
+            coach_bp=row.coach_bp,
+            platform_contract_id=policy["contract_id"],
+            platform_source=policy["source"],
+            created_by_id=actor.id,
+            activated_at=datetime.now(UTC),
+        )
+        session.add(successor)
+        session.flush()
+        record_finance_audit(
+            session,
+            actor=actor,
+            gym_id=row.gym_id,
+            action="coach_contract.rebased",
+            entity_type="coach_contract",
+            entity_id=successor.id,
+            detail={
+                "category": row.category,
+                "version": successor.version,
+                "previous_contract_id": str(previous_id),
+                "previous_version": previous_version,
+                "platform_bp": policy["platform_bp"],
+                "gym_bp": new_gym_bp,
+                "coach_bp": row.coach_bp,
+            },
+        )
 
 
 def resolve_platform_policy(
@@ -683,6 +901,82 @@ def list_gym_coaches(
     return result
 
 
+def _validate_coach_contract_values(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    category: str,
+    effective_from: date,
+    effective_to: date | None,
+    platform_bp: int,
+    gym_bp: int,
+    coach_bp: int,
+) -> dict[str, Any]:
+    _validate_category(category)
+    if effective_to is not None and effective_to < effective_from:
+        raise HTTPException(status_code=400, detail="invalid_effective_dates")
+    if effective_from > finance_today():
+        raise HTTPException(status_code=400, detail="effective_date_future")
+    for value in (platform_bp, gym_bp, coach_bp):
+        _validate_bp(value)
+    if platform_bp + gym_bp + coach_bp != MAX_BP:
+        raise HTTPException(status_code=400, detail="allocation_total_invalid")
+    policy = resolve_platform_policy(
+        session, gym_id=gym_id, category=category, on_date=effective_from
+    )
+    if platform_bp != policy["platform_bp"]:
+        raise HTTPException(
+            status_code=400, detail="platform_percentage_mismatch"
+        )
+    return policy
+
+
+def _add_coach_contract(
+    session: Session,
+    *,
+    actor: User,
+    gym_id: uuid.UUID,
+    coach_user_id: uuid.UUID,
+    category: str,
+    effective_from: date,
+    effective_to: date | None,
+    platform_bp: int,
+    gym_bp: int,
+    coach_bp: int,
+    policy: dict[str, Any],
+) -> FinanceCoachContract:
+    _archive_active_coach_contracts(
+        session,
+        gym_id=gym_id,
+        coach_user_id=coach_user_id,
+        category=category,
+    )
+    row = FinanceCoachContract(
+        gym_id=gym_id,
+        coach_user_id=coach_user_id,
+        category=category,
+        version=_next_coach_version(
+            session,
+            gym_id=gym_id,
+            coach_user_id=coach_user_id,
+            category=category,
+        ),
+        status="ACTIVE",
+        effective_from=effective_from,
+        effective_to=effective_to,
+        platform_bp=platform_bp,
+        gym_bp=gym_bp,
+        coach_bp=coach_bp,
+        platform_contract_id=policy["contract_id"],
+        platform_source=policy["source"],
+        created_by_id=actor.id,
+        activated_at=datetime.now(UTC),
+    )
+    session.add(row)
+    session.flush()
+    return row
+
+
 def create_coach_contract(
     session: Session,
     *,
@@ -696,47 +990,30 @@ def create_coach_contract(
     gym_bp: int,
     coach_bp: int,
 ) -> dict[str, Any]:
-    _validate_category(category)
     _coach_membership(session, gym_id=gym_id, coach_user_id=coach_user_id)
-    if effective_to is not None and effective_to < effective_from:
-        raise HTTPException(status_code=400, detail="invalid_effective_dates")
-    for value in (platform_bp, gym_bp, coach_bp):
-        _validate_bp(value)
-    if platform_bp + gym_bp + coach_bp != MAX_BP:
-        raise HTTPException(status_code=400, detail="allocation_total_invalid")
-    policy = resolve_platform_policy(
-        session, gym_id=gym_id, category=category, on_date=effective_from
-    )
-    if platform_bp != policy["platform_bp"]:
-        raise HTTPException(
-            status_code=400, detail="platform_percentage_mismatch"
-        )
-    version = int(
-        session.exec(
-            select(func.coalesce(func.max(FinanceCoachContract.version), 0)).where(
-                FinanceCoachContract.gym_id == gym_id,
-                FinanceCoachContract.coach_user_id == coach_user_id,
-                FinanceCoachContract.category == category,
-            )
-        ).one()
-    ) + 1
-    row = FinanceCoachContract(
+    policy = _validate_coach_contract_values(
+        session,
         gym_id=gym_id,
-        coach_user_id=coach_user_id,
         category=category,
-        version=version,
-        status="DRAFT",
         effective_from=effective_from,
         effective_to=effective_to,
         platform_bp=platform_bp,
         gym_bp=gym_bp,
         coach_bp=coach_bp,
-        platform_contract_id=policy["contract_id"],
-        platform_source=policy["source"],
-        created_by_id=actor.id,
     )
-    session.add(row)
-    session.flush()
+    row = _add_coach_contract(
+        session,
+        actor=actor,
+        gym_id=gym_id,
+        coach_user_id=coach_user_id,
+        category=category,
+        effective_from=effective_from,
+        effective_to=effective_to,
+        platform_bp=platform_bp,
+        gym_bp=gym_bp,
+        coach_bp=coach_bp,
+        policy=policy,
+    )
     record_finance_audit(
         session,
         actor=actor,
@@ -744,7 +1021,67 @@ def create_coach_contract(
         action="coach_contract.created",
         entity_type="coach_contract",
         entity_id=row.id,
-        detail={"category": category, "version": version},
+        detail={"category": category, "version": row.version},
+    )
+    session.commit()
+    session.refresh(row)
+    return coach_contract_public(session, row)
+
+
+def update_coach_contract(
+    session: Session,
+    *,
+    actor: User,
+    gym_id: uuid.UUID,
+    contract_id: uuid.UUID,
+    effective_from: date,
+    effective_to: date | None,
+    platform_bp: int,
+    gym_bp: int,
+    coach_bp: int,
+) -> dict[str, Any]:
+    original = session.get(FinanceCoachContract, contract_id)
+    if original is None or original.gym_id != gym_id:
+        raise HTTPException(status_code=404, detail="coach_contract_not_found")
+    _coach_membership(
+        session, gym_id=gym_id, coach_user_id=original.coach_user_id
+    )
+    policy = _validate_coach_contract_values(
+        session,
+        gym_id=gym_id,
+        category=original.category,
+        effective_from=effective_from,
+        effective_to=effective_to,
+        platform_bp=platform_bp,
+        gym_bp=gym_bp,
+        coach_bp=coach_bp,
+    )
+    row = _add_coach_contract(
+        session,
+        actor=actor,
+        gym_id=gym_id,
+        coach_user_id=original.coach_user_id,
+        category=original.category,
+        effective_from=effective_from,
+        effective_to=effective_to,
+        platform_bp=platform_bp,
+        gym_bp=gym_bp,
+        coach_bp=coach_bp,
+        policy=policy,
+    )
+    record_finance_audit(
+        session,
+        actor=actor,
+        gym_id=gym_id,
+        action="coach_contract.updated",
+        entity_type="coach_contract",
+        entity_id=row.id,
+        detail={
+            "category": original.category,
+            "version": row.version,
+            "previous_contract_id": str(original.id),
+            "previous_version": original.version,
+        },
     )
     session.commit()
     session.refresh(row)
@@ -761,6 +1098,8 @@ def activate_coach_contract(
         return coach_contract_public(session, row)
     if row.status == "ARCHIVED":
         raise HTTPException(status_code=409, detail="contract_archived")
+    if row.effective_from > finance_today():
+        raise HTTPException(status_code=400, detail="effective_date_future")
     policy = resolve_platform_policy(
         session, gym_id=gym_id, category=row.category, on_date=row.effective_from
     )
@@ -768,25 +1107,19 @@ def activate_coach_contract(
         raise HTTPException(
             status_code=400, detail="platform_percentage_mismatch"
         )
-    if _overlaps(
+    _archive_active_coach_contracts(
         session,
-        model=FinanceCoachContract,
-        filters=[
-            FinanceCoachContract.gym_id == gym_id,
-            FinanceCoachContract.coach_user_id == row.coach_user_id,
-            FinanceCoachContract.category == row.category,
-            FinanceCoachContract.status == "ACTIVE",
-        ],
-        effective_from=row.effective_from,
-        effective_to=row.effective_to,
+        gym_id=gym_id,
+        coach_user_id=row.coach_user_id,
+        category=row.category,
         exclude_id=row.id,
-    ):
-        raise HTTPException(status_code=409, detail="coach_contract_overlap")
+    )
     row.status = "ACTIVE"
     row.activated_at = datetime.now(UTC)
     row.platform_contract_id = policy["contract_id"]
     row.platform_source = policy["source"]
     session.add(row)
+    session.flush()
     record_finance_audit(
         session,
         actor=actor,

@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, date, datetime
 from typing import Any, Literal
 
-from sqlalchemy import CheckConstraint, Column, UniqueConstraint
+from sqlalchemy import CheckConstraint, Column, Index, UniqueConstraint, text
 from sqlalchemy.types import JSON
 from sqlmodel import Field, SQLModel
 
@@ -52,6 +52,20 @@ class FinancePlatformContract(SQLModel, table=True):
         CheckConstraint(
             "effective_to IS NULL OR effective_to >= effective_from",
             name="ck_finance_platform_contract_dates",
+        ),
+        Index(
+            "uq_finance_platform_contract_active_gym",
+            "gym_id",
+            unique=True,
+            postgresql_where=text("scope = 'GYM' AND status = 'ACTIVE'"),
+            sqlite_where=text("scope = 'GYM' AND status = 'ACTIVE'"),
+        ),
+        Index(
+            "uq_finance_platform_contract_active_default",
+            "scope",
+            unique=True,
+            postgresql_where=text("scope = 'DEFAULT' AND status = 'ACTIVE'"),
+            sqlite_where=text("scope = 'DEFAULT' AND status = 'ACTIVE'"),
         ),
     )
 
@@ -157,6 +171,15 @@ class FinanceCoachContract(SQLModel, table=True):
         CheckConstraint(
             "effective_to IS NULL OR effective_to >= effective_from",
             name="ck_finance_coach_contract_dates",
+        ),
+        Index(
+            "uq_finance_coach_contract_active",
+            "gym_id",
+            "coach_user_id",
+            "category",
+            unique=True,
+            postgresql_where=text("status = 'ACTIVE'"),
+            sqlite_where=text("status = 'ACTIVE'"),
         ),
     )
 
@@ -717,6 +740,13 @@ class FinancePlatformContractCreate(SQLModel):
     rates: list[FinancePlatformRateInput]
 
 
+class FinancePlatformContractUpdate(SQLModel):
+    name: str = Field(min_length=1, max_length=200)
+    effective_from: date
+    effective_to: date | None = None
+    rates: list[FinancePlatformRateInput]
+
+
 class FinanceTaxCreate(SQLModel):
     name: str = Field(min_length=1, max_length=100)
     calculation: TaxCalculation
@@ -738,6 +768,14 @@ class FinanceTaxUpdate(SQLModel):
 class FinanceCoachContractCreate(SQLModel):
     coach_user_id: uuid.UUID
     category: FinanceCategory
+    effective_from: date
+    effective_to: date | None = None
+    platform_bp: int = Field(ge=0, le=10000)
+    gym_bp: int = Field(ge=0, le=10000)
+    coach_bp: int = Field(ge=0, le=10000)
+
+
+class FinanceCoachContractUpdate(SQLModel):
     effective_from: date
     effective_to: date | None = None
     platform_bp: int = Field(ge=0, le=10000)

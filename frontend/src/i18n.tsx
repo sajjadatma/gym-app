@@ -790,6 +790,26 @@ const fa = {
   "import.message.staff_email_conflict":
     "این ایمیل متعلق به یکی از اعضای کادر باشگاه است.",
   "errors.validation": "برخی مقادیر واردشده معتبر نیستند.",
+  "errors.contract_requires_all_categories":
+    "قرارداد باید درصد هر سه دسته را داشته باشد.",
+  "errors.effective_date_future":
+    "تاریخ شروع اعتبار نمی‌تواند در آینده باشد؛ قرارداد باید بلافاصله اعمال شود.",
+  "errors.coach_contract_platform_conflict":
+    "تغییر درصد پلتفرم با سهم فعلی مربی سازگار نیست؛ ابتدا قرارداد مربی را اصلاح کنید.",
+  "errors.platform_percentage_mismatch":
+    "درصد پلتفرم با سیاست فعلی هم‌خوان نیست؛ صفحه را تازه کنید.",
+  "errors.allocation_total_invalid": "جمع سه سهم باید دقیقاً ۱۰۰٪ باشد.",
+  "errors.invalid_effective_dates": "تاریخ پایان نمی‌تواند قبل از شروع باشد.",
+  "errors.contract_rates_required": "درصد هر سه دسته لازم است.",
+  "errors.duplicate_contract_category": "هر دسته فقط یک بار مجاز است.",
+  "errors.contract_name_required": "نام قرارداد لازم است.",
+  "errors.platform_contract_not_found": "قرارداد پلتفرم پیدا نشد.",
+  "errors.coach_contract_not_found": "قرارداد مربی پیدا نشد.",
+  "errors.contract_archived":
+    "قرارداد بایگانی‌شده قابل فعال‌سازی نیست؛ آن را ویرایش کنید.",
+  "errors.platform_policy_missing":
+    "قرارداد پیش‌فرض پلتفرم فعال نیست؛ ابتدا آن را ثبت کنید.",
+  "errors.coach_not_in_gym": "مربی انتخاب‌شده عضو فعال همین باشگاه نیست.",
   "errors.invalid_credentials": "ایمیل یا رمز عبور نادرست است.",
   "errors.inactive_user": "این حساب غیرفعال است.",
   "errors.invalid_token": "پیوند معتبر نیست یا منقضی شده است.",
@@ -1045,7 +1065,7 @@ const fa = {
     "درصد پلتفرم از قرارداد پلتفرم–باشگاه تعیین می\u200cشود و در این قرارداد قابل ویرایش نیست.",
   "finance.contracts.new": "قرارداد جدید",
   "finance.contracts.note":
-    "جمع سه سهم باید دقیقاً ۱۰۰٪ باشد. درصد پلتفرم فقط خواندنی است.",
+    "هر ذخیره بلافاصله جایگزین قرارداد جاری می‌شود. جمع سه سهم باید دقیقاً ۱۰۰٪ باشد.",
   "finance.contracts.empty": "هنوز قراردادی برای مربیان ثبت نشده است",
   "finance.contracts.emptyHint":
     "برای تقسیم سهم فروش با مربی، یک قرارداد با درصدهای شفاف بسازید.",
@@ -1053,8 +1073,9 @@ const fa = {
   "finance.contracts.activate": "فعال\u200cسازی",
   "finance.contracts.archive": "بایگانی",
   "finance.contracts.dialogTitle": "قرارداد جدید مربی",
+  "finance.contracts.editTitle": "ویرایش قرارداد مربی",
   "finance.contracts.dialogDescription":
-    "درصد پلتفرم از سیاست جاری خوانده می\u200cشود؛ درصد باشگاه و مربی را شما تعیین می\u200cکنید.",
+    "درصد پلتفرم از سیاست جاری خوانده می‌شود؛ ذخیره بلافاصله اعمال می‌شود.",
   "finance.contracts.coach": "مربی",
   "finance.contracts.effectiveFrom": "شروع اعتبار",
   "finance.contracts.effectiveTo": "پایان اعتبار",
@@ -1064,6 +1085,9 @@ const fa = {
   "finance.contracts.remaining": "درصد باقی\u200cمانده",
   "finance.contracts.editHint":
     "با تغییر هر درصد، باقی\u200cمانده به\u200cروز می\u200cشود. دکمه ذخیره فقط در صورت جمع دقیق ۱۰۰٪ فعال است.",
+  "finance.contracts.saveApply": "ذخیره و اعمال فوری",
+  "finance.contracts.gymAutoAdjusted":
+    "سهم باشگاه برای ثابت‌ماندن سهم مربی خودکار تنظیم می‌شود.",
   "finance.contracts.saveDraft": "ذخیره پیش\u200cنویس",
   "finance.contracts.errorCoach": "یک مربی از همین باشگاه انتخاب کنید.",
   "finance.contracts.errorDate": "تاریخ شروع اعتبار لازم است.",
@@ -1179,7 +1203,7 @@ const fa = {
     "درصد پیش\u200cفرض هر دسته و درصد اختصاصی باشگاه",
   "finance.platformContracts.new": "قرارداد جدید",
   "finance.platformContracts.note":
-    "قراردادهای هم\u200cزمان و هم\u200cپوشان مجاز نیستند. نسخه\u200cها و تاریخ اعتبار حفظ می\u200cشوند.",
+    "هر قرارداد جدید یا ویرایش‌شده بلافاصله جایگزین قرارداد جاری همان دامنه/باشگاه می‌شود و نسخه قبلی فقط در سوابق می‌ماند.",
   "finance.platformContracts.empty": "هنوز قرارداد پلتفرمی ثبت نشده است",
   "finance.platformContracts.emptyHint":
     "برای شروع، یک قرارداد پیش\u200cفرض با درصد هر سه دسته بسازید.",
@@ -1188,11 +1212,13 @@ const fa = {
   "finance.platformContracts.gymScope": "اختصاصی باشگاه",
   "finance.platformContracts.activate": "فعال\u200cسازی",
   "finance.platformContracts.dialogTitle": "قرارداد پلتفرم جدید",
+  "finance.platformContracts.editTitle": "ویرایش قرارداد پلتفرم",
   "finance.platformContracts.dialogDescription":
-    "درصد هر دسته را جداگانه تعیین کنید. قرارداد ابتدا پیش\u200cنویس است.",
+    "درصد هر سه دسته الزامی است. ذخیره بلافاصله قرارداد را فعال می‌کند.",
   "finance.platformContracts.rateHint":
     "درصد پلتفرم در قرارداد مربی به\u200cصورت خواندنی نمایش داده می\u200cشود.",
   "finance.common.saveDraft": "ذخیره پیش\u200cنویس",
+  "finance.common.saveApply": "ذخیره و اعمال",
   "finance.party.platform": "پلتفرم",
   "finance.party.gym": "باشگاه",
   "finance.party.coach": "مربی",
@@ -1985,6 +2011,29 @@ const en: Record<TranslationKey, string> = {
   "import.message.staff_email_conflict":
     "This email belongs to a gym staff member.",
   "errors.validation": "Some entered values are invalid.",
+  "errors.contract_requires_all_categories":
+    "The contract must include rates for all three categories.",
+  "errors.effective_date_future":
+    "The start date cannot be in the future; the contract must apply immediately.",
+  "errors.coach_contract_platform_conflict":
+    "This platform change conflicts with an active coach share; edit the coach contract first.",
+  "errors.platform_percentage_mismatch":
+    "The platform percentage no longer matches current policy; refresh the page.",
+  "errors.allocation_total_invalid":
+    "The three shares must add up to exactly 100%.",
+  "errors.invalid_effective_dates": "End date cannot be before start date.",
+  "errors.contract_rates_required":
+    "Rates for all three categories are required.",
+  "errors.duplicate_contract_category": "Each category can appear only once.",
+  "errors.contract_name_required": "A contract name is required.",
+  "errors.platform_contract_not_found": "Platform contract not found.",
+  "errors.coach_contract_not_found": "Coach contract not found.",
+  "errors.contract_archived":
+    "An archived contract cannot be activated; edit it instead.",
+  "errors.platform_policy_missing":
+    "No active platform default contract exists; create one first.",
+  "errors.coach_not_in_gym":
+    "The selected coach is not an active member of this gym.",
   "errors.invalid_credentials": "Incorrect email or password.",
   "errors.inactive_user": "This account is inactive.",
   "errors.invalid_token": "The link is invalid or expired.",
@@ -2240,7 +2289,7 @@ const en: Record<TranslationKey, string> = {
     "The platform percentage comes from the platform–gym contract and is read-only here.",
   "finance.contracts.new": "New contract",
   "finance.contracts.note":
-    "The three shares must add up to exactly 100%. The platform percentage is read-only.",
+    "Every save immediately replaces the current contract. The three shares must add up to exactly 100%.",
   "finance.contracts.empty": "No coach contracts yet",
   "finance.contracts.emptyHint":
     "Create a transparent contract to share sales with a coach.",
@@ -2248,8 +2297,9 @@ const en: Record<TranslationKey, string> = {
   "finance.contracts.activate": "Activate",
   "finance.contracts.archive": "Archive",
   "finance.contracts.dialogTitle": "New coach contract",
+  "finance.contracts.editTitle": "Edit coach contract",
   "finance.contracts.dialogDescription":
-    "The platform percentage is read from current policy; you set the gym and coach percentages.",
+    "The platform percentage is read from current policy; saving applies the contract immediately.",
   "finance.contracts.coach": "Coach",
   "finance.contracts.effectiveFrom": "Effective from",
   "finance.contracts.effectiveTo": "Effective to",
@@ -2259,6 +2309,9 @@ const en: Record<TranslationKey, string> = {
   "finance.contracts.remaining": "Remaining percentage",
   "finance.contracts.editHint":
     "The remaining percentage updates as you edit. Save is enabled only at exactly 100%.",
+  "finance.contracts.saveApply": "Save and apply now",
+  "finance.contracts.gymAutoAdjusted":
+    "The gym share is adjusted automatically so the coach share stays fixed.",
   "finance.contracts.saveDraft": "Save draft",
   "finance.contracts.errorCoach": "Select a coach from this gym.",
   "finance.contracts.errorDate": "Effective date is required.",
@@ -2374,7 +2427,7 @@ const en: Record<TranslationKey, string> = {
     "Default rates per category and gym-specific overrides",
   "finance.platformContracts.new": "New contract",
   "finance.platformContracts.note":
-    "Overlapping active contracts are not allowed. Versions and effective dates are preserved.",
+    "Every new or edited contract immediately replaces the current contract for the same scope/gym; the previous version remains in history.",
   "finance.platformContracts.empty": "No platform contracts yet",
   "finance.platformContracts.emptyHint":
     "Start with a default contract covering all three categories.",
@@ -2383,11 +2436,13 @@ const en: Record<TranslationKey, string> = {
   "finance.platformContracts.gymScope": "Gym-specific",
   "finance.platformContracts.activate": "Activate",
   "finance.platformContracts.dialogTitle": "New platform contract",
+  "finance.platformContracts.editTitle": "Edit platform contract",
   "finance.platformContracts.dialogDescription":
-    "Set a rate for each category. The contract starts as a draft.",
+    "All three category rates are required. Saving activates the contract immediately.",
   "finance.platformContracts.rateHint":
     "The platform percentage appears read-only in coach contracts.",
   "finance.common.saveDraft": "Save draft",
+  "finance.common.saveApply": "Save and apply",
   "finance.party.platform": "Platform",
   "finance.party.gym": "Gym",
   "finance.party.coach": "Coach",

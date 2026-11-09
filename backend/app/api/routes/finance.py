@@ -13,11 +13,13 @@ from app.finance_models import (
     FinanceAuditPublic,
     FinanceCoachContractCreate,
     FinanceCoachContractPublic,
+    FinanceCoachContractUpdate,
     FinanceCoachOptionPublic,
     FinancePaymentPublic,
     FinancePaymentSimulate,
     FinancePlatformContractCreate,
     FinancePlatformContractPublic,
+    FinancePlatformContractUpdate,
     FinancePlatformPolicyPublic,
     FinanceRefundCreate,
     FinanceRefundPublic,
@@ -69,6 +71,28 @@ def create_platform_contract(
         name=body.name,
         scope=body.scope,
         gym_id=body.gym_id,
+        effective_from=body.effective_from,
+        effective_to=body.effective_to,
+        rates=[rate.model_dump() for rate in body.rates],
+    )
+
+
+@router.put(
+    "/platform-contracts/{contract_id}",
+    response_model=FinancePlatformContractPublic,
+)
+def update_platform_contract(
+    *,
+    session: SessionDep,
+    current_user: CurrentSuperuser,
+    contract_id: uuid.UUID,
+    body: FinancePlatformContractUpdate,
+) -> Any:
+    return finance_service.update_platform_contract(
+        session,
+        actor=current_user,
+        contract_id=contract_id,
+        name=body.name,
         effective_from=body.effective_from,
         effective_to=body.effective_to,
         rates=[rate.model_dump() for rate in body.rates],
@@ -294,6 +318,32 @@ def create_coach_contract(
         gym_id=gym_id,
         coach_user_id=body.coach_user_id,
         category=body.category,
+        effective_from=body.effective_from,
+        effective_to=body.effective_to,
+        platform_bp=body.platform_bp,
+        gym_bp=body.gym_bp,
+        coach_bp=body.coach_bp,
+    )
+
+
+@router.put(
+    "/gyms/{gym_id}/coach-contracts/{contract_id}",
+    response_model=FinanceCoachContractPublic,
+)
+def update_coach_contract(
+    *,
+    session: SessionDep,
+    current_user: CurrentUser,
+    gym_id: uuid.UUID,
+    contract_id: uuid.UUID,
+    body: FinanceCoachContractUpdate,
+) -> Any:
+    finance_service.require_gym_finance_admin(session, current_user, gym_id)
+    return finance_service.update_coach_contract(
+        session,
+        actor=current_user,
+        gym_id=gym_id,
+        contract_id=contract_id,
         effective_from=body.effective_from,
         effective_to=body.effective_to,
         platform_bp=body.platform_bp,

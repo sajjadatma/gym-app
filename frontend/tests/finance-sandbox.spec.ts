@@ -5,30 +5,76 @@ const ADMIN_PASSWORD = "DemoPass123!"
 const SUPERUSER_EMAIL = "finance-sandbox-admin@example.com"
 const SUPERUSER_PASSWORD = "SandboxAdmin123!"
 
-async function archiveGymOverrides(
+async function ensureSeededPlatformPolicy(
   request: import("@playwright/test").APIRequestContext,
 ) {
   const login = await request.post("/api/v1/login/access-token", {
     form: { username: SUPERUSER_EMAIL, password: SUPERUSER_PASSWORD },
   })
-  if (!login.ok()) return
+  expect(login.ok()).toBeTruthy()
   const token = (await login.json()).access_token as string
   const headers = { Authorization: `Bearer ${token}` }
   const list = await request.get("/api/v1/finance/platform-contracts", {
     headers,
-    params: { scope: "GYM" },
   })
-  if (!list.ok()) return
-  for (const contract of (await list.json()) as Array<{
+  expect(list.ok()).toBeTruthy()
+  const contracts = (await list.json()) as Array<{
     id: string
+    name: string
+    scope: string
     status: string
-  }>) {
-    if (contract.status === "ACTIVE") {
-      await request.post(
+    rates: Array<{ category: string; percent_bp: number }>
+  }>
+  for (const contract of contracts) {
+    if (contract.scope === "GYM" && contract.status === "ACTIVE") {
+      const archived = await request.post(
         `/api/v1/finance/platform-contracts/${contract.id}/archive`,
         { headers },
       )
+      expect(archived.ok()).toBeTruthy()
     }
+  }
+  const expectedRates = [
+    { category: "MEMBERSHIP", percent_bp: 1000 },
+    { category: "NUTRITION", percent_bp: 1200 },
+    { category: "TRAINING", percent_bp: 1500 },
+  ]
+  const activeDefault = contracts.find(
+    (contract) => contract.scope === "DEFAULT" && contract.status === "ACTIVE",
+  )
+  const today = new Date().toISOString().slice(0, 10)
+  if (!activeDefault) {
+    const created = await request.post("/api/v1/finance/platform-contracts", {
+      headers,
+      data: {
+        name: "قرارداد پیش‌فرض تست",
+        scope: "DEFAULT",
+        effective_from: today,
+        rates: expectedRates,
+      },
+    })
+    expect(created.ok()).toBeTruthy()
+    return
+  }
+  const current = Object.fromEntries(
+    activeDefault.rates.map((rate) => [rate.category, rate.percent_bp]),
+  )
+  const matches = expectedRates.every(
+    (rate) => current[rate.category] === rate.percent_bp,
+  )
+  if (!matches) {
+    const updated = await request.put(
+      `/api/v1/finance/platform-contracts/${activeDefault.id}`,
+      {
+        headers,
+        data: {
+          name: activeDefault.name,
+          effective_from: today,
+          rates: expectedRates,
+        },
+      },
+    )
+    expect(updated.ok()).toBeTruthy()
   }
 }
 
@@ -46,7 +92,9 @@ async function login(
 
 test("gym admin completes contract, sale, payment, settlement and report journey", async ({
   page,
+  request,
 }) => {
+  await ensureSeededPlatformPolicy(request)
   await page.context().clearCookies()
   await login(page, ADMIN_EMAIL, ADMIN_PASSWORD)
   await expect(page).toHaveURL(/\/gyms\/[^/]+$/)
@@ -79,7 +127,15 @@ test("gym admin completes contract, sale, payment, settlement and report journey
   await page.getByRole("textbox", { name: /درصد باشگاه/ }).fill("38")
   await page.getByRole("textbox", { name: /درصد مربی/ }).fill("50")
   await expect(page.locator(".m3-dialog .m3-remaining strong")).toHaveText("۰٪")
-  await page.getByRole("button", { name: "ذخیره پیش‌نویس" }).click()
+  await page.getByRole("button", { name: "ذخیره و اعمال" }).click()
+  await expect(page.getByText("برنامه تغذیه").last()).toBeVisible()
+  const nutritionRow = page.getByRole("row", { name: /برنامه تغذیه/ }).last()
+  await nutritionRow.getByRole("button", { name: "ویرایش" }).click()
+  const coachShare = page.getByRole("textbox", { name: /درصد مربی/ })
+  await expect(coachShare).toHaveValue("۵۰")
+  await coachShare.fill("49")
+  await expect(page.locator(".m3-dialog .m3-remaining strong")).toHaveText("۰٪")
+  await page.getByRole("button", { name: "ذخیره و اعمال فوری" }).click()
   await expect(page.getByText("برنامه تغذیه").last()).toBeVisible()
 
   await page.getByRole("link", { name: "فروش و پرداخت‌ها" }).click()
@@ -166,7 +222,7 @@ test("global administrator manages platform contracts and sees cross-gym overvie
   request,
 }) => {
   const contractName = `قرارداد اختصاصی تست ${Date.now()}`
-  await archiveGymOverrides(request)
+  await ensureSeededPlatformPolicy(request)
   await page.context().clearCookies()
   await login(page, SUPERUSER_EMAIL, SUPERUSER_PASSWORD)
   await page.getByRole("button", { name: "مالی" }).first().click()
@@ -185,11 +241,18 @@ test("global administrator manages platform contracts and sees cross-gym overvie
   await page.getByRole("option", { name: "اختصاصی باشگاه" }).click()
   await page.getByRole("button", { name: "انتخاب کنید باشگاه" }).click()
   await page.getByRole("option", { name: "باشگاه پویا" }).click()
-  await page.getByRole("button", { name: "ذخیره پیش‌نویس" }).click()
+  await page.getByRole("button", { name: "ذخیره و اعمال" }).click()
   const createdRow = page.getByRole("row", { name: new RegExp(contractName) })
   await expect(createdRow).toBeVisible()
-  await createdRow.getByRole("button", { name: "فعال‌سازی" }).click()
   await expect(createdRow.getByText("فعال")).toBeVisible()
+
+  const editedName = `${contractName} ویرایش`
+  await createdRow.getByRole("button", { name: "ویرایش" }).click()
+  await page.getByRole("textbox").first().fill(editedName)
+  await page.getByRole("button", { name: "ذخیره و اعمال" }).click()
+  const editedRow = page.getByRole("row", { name: new RegExp(editedName) })
+  await expect(editedRow).toBeVisible()
+  await expect(editedRow.getByText("فعال")).toBeVisible()
 
   await page.getByRole("link", { name: "مالیات‌ها" }).click()
   await expect(page.getByRole("heading", { name: "مالیات‌ها" })).toBeVisible()

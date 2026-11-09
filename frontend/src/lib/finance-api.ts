@@ -250,6 +250,23 @@ export async function createPlatformContract(body: {
   ).data
 }
 
+export async function updatePlatformContract(
+  id: string,
+  body: {
+    name: string
+    effective_from: string
+    effective_to?: string | null
+    rates: PlatformRate[]
+  },
+) {
+  return (
+    await api.put<PlatformContract>(
+      `/api/v1/finance/platform-contracts/${id}`,
+      body,
+    )
+  ).data
+}
+
 export async function activatePlatformContract(id: string) {
   return (
     await api.post<PlatformContract>(
@@ -335,6 +352,25 @@ export async function createCoachContract(
   return (
     await api.post<CoachContract>(
       `/api/v1/finance/gyms/${gymId}/coach-contracts`,
+      body,
+    )
+  ).data
+}
+
+export async function updateCoachContract(
+  gymId: string,
+  id: string,
+  body: {
+    effective_from: string
+    effective_to?: string | null
+    platform_bp: number
+    gym_bp: number
+    coach_bp: number
+  },
+) {
+  return (
+    await api.put<CoachContract>(
+      `/api/v1/finance/gyms/${gymId}/coach-contracts/${id}`,
       body,
     )
   ).data
