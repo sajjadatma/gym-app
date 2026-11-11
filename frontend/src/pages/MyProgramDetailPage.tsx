@@ -13,6 +13,7 @@ import {
   Spinner,
   StatusBadge,
 } from "@/components/M3"
+import { WorkoutHistory, WorkoutLogger } from "@/components/WorkoutTracking"
 import { useI18n } from "@/i18n"
 import { workoutDayLabel } from "@/lib/workoutDayLabel"
 
@@ -117,6 +118,7 @@ export function MyProgramDetailPage({ versionId }: { versionId: string }) {
         <ClipboardList size={28} className="muted" />
       </div>
 
+      <WorkoutLogger version={version} dayId={day?.id} />
       {version.days.length ? (
         <>
           <div
@@ -280,6 +282,7 @@ export function MyProgramDetailPage({ versionId }: { versionId: string }) {
           <p className="muted">{t("program.noDays")}</p>
         </Card>
       )}
+      <WorkoutHistory athleteId={version.athlete_user_id} />
     </>
   )
 }

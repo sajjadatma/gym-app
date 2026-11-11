@@ -66,6 +66,7 @@ import { Route as AppGymsGymIdMyProfileRouteImport } from './routes/_app.gyms.$g
 import { Route as AppGymsGymIdTemplatesIndexRouteImport } from './routes/_app.gyms.$gymId.templates.index'
 import { Route as AppGymsGymIdTemplatesNewRouteImport } from './routes/_app.gyms.$gymId.templates.new'
 import { Route as AppGymsGymIdMyProgramsVersionIdRouteImport } from './routes/_app.gyms.$gymId.my.programs.$versionId'
+import { Route as AppGymsGymIdMyPurchasesSaleIdRouteImport } from './routes/_app.gyms.$gymId.my.purchases.$saleId'
 import { Route as AppGymsGymIdProgramsVersionIdEditRouteImport } from './routes/_app.gyms.$gymId.programs.$versionId.edit'
 import { Route as AppGymsGymIdTemplatesTemplateIdEditRouteImport } from './routes/_app.gyms.$gymId.templates.$templateId.edit'
 
@@ -368,6 +369,12 @@ const AppGymsGymIdMyProgramsVersionIdRoute =
     path: '/programs/$versionId',
     getParentRoute: () => AppGymsGymIdMyRoute,
   } as any)
+const AppGymsGymIdMyPurchasesSaleIdRoute =
+  AppGymsGymIdMyPurchasesSaleIdRouteImport.update({
+    id: '/purchases/$saleId',
+    path: '/purchases/$saleId',
+    getParentRoute: () => AppGymsGymIdMyRoute,
+  } as any)
 const AppGymsGymIdProgramsVersionIdEditRoute =
   AppGymsGymIdProgramsVersionIdEditRouteImport.update({
     id: '/programs/$versionId/edit',
@@ -438,6 +445,7 @@ export interface FileRoutesByFullPath {
   '/gyms/$gymId/my/': typeof AppGymsGymIdMyIndexRoute
   '/gyms/$gymId/templates/': typeof AppGymsGymIdTemplatesIndexRoute
   '/gyms/$gymId/my/programs/$versionId': typeof AppGymsGymIdMyProgramsVersionIdRoute
+  '/gyms/$gymId/my/purchases/$saleId': typeof AppGymsGymIdMyPurchasesSaleIdRoute
   '/gyms/$gymId/programs/$versionId/edit': typeof AppGymsGymIdProgramsVersionIdEditRoute
   '/gyms/$gymId/templates/$templateId/edit': typeof AppGymsGymIdTemplatesTemplateIdEditRoute
 }
@@ -488,6 +496,7 @@ export interface FileRoutesByTo {
   '/gyms/$gymId/my': typeof AppGymsGymIdMyIndexRoute
   '/gyms/$gymId/templates': typeof AppGymsGymIdTemplatesIndexRoute
   '/gyms/$gymId/my/programs/$versionId': typeof AppGymsGymIdMyProgramsVersionIdRoute
+  '/gyms/$gymId/my/purchases/$saleId': typeof AppGymsGymIdMyPurchasesSaleIdRoute
   '/gyms/$gymId/programs/$versionId/edit': typeof AppGymsGymIdProgramsVersionIdEditRoute
   '/gyms/$gymId/templates/$templateId/edit': typeof AppGymsGymIdTemplatesTemplateIdEditRoute
 }
@@ -550,6 +559,7 @@ export interface FileRoutesById {
   '/_app/gyms/$gymId/my/': typeof AppGymsGymIdMyIndexRoute
   '/_app/gyms/$gymId/templates/': typeof AppGymsGymIdTemplatesIndexRoute
   '/_app/gyms/$gymId/my/programs/$versionId': typeof AppGymsGymIdMyProgramsVersionIdRoute
+  '/_app/gyms/$gymId/my/purchases/$saleId': typeof AppGymsGymIdMyPurchasesSaleIdRoute
   '/_app/gyms/$gymId/programs/$versionId/edit': typeof AppGymsGymIdProgramsVersionIdEditRoute
   '/_app/gyms/$gymId/templates/$templateId/edit': typeof AppGymsGymIdTemplatesTemplateIdEditRoute
 }
@@ -612,6 +622,7 @@ export interface FileRouteTypes {
     | '/gyms/$gymId/my/'
     | '/gyms/$gymId/templates/'
     | '/gyms/$gymId/my/programs/$versionId'
+    | '/gyms/$gymId/my/purchases/$saleId'
     | '/gyms/$gymId/programs/$versionId/edit'
     | '/gyms/$gymId/templates/$templateId/edit'
   fileRoutesByTo: FileRoutesByTo
@@ -662,6 +673,7 @@ export interface FileRouteTypes {
     | '/gyms/$gymId/my'
     | '/gyms/$gymId/templates'
     | '/gyms/$gymId/my/programs/$versionId'
+    | '/gyms/$gymId/my/purchases/$saleId'
     | '/gyms/$gymId/programs/$versionId/edit'
     | '/gyms/$gymId/templates/$templateId/edit'
   id:
@@ -723,6 +735,7 @@ export interface FileRouteTypes {
     | '/_app/gyms/$gymId/my/'
     | '/_app/gyms/$gymId/templates/'
     | '/_app/gyms/$gymId/my/programs/$versionId'
+    | '/_app/gyms/$gymId/my/purchases/$saleId'
     | '/_app/gyms/$gymId/programs/$versionId/edit'
     | '/_app/gyms/$gymId/templates/$templateId/edit'
   fileRoutesById: FileRoutesById
@@ -1138,6 +1151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGymsGymIdMyProgramsVersionIdRouteImport
       parentRoute: typeof AppGymsGymIdMyRoute
     }
+    '/_app/gyms/$gymId/my/purchases/$saleId': {
+      id: '/_app/gyms/$gymId/my/purchases/$saleId'
+      path: '/purchases/$saleId'
+      fullPath: '/gyms/$gymId/my/purchases/$saleId'
+      preLoaderRoute: typeof AppGymsGymIdMyPurchasesSaleIdRouteImport
+      parentRoute: typeof AppGymsGymIdMyRoute
+    }
     '/_app/gyms/$gymId/programs/$versionId/edit': {
       id: '/_app/gyms/$gymId/programs/$versionId/edit'
       path: '/programs/$versionId/edit'
@@ -1229,12 +1249,14 @@ interface AppGymsGymIdMyRouteChildren {
   AppGymsGymIdMyProfileRoute: typeof AppGymsGymIdMyProfileRoute
   AppGymsGymIdMyIndexRoute: typeof AppGymsGymIdMyIndexRoute
   AppGymsGymIdMyProgramsVersionIdRoute: typeof AppGymsGymIdMyProgramsVersionIdRoute
+  AppGymsGymIdMyPurchasesSaleIdRoute: typeof AppGymsGymIdMyPurchasesSaleIdRoute
 }
 
 const AppGymsGymIdMyRouteChildren: AppGymsGymIdMyRouteChildren = {
   AppGymsGymIdMyProfileRoute: AppGymsGymIdMyProfileRoute,
   AppGymsGymIdMyIndexRoute: AppGymsGymIdMyIndexRoute,
   AppGymsGymIdMyProgramsVersionIdRoute: AppGymsGymIdMyProgramsVersionIdRoute,
+  AppGymsGymIdMyPurchasesSaleIdRoute: AppGymsGymIdMyPurchasesSaleIdRoute,
 }
 
 const AppGymsGymIdMyRouteWithChildren = AppGymsGymIdMyRoute._addFileChildren(

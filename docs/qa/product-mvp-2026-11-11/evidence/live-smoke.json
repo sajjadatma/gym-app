@@ -1,0 +1,48 @@
+[
+  {
+    "environment": "dev",
+    "role": "owner",
+    "status": "PASS",
+    "pageErrors": [],
+    "overflow": false
+  },
+  {
+    "environment": "dev",
+    "role": "coach",
+    "status": "PASS",
+    "pageErrors": [],
+    "overflow": false
+  },
+  {
+    "environment": "dev",
+    "role": "athlete",
+    "status": "PASS",
+    "pageErrors": [],
+    "overflow": false
+  },
+  {
+    "environment": "stage",
+    "role": "owner",
+    "status": "PASS",
+    "pageErrors": [],
+    "overflow": false
+  },
+  {
+    "environment": "stage",
+    "role": "coach",
+    "status": "PASS",
+    "pageErrors": [],
+    "overflow": false
+  },
+  {
+    "environment": "stage",
+    "role": "athlete",
+    "status": "PASS",
+    "pageErrors": [],
+    "overflow": false
+  },
+  {
+    "check": "simultaneous dev/stage cookie isolation",
+    "status": "PASS"
+  }
+]

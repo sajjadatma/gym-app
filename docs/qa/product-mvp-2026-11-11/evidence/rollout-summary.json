@@ -1,0 +1,14 @@
+{
+  "changed_files": 33,
+  "finance_tables_unchanged": true,
+  "databases": {
+    "gym_dev": {
+      "revision": "d4e5f6a7b8c9",
+      "workout_sessions": 0
+    },
+    "gym_stage": {
+      "revision": "d4e5f6a7b8c9",
+      "workout_sessions": 0
+    }
+  }
+}

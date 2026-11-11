@@ -1,0 +1,8 @@
+
+Running 3 tests using 1 worker
+
+  ✓  1 [admin-setup] › tests/admin.setup.ts:7:1 › authenticate gym admin (660ms)
+  ✓  2 [responsive] › tests/responsive-hardening.spec.ts:995:1 › motion system uses Standard feedback, Expressive sheets and reduced-motion fallback (377ms)
+  ✓  3 [chromium] › tests/responsive-hardening.spec.ts:995:1 › motion system uses Standard feedback, Expressive sheets and reduced-motion fallback (347ms)
+
+  3 passed (2.6s)

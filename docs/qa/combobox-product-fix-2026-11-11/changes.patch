@@ -1,0 +1,283 @@
+--- a/frontend/src/components/M3.tsx
++++ b/frontend/src/components/M3.tsx
+@@ -8,10 +8,12 @@
+ } from "lucide-react"
+ import {
+   type ButtonHTMLAttributes,
++  type ComponentProps,
+   type InputHTMLAttributes,
+   type ReactNode,
+   type RefObject,
+   type TextareaHTMLAttributes,
++  useContext,
+   useEffect,
+   useId,
+   useRef,
+@@ -25,6 +27,7 @@
+   Popover as AriaPopover,
+   Select as AriaSelect,
+   Text as AriaText,
++  ComboBoxStateContext,
+   FieldError,
+   Group,
+   I18nProvider,
+@@ -410,6 +413,46 @@
+   )
+ }
+ 
++function SearchableSelectPopover(props: ComponentProps<typeof AriaPopover>) {
++  const state = useContext(ComboBoxStateContext)
++  const isOpen = state?.isOpen ?? false
++  const [ready, setReady] = useState(false)
++
++  useEffect(() => {
++    if (!isOpen) {
++      setReady(false)
++      return
++    }
++    // Focus can queue a viewport scroll in the same pointer interaction.
++    // Mount after that frame so the non-modal popover does not interpret the
++    // opening gesture's scroll as a request to dismiss the menu.
++    const frame = requestAnimationFrame(() => setReady(true))
++    return () => cancelAnimationFrame(frame)
++  }, [isOpen])
++
++  return (
++    <AriaPopover
++      {...props}
++      isOpen={isOpen && ready}
++      onOpenChange={(open) => {
++        if (!open) state?.close()
++      }}
++    />
++  )
++}
++
++function SearchableSelectInput({ placeholder }: { placeholder: string }) {
++  const state = useContext(ComboBoxStateContext)
++  return (
++    <AriaInput
++      className="m3-combobox__input"
++      placeholder={placeholder}
++      onClick={() => state?.open(null, "manual")}
++      onTouchEnd={() => state?.open(null, "manual")}
++    />
++  )
++}
++
+ export function SearchableSelectField({
+   label,
+   value,
+@@ -449,6 +492,7 @@
+   footerRef?: RefObject<HTMLDivElement | null>
+   loading?: boolean
+ }) {
++  const controlRef = useRef<HTMLDivElement>(null)
+   const { t, direction, locale } = useI18n()
+   const isMobile = useMobileViewport()
+   const localeTag =
+@@ -469,7 +513,7 @@
+         isInvalid={Boolean(error)}
+         isRequired={required}
+         allowsEmptyCollection
+-        menuTrigger="focus"
++        menuTrigger="input"
+         dir={direction}
+         aria-busy={loading}
+         className={`m3-field m3-picker-field m3-combobox ${error ? "is-invalid" : ""} ${containerClassName}`}
+@@ -482,10 +526,19 @@
+             </span>
+           ) : null}
+         </AriaLabel>
+-        <Group className="m3-field__control m3-combobox__control">
++        <Group
++          ref={controlRef}
++          className="m3-field__control m3-combobox__control"
++          onPointerDownCapture={(event) => {
++            if (!disabled && event.isPrimary && event.button === 0) {
++              controlRef.current
++                ?.querySelector("input")
++                ?.focus({ preventScroll: true })
++            }
++          }}
++        >
+           <Search size={18} className="m3-combobox__search" aria-hidden />
+-          <AriaInput
+-            className="m3-combobox__input"
++          <SearchableSelectInput
+             placeholder={placeholder ?? t("common.choose")}
+           />
+           <AriaButton
+@@ -496,19 +549,20 @@
+           </AriaButton>
+         </Group>
+         <FieldSupport error={error} helper={helper} />
+-        <AriaPopover
++        <SearchableSelectPopover
+           className="m3-select-popover m3-combobox__popover"
+           offset={6}
+           containerPadding={12}
+           placement={isMobile ? "top start" : "bottom start"}
+           dir={direction}
+           shouldCloseOnInteractOutside={(element) =>
++            !controlRef.current?.contains(element) &&
+             !footerRef?.current?.contains(element as Node)
+           }
+         >
+           <ComboBoxListBox emptyLabel={emptyLabel ?? t("common.noResults")} />
+           {footer}
+-        </AriaPopover>
++        </SearchableSelectPopover>
+       </AriaComboBox>
+     </I18nProvider>
+   )
+--- a/frontend/tests/combobox-click.spec.ts
++++ b/frontend/tests/combobox-click.spec.ts
+@@ -0,0 +1,103 @@
++import { expect, test } from "@playwright/test"
++
++for (const width of [1280, 390]) {
++  for (const trigger of ["input", "chevron"] as const) {
++    test(`${width}: one ${trigger} click opens exercise options and mouse selection works`, async ({
++      page,
++    }) => {
++      await page.setViewportSize({ width, height: 900 })
++      await page.goto("/templates/new")
++      await page
++        .getByRole("button", { name: "افزودن روز", exact: true })
++        .click()
++      await page.getByRole("checkbox", { name: "بازو", exact: true }).check()
++      const add = page.locator(".m3-builder-add-exercise")
++      const input = add.getByRole("combobox")
++      await page.locator("h1").click()
++      if (trigger === "input") await input.click()
++      else await add.locator(".m3-combobox__trigger").click()
++      await expect(input).toHaveAttribute("aria-expanded", "true")
++      await expect(
++        page.getByRole("option", { name: "جلوبازو هالتر · بازو", exact: true }),
++      ).toBeVisible()
++      await input.fill("جلوبازو هالتر")
++      await expect(input).toHaveAttribute("aria-expanded", "true")
++      await page
++        .getByRole("option", { name: "جلوبازو هالتر · بازو", exact: true })
++        .click()
++      await expect(input).toHaveValue("جلوبازو هالتر · بازو")
++      await expect(input).toHaveAttribute("aria-expanded", "false")
++      await add.getByRole("button", { name: "افزودن", exact: true }).click()
++      await expect(page.locator(".m3-exercise-block")).toHaveCount(1)
++    })
++  }
++}
++
++for (const width of [1280, 390]) {
++  test(`${width}: Escape, keyboard selection, reopening and outside dismissal work`, async ({
++    page,
++  }) => {
++    await page.setViewportSize({ width, height: 900 })
++    await page.goto("/templates/new")
++    await page.getByRole("button", { name: "افزودن روز", exact: true }).click()
++    await page.getByRole("checkbox", { name: "بازو", exact: true }).check()
++    const add = page.locator(".m3-builder-add-exercise")
++    const input = add.getByRole("combobox")
++    await input.focus()
++    await input.press("ArrowDown")
++    await expect(page.getByRole("listbox")).toBeVisible()
++    await input.press("Escape")
++    await expect(input).toHaveAttribute("aria-expanded", "false")
++    await expect(input).toBeFocused()
++    await input.click()
++    await expect(page.getByRole("listbox")).toBeVisible()
++    await input.fill("جلوبازو هالتر")
++    await input.press("ArrowDown")
++    await input.press("Enter")
++    await expect(input).toHaveValue("جلوبازو هالتر · بازو")
++    await add.locator(".m3-combobox__trigger").click()
++    await expect(page.getByRole("listbox")).toBeVisible()
++    await add.locator(".m3-combobox__trigger").click()
++    await expect(input).toHaveAttribute("aria-expanded", "false")
++    await input.click()
++    await expect(page.getByRole("listbox")).toBeVisible()
++    await page.locator("h1").click()
++    await expect(input).toHaveAttribute("aria-expanded", "false")
++    await expect(input).toHaveValue("جلوبازو هالتر · بازو")
++  })
++}
++
++test.describe("touch input", () => {
++  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } })
++  for (const trigger of ["input", "chevron"] as const) {
++    test(`a single ${trigger} tap opens and selects an option`, async ({
++      page,
++    }) => {
++      await page.goto("/templates/new")
++      await page.getByRole("button", { name: "افزودن روز", exact: true }).tap()
++      await page.getByRole("checkbox", { name: "بازو", exact: true }).check()
++      const add = page.locator(".m3-builder-add-exercise")
++      const input = add.getByRole("combobox")
++      if (trigger === "input") await input.tap()
++      else await add.locator(".m3-combobox__trigger").tap()
++      await expect(
++        page.getByRole("option", { name: "جلوبازو هالتر · بازو", exact: true }),
++      ).toBeVisible()
++      // React Aria keeps the popup clipped while the touch keyboard settles.
++      // A visible DOM box alone does not mean the options can receive taps.
++      await expect(page.locator(".m3-combobox__popover")).toHaveCSS(
++        "opacity",
++        "1",
++      )
++      await expect(page.locator(".m3-combobox__popover")).toHaveCSS(
++        "clip-path",
++        "none",
++      )
++      await page
++        .getByRole("option", { name: "جلوبازو هالتر · بازو", exact: true })
++        .tap()
++      await expect(input).toHaveValue("جلوبازو هالتر · بازو")
++      await expect(input).toHaveAttribute("aria-expanded", "false")
++    })
++  }
++})
+--- a/frontend/tests/categories.spec.ts
++++ b/frontend/tests/categories.spec.ts
+@@ -118,8 +118,7 @@
+   await expect(
+     page.getByRole("option", { name: /پرس سینه هالتر/ }),
+   ).toHaveCount(0)
+-  await add.getByRole("combobox").press("ArrowDown")
+-  await add.getByRole("combobox").pressSequentially(exerciseName)
++  await add.getByRole("combobox").fill(exerciseName)
+   await page.keyboard.press("ArrowDown")
+   await page.keyboard.press("Enter")
+   await add.getByRole("button", { name: "افزودن", exact: true }).click()
+@@ -179,8 +178,7 @@
+   await category.check()
+   const add = page.locator(".m3-builder-add-exercise")
+   await add.getByRole("combobox").click()
+-  await add.getByRole("combobox").press("ArrowDown")
+-  await add.getByRole("combobox").pressSequentially("جلوبازو هالتر")
++  await add.getByRole("combobox").fill("جلوبازو هالتر")
+   await expect(add.getByRole("combobox")).toHaveAttribute(
+     "aria-expanded",
+     "true",
+--- a/frontend/tests/program-authoring.spec.ts
++++ b/frontend/tests/program-authoring.spec.ts
+@@ -45,8 +45,7 @@
+   const addExercise = page.locator(".m3-builder-add-exercise")
+   const exerciseSearch = addExercise.getByRole("combobox")
+   await exerciseSearch.click()
+-  await exerciseSearch.press("ArrowDown")
+-  await exerciseSearch.pressSequentially("پرس سینه هالتر")
++  await exerciseSearch.fill("پرس سینه هالتر")
+   await expect(exerciseSearch).toHaveAttribute("aria-expanded", "true")
+   await expect(
+     page.getByRole("option", { name: "پرس سینه هالتر · سینه" }),
+--- a/frontend/tests/athletes-list.spec.ts
++++ b/frontend/tests/athletes-list.spec.ts
+@@ -81,7 +81,6 @@
+   const dialog = page.getByRole("dialog")
+   const picker = dialog.getByRole("combobox", { name: "مربی" })
+   await picker.click()
+-  await picker.press("ArrowDown")
+   await expect(page.getByRole("option")).toHaveCount(20)
+ 
+   await page.getByRole("button", { name: "نمایش بیشتر" }).click()

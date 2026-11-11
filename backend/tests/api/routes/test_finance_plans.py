@@ -87,9 +87,7 @@ def create_plan(
     return response.json()
 
 
-def make_athlete(
-    client: TestClient, env: dict[str, Any]
-) -> tuple[str, dict[str, str]]:
+def make_athlete(client: TestClient, env: dict[str, Any]) -> tuple[str, dict[str, str]]:
     email = unique_email("finance-athlete")
     created = create_athlete(
         client,
@@ -115,11 +113,16 @@ def purchase(
     outcome: str = "SUCCESS",
     note: str | None = "برنامه برای عضویت باشگاه",
 ) -> Any:
+    offer = client.get(
+        f"/api/v1/finance/gyms/{gym_id}/athlete/training-offer", headers=headers
+    )
+    assert offer.status_code == 200, offer.text
     return client.post(
         f"/api/v1/finance/gyms/{gym_id}/athlete/training-purchases",
         headers=headers,
         json={
             "plan_id": plan_id,
+            "quote_token": (offer.json() or {}).get("quote_token", "invalid-quote"),
             "note": note,
             "idempotency_key": key or uuid.uuid4().hex,
             "outcome": outcome,
@@ -153,9 +156,7 @@ def test_coach_plan_is_unique_per_coach_and_gym(
     ).json()
     active = [row for row in plans if row["is_active"]]
     assert [row["id"] for row in active] == [second["id"]]
-    assert next(row for row in plans if row["id"] == first["id"])[
-        "is_active"
-    ] is False
+    assert next(row for row in plans if row["id"] == first["id"])["is_active"] is False
 
     coach = coach_headers(client, env)
     own = create_plan(
@@ -171,9 +172,7 @@ def test_coach_plan_is_unique_per_coach_and_gym(
         f"/api/v1/finance/gyms/{env['gym_id']}/coach-plans",
         headers=coach,
     ).json()
-    assert [row["id"] for row in coach_list if row["is_active"]] == [
-        own["id"]
-    ]
+    assert [row["id"] for row in coach_list if row["is_active"]] == [own["id"]]
 
     other_coach = add_member(
         client,
@@ -233,9 +232,7 @@ def test_athlete_buys_only_current_coach_plan_and_request_is_idempotent(
     assert offer.json()["coach_amount_irr"] == 550_000
 
     key = uuid.uuid4().hex
-    purchased = purchase(
-        client, athlete, env["gym_id"], plan["id"], key=key
-    )
+    purchased = purchase(client, athlete, env["gym_id"], plan["id"], key=key)
     assert purchased.status_code == 200, purchased.text
     body = purchased.json()
     assert body["payment"]["status"] == "SUCCEEDED"
@@ -244,9 +241,7 @@ def test_athlete_buys_only_current_coach_plan_and_request_is_idempotent(
     assert body["sale"]["athlete_user_id"] == athlete_id
     request_id = body["request"]["id"]
 
-    duplicate = purchase(
-        client, athlete, env["gym_id"], plan["id"], key=key
-    )
+    duplicate = purchase(client, athlete, env["gym_id"], plan["id"], key=key)
     assert duplicate.status_code == 200, duplicate.text
     assert duplicate.json()["request"]["id"] == request_id
 
@@ -371,9 +366,7 @@ def test_program_creation_requires_purchase_or_tracked_free_exception(
     assert free.json()["origin"] == "FREE"
     assert free.json()["free_reason"] == "هدیه افتتاحیه"
 
-    purchased = purchase(
-        client, athlete, env["gym_id"], plan["id"]
-    )
+    purchased = purchase(client, athlete, env["gym_id"], plan["id"])
     assert purchased.status_code == 200, purchased.text
     request_id = purchased.json()["request"]["id"]
     created = client.post(
@@ -433,9 +426,7 @@ def test_membership_has_no_coach_share(
         },
     )
     assert forbidden_contract.status_code == 400
-    assert (
-        forbidden_contract.json()["detail"] == "membership_coach_forbidden"
-    )
+    assert forbidden_contract.json()["detail"] == "membership_coach_forbidden"
 
     forbidden_sale = client.post(
         f"/api/v1/finance/gyms/{env['gym_id']}/sales",
@@ -450,9 +441,7 @@ def test_membership_has_no_coach_share(
         },
     )
     assert forbidden_sale.status_code == 400
-    assert (
-        forbidden_sale.json()["detail"] == "membership_coach_forbidden"
-    )
+    assert forbidden_sale.json()["detail"] == "membership_coach_forbidden"
 
     membership = create_sale(
         client,

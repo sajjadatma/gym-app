@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FlaskConical, Plus, ReceiptText, RotateCcw } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { translateApiError } from "@/api"
 import { DateField } from "@/components/DateField"
 import {
@@ -33,12 +33,13 @@ import {
 import {
   categoryLabel,
   formatToman,
+  parseTomanToIrr,
   partyLabel,
   percentFromBp,
   statusLabel,
   todayIso,
-  tomanToIrr,
 } from "@/lib/finance-ui"
+import { parseErrorMessage } from "@/lib/finance-validation"
 import { useSnackbar } from "@/snackbar"
 
 const CATEGORY_OPTIONS = (
@@ -71,7 +72,11 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
   const [paymentResult, setPaymentResult] = useState<Payment | null>(null)
   const [refundTarget, setRefundTarget] = useState<Sale | null>(null)
   const [preview, setPreview] = useState<SalePreview | null>(null)
+  const [previewFingerprint, setPreviewFingerprint] = useState<string | null>(
+    null,
+  )
   const [error, setError] = useState<string | null>(null)
+  const [refundError, setRefundError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [refundAmount, setRefundAmount] = useState("")
   const [refundReason, setRefundReason] = useState("")
@@ -93,7 +98,27 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
     })
   }, [taxes.data])
 
-  const baseIrr = tomanToIrr(Number(form.baseToman) || 0)
+  const baseParse = parseTomanToIrr(form.baseToman)
+  const baseIrr = baseParse.ok ? baseParse.value : 0
+  const baseFieldError = parseErrorMessage(baseParse, "amount", t)
+  const refundParse = parseTomanToIrr(refundAmount)
+  const refundFieldError = parseErrorMessage(refundParse, "amount", t)
+  const previewPayload = useMemo(
+    () => ({
+      category: form.category,
+      base_amount_irr: baseIrr,
+      tax_ids: [...form.taxIds].sort(),
+      coach_user_id: form.coachId || null,
+      sold_on: form.soldOn,
+    }),
+    [form.category, baseIrr, form.taxIds, form.coachId, form.soldOn],
+  )
+  const currentFingerprint = useMemo(
+    () => JSON.stringify(previewPayload),
+    [previewPayload],
+  )
+  const currentFingerprintRef = useRef(currentFingerprint)
+  currentFingerprintRef.current = currentFingerprint
   const paymentForSale = useMemo(() => {
     if (!refundTarget || !payments.data) return null
     return (
@@ -104,40 +129,48 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
   }, [payments.data, refundTarget])
 
   const previewMutation = useMutation({
-    mutationFn: () =>
-      previewSale(gymId, {
-        category: form.category,
-        base_amount_irr: baseIrr,
-        tax_ids: form.taxIds,
-        coach_user_id: form.coachId || null,
-        sold_on: form.soldOn,
-      }),
-    onSuccess: (data) => {
+    mutationFn: (payload: typeof previewPayload) => previewSale(gymId, payload),
+    onSuccess: (data, payload) => {
+      if (JSON.stringify(payload) !== currentFingerprintRef.current) return
       setPreview(data)
+      setPreviewFingerprint(JSON.stringify(payload))
       setError(null)
     },
-    onError: (err) => setError(translateApiError(err, t)),
+    onError: (err, payload) => {
+      if (JSON.stringify(payload) !== currentFingerprintRef.current) return
+      setError(translateApiError(err, t))
+    },
   })
+
+  function invalidatePreview() {
+    setPreview(null)
+    setPreviewFingerprint(null)
+    previewMutation.reset()
+  }
 
   async function submitSale() {
     if (!form.description.trim()) {
       setError(t("finance.sales.errorDescription"))
       return
     }
-    if (baseIrr <= 0) {
-      setError(t("finance.sales.errorAmount"))
+    if (!baseParse.ok || baseIrr <= 0) {
+      setError(baseFieldError ?? t("finance.sales.errorAmount"))
+      return
+    }
+    if (
+      !preview ||
+      previewFingerprint === null ||
+      previewFingerprint !== currentFingerprint
+    ) {
+      setError(t("finance.validation.previewRequired"))
       return
     }
     setBusy(true)
     setError(null)
     try {
       const sale = await createSale(gymId, {
-        category: form.category,
+        ...previewPayload,
         description: form.description.trim(),
-        base_amount_irr: baseIrr,
-        tax_ids: form.taxIds,
-        coach_user_id: form.coachId || null,
-        sold_on: form.soldOn,
       })
       setCreatedSale(sale)
       setPreview(null)
@@ -182,22 +215,26 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
 
   async function submitRefund() {
     if (!paymentForSale) return
-    const irr = tomanToIrr(Number(refundAmount) || 0)
-    if (irr <= 0 || refundReason.trim().length < 3) {
-      setError(t("finance.refund.error"))
+    if (!refundParse.ok || refundParse.value <= 0) {
+      setRefundError(refundFieldError ?? t("finance.refund.error"))
+      return
+    }
+    if (refundReason.trim().length < 3) {
+      setRefundError(t("finance.refund.error"))
       return
     }
     setBusy(true)
-    setError(null)
+    setRefundError(null)
     try {
       await createRefund(gymId, paymentForSale.id, {
-        amount_irr: irr,
+        amount_irr: refundParse.value,
         idempotency_key: crypto.randomUUID(),
         reason: refundReason.trim(),
       })
       setRefundTarget(null)
       setRefundAmount("")
       setRefundReason("")
+      setRefundError(null)
       await queryClient.invalidateQueries({
         queryKey: ["finance-sales", gymId],
       })
@@ -205,7 +242,7 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
         queryKey: ["finance-payments", gymId],
       })
     } catch (err) {
-      setError(translateApiError(err, t))
+      setRefundError(translateApiError(err, t))
     } finally {
       setBusy(false)
     }
@@ -341,8 +378,9 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
             </Button>
             <Button
               variant="outlined"
-              onClick={() => previewMutation.mutate()}
+              onClick={() => previewMutation.mutate(previewPayload)}
               loading={previewMutation.isPending}
+              disabled={!baseParse.ok}
             >
               {t("finance.sales.calculate")}
             </Button>
@@ -360,13 +398,14 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
           <SelectField
             label={t("finance.table.category")}
             value={form.category}
-            onChange={(value) =>
+            onChange={(value) => {
               setForm((prev) => ({
                 ...prev,
                 category: value as FinanceCategory,
                 coachId: value === "MEMBERSHIP" ? "" : prev.coachId,
               }))
-            }
+              invalidatePreview()
+            }}
             options={CATEGORY_OPTIONS}
           />
           <DateField
@@ -374,7 +413,7 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
             value={form.soldOn}
             onChange={(value) => {
               setForm((prev) => ({ ...prev, soldOn: value ?? todayIso() }))
-              setPreview(null)
+              invalidatePreview()
             }}
             maxToday
           />
@@ -391,10 +430,11 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
             value={form.baseToman}
             onChange={(event) => {
               setForm((prev) => ({ ...prev, baseToman: event.target.value }))
-              setPreview(null)
+              invalidatePreview()
             }}
             inputMode="numeric"
             suffix={t("finance.unit.toman")}
+            error={baseFieldError}
             required
           />
           {form.category !== "MEMBERSHIP" ? (
@@ -403,7 +443,7 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
               value={form.coachId}
               onChange={(value) => {
                 setForm((prev) => ({ ...prev, coachId: value }))
-                setPreview(null)
+                invalidatePreview()
               }}
               options={[
                 { value: "", label: t("finance.sales.noCoach") },
@@ -433,7 +473,7 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
                       ? [...prev.taxIds, tax.id]
                       : prev.taxIds.filter((id) => id !== tax.id),
                   }))
-                  setPreview(null)
+                  invalidatePreview()
                 }}
               />
               <span>
@@ -545,7 +585,10 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
         open={Boolean(refundTarget)}
         title={t("finance.refund.title")}
         description={t("finance.refund.description")}
-        onClose={() => setRefundTarget(null)}
+        onClose={() => {
+          setRefundTarget(null)
+          setRefundError(null)
+        }}
         footer={
           <>
             <Button
@@ -564,21 +607,28 @@ export function FinanceSalesPage({ gymId }: { gymId: string }) {
         <TextField
           label={t("finance.refund.amountToman")}
           value={refundAmount}
-          onChange={(event) => setRefundAmount(event.target.value)}
+          onChange={(event) => {
+            setRefundAmount(event.target.value)
+            setRefundError(null)
+          }}
           inputMode="numeric"
           suffix={t("finance.unit.toman")}
+          error={refundFieldError}
           required
         />
         <TextField
           label={t("finance.refund.reason")}
           value={refundReason}
-          onChange={(event) => setRefundReason(event.target.value)}
+          onChange={(event) => {
+            setRefundReason(event.target.value)
+            setRefundError(null)
+          }}
           required
         />
         <p className="m3-field__message">
           {t("finance.refund.afterSettlement")}
         </p>
-        {error ? <ErrorState message={error} /> : null}
+        {refundError ? <ErrorState message={refundError} /> : null}
       </Dialog>
     </div>
   )

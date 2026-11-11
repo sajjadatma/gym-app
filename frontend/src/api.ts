@@ -4,7 +4,7 @@ import { client } from "./client/client.gen"
 import type { TranslationKey } from "./i18n"
 
 const baseURL = import.meta.env.VITE_API_URL ?? ""
-const CSRF_COOKIE = "gym_csrf_token"
+const CSRF_COOKIE = import.meta.env.VITE_CSRF_COOKIE_NAME ?? "gym_csrf_token"
 const SAFE_METHODS = ["get", "head", "options", "trace"]
 
 export function apiAssetUrl(

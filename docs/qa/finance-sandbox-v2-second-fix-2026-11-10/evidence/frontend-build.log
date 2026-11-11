@@ -1,0 +1,157 @@
+
+> frontend@0.1.0 build
+> tsc -p tsconfig.build.json && vite build && node scripts/build-service-worker.mjs
+
+vite v8.3.1 building client environment for production...
+transforming...
+✓ 3586 modules transformed.
+rendering chunks...
+computing gzip size...
+../backend/app/frontend/index.html                                                        2.22 kB │ gzip:   0.78 kB
+../backend/app/frontend/assets/vazirmatn-latin-ext-wght-normal-tDTa1Fj6.woff2            21.86 kB
+../backend/app/frontend/assets/vazirmatn-latin-wght-normal-BFexNX-K.woff2                34.52 kB
+../backend/app/frontend/assets/vazirmatn-arabic-wght-normal-Cafbb7Zc.woff2               46.30 kB
+../backend/app/frontend/assets/index-CFWVW2bg.css                                       115.59 kB │ gzip:  19.10 kB
+../backend/app/frontend/assets/root-DLTE-HSj.js                                           0.03 kB │ gzip:   0.05 kB
+../backend/app/frontend/assets/upload-CvUTVGjr.js                                         0.04 kB │ gzip:   0.06 kB
+../backend/app/frontend/assets/_app.athletes-Ceaw0fNI.js                                  0.07 kB │ gzip:   0.08 kB
+../backend/app/frontend/assets/_app.gyms-Ceaw0fNI.js                                      0.07 kB │ gzip:   0.08 kB
+../backend/app/frontend/assets/_app.gyms._gymId.athletes-Ceaw0fNI.js                      0.07 kB │ gzip:   0.08 kB
+../backend/app/frontend/assets/_app.gyms._gymId.my-Ceaw0fNI.js                            0.07 kB │ gzip:   0.08 kB
+../backend/app/frontend/assets/_app.gyms._gymId.templates-Ceaw0fNI.js                     0.07 kB │ gzip:   0.08 kB
+../backend/app/frontend/assets/_app.my-Ceaw0fNI.js                                        0.07 kB │ gzip:   0.08 kB
+../backend/app/frontend/assets/_app.templates-Ceaw0fNI.js                                 0.07 kB │ gzip:   0.08 kB
+../backend/app/frontend/assets/_app.gyms._gymId.index-DcpoyZgh.js                         0.07 kB │ gzip:   0.09 kB
+../backend/app/frontend/assets/_app.gyms._gymId.templates.new-M9ufEtwk.js                 0.08 kB │ gzip:   0.09 kB
+../backend/app/frontend/assets/matchContext-CXYWep-Y.js                                   0.13 kB │ gzip:   0.12 kB
+../backend/app/frontend/assets/_app.finance.taxes-YESWgbEN.js                             0.14 kB │ gzip:   0.14 kB
+../backend/app/frontend/assets/_app.gyms._gymId.finance.taxes-YESWgbEN.js                 0.14 kB │ gzip:   0.14 kB
+../backend/app/frontend/assets/_app.finance.reports-DtrBWlOy.js                           0.14 kB │ gzip:   0.14 kB
+../backend/app/frontend/assets/_app.finance.index-BBNdNrgr.js                             0.14 kB │ gzip:   0.14 kB
+../backend/app/frontend/assets/useRouter-gnkSH_lG.js                                      0.14 kB │ gzip:   0.13 kB
+../backend/app/frontend/assets/_app.my.index-VhQSIfiG.js                                  0.15 kB │ gzip:   0.15 kB
+../backend/app/frontend/assets/_app.members-C0t9jJs4.js                                   0.16 kB │ gzip:   0.16 kB
+../backend/app/frontend/assets/_app.exercises-BrXtKIcD.js                                 0.16 kB │ gzip:   0.16 kB
+../backend/app/frontend/assets/_app.templates.index-_BVkP5Vj.js                           0.16 kB │ gzip:   0.16 kB
+../backend/app/frontend/assets/_app.my.profile-DN4p9M5O.js                                0.16 kB │ gzip:   0.16 kB
+../backend/app/frontend/assets/_app.templates.new-DH4AFBaf.js                             0.16 kB │ gzip:   0.16 kB
+../backend/app/frontend/assets/_app.athletes.archived-BTEN0tjw.js                         0.17 kB │ gzip:   0.16 kB
+../backend/app/frontend/assets/plus-C1WCo7Su.js                                           0.18 kB │ gzip:   0.16 kB
+../backend/app/frontend/assets/useSearch-BKkqzGp0.js                                      0.21 kB │ gzip:   0.17 kB
+../backend/app/frontend/assets/rotate-ccw-BZIZ6bIW.js                                     0.22 kB │ gzip:   0.20 kB
+../backend/app/frontend/assets/user-round-3XgacCL2.js                                     0.22 kB │ gzip:   0.20 kB
+../backend/app/frontend/assets/_app.gyms._gymId.finance.reports-DoWHWgZe.js               0.22 kB │ gzip:   0.18 kB
+../backend/app/frontend/assets/_app.gyms._gymId.finance.index-GYC4mmW_.js                 0.23 kB │ gzip:   0.19 kB
+../backend/app/frontend/assets/circle-check-BFfNaAaP.js                                   0.23 kB │ gzip:   0.20 kB
+../backend/app/frontend/assets/mail-C2UxZTMV.js                                           0.24 kB │ gzip:   0.21 kB
+../backend/app/frontend/assets/useRouterState-CDOZliLl.js                                 0.24 kB │ gzip:   0.19 kB
+../backend/app/frontend/assets/_app.gyms._gymId.templates._templateId.edit-DC4y1-ur.js    0.24 kB │ gzip:   0.19 kB
+../backend/app/frontend/assets/bookmark-DCkB4tVY.js                                       0.25 kB │ gzip:   0.21 kB
+../backend/app/frontend/assets/chevron-right-B1_QSnTz.js                                  0.25 kB │ gzip:   0.19 kB
+../backend/app/frontend/assets/download-Bropnszs.js                                       0.25 kB │ gzip:   0.21 kB
+../backend/app/frontend/assets/copy-9zWxuyUL.js                                           0.26 kB │ gzip:   0.22 kB
+../backend/app/frontend/assets/percent-zSRcym7H.js                                        0.26 kB │ gzip:   0.20 kB
+../backend/app/frontend/assets/archive-DhJRPQf0.js                                        0.28 kB │ gzip:   0.22 kB
+../backend/app/frontend/assets/_app.athletes._athleteId-B1mpf11X.js                       0.28 kB │ gzip:   0.22 kB
+../backend/app/frontend/assets/eye-COfjpvw5.js                                            0.28 kB │ gzip:   0.22 kB
+../backend/app/frontend/assets/ClientOnly-B_EEuV0e.js                                     0.28 kB │ gzip:   0.22 kB
+../backend/app/frontend/assets/_app.my.programs._versionId-BZkiGYln.js                    0.28 kB │ gzip:   0.22 kB
+../backend/app/frontend/assets/map-pin-DMzJ9ewr.js                                        0.28 kB │ gzip:   0.24 kB
+../backend/app/frontend/assets/_app.programs._versionId.edit-CqWh3Yqf.js                  0.28 kB │ gzip:   0.22 kB
+../backend/app/frontend/assets/brand-LT7IK1A1.js                                          0.29 kB │ gzip:   0.23 kB
+../backend/app/frontend/assets/_app.templates._templateId.edit-D_TdU-KU.js                0.29 kB │ gzip:   0.22 kB
+../backend/app/frontend/assets/useExerciseCategories-lpJlgomx.js                          0.29 kB │ gzip:   0.23 kB
+../backend/app/frontend/assets/chart-column-DqK8dwhI.js                                   0.30 kB │ gzip:   0.22 kB
+../backend/app/frontend/assets/pencil-CwcRvQR8.js                                         0.30 kB │ gzip:   0.24 kB
+../backend/app/frontend/assets/wallet-DKrs3oy1.js                                         0.31 kB │ gzip:   0.22 kB
+../backend/app/frontend/assets/triangle-alert-pYmn1n0w.js                                 0.31 kB │ gzip:   0.24 kB
+../backend/app/frontend/assets/_app.index-CSCHm-d4.js                                     0.32 kB │ gzip:   0.25 kB
+../backend/app/frontend/assets/flask-conical-BGXq5HI6.js                                  0.32 kB │ gzip:   0.24 kB
+../backend/app/frontend/assets/users-yWcR1eOH.js                                          0.33 kB │ gzip:   0.24 kB
+../backend/app/frontend/assets/printer-BkQudpZd.js                                        0.34 kB │ gzip:   0.25 kB
+../backend/app/frontend/assets/shield-check-DuiugA5V.js                                   0.34 kB │ gzip:   0.26 kB
+../backend/app/frontend/assets/phone-f-we1gfG.js                                          0.34 kB │ gzip:   0.24 kB
+../backend/app/frontend/assets/save-Bk9CsPuC.js                                           0.35 kB │ gzip:   0.24 kB
+../backend/app/frontend/assets/trash-B739fJGI.js                                          0.37 kB │ gzip:   0.24 kB
+../backend/app/frontend/assets/layout-dashboard-CZ4jandC.js                               0.37 kB │ gzip:   0.22 kB
+../backend/app/frontend/assets/file-up-D_bMaPBd.js                                        0.38 kB │ gzip:   0.26 kB
+../backend/app/frontend/assets/useNavigate-M9KInWA-.js                                    0.38 kB │ gzip:   0.26 kB
+../backend/app/frontend/assets/workoutDayLabel-B-vusWe8.js                                0.38 kB │ gzip:   0.28 kB
+../backend/app/frontend/assets/key-round-BOMn57v1.js                                      0.38 kB │ gzip:   0.27 kB
+../backend/app/frontend/assets/ClubRedirect-B4SVULEr.js                                   0.39 kB │ gzip:   0.28 kB
+../backend/app/frontend/assets/clipboard-list-Oz5EuMcB.js                                 0.43 kB │ gzip:   0.27 kB
+../backend/app/frontend/assets/building-complex-DnR1eve2.js                               0.43 kB │ gzip:   0.27 kB
+../backend/app/frontend/assets/finance-validation-BfPgmduO.js                             0.43 kB │ gzip:   0.17 kB
+../backend/app/frontend/assets/hand-coins-36CkPA3b.js                                     0.44 kB │ gzip:   0.30 kB
+../backend/app/frontend/assets/_app.finance-B3e0Xqkh.js                                   0.48 kB │ gzip:   0.33 kB
+../backend/app/frontend/assets/calendar-days-IfC1OUaY.js                                  0.51 kB │ gzip:   0.28 kB
+../backend/app/frontend/assets/file-pen-line-SYxctnU9.js                                  0.51 kB │ gzip:   0.34 kB
+../backend/app/frontend/assets/sparkles-CBKXNPC3.js                                       0.53 kB │ gzip:   0.31 kB
+../backend/app/frontend/assets/table-2-CN4cFOuo.js                                        0.56 kB │ gzip:   0.29 kB
+../backend/app/frontend/assets/dumbbell-Bs4NGRWg.js                                       0.58 kB │ gzip:   0.31 kB
+../backend/app/frontend/assets/shield-alert-YUQNBtZB.js                                   0.61 kB │ gzip:   0.38 kB
+../backend/app/frontend/assets/AthleteListTabs-B4z9brnh.js                                0.63 kB │ gzip:   0.34 kB
+../backend/app/frontend/assets/_app.gyms._gymId.finance-DUG0th6R.js                       0.64 kB │ gzip:   0.44 kB
+../backend/app/frontend/assets/useMatch-DQBEK6Qi.js                                       0.65 kB │ gzip:   0.40 kB
+../backend/app/frontend/assets/receipt-text-C6HWpxFE.js                                   0.69 kB │ gzip:   0.30 kB
+../backend/app/frontend/assets/_app.gyms._gymId-upT8X2HZ.js                               1.12 kB │ gzip:   0.67 kB
+../backend/app/frontend/assets/useSelector-C_gsBd6k.js                                    1.13 kB │ gzip:   0.60 kB
+../backend/app/frontend/assets/AuthLayout-CcWB4hMO.js                                     1.28 kB │ gzip:   0.49 kB
+../backend/app/frontend/assets/sun-CAG11tBT.js                                            1.29 kB │ gzip:   0.59 kB
+../backend/app/frontend/assets/FinanceNav-JQJ_gOvw.js                                     1.52 kB │ gzip:   0.66 kB
+../backend/app/frontend/assets/useBlocker-CEgGm5eC.js                                     1.53 kB │ gzip:   0.67 kB
+../backend/app/frontend/assets/OnlineStatus-ms7h_jVG.js                                   1.56 kB │ gzip:   0.71 kB
+../backend/app/frontend/assets/recover-password-BvUJVoDR.js                               1.58 kB │ gzip:   0.89 kB
+../backend/app/frontend/assets/reset-password-j3gJyyyC.js                                 1.69 kB │ gzip:   0.86 kB
+../backend/app/frontend/assets/login-B4S635vO.js                                          1.99 kB │ gzip:   1.01 kB
+../backend/app/frontend/assets/server-page-DQZlT8PK.js                                    2.03 kB │ gzip:   0.93 kB
+../backend/app/frontend/assets/accept-invitation-DHCU2lsk.js                              2.09 kB │ gzip:   1.00 kB
+../backend/app/frontend/assets/change-password-BQvNUltC.js                                2.14 kB │ gzip:   0.96 kB
+../backend/app/frontend/assets/useMutation-vFH1hbMy.js                                    2.37 kB │ gzip:   0.98 kB
+../backend/app/frontend/assets/PeopleListToolbar-Dct1WB9D.js                              2.44 kB │ gzip:   0.90 kB
+../backend/app/frontend/assets/finance-ui-6_g6ONAV.js                                     2.59 kB │ gzip:   1.23 kB
+../backend/app/frontend/assets/DeleteAthletesDialog-39oIQCts.js                           2.73 kB │ gzip:   1.26 kB
+../backend/app/frontend/assets/RowActionMenu-DPdQ6uoc.js                                  3.08 kB │ gzip:   1.37 kB
+../backend/app/frontend/assets/use-async-picker-C045Vv2O.js                               3.21 kB │ gzip:   1.43 kB
+../backend/app/frontend/assets/utils-DCvbpOtd.js                                          3.25 kB │ gzip:   1.51 kB
+../backend/app/frontend/assets/finance-api-B1MhLTsq.js                                    3.88 kB │ gzip:   0.87 kB
+../backend/app/frontend/assets/TemplateEditorPage-DhB1N-st.js                             4.18 kB │ gzip:   1.71 kB
+../backend/app/frontend/assets/_app.gyms._gymId.templates.index-CXPOLJcG.js               4.37 kB │ gzip:   1.75 kB
+../backend/app/frontend/assets/FinanceOverviewPage-BFlMwGCx.js                            4.55 kB │ gzip:   1.33 kB
+../backend/app/frontend/assets/preload-helper-DXlEEVzr.js                                 5.03 kB │ gzip:   2.00 kB
+../backend/app/frontend/assets/FinanceReportsPage-C2_WF_r2.js                             5.26 kB │ gzip:   1.55 kB
+../backend/app/frontend/assets/_app.profile-6XVCFqzm.js                                   5.33 kB │ gzip:   1.75 kB
+../backend/app/frontend/assets/FinanceTaxesPage-f7kaEjHG.js                               5.47 kB │ gzip:   1.88 kB
+../backend/app/frontend/assets/_app.gyms._gymId.my.programs._versionId-EPnlIa9J.js        5.57 kB │ gzip:   2.01 kB
+../backend/app/frontend/assets/print._versionId-Co3VkdYt.js                               5.87 kB │ gzip:   1.99 kB
+../backend/app/frontend/assets/link-DGtV1dpi.js                                           6.03 kB │ gzip:   2.92 kB
+../backend/app/frontend/assets/_app.gyms._gymId.finance.settlements-BtzOHCGp.js           6.07 kB │ gzip:   2.03 kB
+../backend/app/frontend/assets/_app.gyms._gymId.exercises-wfIrkYI1.js                     6.20 kB │ gzip:   2.10 kB
+../backend/app/frontend/assets/_app.gyms.index-CtmJqnqa.js                                6.38 kB │ gzip:   2.08 kB
+../backend/app/frontend/assets/_app.gyms._gymId.coach-plan-CFFP2jXc.js                    6.75 kB │ gzip:   2.11 kB
+../backend/app/frontend/assets/_app.finance.platform-contracts-Rdb11M4N.js                7.15 kB │ gzip:   2.33 kB
+../backend/app/frontend/assets/_app.gyms._gymId.finance.contracts-BZZl6NOr.js             8.14 kB │ gzip:   2.56 kB
+../backend/app/frontend/assets/_app.gyms._gymId.athletes.archived-BOTvE1iN.js             8.95 kB │ gzip:   3.01 kB
+../backend/app/frontend/assets/_app.gyms._gymId.my.profile-Dc8KPR2a.js                    9.48 kB │ gzip:   3.07 kB
+../backend/app/frontend/assets/_app.gyms._gymId.my.index-BGAZd2Ih.js                      9.60 kB │ gzip:   2.81 kB
+../backend/app/frontend/assets/shim-S_DGdH-I.js                                           9.66 kB │ gzip:   3.64 kB
+../backend/app/frontend/assets/DashboardPage-Bb39V1xQ.js                                 10.87 kB │ gzip:   2.86 kB
+../backend/app/frontend/assets/_app.gyms._gymId.members-B4PY_gWa.js                      11.47 kB │ gzip:   3.45 kB
+../backend/app/frontend/assets/_app.gyms._gymId.finance.sales-rChdJsR3.js                12.18 kB │ gzip:   3.59 kB
+../backend/app/frontend/assets/_app-CxH7gtj2.js                                          12.48 kB │ gzip:   3.68 kB
+../backend/app/frontend/assets/client-TB7bDJVn.js                                        13.98 kB │ gzip:   1.60 kB
+../backend/app/frontend/assets/ProgramStructureEditor-CuJeoUUm.js                        14.26 kB │ gzip:   4.01 kB
+../backend/app/frontend/assets/_app.coaches-C5cj1FGQ.js                                  15.00 kB │ gzip:   4.33 kB
+../backend/app/frontend/assets/_app.gyms._gymId.programs._versionId.edit-gzJRv3V_.js     16.13 kB │ gzip:   4.38 kB
+../backend/app/frontend/assets/_app.gyms._gymId.settings-BLZ1BR40.js                     16.17 kB │ gzip:   4.24 kB
+../backend/app/frontend/assets/_app.athletes.index-BROjmJIE.js                           17.52 kB │ gzip:   4.73 kB
+../backend/app/frontend/assets/useQuery-o8dQ93JF.js                                      22.82 kB │ gzip:   7.58 kB
+../backend/app/frontend/assets/_app.people._userId-BfFMPjby.js                           23.47 kB │ gzip:   5.06 kB
+../backend/app/frontend/assets/_app.gyms._gymId.athletes.index-B1vCuMPi.js               30.68 kB │ gzip:   8.12 kB
+../backend/app/frontend/assets/_app.gyms._gymId.athletes._athleteId-BigUllqJ.js          32.24 kB │ gzip:   8.03 kB
+../backend/app/frontend/assets/DateField-GSUbSg19.js                                    151.92 kB │ gzip:  47.02 kB
+../backend/app/frontend/assets/index-DoCfY_Y1.js                                        313.75 kB │ gzip:  99.27 kB
+../backend/app/frontend/assets/M3-B5XNL6fg.js                                           440.89 kB │ gzip: 127.51 kB
+
+✓ built in 340ms
+[pwa] service worker cache build 6c7fe452a84be96f

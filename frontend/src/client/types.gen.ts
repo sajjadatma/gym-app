@@ -1208,6 +1208,10 @@ export type FinanceCoachContractPublic = {
      */
     activated_at?: string | null;
     /**
+     * Archived At
+     */
+    archived_at?: string | null;
+    /**
      * Created At
      */
     created_at: string;
@@ -1255,6 +1259,14 @@ export type FinanceCoachOptionPublic = {
      * Email
      */
     email: string;
+    /**
+     * Is Active
+     */
+    is_active?: boolean;
+    /**
+     * Has Balance
+     */
+    has_balance?: boolean;
 };
 
 /**
@@ -1458,6 +1470,10 @@ export type FinancePaymentSimulate = {
  */
 export type FinancePlanPurchaseCreate = {
     /**
+     * Quote Token
+     */
+    quote_token: string;
+    /**
      * Plan Id
      */
     plan_id: string;
@@ -1559,6 +1575,10 @@ export type FinancePlatformContractPublic = {
      */
     activated_at?: string | null;
     /**
+     * Archived At
+     */
+    archived_at?: string | null;
+    /**
      * Created At
      */
     created_at: string;
@@ -1653,6 +1673,18 @@ export type FinancePlatformRatePublic = {
  */
 export type FinanceProgramRequestPublic = {
     /**
+     * Program Version Id
+     */
+    program_version_id?: string | null;
+    /**
+     * Program Status
+     */
+    program_status?: string | null;
+    /**
+     * Started At
+     */
+    started_at?: string | null;
+    /**
      * Id
      */
     id: string;
@@ -1703,7 +1735,7 @@ export type FinanceProgramRequestPublic = {
     /**
      * Status
      */
-    status: 'REQUESTED' | 'FULFILLED' | 'CANCELLED';
+    status: 'REQUESTED' | 'IN_PROGRESS' | 'FULFILLED' | 'CANCELLED';
     /**
      * Created At
      */
@@ -2362,6 +2394,10 @@ export type FinanceTaxUpdate = {
  * FinanceTrainingOfferPublic
  */
 export type FinanceTrainingOfferPublic = {
+    /**
+     * Quote Token
+     */
+    quote_token: string;
     plan: FinanceCoachPlanPublic;
     /**
      * Coach Contract Id
@@ -4108,6 +4144,118 @@ export type ValidationError = {
     };
 };
 
+/**
+ * WorkoutSessionCreate
+ */
+export type WorkoutSessionCreate = {
+    /**
+     * Version Id
+     */
+    version_id: string;
+    /**
+     * Day Id
+     */
+    day_id: string;
+    /**
+     * Performed On
+     */
+    performed_on: string;
+    /**
+     * Completed
+     */
+    completed?: boolean;
+    /**
+     * Effort
+     */
+    effort?: number | null;
+    /**
+     * Note
+     */
+    note?: string | null;
+    /**
+     * Sets
+     */
+    sets?: Array<WorkoutSetActual>;
+    /**
+     * Idempotency Key
+     */
+    idempotency_key: string;
+};
+
+/**
+ * WorkoutSessionPublic
+ */
+export type WorkoutSessionPublic = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Version Id
+     */
+    version_id: string | null;
+    /**
+     * Day Id
+     */
+    day_id: string | null;
+    /**
+     * Program Title
+     */
+    program_title: string;
+    /**
+     * Day Title
+     */
+    day_title: string;
+    /**
+     * Performed On
+     */
+    performed_on: string;
+    /**
+     * Completed
+     */
+    completed: boolean;
+    /**
+     * Effort
+     */
+    effort: number | null;
+    /**
+     * Note
+     */
+    note: string | null;
+    /**
+     * Sets
+     */
+    sets: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * WorkoutSetActual
+ */
+export type WorkoutSetActual = {
+    /**
+     * Set Id
+     */
+    set_id: string;
+    /**
+     * Completed
+     */
+    completed?: boolean;
+    /**
+     * Reps
+     */
+    reps?: number | null;
+    /**
+     * Weight Kg
+     */
+    weight_kg?: number | null;
+};
+
 export type loginLoginAccessTokenData = {
     body: Body_login_login_access_token;
     path?: never;
@@ -5527,7 +5675,12 @@ export type financeListGymCoachesData = {
          */
         gym_id: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * With Balance
+         */
+        with_balance?: boolean;
+    };
     url: '/api/v1/finance/gyms/{gym_id}/coaches';
 };
 
@@ -5987,6 +6140,209 @@ export type financeListAuditResponses = {
 };
 
 export type financeListAuditResponse = financeListAuditResponses[keyof financeListAuditResponses];
+
+export type activityListWorkoutSessionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Athlete User Id
+         */
+        athlete_user_id: string;
+    };
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/athletes/{athlete_user_id}/workout-sessions';
+};
+
+export type activityListWorkoutSessionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type activityListWorkoutSessionsError = activityListWorkoutSessionsErrors[keyof activityListWorkoutSessionsErrors];
+
+export type activityListWorkoutSessionsResponses = {
+    /**
+     * Response Activity-List Workout Sessions
+     *
+     * Successful Response
+     */
+    200: Array<WorkoutSessionPublic>;
+};
+
+export type activityListWorkoutSessionsResponse = activityListWorkoutSessionsResponses[keyof activityListWorkoutSessionsResponses];
+
+export type activityCreateWorkoutSessionData = {
+    body: WorkoutSessionCreate;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Athlete User Id
+         */
+        athlete_user_id: string;
+    };
+    query?: never;
+    url: '/api/v1/athletes/{athlete_user_id}/workout-sessions';
+};
+
+export type activityCreateWorkoutSessionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type activityCreateWorkoutSessionError = activityCreateWorkoutSessionErrors[keyof activityCreateWorkoutSessionErrors];
+
+export type activityCreateWorkoutSessionResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkoutSessionPublic;
+};
+
+export type activityCreateWorkoutSessionResponse = activityCreateWorkoutSessionResponses[keyof activityCreateWorkoutSessionResponses];
+
+export type activityCoachStatementData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Gym Id
+         */
+        gym_id: string;
+    };
+    query?: never;
+    url: '/api/v1/gyms/{gym_id}/coach/statement';
+};
+
+export type activityCoachStatementErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type activityCoachStatementError = activityCoachStatementErrors[keyof activityCoachStatementErrors];
+
+export type activityCoachStatementResponses = {
+    /**
+     * Response Activity-Coach Statement
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type activityCoachStatementResponse = activityCoachStatementResponses[keyof activityCoachStatementResponses];
+
+export type activityPurchaseDocumentData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Gym Id
+         */
+        gym_id: string;
+        /**
+         * Sale Id
+         */
+        sale_id: string;
+    };
+    query?: never;
+    url: '/api/v1/gyms/{gym_id}/athlete/purchases/{sale_id}/document';
+};
+
+export type activityPurchaseDocumentErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type activityPurchaseDocumentError = activityPurchaseDocumentErrors[keyof activityPurchaseDocumentErrors];
+
+export type activityPurchaseDocumentResponses = {
+    /**
+     * Response Activity-Purchase Document
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type activityPurchaseDocumentResponse = activityPurchaseDocumentResponses[keyof activityPurchaseDocumentResponses];
+
+export type activityGymTasksData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Gym-Id
+         */
+        'X-Gym-ID'?: string | null;
+    };
+    path: {
+        /**
+         * Gym Id
+         */
+        gym_id: string;
+    };
+    query?: never;
+    url: '/api/v1/gyms/{gym_id}/tasks';
+};
+
+export type activityGymTasksErrors = {
+    /**
+     * Validation Error
+     */
+    422: HTTPValidationError;
+};
+
+export type activityGymTasksError = activityGymTasksErrors[keyof activityGymTasksErrors];
+
+export type activityGymTasksResponses = {
+    /**
+     * Response Activity-Gym Tasks
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type activityGymTasksResponse = activityGymTasksResponses[keyof activityGymTasksResponses];
 
 export type athletesListAthletesData = {
     body?: never;

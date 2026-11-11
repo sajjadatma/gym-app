@@ -1,0 +1,5620 @@
+
+Running 149 tests using 1 worker
+
+(node:6750) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/149] [admin-setup] › tests/admin.setup.ts:7:1 › authenticate gym admin
+(node:6759) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[2/149] [athlete-setup] › tests/athlete.setup.ts:7:1 › authenticate athlete
+(node:6764) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[3/149] [superuser] › tests/superuser-context.spec.ts:24:1 › superuser lands globally without a club context
+[4/149] [superuser] › tests/superuser-context.spec.ts:35:1 › superuser with no clubs is sent to the clubs page with a create action
+[5/149] [superuser] › tests/superuser-context.spec.ts:52:1 › entering a club opens its workspace and keeps the club on reload
+[6/149] [superuser] › tests/superuser-context.spec.ts:70:1 › club settings live on their own route
+[7/149] [superuser] › tests/superuser-context.spec.ts:85:1 › all clubs leaves the club from a workspace page and returns to the global view
+[8/149] [superuser] › tests/superuser-context.spec.ts:104:1 › switching clubs from the workspace changes the club and keeps a club URL
+[9/149] [superuser] › tests/superuser-context.spec.ts:120:1 › club workspace highlights the dashboard item and keeps its URL
+[10/149] [superuser] › tests/superuser-context.spec.ts:142:1 › club cards on the clubs list link into the workspace
+[11/149] [superuser] › tests/superuser-context.spec.ts:152:1 › the global athletes route lists athletes when no club is active
+[12/149] [superuser] › tests/superuser-context.spec.ts:161:1 › superuser inside a club hides the clubs nav and can return to the global dashboard
+[13/149] [superuser] › tests/superuser-context.spec.ts:194:1 › global coaches and athletes pages manage people across clubs
+[14/149] [superuser] › tests/superuser-context.spec.ts:367:1 › superuser transfers a coach and athlete between clubs
+[15/149] [superuser] › tests/superuser-context.spec.ts:468:1 › global people navigation disappears inside a club
+[16/149] [superuser] › tests/superuser-context.spec.ts:479:1 › global athlete list paginates and changes page size
+[17/149] [superuser] › tests/superuser-context.spec.ts:531:1 › global list state is restored from the URL and Back works
+(node:6887) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[18/149] [responsive] › tests/responsive-hardening.spec.ts:427:1 › workout duration stays visible on a phone
+[19/149] [responsive] › tests/responsive-hardening.spec.ts:452:1 › overview set rows render every column in order
+[20/149] [responsive] › tests/responsive-hardening.spec.ts:465:1 › coaches only see actions the overview API authorizes
+[21/149] [responsive] › tests/responsive-hardening.spec.ts:491:1 › account sheet stays inside a landscape viewport and closes on Escape
+[22/149] [responsive] › tests/responsive-hardening.spec.ts:519:1 › header is a single row and the account panel shows only the current role
+[23/149] [responsive] › tests/responsive-hardening.spec.ts:561:1 › desktop header and account popover stay anchored
+[24/149] [responsive] › tests/responsive-hardening.spec.ts:584:1 › tables follow the active locale direction
+[25/149] [responsive] › tests/responsive-hardening.spec.ts:618:1 › people lists use cards instead of wide tables on phones
+[26/149] [responsive] › tests/responsive-hardening.spec.ts:639:1 › global athlete cards keep the club visible on phones
+[27/149] [responsive] › tests/responsive-hardening.spec.ts:658:1 › mobile action controls meet the minimum touch size
+[28/149] [responsive] › tests/responsive-hardening.spec.ts:678:1 › mobile inputs stay at a readable size
+[29/149] [responsive] › tests/responsive-hardening.spec.ts:691:1 › program editor labels stay legible on phones
+[30/149] [responsive] › tests/responsive-hardening.spec.ts:723:1 › row action menu closes on Tab or page scroll and stays open on its own scroll
+[31/149] [responsive] › tests/responsive-hardening.spec.ts:749:1 › athlete record tabs support arrow keys and expose a panel
+[32/149] [responsive] › tests/responsive-hardening.spec.ts:769:1 › offline notice appears and clears when the connection returns
+[33/149] [responsive] › tests/responsive-hardening.spec.ts:797:1 › offline identity failure shows recovery instead of the login form
+[34/149] [responsive] › tests/responsive-hardening.spec.ts:808:1 › print deep links work when the club is supplied in the URL
+[35/149] [responsive] › tests/responsive-hardening.spec.ts:826:1 › print without club context explains how to reopen it
+[36/149] [responsive] › tests/responsive-hardening.spec.ts:843:1 › athlete cards use Details plus a secondary action menu
+[37/149] [responsive] › tests/responsive-hardening.spec.ts:862:1 › coach overviews do not show an athlete coach chip
+[38/149] [responsive] › tests/responsive-hardening.spec.ts:875:1 › archived athletes use cards with restore and delete on phones
+[39/149] [responsive] › tests/responsive-hardening.spec.ts:892:1 › athlete records open on programs with a read-only profile until edit
+[40/149] [responsive] › tests/responsive-hardening.spec.ts:920:1 › athlete administration actions live in an overflow menu
+[41/149] [responsive] › tests/responsive-hardening.spec.ts:940:1 › mobile profile edit actions stay compact above the navigation
+[42/149] [responsive] › tests/responsive-hardening.spec.ts:962:1 › saving edited profile returns to the read-only overview
+[43/149] [responsive] › tests/responsive-hardening.spec.ts:995:1 › motion system uses Standard feedback, Expressive sheets and reduced-motion fallback
+[44/149] [responsive] › tests/responsive-hardening.spec.ts:1073:1 › active program card opens by default and can collapse for review
+(node:6947) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[45/149] [chromium] › tests/admin.spec.ts:5:1 › admin dashboard and gym switching
+[46/149] [chromium] › tests/admin.spec.ts:22:1 › athlete list, detail and editable active program builder
+[47/149] [chromium] › tests/admin.spec.ts:60:1 › add-athlete validation keeps the form and shows a Persian error
+[48/149] [chromium] › tests/admin.spec.ts:76:1 › language switch updates direction and translations
+[49/149] [chromium] › tests/admin.spec.ts:98:1 › templates and exercise library render
+[50/149] [chromium] › tests/admin.spec.ts:111:1 › owner can open gym details and sees ownership transfer
+[51/149] [chromium] › tests/admin.spec.ts:138:1 › club users keep their club context on the clubs page
+[52/149] [chromium] › tests/admin.spec.ts:146:1 › mobile admin keeps gym context and current role available
+[53/149] [chromium] › tests/admin.spec.ts:169:1 › club users reach club settings from the workspace
+[54/149] [chromium] › tests/admin.spec.ts:184:1 › club users do not get global people management
+[55/149] [chromium] › tests/athlete-archive.spec.ts:27:1 › archived athletes can be restored or permanently deleted
+[56/149] [chromium] › tests/athlete-archive.spec.ts:116:1 › archived athletes can be restored in bulk
+[57/149] [chromium] › tests/athlete-archive.spec.ts:153:1 › archive is available on cards and as a table bulk action
+[58/149] [chromium] › tests/athlete-import.spec.ts:12:1 › manager imports athletes from CSV after previewing rows
+[59/149] [chromium] › tests/athlete-safety.spec.ts:15:1 › archive confirmation cannot close while the mutation is pending
+[60/149] [chromium] › tests/athlete-safety.spec.ts:57:3 › partial permanent deletion retries only failed athletes (500)
+[61/149] [chromium] › tests/athlete-safety.spec.ts:57:3 › partial permanent deletion retries only failed athletes (abort)
+[62/149] [chromium] › tests/athlete-safety.spec.ts:152:1 › busy permanent deletion cannot be dismissed or submitted twice
+[63/149] [chromium] › tests/athlete-safety.spec.ts:234:1 › import mutation cannot be dismissed while submitting
+[64/149] [chromium] › tests/athletes-list.spec.ts:3:1 › athlete list switches to a selectable table and remembers the view
+[65/149] [chromium] › tests/athletes-list.spec.ts:53:1 › coach picker searches on the server and loads more
+[66/149] [chromium] › tests/auth.spec.ts:5:1 › invalid login shows a Persian error and does not store a token
+[67/149] [chromium] › tests/auth.spec.ts:22:1 › unauthenticated users are redirected to login
+[68/149] [chromium] › tests/auth.spec.ts:30:1 › invitation and password recovery pages validate input
+[69/149] [chromium] › tests/categories.spec.ts:4:1 › admin creates catalog entries; coach selects them; day categories reach athlete and print
+[70/149] [chromium] › tests/categories.spec.ts:172:1 › category changes protect existing movements from incompatible choices
+[71/149] [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one input click opens exercise options and mouse selection works
+[72/149] [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one chevron click opens exercise options and mouse selection works
+[73/149] [chromium] › tests/combobox-click.spec.ts:5:5 › 390: one input click opens exercise options and mouse selection works
+[74/149] [chromium] › tests/combobox-click.spec.ts:5:5 › 390: one chevron click opens exercise options and mouse selection works
+[75/149] [chromium] › tests/combobox-click.spec.ts:37:3 › 1280: Escape, keyboard selection, reopening and outside dismissal work
+[76/149] [chromium] › tests/combobox-click.spec.ts:37:3 › 390: Escape, keyboard selection, reopening and outside dismissal work
+[77/149] [chromium] › tests/combobox-click.spec.ts:73:5 › touch input › a single input tap opens and selects an option
+[78/149] [chromium] › tests/combobox-click.spec.ts:73:5 › touch input › a single chevron tap opens and selects an option
+[79/149] [chromium] › tests/controls.spec.ts:5:1 › Select opens a listbox, supports keyboard selection and Escape
+[80/149] [chromium] › tests/controls.spec.ts:29:1 › searchable ComboBox filters long lists, handles no results and stays in the viewport
+[81/149] [chromium] › tests/controls.spec.ts:60:1 › required ComboBox exposes required state and keeps the form open on validation
+[82/149] [chromium] › tests/controls.spec.ts:76:1 › Persian date picker selects today and submits Gregorian ISO
+[83/149] [chromium] › tests/controls.spec.ts:111:1 › date picker inside a dialog is not clipped
+[84/149] [chromium] › tests/controls.spec.ts:141:1 › English locale keeps Select and DatePicker usable in LTR
+[85/149] [chromium] › tests/controls.spec.ts:168:1 › Persian leap-year date converts to the correct Gregorian ISO
+[86/149] [chromium] › tests/controls.spec.ts:195:1 › date picker clear action submits a null value
+[87/149] [chromium] › tests/controls.spec.ts:220:1 › Select, ComboBox and DatePicker remain usable in a mobile-sized modal
+[88/149] [chromium] › tests/field-labels.spec.ts:36:1 › searches and staff forms have persistent, associated labels
+[89/149] [chromium] › tests/field-labels.spec.ts:72:1 › program day and set fields retain their labels and focus while editing
+[90/149] [chromium] › tests/field-labels.spec.ts:103:1 › birth dates reject future calendar days and dates keep visible labels when empty
+[91/149] [chromium] › tests/field-labels.spec.ts:132:1 › athlete profile and upload controls have associated labels
+[92/149] [chromium] › tests/finance-qa-regressions.spec.ts:29:1 › Persian and Arabic-Indic sale amounts produce the same valid preview
+[93/149] [chromium] › tests/finance-qa-regressions.spec.ts:63:1 › Persian tax edit persists the new percentage and rejects invalid input
+[94/149] [chromium] › tests/finance-qa-regressions.spec.ts:137:1 › changing the category invalidates the previous preview
+[95/149] [chromium] › tests/finance-qa-regressions.spec.ts:157:1 › a delayed preview response cannot validate a newer form
+[96/149] [chromium] › tests/finance-qa-regressions.spec.ts:180:1 › all gym finance pages stay RTL and overflow-free at 390 and 1280
+[97/149] [chromium] › tests/finance-qa-regressions.spec.ts:212:1 › Persian refund and settlement amounts are converted to IRR
+[98/149] [chromium] › tests/finance-qa-regressions.spec.ts:300:1 › metadata-only plan edits preserve every IRR remainder
+[99/149] [chromium] › tests/finance-qa-regressions.spec.ts:370:1 › UI can create and re-edit a 10.5 Toman plan without changing its price
+[100/149] [chromium] › tests/finance-sandbox.spec.ts:93:1 › gym admin completes contract, sale, payment, settlement and report journey
+[101/149] [chromium] › tests/finance-sandbox.spec.ts:192:1 › finance screens stay RTL and do not overflow on mobile
+[102/149] [chromium] › tests/finance-sandbox.spec.ts:225:1 › global administrator manages platform contracts and sees cross-gym overview
+[103/149] [chromium] › tests/finance-sandbox.spec.ts:267:1 › coach sells a training plan and receives an athlete request
+[104/149] [chromium] › tests/person-overview.spec.ts:3:1 › athlete and coach details open the complete overview page
+[105/149] [chromium] › tests/person-overview.spec.ts:44:1 › overview keeps a clear empty state for a coach without records
+[106/149] [chromium] › tests/person-overview.spec.ts:65:1 › people tables keep Details visible and secondary actions in a menu
+[107/149] [chromium] › tests/program-authoring.spec.ts:4:1 › admin builds, saves and publishes a program through the UI
+[108/149] [chromium] › tests/program-authoring.spec.ts:126:1 › numbered day builder caps program days to the athlete's training-day count
+[109/149] [chromium] › tests/pwa.spec.ts:3:1 › PWA manifest and install assets are available
+[110/149] [chromium] › tests/pwa.spec.ts:46:1 › production worker controls a warmed shell without caching private API data
+[111/149] [chromium] › tests/pwa.spec.ts:118:1 › missing hashed assets never fall back to the HTML shell
+[112/149] [chromium] › tests/responsive-hardening.spec.ts:427:1 › workout duration stays visible on a phone
+[113/149] [chromium] › tests/responsive-hardening.spec.ts:452:1 › overview set rows render every column in order
+[114/149] [chromium] › tests/responsive-hardening.spec.ts:465:1 › coaches only see actions the overview API authorizes
+[115/149] [chromium] › tests/responsive-hardening.spec.ts:491:1 › account sheet stays inside a landscape viewport and closes on Escape
+[116/149] [chromium] › tests/responsive-hardening.spec.ts:519:1 › header is a single row and the account panel shows only the current role
+[117/149] [chromium] › tests/responsive-hardening.spec.ts:561:1 › desktop header and account popover stay anchored
+[118/149] [chromium] › tests/responsive-hardening.spec.ts:584:1 › tables follow the active locale direction
+[119/149] [chromium] › tests/responsive-hardening.spec.ts:618:1 › people lists use cards instead of wide tables on phones
+[120/149] [chromium] › tests/responsive-hardening.spec.ts:639:1 › global athlete cards keep the club visible on phones
+[121/149] [chromium] › tests/responsive-hardening.spec.ts:658:1 › mobile action controls meet the minimum touch size
+[122/149] [chromium] › tests/responsive-hardening.spec.ts:678:1 › mobile inputs stay at a readable size
+[123/149] [chromium] › tests/responsive-hardening.spec.ts:691:1 › program editor labels stay legible on phones
+[124/149] [chromium] › tests/responsive-hardening.spec.ts:723:1 › row action menu closes on Tab or page scroll and stays open on its own scroll
+[125/149] [chromium] › tests/responsive-hardening.spec.ts:749:1 › athlete record tabs support arrow keys and expose a panel
+[126/149] [chromium] › tests/responsive-hardening.spec.ts:769:1 › offline notice appears and clears when the connection returns
+[127/149] [chromium] › tests/responsive-hardening.spec.ts:797:1 › offline identity failure shows recovery instead of the login form
+[128/149] [chromium] › tests/responsive-hardening.spec.ts:808:1 › print deep links work when the club is supplied in the URL
+[129/149] [chromium] › tests/responsive-hardening.spec.ts:826:1 › print without club context explains how to reopen it
+[130/149] [chromium] › tests/responsive-hardening.spec.ts:843:1 › athlete cards use Details plus a secondary action menu
+[131/149] [chromium] › tests/responsive-hardening.spec.ts:862:1 › coach overviews do not show an athlete coach chip
+[132/149] [chromium] › tests/responsive-hardening.spec.ts:875:1 › archived athletes use cards with restore and delete on phones
+[133/149] [chromium] › tests/responsive-hardening.spec.ts:892:1 › athlete records open on programs with a read-only profile until edit
+[134/149] [chromium] › tests/responsive-hardening.spec.ts:920:1 › athlete administration actions live in an overflow menu
+[135/149] [chromium] › tests/responsive-hardening.spec.ts:940:1 › mobile profile edit actions stay compact above the navigation
+[136/149] [chromium] › tests/responsive-hardening.spec.ts:962:1 › saving edited profile returns to the read-only overview
+[137/149] [chromium] › tests/responsive-hardening.spec.ts:995:1 › motion system uses Standard feedback, Expressive sheets and reduced-motion fallback
+[138/149] [chromium] › tests/responsive-hardening.spec.ts:1073:1 › active program card opens by default and can collapse for review
+[139/149] [chromium] › tests/test-data.spec.ts:11:1 › managed athlete cleanup is idempotent and preserves seeded athletes
+[140/149] [chromium] › tests/test-data.spec.ts:67:1 › managed athlete cleanup runs after a thrown test operation
+[141/149] [chromium] › tests/test-data.spec.ts:109:1 › managed athlete cleanup refuses unowned email
+(node:7641) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[142/149] [mobile-admin] › tests/athlete-archive.spec.ts:27:1 › archived athletes can be restored or permanently deleted
+[143/149] [mobile-admin] › tests/athlete-archive.spec.ts:116:1 › archived athletes can be restored in bulk
+[144/149] [mobile-admin] › tests/athlete-archive.spec.ts:153:1 › archive is available on cards and as a table bulk action
+[145/149] [mobile-admin] › tests/athlete-import.spec.ts:12:1 › manager imports athletes from CSV after previewing rows
+(node:7681) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[146/149] [mobile] › tests/athlete.spec.ts:5:1 › athlete sees active program, sets and can generate a Persian PDF
+[147/149] [mobile] › tests/athlete.spec.ts:39:1 › athlete profile saves without equipment, uses numbered days and redirects to the dashboard
+[148/149] [mobile] › tests/athlete.spec.ts:65:1 › athlete landing highlights the dashboard nav item
+[149/149] [mobile] › tests/athlete.spec.ts:72:1 › athlete deep links to staff pages fall back to the club dashboard
+  1 skipped
+  148 passed (2.3m)
+{
+  "config": {
+    "argv": [
+      "/Users/sajad/.hermes/node/bin/node",
+      "/private/tmp/gym-final-qa-20261111/frontend/node_modules/.bin/playwright",
+      "test",
+      "--retries=0",
+      "--reporter=line,json"
+    ],
+    "configFile": "/private/tmp/gym-final-qa-20261111/frontend/playwright.config.ts",
+    "rootDir": "/private/tmp/gym-final-qa-20261111/frontend/tests",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/private/tmp/gym-final-qa-20261111/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "admin-setup",
+        "name": "admin-setup",
+        "testDir": "/private/tmp/gym-final-qa-20261111/frontend/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/admin\\.setup\\.ts/"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/private/tmp/gym-final-qa-20261111/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "athlete-setup",
+        "name": "athlete-setup",
+        "testDir": "/private/tmp/gym-final-qa-20261111/frontend/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/athlete\\.setup\\.ts/"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/private/tmp/gym-final-qa-20261111/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/private/tmp/gym-final-qa-20261111/frontend/tests",
+        "testIgnore": [
+          "/athlete\\.spec\\.ts/",
+          "/superuser-context\\.spec\\.ts/"
+        ],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/private/tmp/gym-final-qa-20261111/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "superuser",
+        "name": "superuser",
+        "testDir": "/private/tmp/gym-final-qa-20261111/frontend/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/superuser-context\\.spec\\.ts/"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/private/tmp/gym-final-qa-20261111/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "responsive",
+        "name": "responsive",
+        "testDir": "/private/tmp/gym-final-qa-20261111/frontend/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/responsive-hardening\\.spec\\.ts/"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/private/tmp/gym-final-qa-20261111/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile-admin",
+        "name": "mobile-admin",
+        "testDir": "/private/tmp/gym-final-qa-20261111/frontend/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/athlete-(archive|import)\\.spec\\.ts/"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "/private/tmp/gym-final-qa-20261111/frontend/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "mobile",
+        "name": "mobile",
+        "testDir": "/private/tmp/gym-final-qa-20261111/frontend/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "/athlete\\.spec\\.ts/"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "line"
+      ],
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "admin.setup.ts",
+      "file": "admin.setup.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "authenticate gym admin",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "admin-setup",
+              "projectName": "admin-setup",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 489,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:34.122Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d1b667611c786c59191e-cc59657222447fceb041",
+          "file": "admin.setup.ts",
+          "line": 7,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "athlete.setup.ts",
+      "file": "athlete.setup.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "authenticate athlete",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "athlete-setup",
+              "projectName": "athlete-setup",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 382,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:34.993Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "be074f1bb0a6fd44f288-770b02c3384ac2ccecb7",
+          "file": "athlete.setup.ts",
+          "line": 7,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "admin.spec.ts",
+      "file": "admin.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "admin dashboard and gym switching",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 738,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:07.745Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d4043a9dd1ab94463227-981ca238b5e6702cdb5b",
+          "file": "admin.spec.ts",
+          "line": 5,
+          "column": 1
+        },
+        {
+          "title": "athlete list, detail and editable active program builder",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 661,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:08.587Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d4043a9dd1ab94463227-2d895973955fdb776e5d",
+          "file": "admin.spec.ts",
+          "line": 22,
+          "column": 1
+        },
+        {
+          "title": "add-athlete validation keeps the form and shows a Persian error",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 829,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:09.254Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d4043a9dd1ab94463227-bb8b6f1a896f1b97cce2",
+          "file": "admin.spec.ts",
+          "line": 60,
+          "column": 1
+        },
+        {
+          "title": "language switch updates direction and translations",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 812,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:10.088Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d4043a9dd1ab94463227-6b57a5e446eb5b25c41b",
+          "file": "admin.spec.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "title": "templates and exercise library render",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 474,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:10.905Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d4043a9dd1ab94463227-bf6f66ac580e22b9ea76",
+          "file": "admin.spec.ts",
+          "line": 98,
+          "column": 1
+        },
+        {
+          "title": "owner can open gym details and sees ownership transfer",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 473,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:11.384Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d4043a9dd1ab94463227-fd76dac23b97cd71861e",
+          "file": "admin.spec.ts",
+          "line": 111,
+          "column": 1
+        },
+        {
+          "title": "club users keep their club context on the clubs page",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 259,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:11.861Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d4043a9dd1ab94463227-a33b800c10a89165b681",
+          "file": "admin.spec.ts",
+          "line": 138,
+          "column": 1
+        },
+        {
+          "title": "mobile admin keeps gym context and current role available",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 282,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:12.126Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d4043a9dd1ab94463227-d177e92f87d5ac3cce3b",
+          "file": "admin.spec.ts",
+          "line": 146,
+          "column": 1
+        },
+        {
+          "title": "club users reach club settings from the workspace",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 501,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:12.414Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d4043a9dd1ab94463227-df3e18bff21bd5ed0e3f",
+          "file": "admin.spec.ts",
+          "line": 169,
+          "column": 1
+        },
+        {
+          "title": "club users do not get global people management",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 271,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:12.922Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d4043a9dd1ab94463227-8cd0ef95179feeaa51bf",
+          "file": "admin.spec.ts",
+          "line": 184,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "athlete-archive.spec.ts",
+      "file": "athlete-archive.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "archived athletes can be restored or permanently deleted",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1897,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:13.205Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d475e74ef82323d37fd3-61d9c55df95c3c83411e",
+          "file": "athlete-archive.spec.ts",
+          "line": 27,
+          "column": 1
+        },
+        {
+          "title": "archived athletes can be restored in bulk",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 825,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:15.107Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d475e74ef82323d37fd3-e6183db2f28dc4d22022",
+          "file": "athlete-archive.spec.ts",
+          "line": 116,
+          "column": 1
+        },
+        {
+          "title": "archive is available on cards and as a table bulk action",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1989,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:15.937Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d475e74ef82323d37fd3-bf8514859e86a64ed80c",
+          "file": "athlete-archive.spec.ts",
+          "line": 153,
+          "column": 1
+        },
+        {
+          "title": "archived athletes can be restored or permanently deleted",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-admin",
+              "projectName": "mobile-admin",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1950,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:42.700Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d475e74ef82323d37fd3-4ec6b247d1ddf4ad46b2",
+          "file": "athlete-archive.spec.ts",
+          "line": 27,
+          "column": 1
+        },
+        {
+          "title": "archived athletes can be restored in bulk",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [
+                {
+                  "type": "skip",
+                  "description": "Bulk selection is available in the desktop table view.",
+                  "location": {
+                    "file": "/private/tmp/gym-final-qa-20261111/frontend/tests/athlete-archive.spec.ts",
+                    "line": 121,
+                    "column": 8
+                  }
+                }
+              ],
+              "expectedStatus": "skipped",
+              "projectId": "mobile-admin",
+              "projectName": "mobile-admin",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "skipped",
+                  "duration": 213,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:44.754Z",
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "description": "Bulk selection is available in the desktop table view.",
+                      "location": {
+                        "file": "/private/tmp/gym-final-qa-20261111/frontend/tests/athlete-archive.spec.ts",
+                        "line": 121,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "skipped"
+            }
+          ],
+          "id": "d475e74ef82323d37fd3-4349b68711eaa344ee6a",
+          "file": "athlete-archive.spec.ts",
+          "line": 116,
+          "column": 1
+        },
+        {
+          "title": "archive is available on cards and as a table bulk action",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-admin",
+              "projectName": "mobile-admin",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1067,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:44.973Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d475e74ef82323d37fd3-f718b18258c8c6153b6c",
+          "file": "athlete-archive.spec.ts",
+          "line": 153,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "athlete-import.spec.ts",
+      "file": "athlete-import.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "manager imports athletes from CSV after previewing rows",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2429,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:17.934Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a073582b9208741cc933-298c985b89b837c909bf",
+          "file": "athlete-import.spec.ts",
+          "line": 12,
+          "column": 1
+        },
+        {
+          "title": "manager imports athletes from CSV after previewing rows",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile-admin",
+              "projectName": "mobile-admin",
+              "results": [
+                {
+                  "workerIndex": 5,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2880,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:46.048Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "a073582b9208741cc933-0b791e4359891c52a3b6",
+          "file": "athlete-import.spec.ts",
+          "line": 12,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "athlete-safety.spec.ts",
+      "file": "athlete-safety.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "archive confirmation cannot close while the mutation is pending",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 759,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:20.372Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e65a6cb69b742e877fe0-cae1f5caf99236eec90a",
+          "file": "athlete-safety.spec.ts",
+          "line": 15,
+          "column": 1
+        },
+        {
+          "title": "partial permanent deletion retries only failed athletes (500)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1332,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:21.136Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e65a6cb69b742e877fe0-0fc27099b44b7383dfbf",
+          "file": "athlete-safety.spec.ts",
+          "line": 57,
+          "column": 3
+        },
+        {
+          "title": "partial permanent deletion retries only failed athletes (abort)",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1393,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:22.474Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e65a6cb69b742e877fe0-993330e5f2c611da616b",
+          "file": "athlete-safety.spec.ts",
+          "line": 57,
+          "column": 3
+        },
+        {
+          "title": "busy permanent deletion cannot be dismissed or submitted twice",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 932,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:23.871Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e65a6cb69b742e877fe0-49dc0180a3ab0fc4c91f",
+          "file": "athlete-safety.spec.ts",
+          "line": 152,
+          "column": 1
+        },
+        {
+          "title": "import mutation cannot be dismissed while submitting",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1038,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:24.808Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "e65a6cb69b742e877fe0-a16e454fe3268afdea9b",
+          "file": "athlete-safety.spec.ts",
+          "line": 234,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "athletes-list.spec.ts",
+      "file": "athletes-list.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "athlete list switches to a selectable table and remembers the view",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 728,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:25.858Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c56ea41e2e764b9d040a-06a9f6fa388181f608aa",
+          "file": "athletes-list.spec.ts",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "coach picker searches on the server and loads more",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1396,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:26.591Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c56ea41e2e764b9d040a-70f804c3d494b993637c",
+          "file": "athletes-list.spec.ts",
+          "line": 53,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "auth.spec.ts",
+      "file": "auth.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "invalid login shows a Persian error and does not store a token",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 284,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:27.996Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d748ac400d08b85935ef-4228f2d8ba1bafd29cc4",
+          "file": "auth.spec.ts",
+          "line": 5,
+          "column": 1
+        },
+        {
+          "title": "unauthenticated users are redirected to login",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 198,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:28.285Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d748ac400d08b85935ef-8a32bf4225e17777e9c8",
+          "file": "auth.spec.ts",
+          "line": 22,
+          "column": 1
+        },
+        {
+          "title": "invitation and password recovery pages validate input",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 215,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:28.489Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d748ac400d08b85935ef-22a2685868b56d2e907d",
+          "file": "auth.spec.ts",
+          "line": 30,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "categories.spec.ts",
+      "file": "categories.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "admin creates catalog entries; coach selects them; day categories reach athlete and print",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4012,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:28.711Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "262c5455b60c16e7a404-eb72828d96290d2fd857",
+          "file": "categories.spec.ts",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "title": "category changes protect existing movements from incompatible choices",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 540,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:32.728Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "262c5455b60c16e7a404-bad73d4f0dd4383d8595",
+          "file": "categories.spec.ts",
+          "line": 172,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "combobox-click.spec.ts",
+      "file": "combobox-click.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "1280: one input click opens exercise options and mouse selection works",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 807,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:33.278Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "1602927df08283e756dc-59ef2aaab674cec8d54b",
+          "file": "combobox-click.spec.ts",
+          "line": 5,
+          "column": 5
+        },
+        {
+          "title": "1280: one chevron click opens exercise options and mouse selection works",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 801,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:34.089Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "1602927df08283e756dc-d25f4c59c804cb52e5c1",
+          "file": "combobox-click.spec.ts",
+          "line": 5,
+          "column": 5
+        },
+        {
+          "title": "390: one input click opens exercise options and mouse selection works",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 808,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:34.894Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "1602927df08283e756dc-c9b6f3afafbbbb35ef1e",
+          "file": "combobox-click.spec.ts",
+          "line": 5,
+          "column": 5
+        },
+        {
+          "title": "390: one chevron click opens exercise options and mouse selection works",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 838,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:35.706Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "1602927df08283e756dc-25e16cef3e2899a5fcc1",
+          "file": "combobox-click.spec.ts",
+          "line": 5,
+          "column": 5
+        },
+        {
+          "title": "1280: Escape, keyboard selection, reopening and outside dismissal work",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 719,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:36.548Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "1602927df08283e756dc-6e148df46e26dec7c297",
+          "file": "combobox-click.spec.ts",
+          "line": 37,
+          "column": 3
+        },
+        {
+          "title": "390: Escape, keyboard selection, reopening and outside dismissal work",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 612,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:37.271Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "1602927df08283e756dc-8ef06571e5eeef909bcb",
+          "file": "combobox-click.spec.ts",
+          "line": 37,
+          "column": 3
+        }
+      ],
+      "suites": [
+        {
+          "title": "touch input",
+          "file": "combobox-click.spec.ts",
+          "line": 70,
+          "column": 6,
+          "specs": [
+            {
+              "title": "a single input tap opens and selects an option",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1327,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-10T21:29:37.888Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1602927df08283e756dc-c488a7de320eacfcdf05",
+              "file": "combobox-click.spec.ts",
+              "line": 73,
+              "column": 5
+            },
+            {
+              "title": "a single chevron tap opens and selects an option",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1335,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-10T21:29:39.220Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1602927df08283e756dc-2bb37878028df85df11f",
+              "file": "combobox-click.spec.ts",
+              "line": 73,
+              "column": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "controls.spec.ts",
+      "file": "controls.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Select opens a listbox, supports keyboard selection and Escape",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1220,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:40.564Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b018fb422dd9cd1fd1e5-c11a530727d489ea8304",
+          "file": "controls.spec.ts",
+          "line": 5,
+          "column": 1
+        },
+        {
+          "title": "searchable ComboBox filters long lists, handles no results and stays in the viewport",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1397,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:41.788Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b018fb422dd9cd1fd1e5-20615df5c9d9b671fabc",
+          "file": "controls.spec.ts",
+          "line": 29,
+          "column": 1
+        },
+        {
+          "title": "required ComboBox exposes required state and keeps the form open on validation",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 817,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:43.190Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b018fb422dd9cd1fd1e5-6a2574a0a0ef7401bc1c",
+          "file": "controls.spec.ts",
+          "line": 60,
+          "column": 1
+        },
+        {
+          "title": "Persian date picker selects today and submits Gregorian ISO",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1010,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:44.012Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b018fb422dd9cd1fd1e5-086b82c45993ac056fa5",
+          "file": "controls.spec.ts",
+          "line": 76,
+          "column": 1
+        },
+        {
+          "title": "date picker inside a dialog is not clipped",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1255,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:45.027Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b018fb422dd9cd1fd1e5-22ef3a0979911394bc78",
+          "file": "controls.spec.ts",
+          "line": 111,
+          "column": 1
+        },
+        {
+          "title": "English locale keeps Select and DatePicker usable in LTR",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1237,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:46.287Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b018fb422dd9cd1fd1e5-6a4a5d5132cf2a145787",
+          "file": "controls.spec.ts",
+          "line": 141,
+          "column": 1
+        },
+        {
+          "title": "Persian leap-year date converts to the correct Gregorian ISO",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1586,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:47.529Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b018fb422dd9cd1fd1e5-14ca5c924373519bc5ed",
+          "file": "controls.spec.ts",
+          "line": 168,
+          "column": 1
+        },
+        {
+          "title": "date picker clear action submits a null value",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1263,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:49.121Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b018fb422dd9cd1fd1e5-e74be1d401c55732a9df",
+          "file": "controls.spec.ts",
+          "line": 195,
+          "column": 1
+        },
+        {
+          "title": "Select, ComboBox and DatePicker remain usable in a mobile-sized modal",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1861,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:50.389Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "b018fb422dd9cd1fd1e5-5eaaba81635ffd0df818",
+          "file": "controls.spec.ts",
+          "line": 220,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "field-labels.spec.ts",
+      "file": "field-labels.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "searches and staff forms have persistent, associated labels",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2256,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:52.259Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4ee8b6ea26fdf68caf29-df45972053c178bdbda6",
+          "file": "field-labels.spec.ts",
+          "line": 36,
+          "column": 1
+        },
+        {
+          "title": "program day and set fields retain their labels and focus while editing",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 826,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:54.520Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4ee8b6ea26fdf68caf29-8e7533f31b5ae5ace354",
+          "file": "field-labels.spec.ts",
+          "line": 72,
+          "column": 1
+        },
+        {
+          "title": "birth dates reject future calendar days and dates keep visible labels when empty",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1083,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:55.351Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4ee8b6ea26fdf68caf29-9642ea06c5e7dc549004",
+          "file": "field-labels.spec.ts",
+          "line": 103,
+          "column": 1
+        },
+        {
+          "title": "athlete profile and upload controls have associated labels",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 908,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:56.439Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4ee8b6ea26fdf68caf29-59f069a731e9a746852c",
+          "file": "field-labels.spec.ts",
+          "line": 132,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "finance-qa-regressions.spec.ts",
+      "file": "finance-qa-regressions.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Persian and Arabic-Indic sale amounts produce the same valid preview",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1128,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:57.359Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "2869e260f5cc44f5c878-ab9bd09cf303a1c8f063",
+          "file": "finance-qa-regressions.spec.ts",
+          "line": 29,
+          "column": 1
+        },
+        {
+          "title": "Persian tax edit persists the new percentage and rejects invalid input",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1427,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:58.491Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "2869e260f5cc44f5c878-61d259230043a13559e0",
+          "file": "finance-qa-regressions.spec.ts",
+          "line": 63,
+          "column": 1
+        },
+        {
+          "title": "changing the category invalidates the previous preview",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1374,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:59.923Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "2869e260f5cc44f5c878-e05a2bd7baf47dbaf380",
+          "file": "finance-qa-regressions.spec.ts",
+          "line": 137,
+          "column": 1
+        },
+        {
+          "title": "a delayed preview response cannot validate a newer form",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1721,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:01.301Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "2869e260f5cc44f5c878-227b946026966a579b5e",
+          "file": "finance-qa-regressions.spec.ts",
+          "line": 157,
+          "column": 1
+        },
+        {
+          "title": "all gym finance pages stay RTL and overflow-free at 390 and 1280",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1891,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:03.026Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "2869e260f5cc44f5c878-1a6ed2d3a604115c449c",
+          "file": "finance-qa-regressions.spec.ts",
+          "line": 180,
+          "column": 1
+        },
+        {
+          "title": "Persian refund and settlement amounts are converted to IRR",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1951,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:04.922Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "2869e260f5cc44f5c878-17b3a6828c47932ef7ad",
+          "file": "finance-qa-regressions.spec.ts",
+          "line": 212,
+          "column": 1
+        },
+        {
+          "title": "metadata-only plan edits preserve every IRR remainder",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 5311,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:06.878Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "2869e260f5cc44f5c878-657f4209c29afa6095e5",
+          "file": "finance-qa-regressions.spec.ts",
+          "line": 300,
+          "column": 1
+        },
+        {
+          "title": "UI can create and re-edit a 10.5 Toman plan without changing its price",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2088,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:12.194Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "2869e260f5cc44f5c878-0caa1234e0c57d0c51ea",
+          "file": "finance-qa-regressions.spec.ts",
+          "line": 370,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "finance-sandbox.spec.ts",
+      "file": "finance-sandbox.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "gym admin completes contract, sale, payment, settlement and report journey",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4601,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:14.292Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4f10d74c074ef7126b9a-6b41c4deb2f82fc74e96",
+          "file": "finance-sandbox.spec.ts",
+          "line": 93,
+          "column": 1
+        },
+        {
+          "title": "finance screens stay RTL and do not overflow on mobile",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 651,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:18.898Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4f10d74c074ef7126b9a-a39c243dc53f82adf216",
+          "file": "finance-sandbox.spec.ts",
+          "line": 192,
+          "column": 1
+        },
+        {
+          "title": "global administrator manages platform contracts and sees cross-gym overview",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2239,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:19.554Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4f10d74c074ef7126b9a-a39d1f87f84b65c46492",
+          "file": "finance-sandbox.spec.ts",
+          "line": 225,
+          "column": 1
+        },
+        {
+          "title": "coach sells a training plan and receives an athlete request",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3449,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:21.798Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4f10d74c074ef7126b9a-b9669146174e8f13effe",
+          "file": "finance-sandbox.spec.ts",
+          "line": 267,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "person-overview.spec.ts",
+      "file": "person-overview.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "athlete and coach details open the complete overview page",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 634,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:25.254Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "71f78654500063c14b83-efe432ebdbdad1ea9709",
+          "file": "person-overview.spec.ts",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "overview keeps a clear empty state for a coach without records",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 445,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:25.893Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "71f78654500063c14b83-224e75ccfecf048f997e",
+          "file": "person-overview.spec.ts",
+          "line": 44,
+          "column": 1
+        },
+        {
+          "title": "people tables keep Details visible and secondary actions in a menu",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 411,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:26.343Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "71f78654500063c14b83-4bfe0d5b381b53837c7e",
+          "file": "person-overview.spec.ts",
+          "line": 65,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "program-authoring.spec.ts",
+      "file": "program-authoring.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "admin builds, saves and publishes a program through the UI",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4041,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:26.761Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "97589d42dc102308f0f4-b30122b01711b7e094a2",
+          "file": "program-authoring.spec.ts",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "title": "numbered day builder caps program days to the athlete's training-day count",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1265,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:30.807Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "97589d42dc102308f0f4-873a92942c738bf2b69f",
+          "file": "program-authoring.spec.ts",
+          "line": 126,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "pwa.spec.ts",
+      "file": "pwa.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "PWA manifest and install assets are available",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 215,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:32.080Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30bf0965a0eb07fc9173-0890f6a201f492181e80",
+          "file": "pwa.spec.ts",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "production worker controls a warmed shell without caching private API data",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 394,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:32.299Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30bf0965a0eb07fc9173-d12a27fad5ca2d6cc381",
+          "file": "pwa.spec.ts",
+          "line": 46,
+          "column": 1
+        },
+        {
+          "title": "missing hashed assets never fall back to the HTML shell",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 3,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:32.698Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "30bf0965a0eb07fc9173-3f8ecfa8ebc156c57f2e",
+          "file": "pwa.spec.ts",
+          "line": 118,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "responsive-hardening.spec.ts",
+      "file": "responsive-hardening.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "workout duration stays visible on a phone",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 209,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:32.711Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-ea4f7351fd5613b2967a",
+          "file": "responsive-hardening.spec.ts",
+          "line": 427,
+          "column": 1
+        },
+        {
+          "title": "overview set rows render every column in order",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 220,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:32.924Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-b89e04feec9122fe0fe5",
+          "file": "responsive-hardening.spec.ts",
+          "line": 452,
+          "column": 1
+        },
+        {
+          "title": "coaches only see actions the overview API authorizes",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 296,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:33.148Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-41cc4ef831a40dc7c983",
+          "file": "responsive-hardening.spec.ts",
+          "line": 465,
+          "column": 1
+        },
+        {
+          "title": "account sheet stays inside a landscape viewport and closes on Escape",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 613,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:33.449Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-dda19fde11a04a2bdcb9",
+          "file": "responsive-hardening.spec.ts",
+          "line": 491,
+          "column": 1
+        },
+        {
+          "title": "header is a single row and the account panel shows only the current role",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 733,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:34.066Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-5daf22a81a3b55eadd6a",
+          "file": "responsive-hardening.spec.ts",
+          "line": 519,
+          "column": 1
+        },
+        {
+          "title": "desktop header and account popover stay anchored",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 313,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:34.804Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-9599279465afbf6bdac4",
+          "file": "responsive-hardening.spec.ts",
+          "line": 561,
+          "column": 1
+        },
+        {
+          "title": "tables follow the active locale direction",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 525,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:35.122Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-885b6590a660a57f2eac",
+          "file": "responsive-hardening.spec.ts",
+          "line": 584,
+          "column": 1
+        },
+        {
+          "title": "people lists use cards instead of wide tables on phones",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 230,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:35.652Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-c5745cbe764383df1720",
+          "file": "responsive-hardening.spec.ts",
+          "line": 618,
+          "column": 1
+        },
+        {
+          "title": "global athlete cards keep the club visible on phones",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 228,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:35.887Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-f19646224eb7824a8c7f",
+          "file": "responsive-hardening.spec.ts",
+          "line": 639,
+          "column": 1
+        },
+        {
+          "title": "mobile action controls meet the minimum touch size",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 243,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:36.119Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-e40f2498d0733893cea3",
+          "file": "responsive-hardening.spec.ts",
+          "line": 658,
+          "column": 1
+        },
+        {
+          "title": "mobile inputs stay at a readable size",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 205,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:36.366Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-4ddc932f214f23d22969",
+          "file": "responsive-hardening.spec.ts",
+          "line": 678,
+          "column": 1
+        },
+        {
+          "title": "program editor labels stay legible on phones",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 295,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:36.576Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-b5c83cf8393f28fa7b86",
+          "file": "responsive-hardening.spec.ts",
+          "line": 691,
+          "column": 1
+        },
+        {
+          "title": "row action menu closes on Tab or page scroll and stays open on its own scroll",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 343,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:36.875Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-2f5b6b835c35711da111",
+          "file": "responsive-hardening.spec.ts",
+          "line": 723,
+          "column": 1
+        },
+        {
+          "title": "athlete record tabs support arrow keys and expose a panel",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 260,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:37.222Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-aa54665580d73df3c085",
+          "file": "responsive-hardening.spec.ts",
+          "line": 749,
+          "column": 1
+        },
+        {
+          "title": "offline notice appears and clears when the connection returns",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 239,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:37.486Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-804b4ec407642bdb533a",
+          "file": "responsive-hardening.spec.ts",
+          "line": 769,
+          "column": 1
+        },
+        {
+          "title": "offline identity failure shows recovery instead of the login form",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 182,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:37.730Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-97720caa1087a291f932",
+          "file": "responsive-hardening.spec.ts",
+          "line": 797,
+          "column": 1
+        },
+        {
+          "title": "print deep links work when the club is supplied in the URL",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 201,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:37.916Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-31f864ca24abc1e00186",
+          "file": "responsive-hardening.spec.ts",
+          "line": 808,
+          "column": 1
+        },
+        {
+          "title": "print without club context explains how to reopen it",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 190,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:38.121Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-c319ad8fa31ec1bcd57c",
+          "file": "responsive-hardening.spec.ts",
+          "line": 826,
+          "column": 1
+        },
+        {
+          "title": "athlete cards use Details plus a secondary action menu",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 262,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:38.316Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-4c84f0f30795683fe3e2",
+          "file": "responsive-hardening.spec.ts",
+          "line": 843,
+          "column": 1
+        },
+        {
+          "title": "coach overviews do not show an athlete coach chip",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 250,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:38.582Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-d2d0f83333e7acec99e3",
+          "file": "responsive-hardening.spec.ts",
+          "line": 862,
+          "column": 1
+        },
+        {
+          "title": "archived athletes use cards with restore and delete on phones",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 261,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:38.837Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-400fbb2544606462bb47",
+          "file": "responsive-hardening.spec.ts",
+          "line": 875,
+          "column": 1
+        },
+        {
+          "title": "athlete records open on programs with a read-only profile until edit",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 439,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:39.102Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-781ffb78f8ec3bd04c34",
+          "file": "responsive-hardening.spec.ts",
+          "line": 892,
+          "column": 1
+        },
+        {
+          "title": "athlete administration actions live in an overflow menu",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 272,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:39.545Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-02a8c20dadb4b21343ed",
+          "file": "responsive-hardening.spec.ts",
+          "line": 920,
+          "column": 1
+        },
+        {
+          "title": "mobile profile edit actions stay compact above the navigation",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 353,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:39.821Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-f8e17a51a80cf2407a38",
+          "file": "responsive-hardening.spec.ts",
+          "line": 940,
+          "column": 1
+        },
+        {
+          "title": "saving edited profile returns to the read-only overview",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 404,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:40.178Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-358ecfc2cdd4cef433f0",
+          "file": "responsive-hardening.spec.ts",
+          "line": 962,
+          "column": 1
+        },
+        {
+          "title": "motion system uses Standard feedback, Expressive sheets and reduced-motion fallback",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 323,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:40.587Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-d6f5edee391c26a86f63",
+          "file": "responsive-hardening.spec.ts",
+          "line": 995,
+          "column": 1
+        },
+        {
+          "title": "active program card opens by default and can collapse for review",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 316,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:40.914Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-4852d52756b85cf5676c",
+          "file": "responsive-hardening.spec.ts",
+          "line": 1073,
+          "column": 1
+        },
+        {
+          "title": "workout duration stays visible on a phone",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 296,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:59.270Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-f6bd78a6aa459005a9bc",
+          "file": "responsive-hardening.spec.ts",
+          "line": 427,
+          "column": 1
+        },
+        {
+          "title": "overview set rows render every column in order",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 217,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:59.669Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-fdf1a7053eaad5243b2e",
+          "file": "responsive-hardening.spec.ts",
+          "line": 452,
+          "column": 1
+        },
+        {
+          "title": "coaches only see actions the overview API authorizes",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 310,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:59.896Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-3e2ee46548637f98183a",
+          "file": "responsive-hardening.spec.ts",
+          "line": 465,
+          "column": 1
+        },
+        {
+          "title": "account sheet stays inside a landscape viewport and closes on Escape",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 615,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:00.212Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-a8dda57205616531c471",
+          "file": "responsive-hardening.spec.ts",
+          "line": 491,
+          "column": 1
+        },
+        {
+          "title": "header is a single row and the account panel shows only the current role",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 693,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:00.833Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-84042619e27396668451",
+          "file": "responsive-hardening.spec.ts",
+          "line": 519,
+          "column": 1
+        },
+        {
+          "title": "desktop header and account popover stay anchored",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 272,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:01.532Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-49317921394da1f66ef4",
+          "file": "responsive-hardening.spec.ts",
+          "line": 561,
+          "column": 1
+        },
+        {
+          "title": "tables follow the active locale direction",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 514,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:01.811Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-2b68cb6b079993f0d7e0",
+          "file": "responsive-hardening.spec.ts",
+          "line": 584,
+          "column": 1
+        },
+        {
+          "title": "people lists use cards instead of wide tables on phones",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 197,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:02.331Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-28b6229f5e57d5f7d4f8",
+          "file": "responsive-hardening.spec.ts",
+          "line": 618,
+          "column": 1
+        },
+        {
+          "title": "global athlete cards keep the club visible on phones",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 188,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:02.532Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-0840f10f3d6cfbb33f64",
+          "file": "responsive-hardening.spec.ts",
+          "line": 639,
+          "column": 1
+        },
+        {
+          "title": "mobile action controls meet the minimum touch size",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 230,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:02.726Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-de04303993229bd9f86c",
+          "file": "responsive-hardening.spec.ts",
+          "line": 658,
+          "column": 1
+        },
+        {
+          "title": "mobile inputs stay at a readable size",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 154,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:02.963Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-e7cb9b44439013abfd51",
+          "file": "responsive-hardening.spec.ts",
+          "line": 678,
+          "column": 1
+        },
+        {
+          "title": "program editor labels stay legible on phones",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 248,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:03.122Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-d5c6d2e4ba9d4d01446c",
+          "file": "responsive-hardening.spec.ts",
+          "line": 691,
+          "column": 1
+        },
+        {
+          "title": "row action menu closes on Tab or page scroll and stays open on its own scroll",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 320,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:03.374Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-c749acd8873a7c904100",
+          "file": "responsive-hardening.spec.ts",
+          "line": 723,
+          "column": 1
+        },
+        {
+          "title": "athlete record tabs support arrow keys and expose a panel",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 218,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:03.699Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-c9608d02c31b20b7faad",
+          "file": "responsive-hardening.spec.ts",
+          "line": 749,
+          "column": 1
+        },
+        {
+          "title": "offline notice appears and clears when the connection returns",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 210,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:03.923Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-6e330499ba7c17c02870",
+          "file": "responsive-hardening.spec.ts",
+          "line": 769,
+          "column": 1
+        },
+        {
+          "title": "offline identity failure shows recovery instead of the login form",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 308,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:04.138Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-401ad4c9f7977114a29c",
+          "file": "responsive-hardening.spec.ts",
+          "line": 797,
+          "column": 1
+        },
+        {
+          "title": "print deep links work when the club is supplied in the URL",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 153,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:04.451Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-30ac01318235d027186c",
+          "file": "responsive-hardening.spec.ts",
+          "line": 808,
+          "column": 1
+        },
+        {
+          "title": "print without club context explains how to reopen it",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 145,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:04.608Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-3b69def2f9d6a2a9527d",
+          "file": "responsive-hardening.spec.ts",
+          "line": 826,
+          "column": 1
+        },
+        {
+          "title": "athlete cards use Details plus a secondary action menu",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 245,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:04.759Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-face96baaa0c16dd2cb4",
+          "file": "responsive-hardening.spec.ts",
+          "line": 843,
+          "column": 1
+        },
+        {
+          "title": "coach overviews do not show an athlete coach chip",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 215,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:05.009Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-daca74c72cd209f0e2c5",
+          "file": "responsive-hardening.spec.ts",
+          "line": 862,
+          "column": 1
+        },
+        {
+          "title": "archived athletes use cards with restore and delete on phones",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 244,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:05.229Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-05babdb2ecb4c10051f1",
+          "file": "responsive-hardening.spec.ts",
+          "line": 875,
+          "column": 1
+        },
+        {
+          "title": "athlete records open on programs with a read-only profile until edit",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 374,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:05.478Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-3274e8bb991852023746",
+          "file": "responsive-hardening.spec.ts",
+          "line": 892,
+          "column": 1
+        },
+        {
+          "title": "athlete administration actions live in an overflow menu",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 245,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:05.856Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-caa3d46a4f03a1f42217",
+          "file": "responsive-hardening.spec.ts",
+          "line": 920,
+          "column": 1
+        },
+        {
+          "title": "mobile profile edit actions stay compact above the navigation",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 315,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:06.106Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-5d0e99d8b3d43f64ffd0",
+          "file": "responsive-hardening.spec.ts",
+          "line": 940,
+          "column": 1
+        },
+        {
+          "title": "saving edited profile returns to the read-only overview",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 373,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:06.428Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-906dde960cc2f95e027d",
+          "file": "responsive-hardening.spec.ts",
+          "line": 962,
+          "column": 1
+        },
+        {
+          "title": "motion system uses Standard feedback, Expressive sheets and reduced-motion fallback",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 305,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:06.805Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-9fd69d092ad9d558565b",
+          "file": "responsive-hardening.spec.ts",
+          "line": 995,
+          "column": 1
+        },
+        {
+          "title": "active program card opens by default and can collapse for review",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "responsive",
+              "projectName": "responsive",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 373,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:29:07.114Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "cd1edc81687bc9292f94-fe07ba07d6f8691deb64",
+          "file": "responsive-hardening.spec.ts",
+          "line": 1073,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "test-data.spec.ts",
+      "file": "test-data.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "managed athlete cleanup is idempotent and preserves seeded athletes",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 526,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:41.237Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d29aa87f11a9a77fe0dc-8be153a807f44d587cc3",
+          "file": "test-data.spec.ts",
+          "line": 11,
+          "column": 1
+        },
+        {
+          "title": "managed athlete cleanup runs after a thrown test operation",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 378,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:41.767Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d29aa87f11a9a77fe0dc-cd3ab55efdef309d4a4e",
+          "file": "test-data.spec.ts",
+          "line": 67,
+          "column": 1
+        },
+        {
+          "title": "managed athlete cleanup refuses unowned email",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 4,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 299,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:42.149Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "d29aa87f11a9a77fe0dc-0e22b8117e500e82a34c",
+          "file": "test-data.spec.ts",
+          "line": 109,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "superuser-context.spec.ts",
+      "file": "superuser-context.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "superuser lands globally without a club context",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 408,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:35.732Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-535b16b71a4a93f9cc49",
+          "file": "superuser-context.spec.ts",
+          "line": 24,
+          "column": 1
+        },
+        {
+          "title": "superuser with no clubs is sent to the clubs page with a create action",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 361,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:36.244Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-71e213d8ee7661edc8f5",
+          "file": "superuser-context.spec.ts",
+          "line": 35,
+          "column": 1
+        },
+        {
+          "title": "entering a club opens its workspace and keeps the club on reload",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 503,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:36.610Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-1c2e295d32e084ffca22",
+          "file": "superuser-context.spec.ts",
+          "line": 52,
+          "column": 1
+        },
+        {
+          "title": "club settings live on their own route",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 619,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:37.119Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-71df62b92bbd523162cf",
+          "file": "superuser-context.spec.ts",
+          "line": 70,
+          "column": 1
+        },
+        {
+          "title": "all clubs leaves the club from a workspace page and returns to the global view",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 778,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:37.745Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-5244b0510fdf039d6e06",
+          "file": "superuser-context.spec.ts",
+          "line": 85,
+          "column": 1
+        },
+        {
+          "title": "switching clubs from the workspace changes the club and keeps a club URL",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 776,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:38.528Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-bb93eb59049ff295ead6",
+          "file": "superuser-context.spec.ts",
+          "line": 104,
+          "column": 1
+        },
+        {
+          "title": "club workspace highlights the dashboard item and keeps its URL",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 435,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:39.309Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-07b09ec12d8a0a8d33e2",
+          "file": "superuser-context.spec.ts",
+          "line": 120,
+          "column": 1
+        },
+        {
+          "title": "club cards on the clubs list link into the workspace",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 385,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:39.749Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-c469967ae3d189cf2a50",
+          "file": "superuser-context.spec.ts",
+          "line": 142,
+          "column": 1
+        },
+        {
+          "title": "the global athletes route lists athletes when no club is active",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 395,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:40.139Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-f32f649f3d5c94ce6a94",
+          "file": "superuser-context.spec.ts",
+          "line": 152,
+          "column": 1
+        },
+        {
+          "title": "superuser inside a club hides the clubs nav and can return to the global dashboard",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 510,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:40.540Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-03e6c4d2b11f125b0233",
+          "file": "superuser-context.spec.ts",
+          "line": 161,
+          "column": 1
+        },
+        {
+          "title": "global coaches and athletes pages manage people across clubs",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 9308,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:41.057Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-d60dda096027064951f4",
+          "file": "superuser-context.spec.ts",
+          "line": 194,
+          "column": 1
+        },
+        {
+          "title": "superuser transfers a coach and athlete between clubs",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 6232,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:50.370Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-55335fc83d40ed80c694",
+          "file": "superuser-context.spec.ts",
+          "line": 367,
+          "column": 1
+        },
+        {
+          "title": "global people navigation disappears inside a club",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 480,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:56.607Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-6d3d2a9239a833fc3d94",
+          "file": "superuser-context.spec.ts",
+          "line": 468,
+          "column": 1
+        },
+        {
+          "title": "global athlete list paginates and changes page size",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1027,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:57.092Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-481952c808999d5f30af",
+          "file": "superuser-context.spec.ts",
+          "line": 479,
+          "column": 1
+        },
+        {
+          "title": "global list state is restored from the URL and Back works",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "superuser",
+              "projectName": "superuser",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 891,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:28:58.126Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "4dfd846cbf4aa612f3ae-a9f6fc3ced6e1a4bbd30",
+          "file": "superuser-context.spec.ts",
+          "line": 531,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "athlete.spec.ts",
+      "file": "athlete.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "athlete sees active program, sets and can generate a Persian PDF",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 447,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:49.168Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c87a7742db420ab7f59e-2c6321a7bbcd4975e1bb",
+          "file": "athlete.spec.ts",
+          "line": 5,
+          "column": 1
+        },
+        {
+          "title": "athlete profile saves without equipment, uses numbered days and redirects to the dashboard",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 336,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:49.712Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c87a7742db420ab7f59e-5858c6b43773442f75e5",
+          "file": "athlete.spec.ts",
+          "line": 39,
+          "column": 1
+        },
+        {
+          "title": "athlete landing highlights the dashboard nav item",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 222,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:50.053Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c87a7742db420ab7f59e-460b2b3ee6312ca9239f",
+          "file": "athlete.spec.ts",
+          "line": 65,
+          "column": 1
+        },
+        {
+          "title": "athlete deep links to staff pages fall back to the club dashboard",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "mobile",
+              "projectName": "mobile",
+              "results": [
+                {
+                  "workerIndex": 6,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 252,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-11-10T21:30:50.279Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "c87a7742db420ab7f59e-13ffe1fce8a42acf9f4e",
+          "file": "athlete.spec.ts",
+          "line": 72,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-10T21:28:33.586Z",
+    "duration": 136971.03999999998,
+    "expected": 148,
+    "skipped": 1,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

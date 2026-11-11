@@ -1,0 +1,12 @@
+
+Running 7 tests using 1 worker
+
+  ✓  1 [admin-setup] › tests/admin.setup.ts:7:1 › authenticate gym admin (362ms)
+  ✓  2 [chromium] › tests/athletes-list.spec.ts:53:1 › coach picker searches on the server and loads more (1.3s)
+  ✓  3 [chromium] › tests/categories.spec.ts:173:1 › category changes protect existing movements from incompatible choices (503ms)
+  ✓  4 [chromium] › tests/program-authoring.spec.ts:4:1 › admin builds, saves and publishes a program through the UI (3.4s)
+  ✓  5 [chromium] › tests/athletes-list.spec.ts:53:1 › coach picker searches on the server and loads more (1.4s)
+  ✓  6 [chromium] › tests/categories.spec.ts:173:1 › category changes protect existing movements from incompatible choices (502ms)
+  ✓  7 [chromium] › tests/program-authoring.spec.ts:4:1 › admin builds, saves and publishes a program through the UI (3.3s)
+
+  7 passed (11.7s)

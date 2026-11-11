@@ -1,0 +1,255 @@
+{
+  "method": "read-only repeatable-read transactions; all finance tables, all common columns, rows ordered by id; canonical JSON SHA256",
+  "revisions": {
+    "backup": "b8d1e2f3a4c5",
+    "current": "c3f4a5b6d7e8"
+  },
+  "tables": {
+    "finance_allocation": {
+      "rows": {
+        "backup": 6,
+        "current": 6
+      },
+      "sha256": {
+        "backup": "1a1a3c4504f788851ecea6c4925e98b0108b32dc7b1f86d0825e480bf042072e",
+        "current": "1a1a3c4504f788851ecea6c4925e98b0108b32dc7b1f86d0825e480bf042072e"
+      },
+      "common_content_equal": true,
+      "new_columns": [],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    },
+    "finance_audit": {
+      "rows": {
+        "backup": 17,
+        "current": 17
+      },
+      "sha256": {
+        "backup": "143fd9387d21c67253321b102a83d1793066d559dda56b13414159bb4b52f932",
+        "current": "143fd9387d21c67253321b102a83d1793066d559dda56b13414159bb4b52f932"
+      },
+      "common_content_equal": true,
+      "new_columns": [],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    },
+    "finance_coach_contract": {
+      "rows": {
+        "backup": 5,
+        "current": 5
+      },
+      "sha256": {
+        "backup": "55943b514af8fade29e4c8ee043b67b7564355b1a56d60410921fffa506e35e0",
+        "current": "55943b514af8fade29e4c8ee043b67b7564355b1a56d60410921fffa506e35e0"
+      },
+      "common_content_equal": true,
+      "new_columns": [
+        "archived_at"
+      ],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    },
+    "finance_coach_plan": {
+      "rows": {
+        "backup": 3,
+        "current": 3
+      },
+      "sha256": {
+        "backup": "8fb92eb8f0d2667e40bc2c38477132f15f1502ac374824f59da212b8d69cf6a1",
+        "current": "8fb92eb8f0d2667e40bc2c38477132f15f1502ac374824f59da212b8d69cf6a1"
+      },
+      "common_content_equal": true,
+      "new_columns": [],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    },
+    "finance_payment": {
+      "rows": {
+        "backup": 2,
+        "current": 2
+      },
+      "sha256": {
+        "backup": "9f6a99730679f28f5d61a0a3b4e734a442d1a11a6a42289a5bfe2f51c529b67e",
+        "current": "9f6a99730679f28f5d61a0a3b4e734a442d1a11a6a42289a5bfe2f51c529b67e"
+      },
+      "common_content_equal": true,
+      "new_columns": [],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    },
+    "finance_platform_contract": {
+      "rows": {
+        "backup": 3,
+        "current": 3
+      },
+      "sha256": {
+        "backup": "9d5b1e12054a3d59477460dcccd8b308cb07a95078e41c5f678c6d730abc9981",
+        "current": "9d5b1e12054a3d59477460dcccd8b308cb07a95078e41c5f678c6d730abc9981"
+      },
+      "common_content_equal": true,
+      "new_columns": [
+        "archived_at"
+      ],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    },
+    "finance_platform_rate": {
+      "rows": {
+        "backup": 9,
+        "current": 9
+      },
+      "sha256": {
+        "backup": "cda4056efd598a517ef27af58c8957139050e1025b38a9626d3a08de293d605d",
+        "current": "cda4056efd598a517ef27af58c8957139050e1025b38a9626d3a08de293d605d"
+      },
+      "common_content_equal": true,
+      "new_columns": [],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    },
+    "finance_program_request": {
+      "rows": {
+        "backup": 1,
+        "current": 1
+      },
+      "sha256": {
+        "backup": "ce705b02b9286810e69325a46e7b8fffee79ef9be9c2bbfbc3c727ba88a73c99",
+        "current": "ce705b02b9286810e69325a46e7b8fffee79ef9be9c2bbfbc3c727ba88a73c99"
+      },
+      "common_content_equal": true,
+      "new_columns": [],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    },
+    "finance_refund": {
+      "rows": {
+        "backup": 0,
+        "current": 0
+      },
+      "sha256": {
+        "backup": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "current": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "common_content_equal": true,
+      "new_columns": [],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    },
+    "finance_refund_adjustment": {
+      "rows": {
+        "backup": 0,
+        "current": 0
+      },
+      "sha256": {
+        "backup": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "current": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "common_content_equal": true,
+      "new_columns": [],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    },
+    "finance_sale": {
+      "rows": {
+        "backup": 2,
+        "current": 2
+      },
+      "sha256": {
+        "backup": "07f0b18a2870a3ef115a8780cf97e0f5d844655071edf77f411108ec3670be93",
+        "current": "07f0b18a2870a3ef115a8780cf97e0f5d844655071edf77f411108ec3670be93"
+      },
+      "common_content_equal": true,
+      "new_columns": [],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    },
+    "finance_sale_tax": {
+      "rows": {
+        "backup": 2,
+        "current": 2
+      },
+      "sha256": {
+        "backup": "8e74409e5773dd46dedbc898e1ea60e730ddad079dcca9684e36848cf2505c99",
+        "current": "8e74409e5773dd46dedbc898e1ea60e730ddad079dcca9684e36848cf2505c99"
+      },
+      "common_content_equal": true,
+      "new_columns": [],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    },
+    "finance_settlement": {
+      "rows": {
+        "backup": 0,
+        "current": 0
+      },
+      "sha256": {
+        "backup": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "current": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "common_content_equal": true,
+      "new_columns": [],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    },
+    "finance_settlement_item": {
+      "rows": {
+        "backup": 0,
+        "current": 0
+      },
+      "sha256": {
+        "backup": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "current": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "common_content_equal": true,
+      "new_columns": [],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    },
+    "finance_tax_definition": {
+      "rows": {
+        "backup": 1,
+        "current": 1
+      },
+      "sha256": {
+        "backup": "1b5adef60a27b9a4902193a3e67c30e3bdc00ee4e4ec87c36c2e7a3e15f25230",
+        "current": "1b5adef60a27b9a4902193a3e67c30e3bdc00ee4e4ec87c36c2e7a3e15f25230"
+      },
+      "common_content_equal": true,
+      "new_columns": [],
+      "removed_columns": [],
+      "added_rows": 0,
+      "removed_rows": 0,
+      "changed_existing_rows": {}
+    }
+  },
+  "backup_sha256": "08314e615f72d8f09a5c2980a057d7e0d33ef540eca646bb445e3d63aec4565e",
+  "backup_path": "/private/var/folders/pk/nrxwwmj91jxc9_pgv18y6mcr0000gn/T/opencode/gym_finance_sandbox_v2_before_finance_fix.dump"
+}

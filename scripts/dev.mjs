@@ -152,6 +152,7 @@ children.push(
 )
 
 const frontendEnv = {
+  VITE_CSRF_COOKIE_NAME: values.CSRF_COOKIE_NAME || "gym_csrf_token",
   VITE_API_URL: values.VITE_API_URL || `http://localhost:${backendPort}`,
   VITE_MAX_UPLOAD_BYTES: values.VITE_MAX_UPLOAD_BYTES || "10485760",
   VITE_MAX_IMPORT_BYTES: values.VITE_MAX_IMPORT_BYTES || "5242880",

@@ -1,0 +1,6 @@
+
+Running 1 test using 1 worker
+
+  ✓  1 [superuser] › tests/superuser-context.spec.ts:194:1 › global coaches and athletes pages manage people across clubs (8.8s)
+
+  1 passed (9.1s)

@@ -8,10 +8,12 @@ import {
 } from "lucide-react"
 import {
   type ButtonHTMLAttributes,
+  type ComponentProps,
   type InputHTMLAttributes,
   type ReactNode,
   type RefObject,
   type TextareaHTMLAttributes,
+  useContext,
   useEffect,
   useId,
   useRef,
@@ -25,6 +27,7 @@ import {
   Popover as AriaPopover,
   Select as AriaSelect,
   Text as AriaText,
+  ComboBoxStateContext,
   FieldError,
   Group,
   I18nProvider,
@@ -410,6 +413,46 @@ export function SelectField({
   )
 }
 
+function SearchableSelectPopover(props: ComponentProps<typeof AriaPopover>) {
+  const state = useContext(ComboBoxStateContext)
+  const isOpen = state?.isOpen ?? false
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) {
+      setReady(false)
+      return
+    }
+    // Focus can queue a viewport scroll in the same pointer interaction.
+    // Mount after that frame so the non-modal popover does not interpret the
+    // opening gesture's scroll as a request to dismiss the menu.
+    const frame = requestAnimationFrame(() => setReady(true))
+    return () => cancelAnimationFrame(frame)
+  }, [isOpen])
+
+  return (
+    <AriaPopover
+      {...props}
+      isOpen={isOpen && ready}
+      onOpenChange={(open) => {
+        if (!open) state?.close()
+      }}
+    />
+  )
+}
+
+function SearchableSelectInput({ placeholder }: { placeholder: string }) {
+  const state = useContext(ComboBoxStateContext)
+  return (
+    <AriaInput
+      className="m3-combobox__input"
+      placeholder={placeholder}
+      onClick={() => state?.open(null, "manual")}
+      onTouchEnd={() => state?.open(null, "manual")}
+    />
+  )
+}
+
 export function SearchableSelectField({
   label,
   value,
@@ -449,6 +492,7 @@ export function SearchableSelectField({
   footerRef?: RefObject<HTMLDivElement | null>
   loading?: boolean
 }) {
+  const controlRef = useRef<HTMLDivElement>(null)
   const { t, direction, locale } = useI18n()
   const isMobile = useMobileViewport()
   const localeTag =
@@ -469,7 +513,7 @@ export function SearchableSelectField({
         isInvalid={Boolean(error)}
         isRequired={required}
         allowsEmptyCollection
-        menuTrigger="focus"
+        menuTrigger="input"
         dir={direction}
         aria-busy={loading}
         className={`m3-field m3-picker-field m3-combobox ${error ? "is-invalid" : ""} ${containerClassName}`}
@@ -482,10 +526,19 @@ export function SearchableSelectField({
             </span>
           ) : null}
         </AriaLabel>
-        <Group className="m3-field__control m3-combobox__control">
+        <Group
+          ref={controlRef}
+          className="m3-field__control m3-combobox__control"
+          onPointerDownCapture={(event) => {
+            if (!disabled && event.isPrimary && event.button === 0) {
+              controlRef.current
+                ?.querySelector("input")
+                ?.focus({ preventScroll: true })
+            }
+          }}
+        >
           <Search size={18} className="m3-combobox__search" aria-hidden />
-          <AriaInput
-            className="m3-combobox__input"
+          <SearchableSelectInput
             placeholder={placeholder ?? t("common.choose")}
           />
           <AriaButton
@@ -496,19 +549,20 @@ export function SearchableSelectField({
           </AriaButton>
         </Group>
         <FieldSupport error={error} helper={helper} />
-        <AriaPopover
+        <SearchableSelectPopover
           className="m3-select-popover m3-combobox__popover"
           offset={6}
           containerPadding={12}
           placement={isMobile ? "top start" : "bottom start"}
           dir={direction}
           shouldCloseOnInteractOutside={(element) =>
+            !controlRef.current?.contains(element) &&
             !footerRef?.current?.contains(element as Node)
           }
         >
           <ComboBoxListBox emptyLabel={emptyLabel ?? t("common.noResults")} />
           {footer}
-        </AriaPopover>
+        </SearchableSelectPopover>
       </AriaComboBox>
     </I18nProvider>
   )

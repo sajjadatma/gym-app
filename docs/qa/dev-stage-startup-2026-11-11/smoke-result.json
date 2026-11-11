@@ -1,0 +1,13 @@
+{
+  "status": "PASS",
+  "checks": [
+    "dev login",
+    "stage login",
+    "concurrent session isolation",
+    "dev finance preview",
+    "stage finance preview",
+    "CSRF",
+    "Persian amount"
+  ],
+  "time": "2026-11-11T08:47:17.894Z"
+}

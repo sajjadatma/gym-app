@@ -1,0 +1,36 @@
+
+Running 24 tests using 1 worker
+
+(node:4069) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/24] [admin-setup] › tests/admin.setup.ts:7:1 › authenticate gym admin
+(node:4081) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[2/24] [chromium] › tests/athletes-list.spec.ts:3:1 › athlete list switches to a selectable table and remembers the view
+[3/24] [chromium] › tests/athletes-list.spec.ts:53:1 › coach picker searches on the server and loads more
+[4/24] [chromium] › tests/categories.spec.ts:4:1 › admin creates catalog entries; coach selects them; day categories reach athlete and print
+[5/24] [chromium] › tests/categories.spec.ts:172:1 › category changes protect existing movements from incompatible choices
+[6/24] [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one input click opens exercise options and mouse selection works
+[7/24] [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one chevron click opens exercise options and mouse selection works
+[8/24] [chromium] › tests/combobox-click.spec.ts:5:5 › 390: one input click opens exercise options and mouse selection works
+[9/24] [chromium] › tests/combobox-click.spec.ts:5:5 › 390: one chevron click opens exercise options and mouse selection works
+[10/24] [chromium] › tests/combobox-click.spec.ts:37:3 › 1280: Escape, keyboard selection, reopening and outside dismissal work
+[11/24] [chromium] › tests/combobox-click.spec.ts:37:3 › 390: Escape, keyboard selection, reopening and outside dismissal work
+[12/24] [chromium] › tests/combobox-click.spec.ts:73:5 › touch input › a single input tap opens and selects an option
+[13/24] [chromium] › tests/combobox-click.spec.ts:73:5 › touch input › a single chevron tap opens and selects an option
+[14/24] [chromium] › tests/controls.spec.ts:5:1 › Select opens a listbox, supports keyboard selection and Escape
+[15/24] [chromium] › tests/controls.spec.ts:29:1 › searchable ComboBox filters long lists, handles no results and stays in the viewport
+[16/24] [chromium] › tests/controls.spec.ts:60:1 › required ComboBox exposes required state and keeps the form open on validation
+[17/24] [chromium] › tests/controls.spec.ts:76:1 › Persian date picker selects today and submits Gregorian ISO
+[18/24] [chromium] › tests/controls.spec.ts:111:1 › date picker inside a dialog is not clipped
+[19/24] [chromium] › tests/controls.spec.ts:141:1 › English locale keeps Select and DatePicker usable in LTR
+[20/24] [chromium] › tests/controls.spec.ts:168:1 › Persian leap-year date converts to the correct Gregorian ISO
+[21/24] [chromium] › tests/controls.spec.ts:195:1 › date picker clear action submits a null value
+[22/24] [chromium] › tests/controls.spec.ts:220:1 › Select, ComboBox and DatePicker remain usable in a mobile-sized modal
+[23/24] [chromium] › tests/program-authoring.spec.ts:4:1 › admin builds, saves and publishes a program through the UI
+[24/24] [chromium] › tests/program-authoring.spec.ts:126:1 › numbered day builder caps program days to the athlete's training-day count
+  24 passed (29.9s)

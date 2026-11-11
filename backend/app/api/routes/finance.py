@@ -64,9 +64,7 @@ def list_platform_contracts(
     scope: str | None = None,
     gym_id: uuid.UUID | None = None,
 ) -> Any:
-    return finance_service.list_platform_contracts(
-        session, scope=scope, gym_id=gym_id
-    )
+    return finance_service.list_platform_contracts(session, scope=scope, gym_id=gym_id)
 
 
 @router.post(
@@ -209,6 +207,8 @@ def update_tax(
         calculation=body.calculation,
         percent_bp=body.percent_bp,
         fixed_amount_irr=body.fixed_amount_irr,
+        percent_provided="percent_bp" in body.model_fields_set,
+        fixed_provided="fixed_amount_irr" in body.model_fields_set,
         is_active=body.is_active,
         is_default_vat=body.is_default_vat,
     )
@@ -226,9 +226,7 @@ def finance_overview(
 ) -> Any:
     if not current_user.is_superuser:
         if gym_id is None:
-            raise HTTPException(
-                status_code=400, detail="gym_context_required"
-            )
+            raise HTTPException(status_code=400, detail="gym_context_required")
         finance_service.require_gym_finance_admin(session, current_user, gym_id)
     return finance_service.finance_report(
         session,
@@ -251,9 +249,7 @@ def finance_reports(
 ) -> Any:
     if not current_user.is_superuser:
         if gym_id is None:
-            raise HTTPException(
-                status_code=400, detail="gym_context_required"
-            )
+            raise HTTPException(status_code=400, detail="gym_context_required")
         finance_service.require_gym_finance_admin(session, current_user, gym_id)
     return finance_service.finance_report(
         session,
@@ -276,9 +272,7 @@ def export_finance_report(
 ) -> Any:
     if not current_user.is_superuser:
         if gym_id is None:
-            raise HTTPException(
-                status_code=400, detail="gym_context_required"
-            )
+            raise HTTPException(status_code=400, detail="gym_context_required")
         finance_service.require_gym_finance_admin(session, current_user, gym_id)
     report = finance_service.finance_report(
         session,
@@ -294,9 +288,7 @@ def export_finance_report(
     return Response(
         content="\ufeff" + buffer.getvalue(),
         media_type="text/csv; charset=utf-8",
-        headers={
-            "Content-Disposition": 'attachment; filename="finance-report.csv"'
-        },
+        headers={"Content-Disposition": 'attachment; filename="finance-report.csv"'},
     )
 
 
@@ -532,6 +524,7 @@ def purchase_athlete_training_plan(
         note=body.note,
         idempotency_key=body.idempotency_key,
         outcome=body.outcome,
+        quote_token=body.quote_token,
     )
 
 
@@ -581,9 +574,12 @@ def list_gym_coaches(
     session: SessionDep,
     current_user: CurrentUser,
     gym_id: uuid.UUID,
+    with_balance: bool = False,
 ) -> Any:
     finance_service.require_gym_finance_admin(session, current_user, gym_id)
-    return finance_service.list_gym_coaches(session, gym_id=gym_id)
+    return finance_service.list_gym_coaches(
+        session, gym_id=gym_id, with_balance=with_balance
+    )
 
 
 @router.get(
@@ -822,9 +818,7 @@ def auto_settle(
     gym_id: uuid.UUID,
 ) -> Any:
     finance_service.require_gym_finance_admin(session, current_user, gym_id)
-    return finance_service.auto_settle(
-        session, actor=current_user, gym_id=gym_id
-    )
+    return finance_service.auto_settle(session, actor=current_user, gym_id=gym_id)
 
 
 @router.get(

@@ -1,0 +1,2 @@
+$ biome check --no-errors-on-unmatched --files-ignore-unknown=true ./
+Checked 167 files in 81ms. No fixes applied.

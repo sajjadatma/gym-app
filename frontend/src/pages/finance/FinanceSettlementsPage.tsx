@@ -26,11 +26,12 @@ import {
 } from "@/lib/finance-api"
 import {
   formatToman,
+  parseTomanToIrr,
   partyLabel,
   statusLabel,
   todayIso,
-  tomanToIrr,
 } from "@/lib/finance-ui"
+import { parseErrorMessage } from "@/lib/finance-validation"
 import { useSnackbar } from "@/snackbar"
 
 export function FinanceSettlementsPage({ gymId }: { gymId: string }) {
@@ -39,6 +40,7 @@ export function FinanceSettlementsPage({ gymId }: { gymId: string }) {
   const { show } = useSnackbar()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [amountError, setAmountError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     party: "COACH" as SettlementParty,
@@ -50,8 +52,8 @@ export function FinanceSettlementsPage({ gymId }: { gymId: string }) {
     queryFn: () => listSettlements(gymId),
   })
   const coaches = useQuery({
-    queryKey: ["finance-coaches", gymId],
-    queryFn: () => listGymCoaches(gymId),
+    queryKey: ["finance-coaches", gymId, "with-balance"],
+    queryFn: () => listGymCoaches(gymId, { withBalance: true }),
   })
   const report = useQuery({
     queryKey: ["finance-report-settlements", gymId],
@@ -74,9 +76,13 @@ export function FinanceSettlementsPage({ gymId }: { gymId: string }) {
   }
 
   async function submit() {
-    const irr = tomanToIrr(Number(form.amountToman) || 0)
-    if (irr <= 0) {
-      setError(t("finance.settlements.errorAmount"))
+    const parsed = parseTomanToIrr(form.amountToman)
+    if (!parsed.ok || parsed.value <= 0) {
+      setAmountError(
+        parsed.ok
+          ? t("finance.settlements.errorAmount")
+          : (parseErrorMessage(parsed, "amount", t) ?? null),
+      )
       return
     }
     if (form.party === "COACH" && !form.coachId) {
@@ -85,11 +91,12 @@ export function FinanceSettlementsPage({ gymId }: { gymId: string }) {
     }
     setSaving(true)
     setError(null)
+    setAmountError(null)
     try {
       await createSettlement(gymId, {
         party: form.party,
         party_user_id: form.party === "COACH" ? form.coachId : null,
-        amount_irr: irr,
+        amount_irr: parsed.value,
         idempotency_key: crypto.randomUUID(),
       })
       setOpen(false)
@@ -171,7 +178,13 @@ export function FinanceSettlementsPage({ gymId }: { gymId: string }) {
             >
               {t("finance.settlements.auto")}
             </Button>
-            <Button icon={<Plus size={17} />} onClick={() => setOpen(true)}>
+            <Button
+              icon={<Plus size={17} />}
+              onClick={() => {
+                setAmountError(null)
+                setOpen(true)
+              }}
+            >
               {t("finance.settlements.new")}
             </Button>
           </>
@@ -188,7 +201,13 @@ export function FinanceSettlementsPage({ gymId }: { gymId: string }) {
           title={t("finance.settlements.empty")}
           description={t("finance.settlements.emptyHint")}
           action={
-            <Button icon={<Plus size={17} />} onClick={() => setOpen(true)}>
+            <Button
+              icon={<Plus size={17} />}
+              onClick={() => {
+                setAmountError(null)
+                setOpen(true)
+              }}
+            >
               {t("finance.settlements.new")}
             </Button>
           }
@@ -277,9 +296,13 @@ export function FinanceSettlementsPage({ gymId }: { gymId: string }) {
           <SelectField
             label={t("finance.table.party")}
             value={form.party}
-            onChange={(value) =>
-              setForm((prev) => ({ ...prev, party: value as SettlementParty }))
-            }
+            onChange={(value) => {
+              setForm((prev) => ({
+                ...prev,
+                party: value as SettlementParty,
+              }))
+              setError(null)
+            }}
             options={[
               { value: "COACH", label: partyLabel("COACH") },
               { value: "GYM", label: partyLabel("GYM") },
@@ -295,7 +318,9 @@ export function FinanceSettlementsPage({ gymId }: { gymId: string }) {
               }
               options={(coaches.data ?? []).map((coach) => ({
                 value: coach.user_id,
-                label: coach.name,
+                label: coach.is_active
+                  ? coach.name
+                  : `${coach.name} — ${t("finance.settlements.departedCoach")}`,
               }))}
               required
             />
@@ -303,11 +328,16 @@ export function FinanceSettlementsPage({ gymId }: { gymId: string }) {
           <TextField
             label={t("finance.settlements.amountToman")}
             value={form.amountToman}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, amountToman: event.target.value }))
-            }
+            onChange={(event) => {
+              setForm((prev) => ({
+                ...prev,
+                amountToman: event.target.value,
+              }))
+              setAmountError(null)
+            }}
             inputMode="numeric"
             suffix={t("finance.unit.toman")}
+            error={amountError ?? undefined}
             helper={
               available !== undefined
                 ? `${t("finance.settlements.available")}: ${formatToman(available, formatNumber)}`

@@ -1,0 +1,462 @@
+
+Running 9 tests using 1 worker
+
+(node:99807) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/9] [admin-setup] › tests/admin.setup.ts:7:1 › authenticate gym admin
+(node:99814) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[2/9] [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one input click opens exercise options and mouse selection works
+[chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one input click opens exercise options and mouse selection works
+COMBO_STATE true focus Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16114:4)
+    at open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17941:17)
+    at Object.setFocused (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18064:54)
+    at onFocus (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17681:9)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:9364:21
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:7241:71
+    at processDispatchQueue (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:13893:7)
+
+COMBO_STATE false undefined Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.close (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16117:4)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17966:17
+    at commitSelection (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18044:4)
+    at commitValue (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18052:10)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15492:37
+    at onScroll (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15339:24)
+
+EVENT TRACE [{"type":"pointerdown","time":178.5,"tag":"SPAN","cls":"","top":0,"active":""},{"type":"focusin","time":178.79999999701977,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"pointerup","time":178.79999999701977,"tag":"SPAN","cls":"","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"focusout","time":186.39999999850988,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":""},{"type":"pointerdown","time":259.19999999925494,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"focusin","time":259.3999999985099,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":259.5,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerdown","time":292.5,"tag":"H1","cls":"","top":0,"active":""},{"type":"focusout","time":292.5,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":292.79999999701977,"tag":"H1","cls":"","top":0,"active":""},{"type":"pointerdown","time":327,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":""},{"type":"focusin","time":327.29999999701977,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"pointerup","time":337.5999999977648,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"scroll","time":341.3999999985099,"active":"m3-combobox__input"}]
+
+  1) [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one input click opens exercise options and mouse selection works 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  locator('.m3-builder-add-exercise').getByRole('combobox')
+    Expected: "true"
+    Received: "false"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" locator('.m3-builder-add-exercise').getByRole('combobox') with timeout 5000ms
+      - waiting for locator('.m3-builder-add-exercise').getByRole('combobox')
+        14 × locator resolved to <input value="" title="" data-rac="" type="text" tabindex="0" role="combobox" autocorrect="off" autocomplete="off" spellcheck="false" data-focused="true" data-hovered="true" aria-expanded="false" aria-autocomplete="list" placeholder="انتخاب حرکت" class="m3-combobox__input" id="react-aria8409977757-_r_m_" aria-labelledby="react-aria8409977757-_r_n_"/>
+           - unexpected value "false"
+
+
+      13 |       if(trigger==='input') await input.click()
+      14 |       else await add.locator('.m3-combobox__trigger').click()
+    > 15 |       await expect(input).toHaveAttribute('aria-expanded','true')
+         |                           ^
+      16 |       await expect(page.getByRole('option',{name:'جلوبازو هالتر · بازو',exact:true})).toBeVisible()
+      17 |       await input.fill('جلوبازو هالتر')
+      18 |       await expect(input).toHaveAttribute('aria-expanded','true')
+        at /private/tmp/gym-combobox-fix-20261111/frontend/tests/combobox-click.spec.ts:15:27
+
+    Error Context: test-results/combobox-click-1280-one-in-c89f1-s-and-mouse-selection-works-chromium/error-context.md
+
+
+(node:99842) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[3/9] [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one chevron click opens exercise options and mouse selection works
+[chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one chevron click opens exercise options and mouse selection works
+COMBO_STATE true focus Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16114:4)
+    at open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17941:17)
+    at Object.setFocused (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18064:54)
+    at onFocus (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17681:9)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:9364:21
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:7241:71
+    at processDispatchQueue (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:13893:7)
+
+COMBO_STATE false undefined Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.close (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16117:4)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17966:17
+    at commitSelection (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18044:4)
+    at commitValue (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18052:10)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15492:37
+    at onScroll (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15339:24)
+
+EVENT TRACE [{"type":"pointerdown","time":177.5,"tag":"SPAN","cls":"","top":0,"active":""},{"type":"focusin","time":177.80000000074506,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"pointerup","time":177.89999999850988,"tag":"SPAN","cls":"","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"focusout","time":185.5,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":""},{"type":"pointerdown","time":259.30000000074506,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"focusin","time":259.5,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":259.69999999925494,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerdown","time":292,"tag":"H1","cls":"","top":0,"active":""},{"type":"focusout","time":292,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":292.3999999985099,"tag":"H1","cls":"","top":0,"active":""},{"type":"pointerdown","time":325.5999999977648,"tag":"svg","cls":{},"top":0,"active":""},{"type":"focusin","time":326,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"pointerup","time":337,"tag":"svg","cls":{},"top":0,"active":"m3-combobox__input"},{"type":"scroll","time":340.3999999985099,"active":"m3-combobox__input"}]
+
+  2) [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one chevron click opens exercise options and mouse selection works 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  locator('.m3-builder-add-exercise').getByRole('combobox')
+    Expected: "true"
+    Received: "false"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" locator('.m3-builder-add-exercise').getByRole('combobox') with timeout 5000ms
+      - waiting for locator('.m3-builder-add-exercise').getByRole('combobox')
+        14 × locator resolved to <input value="" title="" data-rac="" type="text" tabindex="0" role="combobox" autocorrect="off" autocomplete="off" spellcheck="false" data-focused="true" aria-expanded="false" aria-autocomplete="list" placeholder="انتخاب حرکت" class="m3-combobox__input" id="react-aria3826214953-_r_m_" aria-labelledby="react-aria3826214953-_r_n_"/>
+           - unexpected value "false"
+
+
+      13 |       if(trigger==='input') await input.click()
+      14 |       else await add.locator('.m3-combobox__trigger').click()
+    > 15 |       await expect(input).toHaveAttribute('aria-expanded','true')
+         |                           ^
+      16 |       await expect(page.getByRole('option',{name:'جلوبازو هالتر · بازو',exact:true})).toBeVisible()
+      17 |       await input.fill('جلوبازو هالتر')
+      18 |       await expect(input).toHaveAttribute('aria-expanded','true')
+        at /private/tmp/gym-combobox-fix-20261111/frontend/tests/combobox-click.spec.ts:15:27
+
+    Error Context: test-results/combobox-click-1280-one-ch-df918-s-and-mouse-selection-works-chromium/error-context.md
+
+
+(node:99868) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[4/9] [chromium] › tests/combobox-click.spec.ts:5:5 › 390: one input click opens exercise options and mouse selection works
+[chromium] › tests/combobox-click.spec.ts:5:5 › 390: one input click opens exercise options and mouse selection works
+COMBO_STATE true focus Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16114:4)
+    at open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17941:17)
+    at Object.setFocused (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18064:54)
+    at onFocus (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17681:9)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:9364:21
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:7241:71
+    at processDispatchQueue (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:13893:7)
+
+COMBO_STATE false undefined Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.close (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16117:4)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17966:17
+    at commitSelection (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18044:4)
+    at commitValue (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18052:10)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15492:37
+    at onScroll (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15339:24)
+
+COMBO_STATE true input Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16114:4)
+    at open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17941:17)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17978:156
+    at commitHookEffectListMount (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:11337:20)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12645:21)
+    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12633:139)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12644:5)
+
+COMBO_STATE false undefined Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.close (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16117:4)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17966:17
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17987:100
+    at commitHookEffectListMount (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:11337:20)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12645:21)
+    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12633:139)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12644:5)
+
+EVENT TRACE [{"type":"pointerdown","time":192.80000000074506,"tag":"SPAN","cls":"","top":0,"active":""},{"type":"focusin","time":193.10000000149012,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"pointerup","time":193.10000000149012,"tag":"SPAN","cls":"","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"focusout","time":200.70000000298023,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":""},{"type":"scroll","time":238.5,"active":""},{"type":"pointerdown","time":274.5,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"focusin","time":274.70000000298023,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":274.80000000074506,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerdown","time":307.70000000298023,"tag":"H1","cls":"","top":0,"active":""},{"type":"focusout","time":307.80000000074506,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":308.1000000014901,"tag":"H1","cls":"","top":0,"active":""},{"type":"scroll","time":322.30000000074506,"active":""},{"type":"pointerdown","time":341.6000000014901,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":""},{"type":"focusin","time":341.80000000074506,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"pointerup","time":351.70000000298023,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"scroll","time":357.1000000014901,"active":"m3-combobox__input"},{"type":"pointerdown","time":629.8000000007451,"tag":"SPAN","cls":"m3-listbox__label","top":0,"active":"m3-combobox__input"},{"type":"pointerup","time":636.5,"tag":"SPAN","cls":"m3-listbox__label","top":0,"active":"m3-combobox__input"},{"type":"focusin","time":643.4000000022352,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"pointerdown","time":674.6000000014901,"tag":"SPAN","cls":"","top":0,"active":"m3-combobox__input"},{"type":"focusout","time":675.4000000022352,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":""},{"type":"focusin","time":676.1000000014901,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"pointerup","time":676.3000000007451,"tag":"SPAN","cls":"","top":0,"active":"m3-button m3-button--filled m3-button--md  "}]
+
+[5/9] [chromium] › tests/combobox-click.spec.ts:5:5 › 390: one chevron click opens exercise options and mouse selection works
+[chromium] › tests/combobox-click.spec.ts:5:5 › 390: one chevron click opens exercise options and mouse selection works
+COMBO_STATE true focus Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16114:4)
+    at open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17941:17)
+    at Object.setFocused (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18064:54)
+    at onFocus (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17681:9)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:9364:21
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:7241:71
+    at processDispatchQueue (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:13893:7)
+
+COMBO_STATE false undefined Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.close (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16117:4)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17966:17
+    at commitSelection (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18044:4)
+    at commitValue (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18052:10)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15492:37
+    at onScroll (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15339:24)
+
+COMBO_STATE true input Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16114:4)
+    at open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17941:17)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17978:156
+    at commitHookEffectListMount (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:11337:20)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12645:21)
+    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12633:139)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12644:5)
+
+COMBO_STATE false undefined Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.close (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16117:4)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17966:17
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17987:100
+    at commitHookEffectListMount (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:11337:20)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12645:21)
+    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12633:139)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12644:5)
+
+EVENT TRACE [{"type":"pointerdown","time":193.69999999925494,"tag":"SPAN","cls":"","top":0,"active":""},{"type":"focusin","time":194.09999999776483,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"pointerup","time":194.19999999925494,"tag":"SPAN","cls":"","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"focusout","time":202.09999999776483,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":""},{"type":"scroll","time":236.59999999776483,"active":""},{"type":"pointerdown","time":259.19999999925494,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"focusin","time":259.3999999985099,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":259.5,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerdown","time":292.5,"tag":"H1","cls":"","top":0,"active":""},{"type":"focusout","time":292.5,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":292.8999999985099,"tag":"H1","cls":"","top":0,"active":""},{"type":"scroll","time":307.29999999701977,"active":""},{"type":"pointerdown","time":326.19999999925494,"tag":"svg","cls":{},"top":0,"active":""},{"type":"focusin","time":326.5999999977648,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"pointerup","time":337.69999999925494,"tag":"svg","cls":{},"top":0,"active":"m3-combobox__input"},{"type":"scroll","time":341.0999999977648,"active":"m3-combobox__input"},{"type":"pointerdown","time":595.6999999992549,"tag":"SPAN","cls":"m3-listbox__label","top":0,"active":"m3-combobox__input"},{"type":"pointerup","time":598.8999999985099,"tag":"SPAN","cls":"m3-listbox__label","top":0,"active":"m3-combobox__input"},{"type":"focusin","time":604.7999999970198,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"pointerdown","time":644.2999999970198,"tag":"SPAN","cls":"","top":0,"active":"m3-combobox__input"},{"type":"focusout","time":645.6999999992549,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":""},{"type":"focusin","time":646.7999999970198,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"pointerup","time":646.8999999985099,"tag":"SPAN","cls":"","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"focusout","time":663.3999999985099,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":""}]
+
+(node:99882) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[6/9] [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one input click opens exercise options and mouse selection works
+[chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one input click opens exercise options and mouse selection works
+COMBO_STATE true focus Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16114:4)
+    at open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17941:17)
+    at Object.setFocused (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18064:54)
+    at onFocus (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17681:9)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:9364:21
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:7241:71
+    at processDispatchQueue (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:13893:7)
+
+COMBO_STATE false undefined Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.close (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16117:4)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17966:17
+    at commitSelection (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18044:4)
+    at commitValue (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18052:10)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15492:37
+    at onScroll (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15339:24)
+
+EVENT TRACE [{"type":"pointerdown","time":279.19999999925494,"tag":"SPAN","cls":"","top":0,"active":""},{"type":"focusin","time":279.5,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"pointerup","time":279.6000000014901,"tag":"SPAN","cls":"","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"focusout","time":287.30000000074506,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":""},{"type":"pointerdown","time":360,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"focusin","time":360.19999999925494,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":360.30000000074506,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerdown","time":393,"tag":"H1","cls":"","top":0,"active":""},{"type":"focusout","time":393,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":393.3999999985099,"tag":"H1","cls":"","top":0,"active":""},{"type":"pointerdown","time":426.80000000074506,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":""},{"type":"focusin","time":427,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"pointerup","time":437.1000000014901,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"scroll","time":441.8999999985099,"active":"m3-combobox__input"}]
+
+  3) [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one input click opens exercise options and mouse selection works 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  locator('.m3-builder-add-exercise').getByRole('combobox')
+    Expected: "true"
+    Received: "false"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" locator('.m3-builder-add-exercise').getByRole('combobox') with timeout 5000ms
+      - waiting for locator('.m3-builder-add-exercise').getByRole('combobox')
+        14 × locator resolved to <input value="" title="" data-rac="" type="text" tabindex="0" role="combobox" autocorrect="off" autocomplete="off" spellcheck="false" data-focused="true" data-hovered="true" aria-expanded="false" aria-autocomplete="list" placeholder="انتخاب حرکت" class="m3-combobox__input" id="react-aria7028374965-_r_m_" aria-labelledby="react-aria7028374965-_r_n_"/>
+           - unexpected value "false"
+
+
+      13 |       if(trigger==='input') await input.click()
+      14 |       else await add.locator('.m3-combobox__trigger').click()
+    > 15 |       await expect(input).toHaveAttribute('aria-expanded','true')
+         |                           ^
+      16 |       await expect(page.getByRole('option',{name:'جلوبازو هالتر · بازو',exact:true})).toBeVisible()
+      17 |       await input.fill('جلوبازو هالتر')
+      18 |       await expect(input).toHaveAttribute('aria-expanded','true')
+        at /private/tmp/gym-combobox-fix-20261111/frontend/tests/combobox-click.spec.ts:15:27
+
+    Error Context: test-results/combobox-click-1280-one-in-c89f1-s-and-mouse-selection-works-chromium-repeat1/error-context.md
+
+
+(node:99908) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[7/9] [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one chevron click opens exercise options and mouse selection works
+[chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one chevron click opens exercise options and mouse selection works
+COMBO_STATE true focus Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16114:4)
+    at open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17941:17)
+    at Object.setFocused (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18064:54)
+    at onFocus (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17681:9)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:9364:21
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:7241:71
+    at processDispatchQueue (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:13893:7)
+
+COMBO_STATE false undefined Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.close (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16117:4)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17966:17
+    at commitSelection (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18044:4)
+    at commitValue (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18052:10)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15492:37
+    at onScroll (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15339:24)
+
+EVENT TRACE [{"type":"pointerdown","time":192.80000000074506,"tag":"SPAN","cls":"","top":0,"active":""},{"type":"focusin","time":193.10000000149012,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"pointerup","time":193.30000000074506,"tag":"SPAN","cls":"","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"focusout","time":201.10000000149012,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":""},{"type":"pointerdown","time":274.80000000074506,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"focusin","time":275,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":275.1000000014901,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerdown","time":307.30000000074506,"tag":"H1","cls":"","top":0,"active":""},{"type":"focusout","time":307.3999999985099,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":307.69999999925494,"tag":"H1","cls":"","top":0,"active":""},{"type":"pointerdown","time":342.19999999925494,"tag":"svg","cls":{},"top":0,"active":""},{"type":"focusin","time":342.69999999925494,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"pointerup","time":354,"tag":"svg","cls":{},"top":0,"active":"m3-combobox__input"},{"type":"scroll","time":356.30000000074506,"active":"m3-combobox__input"}]
+
+  4) [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one chevron click opens exercise options and mouse selection works 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  locator('.m3-builder-add-exercise').getByRole('combobox')
+    Expected: "true"
+    Received: "false"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" locator('.m3-builder-add-exercise').getByRole('combobox') with timeout 5000ms
+      - waiting for locator('.m3-builder-add-exercise').getByRole('combobox')
+        14 × locator resolved to <input value="" title="" data-rac="" type="text" tabindex="0" role="combobox" autocorrect="off" autocomplete="off" spellcheck="false" data-focused="true" aria-expanded="false" aria-autocomplete="list" placeholder="انتخاب حرکت" class="m3-combobox__input" id="react-aria2845447508-_r_m_" aria-labelledby="react-aria2845447508-_r_n_"/>
+           - unexpected value "false"
+
+
+      13 |       if(trigger==='input') await input.click()
+      14 |       else await add.locator('.m3-combobox__trigger').click()
+    > 15 |       await expect(input).toHaveAttribute('aria-expanded','true')
+         |                           ^
+      16 |       await expect(page.getByRole('option',{name:'جلوبازو هالتر · بازو',exact:true})).toBeVisible()
+      17 |       await input.fill('جلوبازو هالتر')
+      18 |       await expect(input).toHaveAttribute('aria-expanded','true')
+        at /private/tmp/gym-combobox-fix-20261111/frontend/tests/combobox-click.spec.ts:15:27
+
+    Error Context: test-results/combobox-click-1280-one-ch-df918-s-and-mouse-selection-works-chromium-repeat1/error-context.md
+
+
+(node:99939) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[8/9] [chromium] › tests/combobox-click.spec.ts:5:5 › 390: one input click opens exercise options and mouse selection works
+[chromium] › tests/combobox-click.spec.ts:5:5 › 390: one input click opens exercise options and mouse selection works
+COMBO_STATE true focus Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16114:4)
+    at open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17941:17)
+    at Object.setFocused (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18064:54)
+    at onFocus (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17681:9)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:9364:21
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:7241:71
+    at processDispatchQueue (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:13893:7)
+
+COMBO_STATE false undefined Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.close (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16117:4)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17966:17
+    at commitSelection (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18044:4)
+    at commitValue (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18052:10)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15492:37
+    at onScroll (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15339:24)
+
+COMBO_STATE true input Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16114:4)
+    at open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17941:17)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17978:156
+    at commitHookEffectListMount (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:11337:20)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12645:21)
+    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12633:139)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12644:5)
+
+COMBO_STATE false undefined Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.close (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16117:4)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17966:17
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17987:100
+    at commitHookEffectListMount (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:11337:20)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12645:21)
+    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12633:139)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12644:5)
+
+EVENT TRACE [{"type":"pointerdown","time":199.09999999776483,"tag":"SPAN","cls":"","top":0,"active":""},{"type":"focusin","time":199.39999999850988,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"pointerup","time":199.39999999850988,"tag":"SPAN","cls":"","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"focusout","time":207.19999999925494,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":""},{"type":"scroll","time":245.79999999701977,"active":""},{"type":"pointerdown","time":280.29999999701977,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"focusin","time":280.5,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":280.5999999977648,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerdown","time":313,"tag":"H1","cls":"","top":0,"active":""},{"type":"focusout","time":313,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":313.3999999985099,"tag":"H1","cls":"","top":0,"active":""},{"type":"scroll","time":327.8999999985099,"active":""},{"type":"pointerdown","time":346.79999999701977,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":""},{"type":"focusin","time":347.0999999977648,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"pointerup","time":357,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"scroll","time":362,"active":"m3-combobox__input"},{"type":"pointerdown","time":632.8999999985099,"tag":"SPAN","cls":"m3-listbox__label","top":0,"active":"m3-combobox__input"},{"type":"pointerup","time":635.7999999970198,"tag":"SPAN","cls":"m3-listbox__label","top":0,"active":"m3-combobox__input"},{"type":"focusin","time":639.1999999992549,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"pointerdown","time":680,"tag":"SPAN","cls":"","top":0,"active":"m3-combobox__input"},{"type":"focusout","time":680.7999999970198,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":""},{"type":"focusin","time":681.5,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"pointerup","time":681.5999999977648,"tag":"SPAN","cls":"","top":0,"active":"m3-button m3-button--filled m3-button--md  "}]
+
+[9/9] [chromium] › tests/combobox-click.spec.ts:5:5 › 390: one chevron click opens exercise options and mouse selection works
+[chromium] › tests/combobox-click.spec.ts:5:5 › 390: one chevron click opens exercise options and mouse selection works
+COMBO_STATE true focus Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16114:4)
+    at open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17941:17)
+    at Object.setFocused (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18064:54)
+    at onFocus (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17681:9)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:9364:21
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:7241:71
+    at processDispatchQueue (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:13893:7)
+
+COMBO_STATE false undefined Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.close (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16117:4)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17966:17
+    at commitSelection (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18044:4)
+    at commitValue (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:18052:10)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15492:37
+    at onScroll (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:15339:24)
+
+COMBO_STATE true input Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16114:4)
+    at open (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17941:17)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17978:156
+    at commitHookEffectListMount (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:11337:20)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12645:21)
+    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12633:139)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12644:5)
+
+COMBO_STATE false undefined Error
+    at Object.onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:19146:94)
+    at onOpenChange (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17925:33)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:8682:14
+    at Object.close (http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:16117:4)
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17966:17
+    at http://127.0.0.1:8041/assets/M3-DjnP2O7j.js:17987:100
+    at commitHookEffectListMount (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:11337:20)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12645:21)
+    at recursivelyTraversePassiveMountEffects (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12633:139)
+    at commitPassiveMountOnFiber (http://127.0.0.1:8041/assets/index-BXvuPiIU.js:12644:5)
+
+EVENT TRACE [{"type":"pointerdown","time":193.39999999850988,"tag":"SPAN","cls":"","top":0,"active":""},{"type":"focusin","time":193.69999999925494,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"pointerup","time":193.89999999850988,"tag":"SPAN","cls":"","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"focusout","time":201.30000000074506,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":""},{"type":"scroll","time":234.69999999925494,"active":""},{"type":"pointerdown","time":258.19999999925494,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"focusin","time":258.3999999985099,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":258.5,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerdown","time":291.5999999977648,"tag":"H1","cls":"","top":0,"active":""},{"type":"focusout","time":291.69999999925494,"tag":"INPUT","cls":"","top":0,"active":""},{"type":"pointerup","time":292,"tag":"H1","cls":"","top":0,"active":""},{"type":"scroll","time":306.5,"active":""},{"type":"pointerdown","time":325.0999999977648,"tag":"svg","cls":{},"top":0,"active":""},{"type":"focusin","time":325.5,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"pointerup","time":335.80000000074506,"tag":"svg","cls":{},"top":0,"active":"m3-combobox__input"},{"type":"scroll","time":340.30000000074506,"active":"m3-combobox__input"},{"type":"pointerdown","time":598.3000000007451,"tag":"SPAN","cls":"m3-listbox__label","top":0,"active":"m3-combobox__input"},{"type":"pointerup","time":603.6999999992549,"tag":"SPAN","cls":"m3-listbox__label","top":0,"active":"m3-combobox__input"},{"type":"focusin","time":609.8000000007451,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":"m3-combobox__input"},{"type":"pointerdown","time":643.8000000007451,"tag":"SPAN","cls":"","top":0,"active":"m3-combobox__input"},{"type":"focusout","time":645.3000000007451,"tag":"INPUT","cls":"m3-combobox__input","top":0,"active":""},{"type":"focusin","time":646.5999999977648,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"pointerup","time":646.8000000007451,"tag":"SPAN","cls":"","top":0,"active":"m3-button m3-button--filled m3-button--md  "},{"type":"focusout","time":664,"tag":"BUTTON","cls":"m3-button m3-button--filled m3-button--md  ","top":0,"active":""}]
+
+  4 failed
+    [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one input click opens exercise options and mouse selection works 
+    [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one chevron click opens exercise options and mouse selection works 
+    [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one input click opens exercise options and mouse selection works 
+    [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one chevron click opens exercise options and mouse selection works 
+  5 passed (27.7s)

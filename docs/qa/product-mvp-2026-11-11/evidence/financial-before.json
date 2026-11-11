@@ -1,0 +1,126 @@
+{
+  "gym_dev": {
+    "finance_allocation": {
+      "count": 3,
+      "sha256": "5904ef066d2d21b4389f2a4a22637d7a4bc988db0b9b3de5c19ca5b0b3485e05"
+    },
+    "finance_audit": {
+      "count": 7,
+      "sha256": "bfce627653ff478a0e89a3aebbfe0bda743b7c0a577ed7d44bffe10c6deb0f30"
+    },
+    "finance_coach_contract": {
+      "count": 1,
+      "sha256": "9e0e50c2cdd13aea1063aa4ad42a8468f8a36e78de2cbeea58b5616be821173b"
+    },
+    "finance_coach_plan": {
+      "count": 3,
+      "sha256": "0fcafdb9a3ee58314d4d01c71215debb0b04361bc3a0f0deba1c37cbf03617c7"
+    },
+    "finance_payment": {
+      "count": 1,
+      "sha256": "d370c641d6d74827cd626830549b0f42eadb914c89db89073085f0e3ffa3c8c1"
+    },
+    "finance_platform_contract": {
+      "count": 1,
+      "sha256": "6f0fb28eae6465fa62ab882397701b9e76a9f3cbb5ea14bd2f41c87b8eba4db8"
+    },
+    "finance_platform_rate": {
+      "count": 3,
+      "sha256": "2e933ecc26037b0b331f72adcdfd992c64ef84e156a62c25b934c4af7268f362"
+    },
+    "finance_program_request": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "finance_refund": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "finance_refund_adjustment": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "finance_sale": {
+      "count": 1,
+      "sha256": "8f8142336d3290ace86c16f1544100d2d020e0cd9a44ff1c3f5b28482b56b247"
+    },
+    "finance_sale_tax": {
+      "count": 1,
+      "sha256": "8c35aca7439d66508a0983d1b2cea30142fe01c911f54d492e8716c2c04c1d6b"
+    },
+    "finance_settlement": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "finance_settlement_item": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "finance_tax_definition": {
+      "count": 1,
+      "sha256": "a95ce7d0a64baddda6e99959f0fcff5cea63fa21795565674a985ca76cf2d867"
+    }
+  },
+  "gym_stage": {
+    "finance_allocation": {
+      "count": 3,
+      "sha256": "b05cc5b78ba90f7d9f53bb7fc1159a3e0bca75529cc71909d03c061fcb5243f5"
+    },
+    "finance_audit": {
+      "count": 5,
+      "sha256": "7daf9d50dd95e1eef646f7b82878ebba5c32a05a28393f682473a567ab5df06a"
+    },
+    "finance_coach_contract": {
+      "count": 1,
+      "sha256": "f4c5d30a85562e7ff255f5918e8b77e29e4eefa8413455cd10b7575c0c3a0f28"
+    },
+    "finance_coach_plan": {
+      "count": 1,
+      "sha256": "d37523b13746b183caede541deaf872d556622858f415690cd47f9477ee5a342"
+    },
+    "finance_payment": {
+      "count": 1,
+      "sha256": "5f72b2f046a20bfb749222f22dab1fb2463d2bffa7aada956ad0b4b72255ded9"
+    },
+    "finance_platform_contract": {
+      "count": 1,
+      "sha256": "020c8593f554ca7a61860514f891d845f69f563c5890114bc12e68e9754bde1f"
+    },
+    "finance_platform_rate": {
+      "count": 3,
+      "sha256": "11719e36072a3c7f83909ee3cb71f872dc5b4ded710b62ea7f0c16dcee0517f1"
+    },
+    "finance_program_request": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "finance_refund": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "finance_refund_adjustment": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "finance_sale": {
+      "count": 1,
+      "sha256": "5aa37ba69f256bf2ae177dd0d644ca9a36f54dc9cd2834e8d463277f3a2b0a77"
+    },
+    "finance_sale_tax": {
+      "count": 1,
+      "sha256": "34309055542172f39910c510e3e6b5a53695c2411b257f1cc3448de6407dd74f"
+    },
+    "finance_settlement": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "finance_settlement_item": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "finance_tax_definition": {
+      "count": 1,
+      "sha256": "58bab4121a15d723a701b109ffda9af6e7f28a4e0f7a6be10bea2243a0d5045a"
+    }
+  }
+}

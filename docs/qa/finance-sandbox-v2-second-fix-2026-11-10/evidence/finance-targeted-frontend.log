@@ -1,0 +1,14 @@
+
+Running 9 tests using 1 worker
+
+  ✓  1 [admin-setup] › tests/admin.setup.ts:7:1 › authenticate gym admin (682ms)
+  ✓  2 [chromium] › tests/finance-qa-regressions.spec.ts:29:1 › Persian and Arabic-Indic sale amounts produce the same valid preview (1.3s)
+  ✓  3 [chromium] › tests/finance-qa-regressions.spec.ts:63:1 › Persian tax edit persists the new percentage and rejects invalid input (1.4s)
+  ✓  4 [chromium] › tests/finance-qa-regressions.spec.ts:137:1 › changing the category invalidates the previous preview (1.3s)
+  ✓  5 [chromium] › tests/finance-qa-regressions.spec.ts:157:1 › a delayed preview response cannot validate a newer form (1.7s)
+  ✓  6 [chromium] › tests/finance-qa-regressions.spec.ts:180:1 › all gym finance pages stay RTL and overflow-free at 390 and 1280 (1.8s)
+  ✓  7 [chromium] › tests/finance-qa-regressions.spec.ts:212:1 › Persian refund and settlement amounts are converted to IRR (1.9s)
+  ✓  8 [chromium] › tests/finance-qa-regressions.spec.ts:300:1 › metadata-only plan edits preserve every IRR remainder (5.7s)
+  ✓  9 [chromium] › tests/finance-qa-regressions.spec.ts:370:1 › UI can create and re-edit a 10.5 Toman plan without changing its price (2.0s)
+
+  9 passed (18.6s)

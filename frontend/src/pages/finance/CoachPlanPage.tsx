@@ -1,8 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import { ClipboardList, Plus, Wallet } from "lucide-react"
 import { useState } from "react"
 import { translateApiError } from "@/api"
 import { useAuth } from "@/auth"
+import { CoachStatement } from "@/components/CoachStatement"
 import {
   Button,
   Dialog,
@@ -23,7 +25,8 @@ import {
   listGymProgramRequests,
   updateCoachPlan,
 } from "@/lib/finance-api"
-import { formatToman, irrToToman, tomanToIrr } from "@/lib/finance-ui"
+import { formatToman, irrToTomanInput, parseTomanToIrr } from "@/lib/finance-ui"
+import { parseErrorMessage } from "@/lib/finance-validation"
 import { useSnackbar } from "@/snackbar"
 
 const EMPTY_FORM = {
@@ -35,7 +38,7 @@ const EMPTY_FORM = {
 }
 
 export function CoachPlanPage({ gymId }: { gymId: string }) {
-  const { t, formatNumber, formatDate, normalizeDigits } = useI18n()
+  const { t, formatNumber, formatDate } = useI18n()
   const { me, activeRole } = useAuth()
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
@@ -45,6 +48,10 @@ export function CoachPlanPage({ gymId }: { gymId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
+  const priceParse = parseTomanToIrr(form.priceToman)
+  const priceError = form.priceToman
+    ? parseErrorMessage(priceParse, "amount", t)
+    : undefined
 
   const plans = useQuery({
     queryKey: ["finance-coach-plans", gymId, isAdmin ? "all" : me?.id],
@@ -78,15 +85,14 @@ export function CoachPlanPage({ gymId }: { gymId: string }) {
       coachId: plan.coach_user_id,
       title: plan.title,
       description: plan.description ?? "",
-      priceToman: String(irrToToman(plan.base_price_irr)),
+      priceToman: irrToTomanInput(plan.base_price_irr),
       active: plan.is_active,
     })
     setOpen(true)
   }
 
   async function submit() {
-    const price = Number(normalizeDigits(form.priceToman)) || 0
-    if (!form.title.trim() || price <= 0) {
+    if (!form.title.trim() || !priceParse.ok || priceParse.value <= 0) {
       setError(t("finance.plans.errorRequired"))
       return
     }
@@ -101,7 +107,7 @@ export function CoachPlanPage({ gymId }: { gymId: string }) {
         await updateCoachPlan(gymId, editingId, {
           title: form.title.trim(),
           description: form.description.trim() || null,
-          base_price_irr: tomanToIrr(price),
+          base_price_irr: priceParse.value,
           is_active: form.active,
         })
       } else {
@@ -109,7 +115,7 @@ export function CoachPlanPage({ gymId }: { gymId: string }) {
           coach_user_id: isAdmin ? form.coachId : null,
           title: form.title.trim(),
           description: form.description.trim() || null,
-          base_price_irr: tomanToIrr(price),
+          base_price_irr: priceParse.value,
           is_active: form.active,
         })
       }
@@ -218,8 +224,15 @@ export function CoachPlanPage({ gymId }: { gymId: string }) {
         </SectionCard>
       )}
 
+      {activeRole === "COACH" ? <CoachStatement gymId={gymId} /> : null}
       <SectionCard title={t("finance.requests.title")}>
-        {requests.data?.length ? (
+        {requests.isError ? (
+          <ErrorState
+            message={translateApiError(requests.error, t)}
+            onRetry={() => void requests.refetch()}
+            retryLabel={t("common.retry")}
+          />
+        ) : requests.data?.length ? (
           <div className="m3-table-wrap">
             <table className="m3-table">
               <thead>
@@ -230,6 +243,7 @@ export function CoachPlanPage({ gymId }: { gymId: string }) {
                   <th>{t("finance.requests.note")}</th>
                   <th>{t("finance.table.status")}</th>
                   <th>{t("finance.requests.createdAt")}</th>
+                  <th>{t("common.actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -245,10 +259,43 @@ export function CoachPlanPage({ gymId }: { gymId: string }) {
                       <span className="m3-status">
                         {request.status === "REQUESTED"
                           ? t("finance.requests.statusRequested")
-                          : t("finance.requests.statusFulfilled")}
+                          : request.status === "IN_PROGRESS"
+                            ? t("activity.preparing")
+                            : request.status === "FULFILLED"
+                              ? t("finance.requests.statusFulfilled")
+                              : t("finance.requests.statusCancelled")}
                       </span>
                     </td>
                     <td>{formatDate(request.created_at)}</td>
+                    <td>
+                      <div>
+                        {request.program_version_id ? (
+                          <Link
+                            to="/gyms/$gymId/programs/$versionId/edit"
+                            params={{
+                              gymId,
+                              versionId: request.program_version_id,
+                            }}
+                          >
+                            {t(
+                              request.status === "FULFILLED"
+                                ? "activity.viewProgram"
+                                : "activity.continue",
+                            )}
+                          </Link>
+                        ) : request.status === "REQUESTED" ? (
+                          <Link
+                            to="/gyms/$gymId/athletes/$athleteId"
+                            params={{
+                              gymId,
+                              athleteId: request.athlete_user_id,
+                            }}
+                          >
+                            {t("activity.start")}
+                          </Link>
+                        ) : null}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -314,6 +361,7 @@ export function CoachPlanPage({ gymId }: { gymId: string }) {
             }
             inputMode="numeric"
             suffix={t("finance.plans.toman")}
+            error={priceError}
             required
           />
           <TextField

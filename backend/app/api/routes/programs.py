@@ -17,6 +17,7 @@ from app.api.deps import (
     get_current_assignment,
 )
 from app.core.audit import audit
+from app.finance_models import FinanceProgramRequest
 from app.models import (
     Message,
     ProgramSourceRequest,
@@ -82,9 +83,7 @@ def _program_creation_source(
     assignment = access.assignment or get_current_assignment(
         session, gym_id, athlete_user_id
     )
-    coach_user_id = (
-        assignment.coach_user_id if assignment else current_user.id
-    )
+    coach_user_id = assignment.coach_user_id if assignment else current_user.id
     source = finance_service.resolve_program_creation_source(
         session,
         gym_id=gym_id,
@@ -99,13 +98,11 @@ def _program_creation_source(
     return source, coach
 
 
-def _mark_program_request_fulfilled(
-    session: Session, source: dict[str, Any]
-) -> None:
+def _mark_program_request_started(session: Session, source: dict[str, Any]) -> None:
     request = source.get("request")
     if request is not None:
-        request.status = "FULFILLED"
-        request.fulfilled_at = datetime.now(UTC)
+        request.status = "IN_PROGRESS"
+        request.fulfilled_at = None
         session.add(request)
 
 
@@ -203,7 +200,7 @@ def create_program(
         raise HTTPException(
             status_code=409, detail="program_request_already_fulfilled"
         ) from exc
-    _mark_program_request_fulfilled(session, source)
+    _mark_program_request_started(session, source)
 
     if body.template_id:
         template = session.get(ProgramTemplate, body.template_id)
@@ -307,6 +304,17 @@ def delete_program_version(
         version_id=version_id,
     )
     ensure_staff_write(access)
+    if version.purchase_request_id is not None:
+        finance_service._lock_finance_gym(session, ctx.gym.id)
+        request = session.get(FinanceProgramRequest, version.purchase_request_id)
+        if (
+            request is not None
+            and version.status == "DRAFT"
+            and request.status == "IN_PROGRESS"
+        ):
+            request.status = "REQUESTED"
+            request.fulfilled_at = None
+            session.add(request)
     session.delete(version)
     session.commit()
     audit(
@@ -370,7 +378,7 @@ def create_new_draft(
         raise HTTPException(
             status_code=409, detail="program_request_already_fulfilled"
         ) from exc
-    _mark_program_request_fulfilled(session, creation_source)
+    _mark_program_request_started(session, creation_source)
     insert_structure(
         session,
         version_id=version.id,
@@ -415,6 +423,14 @@ def publish_program_version(
         old.archived_at = now
         session.add(old)
     session.flush()
+    if version.purchase_request_id is not None:
+        finance_service._lock_finance_gym(session, ctx.gym.id)
+        request = session.get(FinanceProgramRequest, version.purchase_request_id)
+        if request is None or request.status == "CANCELLED":
+            raise HTTPException(status_code=409, detail="program_request_cancelled")
+        request.status = "FULFILLED"
+        request.fulfilled_at = now
+        session.add(request)
     version.status = "ACTIVE"
     version.published_at = now
     version.archived_at = None

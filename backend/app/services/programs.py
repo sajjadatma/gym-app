@@ -209,7 +209,7 @@ def replace_version_days(
 
 
 def structure_from_version(
-    session: Session, version: WorkoutProgramVersion
+    session: Session, version: WorkoutProgramVersion, *, include_ids: bool = False
 ) -> list[dict[str, Any]]:
     days = session.exec(
         select(WorkoutDay)
@@ -232,6 +232,7 @@ def structure_from_version(
             ).all()
             exercise_list.append(
                 {
+                    **({"id": str(exercise.id)} if include_ids else {}),
                     "exercise_id": str(exercise.exercise_id),
                     "exercise_name": exercise.exercise_name,
                     "muscle_group": exercise.muscle_group,
@@ -239,6 +240,7 @@ def structure_from_version(
                     "notes": exercise.notes,
                     "sets": [
                         {
+                            **({"id": str(workout_set.id)} if include_ids else {}),
                             "set_number": workout_set.set_number,
                             "reps_min": workout_set.reps_min,
                             "reps_max": workout_set.reps_max,
@@ -254,6 +256,7 @@ def structure_from_version(
             )
         result.append(
             {
+                **({"id": str(day.id)} if include_ids else {}),
                 "day_number": day.day_number,
                 "weekday": day.weekday,
                 "category_id": str(day.category_id) if day.category_id else None,
@@ -318,7 +321,7 @@ def version_detail(
     return ProgramVersionDetail(
         **summary.model_dump(),
         notes=version.notes,
-        days=days_public(structure_from_version(session, version)),
+        days=days_public(structure_from_version(session, version, include_ids=True)),
     )
 
 

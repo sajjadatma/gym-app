@@ -17,6 +17,7 @@ import {
   ProgramsService,
   TemplatesService,
 } from "@/client"
+import { GymTasks } from "@/components/GymTasks"
 import {
   Button,
   Card,
@@ -286,6 +287,8 @@ export function DashboardPage() {
       </div>
 
       <div style={{ height: 20 }} />
+
+      {isAdmin || isCoach ? <GymTasks gymId={activeGymId!} /> : null}
 
       {isAdmin ? (
         <div className="m3-stat-grid">

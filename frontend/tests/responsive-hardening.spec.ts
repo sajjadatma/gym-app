@@ -756,7 +756,7 @@ test("athlete record tabs support arrow keys and expose a panel", async ({
   await page.goto(`/gyms/${GYM_ID}/athletes/${athleteSummary.user_id}`)
 
   const tabs = page.getByRole("tab")
-  await expect(tabs).toHaveCount(3)
+  await expect(tabs).toHaveCount(4)
   await expect(tabs.nth(0)).toHaveAttribute("tabindex", "0")
   await expect(tabs.nth(1)).toHaveAttribute("tabindex", "-1")
   await tabs.nth(0).focus()
@@ -1000,6 +1000,13 @@ test("motion system uses Standard feedback, Expressive sheets and reduced-motion
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto(`/gyms/${GYM_ID}/athletes`)
 
+  function durationMs(value: string): number {
+    const match = value.match(/([\d.]+)\s*(ms|s)\b/i)
+    if (!match) throw new Error(`Unrecognized duration: ${value}`)
+    const amount = Number.parseFloat(match[1])
+    return match[2].toLowerCase() === "s" ? amount * 1000 : amount
+  }
+
   const tokens = await page.evaluate(() => {
     const style = getComputedStyle(document.documentElement)
     return {
@@ -1011,14 +1018,16 @@ test("motion system uses Standard feedback, Expressive sheets and reduced-motion
         .trim(),
     }
   })
-  expect(tokens.standardDuration).toContain("150ms")
-  expect(tokens.expressiveDuration).toContain("350ms")
+  expect(durationMs(tokens.standardDuration)).toBeCloseTo(150, 2)
+  expect(tokens.standardDuration.toLowerCase()).toContain("cubic-bezier")
+  expect(durationMs(tokens.expressiveDuration)).toBeCloseTo(350, 2)
+  expect(tokens.expressiveDuration.toLowerCase()).toContain("cubic-bezier")
 
   const buttonDuration = await page
     .locator(".m3-page-header .m3-button--filled")
     .first()
     .evaluate((element) => getComputedStyle(element).transitionDuration)
-  expect(buttonDuration).toContain("0.15s")
+  expect(durationMs(buttonDuration)).toBeCloseTo(150, 2)
 
   await page.locator(".m3-account-trigger").click()
   const sheet = page.locator(".m3-account-sheet")
@@ -1026,7 +1035,7 @@ test("motion system uses Standard feedback, Expressive sheets and reduced-motion
   const sheetDuration = await sheet.evaluate(
     (element) => getComputedStyle(element).animationDuration,
   )
-  expect(sheetDuration).toBe("0.35s")
+  expect(durationMs(sheetDuration)).toBeCloseTo(350, 2)
 
   await page.emulateMedia({ reducedMotion: "reduce" })
   const reduced = await sheet.evaluate((element) => {

@@ -1,15 +1,23 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
-from datetime import UTC, date, datetime
+from collections.abc import Sequence
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
+import jwt
 from fastapi import HTTPException
-from sqlalchemy import func, or_
+from sqlalchemy import and_, case, func, or_, text
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
+from app.core.config import settings
+from app.core.security import ALGORITHM
 from app.finance_models import (
+    MAX_MONEY_IRR,
     FinanceAllocation,
     FinanceAudit,
     FinanceCoachContract,
@@ -31,16 +39,46 @@ from app.models import (
     GymMembership,
     GymMembershipRole,
     User,
+    WorkoutProgramVersion,
 )
 
 CATEGORIES = ("MEMBERSHIP", "NUTRITION", "TRAINING")
 COACH_CATEGORIES = ("NUTRITION", "TRAINING")
 PARTIES = ("PLATFORM", "GYM", "COACH")
 MAX_BP = 10000
+FINANCE_TIMEZONE = ZoneInfo("Asia/Tehran")
 
 
 def finance_today() -> date:
-    return date.today()
+    return datetime.now(FINANCE_TIMEZONE).date()
+
+
+def _validate_money_amount(value: int, detail: str = "amount_out_of_range") -> int:
+    if value < 0 or value > MAX_MONEY_IRR:
+        raise HTTPException(status_code=400, detail=detail)
+    return value
+
+
+def _finance_date(column: Any) -> Any:
+    """Return the Asia/Tehran calendar date of a UTC timestamp column."""
+    return func.date(func.timezone(FINANCE_TIMEZONE.key, column))
+
+
+def _lock_finance_gym(session: Session, gym_id: uuid.UUID) -> None:
+    """Serialize finance mutations for one gym using a transaction lock.
+
+    A row lock on a settlement alone cannot protect a balance that is computed
+    from several allocation rows.  The advisory lock is shared by settlements,
+    refunds and purchase fulfillment so all of them recompute under the same
+    stable mutex.
+    """
+    bind = session.get_bind()
+    if bind.dialect.name != "postgresql":
+        return
+    session.connection().execute(
+        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+        {"key": f"finance:{gym_id}"},
+    )
 
 
 def record_finance_audit(
@@ -74,9 +112,7 @@ def _roles(session: Session, membership_id: uuid.UUID) -> set[str]:
     return {row.role for row in rows}
 
 
-def require_gym_finance_admin(
-    session: Session, user: User, gym_id: uuid.UUID
-) -> Gym:
+def require_gym_finance_admin(session: Session, user: User, gym_id: uuid.UUID) -> Gym:
     gym = session.get(Gym, gym_id)
     if gym is None or not gym.is_active:
         raise HTTPException(status_code=404, detail="gym_not_found")
@@ -91,9 +127,7 @@ def require_gym_finance_admin(
     ).first()
     if membership is None:
         raise HTTPException(status_code=403, detail="not_a_gym_member")
-    if gym.owner_id != user.id and "GYM_ADMIN" not in _roles(
-        session, membership.id
-    ):
+    if gym.owner_id != user.id and "GYM_ADMIN" not in _roles(session, membership.id):
         raise HTTPException(status_code=403, detail="gym_admin_required")
     return gym
 
@@ -109,7 +143,9 @@ def require_any_finance_admin(session: Session, user: User) -> None:
     ).all()
     for membership in memberships:
         gym = session.get(Gym, membership.gym_id)
-        if gym and (gym.owner_id == user.id or "GYM_ADMIN" in _roles(session, membership.id)):
+        if gym and (
+            gym.owner_id == user.id or "GYM_ADMIN" in _roles(session, membership.id)
+        ):
             return
     raise HTTPException(status_code=403, detail="gym_admin_required")
 
@@ -136,26 +172,33 @@ def _validate_platform_rates(rates: list[dict[str, Any]]) -> None:
         seen.add(category)
         _validate_bp(int(rate["percent_bp"]))
     if seen != set(CATEGORIES):
-        raise HTTPException(
-            status_code=400, detail="contract_requires_all_categories"
-        )
+        raise HTTPException(status_code=400, detail="contract_requires_all_categories")
 
 
 def _next_platform_version(
     session: Session, *, scope: str, gym_id: uuid.UUID | None
 ) -> int:
-    return int(
-        session.exec(
-            select(func.coalesce(func.max(FinancePlatformContract.version), 0)).where(
-                FinancePlatformContract.scope == scope,
-                FinancePlatformContract.gym_id == gym_id,
-            )
-        ).one()
-    ) + 1
+    return (
+        int(
+            session.exec(
+                select(
+                    func.coalesce(func.max(FinancePlatformContract.version), 0)
+                ).where(
+                    FinancePlatformContract.scope == scope,
+                    FinancePlatformContract.gym_id == gym_id,
+                )
+            ).one()
+        )
+        + 1
+    )
 
 
 def _archive_active_platform_contracts(
-    session: Session, *, scope: str, gym_id: uuid.UUID | None
+    session: Session,
+    *,
+    scope: str,
+    gym_id: uuid.UUID | None,
+    replacement_from: date | None = None,
 ) -> None:
     rows = session.exec(
         select(FinancePlatformContract).where(
@@ -164,8 +207,17 @@ def _archive_active_platform_contracts(
             FinancePlatformContract.status == "ACTIVE",
         )
     ).all()
+    now = datetime.now(UTC)
     for row in rows:
         row.status = "ARCHIVED"
+        row.archived_at = now
+        # Keep the historical interval explicit when a replacement starts
+        # later.  Do not manufacture an invalid interval when the replacement
+        # is backdated before the old contract began.
+        if replacement_from is not None and replacement_from > row.effective_from:
+            cutoff = replacement_from - timedelta(days=1)
+            if row.effective_to is None or row.effective_to > cutoff:
+                row.effective_to = cutoff
         session.add(row)
     if rows:
         session.flush()
@@ -215,15 +267,18 @@ def _next_coach_version(
     coach_user_id: uuid.UUID,
     category: str,
 ) -> int:
-    return int(
-        session.exec(
-            select(func.coalesce(func.max(FinanceCoachContract.version), 0)).where(
-                FinanceCoachContract.gym_id == gym_id,
-                FinanceCoachContract.coach_user_id == coach_user_id,
-                FinanceCoachContract.category == category,
-            )
-        ).one()
-    ) + 1
+    return (
+        int(
+            session.exec(
+                select(func.coalesce(func.max(FinanceCoachContract.version), 0)).where(
+                    FinanceCoachContract.gym_id == gym_id,
+                    FinanceCoachContract.coach_user_id == coach_user_id,
+                    FinanceCoachContract.category == category,
+                )
+            ).one()
+        )
+        + 1
+    )
 
 
 def _archive_active_coach_contracts(
@@ -243,8 +298,10 @@ def _archive_active_coach_contracts(
     if exclude_id is not None:
         statement = statement.where(FinanceCoachContract.id != exclude_id)
     rows = session.exec(statement).all()
+    now = datetime.now(UTC)
     for row in rows:
         row.status = "ARCHIVED"
+        row.archived_at = now
         session.add(row)
     if rows:
         session.flush()
@@ -268,10 +325,10 @@ def _platform_contract_public(
         "effective_from": contract.effective_from,
         "effective_to": contract.effective_to,
         "rates": [
-            {"category": row.category, "percent_bp": row.percent_bp}
-            for row in rates
+            {"category": row.category, "percent_bp": row.percent_bp} for row in rates
         ],
         "activated_at": contract.activated_at,
+        "archived_at": contract.archived_at,
         "created_at": contract.created_at,
     }
 
@@ -323,7 +380,12 @@ def create_platform_contract(
         raise HTTPException(status_code=400, detail="effective_date_future")
     _validate_platform_rates(rates)
 
-    _archive_active_platform_contracts(session, scope=scope, gym_id=gym_id)
+    _archive_active_platform_contracts(
+        session,
+        scope=scope,
+        gym_id=gym_id,
+        replacement_from=effective_from,
+    )
     contract = _add_platform_contract(
         session,
         actor=actor,
@@ -371,7 +433,10 @@ def update_platform_contract(
     _validate_platform_rates(rates)
 
     _archive_active_platform_contracts(
-        session, scope=original.scope, gym_id=original.gym_id
+        session,
+        scope=original.scope,
+        gym_id=original.gym_id,
+        replacement_from=effective_from,
     )
     contract = _add_platform_contract(
         session,
@@ -447,6 +512,7 @@ def archive_platform_contract(
         return _platform_contract_public(session, contract)
     was_active = contract.status == "ACTIVE"
     contract.status = "ARCHIVED"
+    contract.archived_at = datetime.now(UTC)
     session.add(contract)
     session.flush()
     if was_active:
@@ -510,6 +576,7 @@ def _sync_active_coach_contracts(session: Session, *, actor: User) -> None:
         previous_id = row.id
         previous_version = row.version
         row.status = "ARCHIVED"
+        row.archived_at = datetime.now(UTC)
         session.add(row)
         session.flush()
         successor = FinanceCoachContract(
@@ -559,19 +626,34 @@ def resolve_platform_policy(
 ) -> dict[str, Any]:
     _validate_category(category)
     base_filters = [
-        FinancePlatformContract.status == "ACTIVE",
+        col(FinancePlatformContract.status).in_(("ACTIVE", "ARCHIVED")),
         FinancePlatformContract.effective_from <= on_date,
         or_(
             col(FinancePlatformContract.effective_to).is_(None),
             col(FinancePlatformContract.effective_to) >= on_date,
+        ),
+        or_(
+            col(FinancePlatformContract.status) == "ACTIVE",
+            and_(
+                col(FinancePlatformContract.status) == "ARCHIVED",
+                or_(
+                    and_(
+                        col(FinancePlatformContract.archived_at).is_not(None),
+                        _finance_date(FinancePlatformContract.archived_at) > on_date,
+                    ),
+                    and_(
+                        col(FinancePlatformContract.archived_at).is_(None),
+                        col(FinancePlatformContract.effective_to).is_not(None),
+                    ),
+                ),
+            ),
         ),
     ]
     gym_rate = session.exec(
         select(FinancePlatformRate, FinancePlatformContract)
         .join(
             FinancePlatformContract,
-            col(FinancePlatformRate.contract_id)
-            == col(FinancePlatformContract.id),
+            col(FinancePlatformRate.contract_id) == col(FinancePlatformContract.id),
         )
         .where(
             *base_filters,  # type: ignore[arg-type]
@@ -580,6 +662,10 @@ def resolve_platform_policy(
             FinancePlatformRate.category == category,
         )
         .order_by(
+            case(
+                (col(FinancePlatformContract.status) == "ACTIVE", 0),
+                else_=1,
+            ),
             col(FinancePlatformContract.effective_from).desc(),
             col(FinancePlatformContract.version).desc(),
         )
@@ -599,8 +685,7 @@ def resolve_platform_policy(
         select(FinancePlatformRate, FinancePlatformContract)
         .join(
             FinancePlatformContract,
-            col(FinancePlatformRate.contract_id)
-            == col(FinancePlatformContract.id),
+            col(FinancePlatformRate.contract_id) == col(FinancePlatformContract.id),
         )
         .where(
             *base_filters,  # type: ignore[arg-type]
@@ -608,6 +693,10 @@ def resolve_platform_policy(
             FinancePlatformRate.category == category,
         )
         .order_by(
+            case(
+                (col(FinancePlatformContract.status) == "ACTIVE", 0),
+                else_=1,
+            ),
             col(FinancePlatformContract.effective_from).desc(),
             col(FinancePlatformContract.version).desc(),
         )
@@ -624,6 +713,7 @@ def resolve_platform_policy(
         "contract_id": contract.id,
         "contract_version": contract.version,
     }
+
 
 # ---------------------------------------------------------------------------
 # Taxes
@@ -676,6 +766,7 @@ def create_tax(
     else:
         if fixed_amount_irr is None or fixed_amount_irr <= 0 or percent_bp is not None:
             raise HTTPException(status_code=400, detail="invalid_tax_value")
+        _validate_money_amount(fixed_amount_irr, "invalid_tax_value")
     if is_default_vat:
         for row in session.exec(
             select(FinanceTaxDefinition).where(
@@ -718,6 +809,8 @@ def update_tax(
     calculation: str | None = None,
     percent_bp: int | None = None,
     fixed_amount_irr: int | None = None,
+    percent_provided: bool = False,
+    fixed_provided: bool = False,
     is_active: bool | None = None,
     is_default_vat: bool | None = None,
 ) -> dict[str, Any]:
@@ -728,11 +821,19 @@ def update_tax(
         if not name.strip():
             raise HTTPException(status_code=400, detail="tax_name_required")
         row.name = name.strip()
-    if calculation is not None or percent_bp is not None or fixed_amount_irr is not None:
+    if (
+        calculation is not None
+        or percent_provided
+        or fixed_provided
+        or percent_bp is not None
+        or fixed_amount_irr is not None
+    ):
         next_calc = calculation or row.calculation
         if next_calc not in ("PERCENT", "FIXED"):
             raise HTTPException(status_code=400, detail="invalid_tax_calculation")
         if next_calc == "PERCENT":
+            if percent_provided and percent_bp is None:
+                raise HTTPException(status_code=400, detail="invalid_tax_value")
             next_percent = percent_bp if percent_bp is not None else row.percent_bp
             if next_percent is None:
                 raise HTTPException(status_code=400, detail="invalid_tax_value")
@@ -741,6 +842,8 @@ def update_tax(
             row.percent_bp = next_percent
             row.fixed_amount_irr = None
         else:
+            if fixed_provided and fixed_amount_irr is None:
+                raise HTTPException(status_code=400, detail="invalid_tax_value")
             next_fixed = (
                 fixed_amount_irr
                 if fixed_amount_irr is not None
@@ -748,6 +851,7 @@ def update_tax(
             )
             if next_fixed is None or next_fixed <= 0:
                 raise HTTPException(status_code=400, detail="invalid_tax_value")
+            _validate_money_amount(next_fixed, "invalid_tax_value")
             row.calculation = "FIXED"
             row.fixed_amount_irr = next_fixed
             row.percent_bp = None
@@ -781,8 +885,10 @@ def update_tax(
 
 def _tax_amount(row: FinanceTaxDefinition, base_amount_irr: int) -> int:
     if row.calculation == "PERCENT":
-        return base_amount_irr * int(row.percent_bp or 0) // MAX_BP
-    return int(row.fixed_amount_irr or 0)
+        amount = base_amount_irr * int(row.percent_bp or 0) // MAX_BP
+    else:
+        amount = int(row.fixed_amount_irr or 0)
+    return _validate_money_amount(amount)
 
 
 def _tax_lines(
@@ -793,9 +899,7 @@ def _tax_lines(
     if len(tax_ids) != len(set(tax_ids)):
         raise HTTPException(status_code=400, detail="duplicate_tax")
     rows = session.exec(
-        select(FinanceTaxDefinition).where(
-            col(FinanceTaxDefinition.id).in_(tax_ids)
-        )
+        select(FinanceTaxDefinition).where(col(FinanceTaxDefinition.id).in_(tax_ids))
     ).all()
     by_id = {row.id: row for row in rows}
     if len(by_id) != len(set(tax_ids)):
@@ -861,6 +965,7 @@ def coach_contract_public(
         "platform_source": row.platform_source,
         "platform_contract_id": row.platform_contract_id,
         "activated_at": row.activated_at,
+        "archived_at": row.archived_at,
         "created_at": row.created_at,
     }
 
@@ -880,7 +985,7 @@ def list_coach_contracts(
 
 
 def list_gym_coaches(
-    session: Session, *, gym_id: uuid.UUID
+    session: Session, *, gym_id: uuid.UUID, with_balance: bool = False
 ) -> list[dict[str, Any]]:
     rows = session.exec(
         select(User, GymMembership)
@@ -894,16 +999,76 @@ def list_gym_coaches(
         )
     ).all()
     result: list[dict[str, Any]] = []
+    seen: set[uuid.UUID] = set()
     for user, membership in rows:
-        if "COACH" in _roles(session, membership.id):
+        if "COACH" not in _roles(session, membership.id):
+            continue
+        seen.add(user.id)
+        balance = 0
+        if with_balance:
+            balance = sum(
+                amount
+                for _allocation, amount in _eligible_allocations(
+                    session,
+                    gym_id=gym_id,
+                    party="COACH",
+                    party_user_id=user.id,
+                )
+            )
+        result.append(
+            {
+                "user_id": user.id,
+                "name": user.full_name or user.email,
+                "email": user.email,
+                "is_active": True,
+                "has_balance": balance > 0,
+            }
+        )
+
+    if with_balance:
+        historical = session.exec(
+            select(FinanceAllocation.party_user_id)
+            .join(
+                FinancePayment,
+                col(FinanceAllocation.payment_id) == col(FinancePayment.id),
+            )
+            .where(
+                FinanceAllocation.gym_id == gym_id,
+                FinanceAllocation.party == "COACH",
+                FinancePayment.status == "SUCCEEDED",
+                col(FinanceAllocation.party_user_id).is_not(None),
+            )
+            .distinct()
+        ).all()
+        for coach_user_id in historical:
+            if coach_user_id is None or coach_user_id in seen:
+                continue
+            historical_user = session.get(User, coach_user_id)
+            if historical_user is None:
+                continue
+            balance = sum(
+                amount
+                for _allocation, amount in _eligible_allocations(
+                    session,
+                    gym_id=gym_id,
+                    party="COACH",
+                    party_user_id=coach_user_id,
+                )
+            )
+            if balance <= 0:
+                continue
+            seen.add(coach_user_id)
             result.append(
                 {
-                    "user_id": user.id,
-                    "name": user.full_name or user.email,
-                    "email": user.email,
+                    "user_id": historical_user.id,
+                    "name": historical_user.full_name or historical_user.email,
+                    "email": historical_user.email,
+                    "is_active": False,
+                    "has_balance": True,
                 }
             )
-    return result
+
+    return sorted(result, key=lambda row: (not row["is_active"], row["name"]))
 
 
 def _validate_coach_contract_values(
@@ -919,9 +1084,7 @@ def _validate_coach_contract_values(
 ) -> dict[str, Any]:
     _validate_category(category)
     if category not in COACH_CATEGORIES:
-        raise HTTPException(
-            status_code=400, detail="membership_coach_forbidden"
-        )
+        raise HTTPException(status_code=400, detail="membership_coach_forbidden")
     if effective_to is not None and effective_to < effective_from:
         raise HTTPException(status_code=400, detail="invalid_effective_dates")
     if effective_from > finance_today():
@@ -934,9 +1097,7 @@ def _validate_coach_contract_values(
         session, gym_id=gym_id, category=category, on_date=effective_from
     )
     if platform_bp != policy["platform_bp"]:
-        raise HTTPException(
-            status_code=400, detail="platform_percentage_mismatch"
-        )
+        raise HTTPException(status_code=400, detail="platform_percentage_mismatch")
     return policy
 
 
@@ -1052,9 +1213,7 @@ def update_coach_contract(
     original = session.get(FinanceCoachContract, contract_id)
     if original is None or original.gym_id != gym_id:
         raise HTTPException(status_code=404, detail="coach_contract_not_found")
-    _coach_membership(
-        session, gym_id=gym_id, coach_user_id=original.coach_user_id
-    )
+    _coach_membership(session, gym_id=gym_id, coach_user_id=original.coach_user_id)
     policy = _validate_coach_contract_values(
         session,
         gym_id=gym_id,
@@ -1108,18 +1267,14 @@ def activate_coach_contract(
     if row.status == "ARCHIVED":
         raise HTTPException(status_code=409, detail="contract_archived")
     if row.category not in COACH_CATEGORIES:
-        raise HTTPException(
-            status_code=400, detail="membership_coach_forbidden"
-        )
+        raise HTTPException(status_code=400, detail="membership_coach_forbidden")
     if row.effective_from > finance_today():
         raise HTTPException(status_code=400, detail="effective_date_future")
     policy = resolve_platform_policy(
         session, gym_id=gym_id, category=row.category, on_date=row.effective_from
     )
     if row.platform_bp != policy["platform_bp"]:
-        raise HTTPException(
-            status_code=400, detail="platform_percentage_mismatch"
-        )
+        raise HTTPException(status_code=400, detail="platform_percentage_mismatch")
     _archive_active_coach_contracts(
         session,
         gym_id=gym_id,
@@ -1156,6 +1311,7 @@ def archive_coach_contract(
     if row.status == "ARCHIVED":
         return coach_contract_public(session, row)
     row.status = "ARCHIVED"
+    row.archived_at = datetime.now(UTC)
     session.add(row)
     record_finance_audit(
         session,
@@ -1185,14 +1341,34 @@ def resolve_coach_contract(
             FinanceCoachContract.gym_id == gym_id,
             FinanceCoachContract.coach_user_id == coach_user_id,
             FinanceCoachContract.category == category,
-            FinanceCoachContract.status == "ACTIVE",
+            col(FinanceCoachContract.status).in_(("ACTIVE", "ARCHIVED")),
             FinanceCoachContract.effective_from <= on_date,
             or_(
                 col(FinanceCoachContract.effective_to).is_(None),
                 col(FinanceCoachContract.effective_to) >= on_date,
             ),
+            or_(
+                col(FinanceCoachContract.status) == "ACTIVE",
+                and_(
+                    col(FinanceCoachContract.status) == "ARCHIVED",
+                    or_(
+                        and_(
+                            col(FinanceCoachContract.archived_at).is_not(None),
+                            _finance_date(FinanceCoachContract.archived_at) > on_date,
+                        ),
+                        and_(
+                            col(FinanceCoachContract.archived_at).is_(None),
+                            col(FinanceCoachContract.effective_to).is_not(None),
+                        ),
+                    ),
+                ),
+            ),
         )
         .order_by(
+            case(
+                (col(FinanceCoachContract.status) == "ACTIVE", 0),
+                else_=1,
+            ),
             col(FinanceCoachContract.effective_from).desc(),
             col(FinanceCoachContract.version).desc(),
         )
@@ -1204,9 +1380,7 @@ def resolve_coach_contract(
 # ---------------------------------------------------------------------------
 
 
-def coach_plan_public(
-    session: Session, row: FinanceCoachPlan
-) -> dict[str, Any]:
+def coach_plan_public(session: Session, row: FinanceCoachPlan) -> dict[str, Any]:
     coach = session.get(User, row.coach_user_id)
     return {
         "id": row.id,
@@ -1261,9 +1435,7 @@ def list_coach_plans(
 ) -> list[dict[str, Any]]:
     statement = select(FinanceCoachPlan).where(FinanceCoachPlan.gym_id == gym_id)
     if coach_user_id is not None:
-        statement = statement.where(
-            FinanceCoachPlan.coach_user_id == coach_user_id
-        )
+        statement = statement.where(FinanceCoachPlan.coach_user_id == coach_user_id)
     rows = session.exec(
         statement.order_by(
             col(FinanceCoachPlan.is_active).desc(),
@@ -1284,11 +1456,11 @@ def create_coach_plan(
     base_price_irr: int,
     is_active: bool,
 ) -> dict[str, Any]:
-    _require_coach_plan_coach(
-        session, gym_id=gym_id, coach_user_id=coach_user_id
-    )
+    _lock_finance_gym(session, gym_id)
+    _require_coach_plan_coach(session, gym_id=gym_id, coach_user_id=coach_user_id)
     if base_price_irr <= 0:
         raise HTTPException(status_code=400, detail="invalid_plan_price")
+    _validate_money_amount(base_price_irr, "invalid_plan_price")
     if not title.strip():
         raise HTTPException(status_code=400, detail="plan_title_required")
     if is_active:
@@ -1333,11 +1505,13 @@ def update_coach_plan(
     base_price_irr: int,
     is_active: bool,
 ) -> dict[str, Any]:
+    _lock_finance_gym(session, gym_id)
     row = session.get(FinanceCoachPlan, plan_id)
     if row is None or row.gym_id != gym_id:
         raise HTTPException(status_code=404, detail="coach_plan_not_found")
     if base_price_irr <= 0:
         raise HTTPException(status_code=400, detail="invalid_plan_price")
+    _validate_money_amount(base_price_irr, "invalid_plan_price")
     if not title.strip():
         raise HTTPException(status_code=400, detail="plan_title_required")
     if is_active:
@@ -1407,7 +1581,7 @@ def training_plan_offer(
         coach_user_id=coach_user_id,
         sold_on=finance_today(),
     )
-    return {
+    offer = {
         "plan": coach_plan_public(session, plan),
         "coach_contract_id": preview["coach_contract_id"],
         "taxes": preview["taxes"],
@@ -1421,19 +1595,69 @@ def training_plan_offer(
         "coach_amount_irr": preview["coach_amount_irr"],
     }
 
+    offer["quote_token"] = jwt.encode(
+        {
+            "purpose": "training_quote",
+            "fingerprint": _quote_fingerprint(offer),
+            "exp": datetime.now(UTC) + timedelta(minutes=15),
+        },
+        settings.SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+    return offer
+
+
+def _quote_fingerprint(offer: dict[str, Any]) -> str:
+    plan = offer["plan"]
+    terms = {
+        key: value for key, value in offer.items() if key not in {"quote_token", "plan"}
+    }
+    terms["plan"] = {
+        key: plan[key]
+        for key in (
+            "id",
+            "gym_id",
+            "coach_user_id",
+            "title",
+            "description",
+            "base_price_irr",
+            "updated_at",
+        )
+    }
+    return hashlib.sha256(
+        json.dumps(terms, sort_keys=True, default=str).encode()
+    ).hexdigest()
+
+
+def _verify_training_quote(token: str, offer: dict[str, Any]) -> None:
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=409, detail="training_quote_changed")
+    if payload.get("purpose") != "training_quote" or payload.get(
+        "fingerprint"
+    ) != _quote_fingerprint(offer):
+        raise HTTPException(status_code=409, detail="training_quote_changed")
+
 
 def program_request_public(
     session: Session, row: FinanceProgramRequest
 ) -> dict[str, Any]:
     athlete = session.get(User, row.athlete_user_id)
     coach = session.get(User, row.coach_user_id)
+    version = session.exec(
+        select(WorkoutProgramVersion).where(
+            WorkoutProgramVersion.purchase_request_id == row.id
+        )
+    ).first()
     return {
+        "program_version_id": version.id if version else None,
+        "program_status": version.status if version else None,
+        "started_at": version.created_at if version else None,
         "id": row.id,
         "gym_id": row.gym_id,
         "athlete_user_id": row.athlete_user_id,
-        "athlete_name": (
-            (athlete.full_name or athlete.email) if athlete else None
-        ),
+        "athlete_name": ((athlete.full_name or athlete.email) if athlete else None),
         "coach_user_id": row.coach_user_id,
         "coach_name": (coach.full_name or coach.email) if coach else None,
         "plan_id": row.plan_id,
@@ -1480,11 +1704,10 @@ def _create_program_request_after_payment(
     plan: FinanceCoachPlan,
     athlete_user_id: uuid.UUID,
     note: str | None,
+    commit: bool = True,
 ) -> dict[str, Any]:
     existing = session.exec(
-        select(FinanceProgramRequest).where(
-            FinanceProgramRequest.sale_id == sale.id
-        )
+        select(FinanceProgramRequest).where(FinanceProgramRequest.sale_id == sale.id)
     ).first()
     if existing is not None:
         return program_request_public(session, existing)
@@ -1504,6 +1727,8 @@ def _create_program_request_after_payment(
     try:
         session.flush()
     except IntegrityError:
+        if not commit:
+            raise
         session.rollback()
         existing = session.exec(
             select(FinanceProgramRequest).where(
@@ -1526,9 +1751,66 @@ def _create_program_request_after_payment(
             "coach_user_id": str(request.coach_user_id),
         },
     )
-    session.commit()
-    session.refresh(request)
+    if commit:
+        session.commit()
+        session.refresh(request)
     return program_request_public(session, request)
+
+
+def _existing_purchase_result(
+    session: Session,
+    *,
+    actor: User,
+    gym_id: uuid.UUID,
+    athlete_user_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    outcome: str,
+    note: str | None,
+    existing_payment: FinancePayment,
+) -> dict[str, Any]:
+    existing_sale = session.get(FinanceSale, existing_payment.sale_id)
+    if existing_sale is None or existing_sale.gym_id != gym_id:
+        raise HTTPException(status_code=404, detail="sale_not_found")
+    if (
+        existing_sale.athlete_user_id != athlete_user_id
+        or existing_sale.coach_plan_id != plan_id
+        or existing_payment.outcome != outcome
+    ):
+        raise HTTPException(status_code=409, detail="idempotency_key_reused")
+    existing_request = session.exec(
+        select(FinanceProgramRequest).where(
+            FinanceProgramRequest.sale_id == existing_sale.id
+        )
+    ).first()
+    if (
+        existing_payment.status == "SUCCEEDED"
+        and existing_request is None
+        and existing_sale.coach_plan_id is not None
+    ):
+        existing_plan = session.get(FinanceCoachPlan, existing_sale.coach_plan_id)
+        if existing_plan is not None:
+            repaired_request = _create_program_request_after_payment(
+                session,
+                actor=actor,
+                sale=existing_sale,
+                plan=existing_plan,
+                athlete_user_id=athlete_user_id,
+                note=note,
+            )
+            return {
+                "sale": sale_public(session, existing_sale),
+                "payment": payment_public(session, existing_payment),
+                "request": repaired_request,
+            }
+    return {
+        "sale": sale_public(session, existing_sale),
+        "payment": payment_public(session, existing_payment),
+        "request": (
+            program_request_public(session, existing_request)
+            if existing_request
+            else None
+        ),
+    }
 
 
 def purchase_training_plan(
@@ -1542,115 +1824,128 @@ def purchase_training_plan(
     note: str | None,
     idempotency_key: str,
     outcome: str,
+    quote_token: str | None = None,
 ) -> dict[str, Any]:
     key = idempotency_key.strip()
     if not key:
         raise HTTPException(status_code=400, detail="idempotency_key_required")
-    existing_payment = session.exec(
-        select(FinancePayment).where(
-            FinancePayment.gym_id == gym_id,
-            FinancePayment.idempotency_key == key,
-        )
-    ).first()
-    if existing_payment is not None:
-        existing_sale = session.get(FinanceSale, existing_payment.sale_id)
-        if existing_sale is None:
-            raise HTTPException(status_code=404, detail="sale_not_found")
-        if existing_sale.athlete_user_id != athlete_user_id:
-            raise HTTPException(
-                status_code=409, detail="idempotency_key_reused"
-            )
-        existing_request = session.exec(
-            select(FinanceProgramRequest).where(
-                FinanceProgramRequest.sale_id == existing_sale.id
+
+    # Hold the transaction lock across sale, payment and request creation.
+    # The inner helpers accept commit=False so a failure rolls back the whole
+    # purchase instead of leaving an orphan sale.
+    _lock_finance_gym(session, gym_id)
+    try:
+        existing_payment = session.exec(
+            select(FinancePayment).where(
+                FinancePayment.gym_id == gym_id,
+                FinancePayment.idempotency_key == key,
             )
         ).first()
-        if (
-            existing_payment.status == "SUCCEEDED"
-            and existing_request is None
-            and existing_sale.coach_plan_id is not None
-        ):
-            existing_plan = session.get(
-                FinanceCoachPlan, existing_sale.coach_plan_id
+        if existing_payment is not None:
+            return _existing_purchase_result(
+                session,
+                actor=actor,
+                gym_id=gym_id,
+                athlete_user_id=athlete_user_id,
+                plan_id=plan_id,
+                outcome=outcome,
+                note=note,
+                existing_payment=existing_payment,
             )
-            if existing_plan is not None:
-                repaired_request = _create_program_request_after_payment(
-                    session,
-                    actor=actor,
-                    sale=existing_sale,
-                    plan=existing_plan,
-                    athlete_user_id=athlete_user_id,
-                    note=note,
-                )
-                return {
-                    "sale": sale_public(session, existing_sale),
-                    "payment": payment_public(session, existing_payment),
-                    "request": repaired_request,
-                }
-        return {
-            "sale": sale_public(session, existing_sale),
-            "payment": payment_public(session, existing_payment),
-            "request": (
-                program_request_public(session, existing_request)
-                if existing_request
-                else None
-            ),
-        }
 
-    plan = session.exec(
-        select(FinanceCoachPlan).where(
-            FinanceCoachPlan.id == plan_id,
-            FinanceCoachPlan.gym_id == gym_id,
-            FinanceCoachPlan.coach_user_id == coach_user_id,
-            FinanceCoachPlan.category == "TRAINING",
-            col(FinanceCoachPlan.is_active).is_(True),
+        plan = session.exec(
+            select(FinanceCoachPlan).where(
+                FinanceCoachPlan.id == plan_id,
+                FinanceCoachPlan.gym_id == gym_id,
+                FinanceCoachPlan.coach_user_id == coach_user_id,
+                FinanceCoachPlan.category == "TRAINING",
+                col(FinanceCoachPlan.is_active).is_(True),
+            )
+        ).first()
+        if plan is None:
+            raise HTTPException(status_code=404, detail="training_plan_not_available")
+        quoted_offer = training_plan_offer(
+            session, gym_id=gym_id, coach_user_id=coach_user_id
         )
-    ).first()
-    if plan is None:
-        raise HTTPException(
-            status_code=404, detail="training_plan_not_available"
-        )
-    sale = create_sale(
-        session,
-        actor=actor,
-        gym_id=gym_id,
-        category="TRAINING",
-        description=f"خرید پلن تمرینی: {plan.title}"[:255],
-        base_amount_irr=plan.base_price_irr,
-        tax_ids=_default_vat_tax_id(session),
-        coach_user_id=coach_user_id,
-        sold_on=finance_today(),
-    )
-    sale.athlete_user_id = athlete_user_id
-    sale.coach_plan_id = plan.id
-    session.add(sale)
-    session.commit()
-    session.refresh(sale)
-    payment = simulate_payment(
-        session,
-        actor=actor,
-        gym_id=gym_id,
-        sale_id=sale.id,
-        outcome=outcome,
-        idempotency_key=key,
-        note=note,
-    )
-    request: dict[str, Any] | None = None
-    if payment["status"] == "SUCCEEDED":
-        request = _create_program_request_after_payment(
+        if quoted_offer is None:
+            raise HTTPException(status_code=409, detail="training_quote_changed")
+        if quote_token is not None:
+            _verify_training_quote(quote_token, quoted_offer)
+        sale = create_sale(
             session,
             actor=actor,
-            sale=sale,
-            plan=plan,
-            athlete_user_id=athlete_user_id,
-            note=note,
+            gym_id=gym_id,
+            category="TRAINING",
+            description=f"خرید پلن تمرینی: {plan.title}"[:255],
+            base_amount_irr=plan.base_price_irr,
+            tax_ids=_default_vat_tax_id(session),
+            coach_user_id=coach_user_id,
+            sold_on=finance_today(),
+            commit=False,
         )
-    session.refresh(sale)
-    return {
-        "sale": sale_public(session, sale),
-        "payment": payment,
-        "request": request,
-    }
+        if (
+            quote_token is not None
+            and sale.total_amount_irr != quoted_offer["total_amount_irr"]
+        ):
+            raise HTTPException(status_code=409, detail="training_quote_changed")
+        sale.athlete_user_id = athlete_user_id
+        sale.coach_plan_id = plan.id
+        session.add(sale)
+        session.flush()
+        payment = simulate_payment(
+            session,
+            actor=actor,
+            gym_id=gym_id,
+            sale_id=sale.id,
+            outcome=outcome,
+            idempotency_key=key,
+            note=note,
+            commit=False,
+        )
+        request: dict[str, Any] | None = None
+        if payment["status"] == "SUCCEEDED":
+            request = _create_program_request_after_payment(
+                session,
+                actor=actor,
+                sale=sale,
+                plan=plan,
+                athlete_user_id=athlete_user_id,
+                note=note,
+                commit=False,
+            )
+        session.commit()
+        session.refresh(sale)
+        return {
+            "sale": sale_public(session, sale),
+            "payment": payment,
+            "request": request,
+        }
+    except IntegrityError:
+        session.rollback()
+        existing_payment = session.exec(
+            select(FinancePayment).where(
+                FinancePayment.gym_id == gym_id,
+                FinancePayment.idempotency_key == key,
+            )
+        ).first()
+        if existing_payment is None:
+            raise
+        return _existing_purchase_result(
+            session,
+            actor=actor,
+            gym_id=gym_id,
+            athlete_user_id=athlete_user_id,
+            plan_id=plan_id,
+            outcome=outcome,
+            note=note,
+            existing_payment=existing_payment,
+        )
+    except HTTPException:
+        session.rollback()
+        raise
+    except Exception:
+        session.rollback()
+        raise
 
 
 def resolve_program_creation_source(
@@ -1666,6 +1961,7 @@ def resolve_program_creation_source(
         session, gym_id=gym_id, coach_user_id=coach_user_id
     )
     if purchase_request_id is not None:
+        _lock_finance_gym(session, gym_id)
         request = session.exec(
             select(FinanceProgramRequest)
             .where(
@@ -1676,9 +1972,9 @@ def resolve_program_creation_source(
             .with_for_update()
         ).first()
         if request is None:
-            raise HTTPException(
-                status_code=404, detail="program_request_not_found"
-            )
+            raise HTTPException(status_code=404, detail="program_request_not_found")
+        if request.status == "CANCELLED":
+            raise HTTPException(status_code=409, detail="program_request_cancelled")
         if request.status != "REQUESTED":
             raise HTTPException(
                 status_code=409, detail="program_request_already_fulfilled"
@@ -1687,6 +1983,28 @@ def resolve_program_creation_source(
             raise HTTPException(
                 status_code=400, detail="program_request_coach_mismatch"
             )
+        sale = session.get(FinanceSale, request.sale_id)
+        if sale is None or sale.gym_id != gym_id:
+            raise HTTPException(
+                status_code=409, detail="program_request_payment_missing"
+            )
+        payment = session.exec(
+            select(FinancePayment)
+            .where(
+                FinancePayment.sale_id == sale.id,
+                FinancePayment.status == "SUCCEEDED",
+            )
+            .order_by(col(FinancePayment.created_at).desc())
+        ).first()
+        if payment is None:
+            raise HTTPException(
+                status_code=409, detail="program_request_payment_missing"
+            )
+        if (
+            sale.status == "REFUNDED"
+            or _sale_refunded_irr(session, sale.id) >= payment.amount_irr
+        ):
+            raise HTTPException(status_code=409, detail="program_purchase_refunded")
         return {
             "origin": "PURCHASED",
             "purchase_request_id": request.id,
@@ -1735,11 +2053,10 @@ def preview_sale(
 ) -> dict[str, Any]:
     _validate_category(category)
     if category == "MEMBERSHIP" and coach_user_id is not None:
-        raise HTTPException(
-            status_code=400, detail="membership_coach_forbidden"
-        )
+        raise HTTPException(status_code=400, detail="membership_coach_forbidden")
     if base_amount_irr <= 0:
         raise HTTPException(status_code=400, detail="invalid_base_amount")
+    _validate_money_amount(base_amount_irr)
     if sold_on > finance_today():
         raise HTTPException(status_code=400, detail="sale_date_in_future")
     policy = resolve_platform_policy(
@@ -1772,7 +2089,7 @@ def preview_sale(
     tax_lines, tax_total = _tax_lines(
         session, tax_ids=tax_ids, base_amount_irr=base_amount_irr
     )
-    total = base_amount_irr + tax_total
+    total = _validate_money_amount(base_amount_irr + tax_total)
     platform_amount = total * platform_bp // MAX_BP
     coach_amount = total * coach_bp // MAX_BP
     gym_amount = total - platform_amount - coach_amount
@@ -1809,6 +2126,7 @@ def create_sale(
     tax_ids: list[uuid.UUID],
     coach_user_id: uuid.UUID | None,
     sold_on: date,
+    commit: bool = True,
 ) -> FinanceSale:
     if not description.strip():
         raise HTTPException(status_code=400, detail="sale_description_required")
@@ -1880,8 +2198,9 @@ def create_sale(
             "category": category,
         },
     )
-    session.commit()
-    session.refresh(sale)
+    if commit:
+        session.commit()
+        session.refresh(sale)
     return sale
 
 
@@ -1972,15 +2291,11 @@ def list_sales(
         statement = statement.where(FinanceSale.category == category)
     if status:
         statement = statement.where(FinanceSale.status == status)
-    rows = session.exec(
-        statement.order_by(col(FinanceSale.created_at).desc())
-    ).all()
+    rows = session.exec(statement.order_by(col(FinanceSale.created_at).desc())).all()
     return [sale_public(session, row) for row in rows]
 
 
-def get_sale(
-    session: Session, *, gym_id: uuid.UUID, sale_id: uuid.UUID
-) -> FinanceSale:
+def get_sale(session: Session, *, gym_id: uuid.UUID, sale_id: uuid.UUID) -> FinanceSale:
     sale = session.get(FinanceSale, sale_id)
     if sale is None or sale.gym_id != gym_id:
         raise HTTPException(status_code=404, detail="sale_not_found")
@@ -2002,23 +2317,34 @@ def _allocation_refunded_irr(session: Session, allocation_id: uuid.UUID) -> int:
     )
 
 
+def _allocation_reserved_irr(
+    session: Session,
+    allocation_id: uuid.UUID,
+    *,
+    exclude_settlement_id: uuid.UUID | None = None,
+) -> int:
+    statement = (
+        select(func.coalesce(func.sum(FinanceSettlementItem.amount_irr), 0))
+        .join(
+            FinanceSettlement,
+            col(FinanceSettlementItem.settlement_id) == col(FinanceSettlement.id),
+        )
+        .where(
+            FinanceSettlementItem.allocation_id == allocation_id,
+            FinanceSettlement.status != "CANCELLED",
+        )
+    )
+    if exclude_settlement_id is not None:
+        statement = statement.where(
+            FinanceSettlementItem.settlement_id != exclude_settlement_id
+        )
+    return int(session.exec(statement).one())
+
+
 def _allocation_reserved_or_settled_irr(
     session: Session, allocation_id: uuid.UUID
 ) -> int:
-    return int(
-        session.exec(
-            select(func.coalesce(func.sum(FinanceSettlementItem.amount_irr), 0))
-            .join(
-                FinanceSettlement,
-                col(FinanceSettlementItem.settlement_id)
-                == col(FinanceSettlement.id),
-            )
-            .where(
-                FinanceSettlementItem.allocation_id == allocation_id,
-                FinanceSettlement.status != "CANCELLED",
-            )
-        ).one()
-    )
+    return _allocation_reserved_irr(session, allocation_id)
 
 
 def _allocation_completed_settled_irr(
@@ -2029,8 +2355,7 @@ def _allocation_completed_settled_irr(
             select(func.coalesce(func.sum(FinanceSettlementItem.amount_irr), 0))
             .join(
                 FinanceSettlement,
-                col(FinanceSettlementItem.settlement_id)
-                == col(FinanceSettlement.id),
+                col(FinanceSettlementItem.settlement_id) == col(FinanceSettlement.id),
             )
             .where(
                 FinanceSettlementItem.allocation_id == allocation_id,
@@ -2049,7 +2374,9 @@ def allocation_available_irr(session: Session, allocation: FinanceAllocation) ->
     )
 
 
-def _party_name(session: Session, party: str, party_user_id: uuid.UUID | None) -> str | None:
+def _party_name(
+    session: Session, party: str, party_user_id: uuid.UUID | None
+) -> str | None:
     if party == "COACH" and party_user_id:
         user = session.get(User, party_user_id)
         return (user.full_name or user.email) if user else None
@@ -2080,9 +2407,7 @@ def payment_public(session: Session, payment: FinancePayment) -> dict[str, Any]:
                 "party_name": _party_name(session, row.party, row.party_user_id),
                 "amount_irr": row.amount_irr,
                 "refunded_irr": _allocation_refunded_irr(session, row.id),
-                "settled_irr": _allocation_completed_settled_irr(
-                    session, row.id
-                ),
+                "settled_irr": _allocation_completed_settled_irr(session, row.id),
             }
             for row in allocations
         ],
@@ -2098,6 +2423,7 @@ def simulate_payment(
     outcome: str,
     idempotency_key: str,
     note: str | None = None,
+    commit: bool = True,
 ) -> dict[str, Any]:
     if outcome not in ("SUCCESS", "FAILURE", "CANCELLATION"):
         raise HTTPException(status_code=400, detail="invalid_payment_outcome")
@@ -2111,7 +2437,7 @@ def simulate_payment(
         )
     ).first()
     if existing is not None:
-        if existing.sale_id != sale_id:
+        if existing.sale_id != sale_id or existing.outcome != outcome:
             raise HTTPException(status_code=409, detail="idempotency_key_reused")
         return payment_public(session, existing)
     sale = session.exec(
@@ -2130,7 +2456,7 @@ def simulate_payment(
         )
     ).first()
     if existing is not None:
-        if existing.sale_id != sale_id:
+        if existing.sale_id != sale_id or existing.outcome != outcome:
             raise HTTPException(status_code=409, detail="idempotency_key_reused")
         return payment_public(session, existing)
     if sale.status in ("PAID", "PARTIALLY_REFUNDED", "REFUNDED"):
@@ -2184,14 +2510,13 @@ def simulate_payment(
         entity_id=payment.id,
         detail={"sale_id": str(sale.id), "amount_irr": payment.amount_irr},
     )
-    session.commit()
-    session.refresh(payment)
+    if commit:
+        session.commit()
+        session.refresh(payment)
     return payment_public(session, payment)
 
 
-def list_payments(
-    session: Session, *, gym_id: uuid.UUID
-) -> list[dict[str, Any]]:
+def list_payments(session: Session, *, gym_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = session.exec(
         select(FinancePayment)
         .where(FinancePayment.gym_id == gym_id)
@@ -2211,6 +2536,7 @@ def _eligible_allocations(
     gym_id: uuid.UUID,
     party: str,
     party_user_id: uuid.UUID | None,
+    lock: bool = False,
 ) -> list[tuple[FinanceAllocation, int]]:
     statement = (
         select(FinanceAllocation)
@@ -2226,12 +2552,18 @@ def _eligible_allocations(
         .order_by(
             col(FinancePayment.paid_at),
             col(FinanceAllocation.created_at),
+            col(FinanceAllocation.party),
+            col(FinanceAllocation.id),
         )
     )
     if party == "COACH":
         if party_user_id is None:
             raise HTTPException(status_code=400, detail="coach_user_required")
         statement = statement.where(FinanceAllocation.party_user_id == party_user_id)
+    if lock:
+        # Lock only the allocation rows.  Locking the joined payment as well
+        # would introduce a second lock order against the refund path.
+        statement = statement.with_for_update(of=FinanceAllocation)
     allocations = session.exec(statement).all()
     result: list[tuple[FinanceAllocation, int]] = []
     for allocation in allocations:
@@ -2239,6 +2571,71 @@ def _eligible_allocations(
         if available > 0:
             result.append((allocation, available))
     return result
+
+
+def _settlement_payload_matches(
+    settlement: FinanceSettlement,
+    *,
+    party: str,
+    party_user_id: uuid.UUID | None,
+    amount_irr: int,
+) -> bool:
+    return (
+        settlement.party == party
+        and settlement.party_user_id == party_user_id
+        and settlement.amount_irr == amount_irr
+    )
+
+
+def _refund_payload_matches(
+    refund: FinanceRefund,
+    *,
+    payment_id: uuid.UUID,
+    amount_irr: int,
+) -> bool:
+    return refund.payment_id == payment_id and refund.amount_irr == amount_irr
+
+
+def _allocate_refund_shares(
+    allocations: Sequence[FinanceAllocation],
+    *,
+    amount_irr: int,
+    already_refunded: dict[uuid.UUID, int],
+) -> list[tuple[FinanceAllocation, int]]:
+    """Split a refund from remaining party capacity, with integer arithmetic.
+
+    Using the remaining capacity (instead of the original allocation) makes
+    repeated refunds converge exactly to the original allocations and keeps
+    every party inside its cap.  Residual rials are assigned in a stable party
+    order, never in database row order.
+    """
+    ordered = sorted(
+        allocations,
+        key=lambda row: (PARTIES.index(row.party), str(row.id)),
+    )
+    capacities = {
+        row.id: max(0, row.amount_irr - already_refunded.get(row.id, 0))
+        for row in ordered
+    }
+    total_capacity = sum(capacities.values())
+    if amount_irr > total_capacity:
+        raise HTTPException(status_code=400, detail="refund_exceeds_remaining")
+    shares = {
+        row.id: amount_irr * capacities[row.id] // total_capacity
+        if total_capacity
+        else 0
+        for row in ordered
+    }
+    residual = amount_irr - sum(shares.values())
+    for row in reversed(ordered):
+        if residual <= 0:
+            break
+        take = min(capacities[row.id] - shares[row.id], residual)
+        shares[row.id] += take
+        residual -= take
+    if residual != 0:
+        raise HTTPException(status_code=409, detail="refund_allocation_conflict")
+    return [(row, shares[row.id]) for row in ordered if shares[row.id] > 0]
 
 
 def settlement_public(
@@ -2254,9 +2651,7 @@ def settlement_public(
         "gym_id": settlement.gym_id,
         "party": settlement.party,
         "party_user_id": settlement.party_user_id,
-        "party_name": _party_name(
-            session, settlement.party, settlement.party_user_id
-        ),
+        "party_name": _party_name(session, settlement.party, settlement.party_user_id),
         "amount_irr": settlement.amount_irr,
         "status": settlement.status,
         "requested_at": settlement.requested_at,
@@ -2273,9 +2668,7 @@ def settlement_public(
     }
 
 
-def list_settlements(
-    session: Session, *, gym_id: uuid.UUID
-) -> list[dict[str, Any]]:
+def list_settlements(session: Session, *, gym_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = session.exec(
         select(FinanceSettlement)
         .where(FinanceSettlement.gym_id == gym_id)
@@ -2298,9 +2691,21 @@ def create_settlement(
         raise HTTPException(status_code=400, detail="invalid_settlement_party")
     if amount_irr <= 0:
         raise HTTPException(status_code=400, detail="invalid_settlement_amount")
+    _validate_money_amount(amount_irr, "invalid_settlement_amount")
     key = idempotency_key.strip()
     if not key:
         raise HTTPException(status_code=400, detail="idempotency_key_required")
+    if party == "COACH":
+        if party_user_id is None:
+            raise HTTPException(status_code=400, detail="coach_user_required")
+        if session.get(User, party_user_id) is None:
+            raise HTTPException(status_code=400, detail="coach_not_in_gym")
+    else:
+        if party_user_id is not None:
+            raise HTTPException(status_code=400, detail="party_user_not_allowed")
+        party_user_id = None
+
+    _lock_finance_gym(session, gym_id)
     existing = session.exec(
         select(FinanceSettlement).where(
             FinanceSettlement.gym_id == gym_id,
@@ -2308,23 +2713,27 @@ def create_settlement(
         )
     ).first()
     if existing is not None:
+        if not _settlement_payload_matches(
+            existing,
+            party=party,
+            party_user_id=party_user_id,
+            amount_irr=amount_irr,
+        ):
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
         return settlement_public(session, existing)
-    if party == "COACH":
-        if party_user_id is None:
-            raise HTTPException(status_code=400, detail="coach_user_required")
-        _coach_membership(session, gym_id=gym_id, coach_user_id=party_user_id)
-    else:
-        if party_user_id is not None:
-            raise HTTPException(status_code=400, detail="party_user_not_allowed")
-        party_user_id = None
+
     eligible = _eligible_allocations(
-        session, gym_id=gym_id, party=party, party_user_id=party_user_id
+        session,
+        gym_id=gym_id,
+        party=party,
+        party_user_id=party_user_id,
+        lock=True,
     )
     total_available = sum(available for _, available in eligible)
+    if party == "COACH" and total_available <= 0:
+        raise HTTPException(status_code=400, detail="coach_earnings_not_found")
     if amount_irr > total_available:
-        raise HTTPException(
-            status_code=400, detail="settlement_exceeds_available"
-        )
+        raise HTTPException(status_code=400, detail="settlement_exceeds_available")
     settlement = FinanceSettlement(
         gym_id=gym_id,
         party=party,
@@ -2349,6 +2758,8 @@ def create_settlement(
             )
         )
         remaining -= item_amount
+    if remaining != 0:
+        raise HTTPException(status_code=409, detail="settlement_allocation_conflict")
     record_finance_audit(
         session,
         actor=actor,
@@ -2363,9 +2774,45 @@ def create_settlement(
     return settlement_public(session, settlement)
 
 
+def _validate_settlement_for_completion(
+    session: Session,
+    *,
+    gym_id: uuid.UUID,
+    settlement: FinanceSettlement,
+) -> None:
+    items = session.exec(
+        select(FinanceSettlementItem).where(
+            FinanceSettlementItem.settlement_id == settlement.id
+        )
+    ).all()
+    if not items or sum(item.amount_irr for item in items) != settlement.amount_irr:
+        raise HTTPException(status_code=409, detail="settlement_items_invalid")
+    for item in items:
+        allocation = session.get(FinanceAllocation, item.allocation_id)
+        if allocation is None or allocation.gym_id != gym_id:
+            raise HTTPException(status_code=409, detail="settlement_items_invalid")
+        if allocation.party != settlement.party:
+            raise HTTPException(status_code=409, detail="settlement_items_invalid")
+        if (
+            settlement.party == "COACH"
+            and allocation.party_user_id != settlement.party_user_id
+        ):
+            raise HTTPException(status_code=409, detail="settlement_items_invalid")
+        refunded = _allocation_refunded_irr(session, allocation.id)
+        reserved_other = _allocation_reserved_irr(
+            session,
+            allocation.id,
+            exclude_settlement_id=settlement.id,
+        )
+        available = allocation.amount_irr - refunded - reserved_other
+        if item.amount_irr > available:
+            raise HTTPException(status_code=409, detail="settlement_over_reserved")
+
+
 def complete_settlement(
     session: Session, *, actor: User, gym_id: uuid.UUID, settlement_id: uuid.UUID
 ) -> dict[str, Any]:
+    _lock_finance_gym(session, gym_id)
     settlement = session.exec(
         select(FinanceSettlement)
         .where(
@@ -2380,6 +2827,7 @@ def complete_settlement(
         return settlement_public(session, settlement)
     if settlement.status != "PENDING":
         raise HTTPException(status_code=409, detail="settlement_not_pending")
+    _validate_settlement_for_completion(session, gym_id=gym_id, settlement=settlement)
     settlement.status = "COMPLETED"
     settlement.completed_at = datetime.now(UTC)
     session.add(settlement)
@@ -2400,6 +2848,7 @@ def complete_settlement(
 def cancel_settlement(
     session: Session, *, actor: User, gym_id: uuid.UUID, settlement_id: uuid.UUID
 ) -> dict[str, Any]:
+    _lock_finance_gym(session, gym_id)
     settlement = session.exec(
         select(FinanceSettlement)
         .where(
@@ -2460,15 +2909,26 @@ def auto_settle(
         total = sum(amount for _, amount in eligible)
         if total <= 0:
             continue
-        created = create_settlement(
-            session,
-            actor=actor,
-            gym_id=gym_id,
-            party=party,
-            party_user_id=party_user_id,
-            amount_irr=total,
-            idempotency_key=f"auto:{uuid.uuid4().hex}",
-        )
+        try:
+            created = create_settlement(
+                session,
+                actor=actor,
+                gym_id=gym_id,
+                party=party,
+                party_user_id=party_user_id,
+                amount_irr=total,
+                idempotency_key=f"auto:{uuid.uuid4().hex}",
+            )
+        except HTTPException as exc:
+            if exc.detail in {
+                "settlement_exceeds_available",
+                "coach_earnings_not_found",
+            }:
+                # A concurrent manual settlement or refund consumed part of
+                # this balance after the initial read; continue with the other
+                # parties instead of failing the whole auto run.
+                continue
+            raise
         result.append(
             complete_settlement(
                 session,
@@ -2523,11 +2983,14 @@ def create_refund(
 ) -> dict[str, Any]:
     if amount_irr <= 0:
         raise HTTPException(status_code=400, detail="invalid_refund_amount")
+    _validate_money_amount(amount_irr, "invalid_refund_amount")
     if len(reason.strip()) < 3:
         raise HTTPException(status_code=400, detail="refund_reason_required")
     key = idempotency_key.strip()
     if not key:
         raise HTTPException(status_code=400, detail="idempotency_key_required")
+
+    _lock_finance_gym(session, gym_id)
     existing = session.exec(
         select(FinanceRefund).where(
             FinanceRefund.gym_id == gym_id,
@@ -2535,7 +2998,12 @@ def create_refund(
         )
     ).first()
     if existing is not None:
+        if not _refund_payload_matches(
+            existing, payment_id=payment_id, amount_irr=amount_irr
+        ):
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
         return refund_public(session, existing)
+
     payment = session.exec(
         select(FinancePayment)
         .where(
@@ -2546,15 +3014,35 @@ def create_refund(
     ).first()
     if payment is None:
         raise HTTPException(status_code=404, detail="payment_not_found")
+
+    # Re-check after the payment lock.  A concurrent identical request may
+    # have committed while this transaction was waiting.
+    existing = session.exec(
+        select(FinanceRefund).where(
+            FinanceRefund.gym_id == gym_id,
+            FinanceRefund.idempotency_key == key,
+        )
+    ).first()
+    if existing is not None:
+        if not _refund_payload_matches(
+            existing, payment_id=payment_id, amount_irr=amount_irr
+        ):
+            raise HTTPException(status_code=409, detail="idempotency_key_reused")
+        return refund_public(session, existing)
+
     if payment.status != "SUCCEEDED":
         raise HTTPException(status_code=409, detail="payment_not_refundable")
     allocations = session.exec(
-        select(FinanceAllocation).where(
-            FinanceAllocation.payment_id == payment.id
+        select(FinanceAllocation)
+        .where(FinanceAllocation.payment_id == payment.id)
+        .order_by(
+            col(FinanceAllocation.party),
+            col(FinanceAllocation.id),
         )
     ).all()
     if not allocations:
         raise HTTPException(status_code=409, detail="payment_not_refundable")
+
     pending = session.exec(
         select(FinanceSettlementItem)
         .join(
@@ -2570,6 +3058,7 @@ def create_refund(
     ).first()
     if pending is not None:
         raise HTTPException(status_code=409, detail="settlement_pending")
+
     refunded = int(
         session.exec(
             select(func.coalesce(func.sum(FinanceRefund.amount_irr), 0)).where(
@@ -2580,6 +3069,28 @@ def create_refund(
     remaining = payment.amount_irr - refunded
     if amount_irr > remaining:
         raise HTTPException(status_code=400, detail="refund_exceeds_remaining")
+
+    adjustment_rows = session.exec(
+        select(
+            FinanceRefundAdjustment.allocation_id,
+            func.coalesce(func.sum(FinanceRefundAdjustment.amount_irr), 0),
+        )
+        .where(
+            col(FinanceRefundAdjustment.allocation_id).in_(
+                [row.id for row in allocations]
+            )
+        )
+        .group_by(col(FinanceRefundAdjustment.allocation_id))
+    ).all()
+    already_refunded = {
+        allocation_id: int(amount) for allocation_id, amount in adjustment_rows
+    }
+    shares = _allocate_refund_shares(
+        allocations,
+        amount_irr=amount_irr,
+        already_refunded=already_refunded,
+    )
+
     refund = FinanceRefund(
         gym_id=gym_id,
         payment_id=payment.id,
@@ -2590,22 +3101,32 @@ def create_refund(
         created_by_id=actor.id,
     )
     session.add(refund)
-    session.flush()
-    shares = [
-        amount_irr * row.amount_irr // payment.amount_irr for row in allocations
-    ]
-    residual = amount_irr - sum(shares)
-    if shares:
-        shares[-1] += residual
-    for allocation, share in zip(allocations, shares, strict=True):
-        if share <= 0:
-            continue
+    try:
+        session.flush()
+    except IntegrityError:
+        session.rollback()
+        existing = session.exec(
+            select(FinanceRefund).where(
+                FinanceRefund.gym_id == gym_id,
+                FinanceRefund.idempotency_key == key,
+            )
+        ).first()
+        if existing is not None and _refund_payload_matches(
+            existing, payment_id=payment_id, amount_irr=amount_irr
+        ):
+            return refund_public(session, existing)
+        if existing is not None:
+            raise HTTPException(
+                status_code=409, detail="idempotency_key_reused"
+            ) from None
+        raise
+
+    for allocation, share in shares:
         completed_item = session.exec(
             select(FinanceSettlementItem)
             .join(
                 FinanceSettlement,
-                col(FinanceSettlementItem.settlement_id)
-                == col(FinanceSettlement.id),
+                col(FinanceSettlementItem.settlement_id) == col(FinanceSettlement.id),
             )
             .where(
                 FinanceSettlementItem.allocation_id == allocation.id,
@@ -2617,14 +3138,13 @@ def create_refund(
             FinanceRefundAdjustment(
                 refund_id=refund.id,
                 allocation_id=allocation.id,
-                settlement_id=completed_item.settlement_id
-                if completed_item
-                else None,
+                settlement_id=completed_item.settlement_id if completed_item else None,
                 party=allocation.party,
                 party_user_id=allocation.party_user_id,
                 amount_irr=share,
             )
         )
+
     sale = session.get(FinanceSale, payment.sale_id)
     if sale is not None:
         total_refunded = refunded + amount_irr
@@ -2632,6 +3152,16 @@ def create_refund(
             "REFUNDED" if total_refunded >= payment.amount_irr else "PARTIALLY_REFUNDED"
         )
         session.add(sale)
+        if total_refunded >= payment.amount_irr:
+            request = session.exec(
+                select(FinanceProgramRequest)
+                .where(FinanceProgramRequest.sale_id == sale.id)
+                .with_for_update()
+            ).first()
+            if request is not None and request.status in {"REQUESTED", "IN_PROGRESS"}:
+                request.status = "CANCELLED"
+                session.add(request)
+
     record_finance_audit(
         session,
         actor=actor,
@@ -2652,7 +3182,7 @@ def create_refund(
 
 
 def _date_filter(column: Any, value: date) -> Any:
-    return func.date(column) == value
+    return _finance_date(column) == value
 
 
 def _report_for_gym(
@@ -2663,29 +3193,39 @@ def _report_for_gym(
     to_date: date,
     category: str | None = None,
 ) -> dict[str, Any]:
-    sale_statement = select(FinanceSale).where(
+    sale_conditions: list[Any] = [
         FinanceSale.gym_id == gym_id,
-        FinanceSale.sold_on >= from_date,
-        FinanceSale.sold_on <= to_date,
         FinanceSale.status != "CANCELLED",
-    )
+    ]
     if category:
-        sale_statement = sale_statement.where(FinanceSale.category == category)
-    sales = session.exec(sale_statement).all()
+        sale_conditions.append(FinanceSale.category == category)
+
+    sales = session.exec(
+        select(FinanceSale).where(
+            *sale_conditions,
+            FinanceSale.sold_on >= from_date,
+            FinanceSale.sold_on <= to_date,
+        )
+    ).all()
     base_sales = sum(row.base_amount_irr for row in sales)
     taxes = sum(row.tax_amount_irr for row in sales)
 
-    payment_statement = (
+    payment_conditions = [
+        FinancePayment.gym_id == gym_id,
+        FinancePayment.status == "SUCCEEDED",
+        col(FinancePayment.paid_at).is_not(None),
+        _finance_date(FinancePayment.paid_at) >= from_date,
+        _finance_date(FinancePayment.paid_at) <= to_date,
+        *sale_conditions,
+    ]
+    payments = session.exec(
         select(FinancePayment)
-        .where(
-            FinancePayment.gym_id == gym_id,
-            FinancePayment.status == "SUCCEEDED",
-            col(FinancePayment.paid_at).is_not(None),
-            func.date(FinancePayment.paid_at) >= from_date,
-            func.date(FinancePayment.paid_at) <= to_date,
+        .join(
+            FinanceSale,
+            col(FinancePayment.sale_id) == col(FinanceSale.id),
         )
-    )
-    payments = session.exec(payment_statement).all()
+        .where(*payment_conditions)
+    ).all()
     total_payments = sum(row.amount_irr for row in payments)
     payment_ids = [row.id for row in payments]
     allocations = (
@@ -2697,27 +3237,50 @@ def _report_for_gym(
         if payment_ids
         else []
     )
-    platform_share = sum(row.amount_irr for row in allocations if row.party == "PLATFORM")
+    platform_share = sum(
+        row.amount_irr for row in allocations if row.party == "PLATFORM"
+    )
     gym_share = sum(row.amount_irr for row in allocations if row.party == "GYM")
     coach_share = sum(row.amount_irr for row in allocations if row.party == "COACH")
+
     refunds = int(
         session.exec(
-            select(func.coalesce(func.sum(FinanceRefund.amount_irr), 0)).where(
+            select(func.coalesce(func.sum(FinanceRefund.amount_irr), 0))
+            .join(
+                FinanceSale,
+                col(FinanceRefund.sale_id) == col(FinanceSale.id),
+            )
+            .where(
                 FinanceRefund.gym_id == gym_id,
                 FinanceRefund.status == "COMPLETED",
-                func.date(FinanceRefund.created_at) >= from_date,
-                func.date(FinanceRefund.created_at) <= to_date,
+                _finance_date(FinanceRefund.created_at) >= from_date,
+                _finance_date(FinanceRefund.created_at) <= to_date,
+                *sale_conditions,
             )
         ).one()
     )
     completed_settlements = int(
         session.exec(
-            select(func.coalesce(func.sum(FinanceSettlement.amount_irr), 0)).where(
+            select(func.coalesce(func.sum(FinanceSettlementItem.amount_irr), 0))
+            .join(
+                FinanceSettlement,
+                col(FinanceSettlementItem.settlement_id) == col(FinanceSettlement.id),
+            )
+            .join(
+                FinanceAllocation,
+                col(FinanceSettlementItem.allocation_id) == col(FinanceAllocation.id),
+            )
+            .join(
+                FinanceSale,
+                col(FinanceAllocation.sale_id) == col(FinanceSale.id),
+            )
+            .where(
                 FinanceSettlement.gym_id == gym_id,
                 FinanceSettlement.status == "COMPLETED",
                 col(FinanceSettlement.completed_at).is_not(None),
-                func.date(FinanceSettlement.completed_at) >= from_date,
-                func.date(FinanceSettlement.completed_at) <= to_date,
+                _finance_date(FinanceSettlement.completed_at) >= from_date,
+                _finance_date(FinanceSettlement.completed_at) <= to_date,
+                *sale_conditions,
             )
         ).one()
     )
@@ -2728,37 +3291,37 @@ def _report_for_gym(
             FinancePayment,
             col(FinanceAllocation.payment_id) == col(FinancePayment.id),
         )
+        .join(
+            FinanceSale,
+            col(FinanceAllocation.sale_id) == col(FinanceSale.id),
+        )
         .where(
             FinanceAllocation.gym_id == gym_id,
             FinancePayment.status == "SUCCEEDED",
             col(FinancePayment.paid_at).is_not(None),
-            func.date(FinancePayment.paid_at) <= to_date,
+            _finance_date(FinancePayment.paid_at) <= to_date,
+            *sale_conditions,
         )
     ).all()
     unsettled = {"PLATFORM": 0, "GYM": 0, "COACH": 0}
     for allocation in as_of_allocations:
         refunded_for_allocation = int(
             session.exec(
-                select(
-                    func.coalesce(
-                        func.sum(FinanceRefundAdjustment.amount_irr), 0
-                    )
-                )
+                select(func.coalesce(func.sum(FinanceRefundAdjustment.amount_irr), 0))
                 .join(
                     FinanceRefund,
                     col(FinanceRefundAdjustment.refund_id) == col(FinanceRefund.id),
                 )
                 .where(
                     FinanceRefundAdjustment.allocation_id == allocation.id,
-                    func.date(FinanceRefund.created_at) <= to_date,
+                    FinanceRefund.status == "COMPLETED",
+                    _finance_date(FinanceRefund.created_at) <= to_date,
                 )
             ).one()
         )
         reserved = int(
             session.exec(
-                select(
-                    func.coalesce(func.sum(FinanceSettlementItem.amount_irr), 0)
-                )
+                select(func.coalesce(func.sum(FinanceSettlementItem.amount_irr), 0))
                 .join(
                     FinanceSettlement,
                     col(FinanceSettlementItem.settlement_id)
@@ -2766,29 +3329,68 @@ def _report_for_gym(
                 )
                 .where(
                     FinanceSettlementItem.allocation_id == allocation.id,
-                    FinanceSettlement.status != "CANCELLED",
-                    func.date(FinanceSettlement.requested_at) <= to_date,
+                    _finance_date(FinanceSettlement.requested_at) <= to_date,
+                    or_(
+                        col(FinanceSettlement.cancelled_at).is_(None),
+                        _finance_date(FinanceSettlement.cancelled_at) > to_date,
+                    ),
                 )
             ).one()
         )
         net = max(allocation.amount_irr - refunded_for_allocation - reserved, 0)
         unsettled[allocation.party] = unsettled.get(allocation.party, 0) + net
+
     pending_settlements = int(
         session.exec(
-            select(func.coalesce(func.sum(FinanceSettlement.amount_irr), 0)).where(
+            select(func.coalesce(func.sum(FinanceSettlementItem.amount_irr), 0))
+            .join(
+                FinanceSettlement,
+                col(FinanceSettlementItem.settlement_id) == col(FinanceSettlement.id),
+            )
+            .join(
+                FinanceAllocation,
+                col(FinanceSettlementItem.allocation_id) == col(FinanceAllocation.id),
+            )
+            .join(
+                FinanceSale,
+                col(FinanceAllocation.sale_id) == col(FinanceSale.id),
+            )
+            .where(
                 FinanceSettlement.gym_id == gym_id,
-                FinanceSettlement.status == "PENDING",
-                func.date(FinanceSettlement.requested_at) <= to_date,
+                _finance_date(FinanceSettlement.requested_at) <= to_date,
+                or_(
+                    col(FinanceSettlement.completed_at).is_(None),
+                    _finance_date(FinanceSettlement.completed_at) > to_date,
+                ),
+                or_(
+                    col(FinanceSettlement.cancelled_at).is_(None),
+                    _finance_date(FinanceSettlement.cancelled_at) > to_date,
+                ),
+                *sale_conditions,
             )
         ).one()
     )
     completed_settlements_as_of = int(
         session.exec(
-            select(func.coalesce(func.sum(FinanceSettlement.amount_irr), 0)).where(
+            select(func.coalesce(func.sum(FinanceSettlementItem.amount_irr), 0))
+            .join(
+                FinanceSettlement,
+                col(FinanceSettlementItem.settlement_id) == col(FinanceSettlement.id),
+            )
+            .join(
+                FinanceAllocation,
+                col(FinanceSettlementItem.allocation_id) == col(FinanceAllocation.id),
+            )
+            .join(
+                FinanceSale,
+                col(FinanceAllocation.sale_id) == col(FinanceSale.id),
+            )
+            .where(
                 FinanceSettlement.gym_id == gym_id,
                 FinanceSettlement.status == "COMPLETED",
                 col(FinanceSettlement.completed_at).is_not(None),
-                func.date(FinanceSettlement.completed_at) <= to_date,
+                _finance_date(FinanceSettlement.completed_at) <= to_date,
+                *sale_conditions,
             )
         ).one()
     )
@@ -2843,9 +3445,9 @@ def finance_report(
             "as_of": data["as_of"],
             "by_gym": [],
         }
-    gym_ids = set(
-        session.exec(select(FinanceSale.gym_id).distinct()).all()
-    ) | set(session.exec(select(FinancePayment.gym_id).distinct()).all())
+    gym_ids = set(session.exec(select(FinanceSale.gym_id).distinct()).all()) | set(
+        session.exec(select(FinancePayment.gym_id).distinct()).all()
+    )
     by_gym: list[dict[str, Any]] = []
     totals = {
         "base_sales_irr": 0,
@@ -2917,9 +3519,7 @@ def report_csv_rows(report: dict[str, Any]) -> list[list[Any]]:
     return rows
 
 
-def list_audit(
-    session: Session, *, gym_id: uuid.UUID
-) -> list[dict[str, Any]]:
+def list_audit(session: Session, *, gym_id: uuid.UUID) -> list[dict[str, Any]]:
     rows = session.exec(
         select(FinanceAudit)
         .where(FinanceAudit.gym_id == gym_id)

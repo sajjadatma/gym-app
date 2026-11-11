@@ -50,9 +50,7 @@ class RateLimitCounter(SQLModel, table=True):
     """
 
     __tablename__ = "rate_limit_counter"
-    __table_args__ = (
-        Index("ix_rate_limit_counter_window_start", "window_start"),
-    )
+    __table_args__ = (Index("ix_rate_limit_counter_window_start", "window_start"),)
 
     key_hash: str = Field(primary_key=True, max_length=64)
     window_start: float
@@ -305,6 +303,7 @@ class MemberCreated(SQLModel):
     initial_password: str | None = None
     invitation_sent: bool = False
 
+
 class SuperuserCoachRow(SQLModel):
     membership_id: uuid.UUID
     gym_id: uuid.UUID
@@ -516,6 +515,7 @@ class AthleteCreate(SQLModel):
 
 class AthleteRestore(SQLModel):
     coach_user_id: uuid.UUID | None = None
+
 
 class SuperuserAthleteRow(SQLModel):
     user_id: uuid.UUID
@@ -1262,4 +1262,5 @@ for _model in (AthleteDetail, AthleteSelfDetail, AthleteCreated):
 
 
 # Import finance tables so SQLModel/Alembic metadata includes them.
+from app import activity_models as activity_models  # noqa: E402,F401
 from app import finance_models as finance_models  # noqa: E402,F401

@@ -7010,8 +7010,10 @@ a.m3-contact-chip:focus-visible {
   font-weight: 600;
   font-size: 0.9rem;
   transition:
-    background 160ms ease,
-    color 160ms ease;
+    background var(--m3-motion-standard-effects-fast)
+    var(--m3-motion-standard-easing),
+    color var(--m3-motion-standard-effects-fast)
+    var(--m3-motion-standard-easing);
 }
 
 .m3-finance-nav__item:hover,
@@ -7247,4 +7249,45 @@ a.m3-contact-chip:focus-visible {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+}
+
+/* Purchase documents keep the same money and date formatting as the app. */
+.m3-purchase-document {
+  display: grid;
+  gap: 20px;
+  max-width: 960px;
+  margin-inline: auto;
+}
+.m3-workout-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+@media print {
+  body:has(.m3-purchase-document) .m3-sidebar,
+  body:has(.m3-purchase-document) .m3-nav-rail,
+  body:has(.m3-purchase-document) .m3-topbar,
+  body:has(.m3-purchase-document) .m3-mobile-nav,
+  body:has(.m3-purchase-document) .m3-document-actions {
+    display: none;
+  }
+  body:has(.m3-purchase-document) .m3-main {
+    margin: 0;
+    padding: 0;
+  }
+  body:has(.m3-purchase-document) .m3-app-shell {
+    display: block;
+  }
+  .m3-purchase-document {
+    max-width: none;
+    color: #000;
+  }
+  .m3-purchase-document .m3-card {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}
+
+.m3-purchase-document {
+  overflow-wrap: anywhere;
 }

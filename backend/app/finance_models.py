@@ -4,9 +4,21 @@ import uuid
 from datetime import UTC, date, datetime
 from typing import Any, Literal
 
-from sqlalchemy import CheckConstraint, Column, Index, UniqueConstraint, text
+from sqlalchemy import (
+    BigInteger,
+    CheckConstraint,
+    Column,
+    Index,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.types import JSON
 from sqlmodel import Field, SQLModel
+
+# The UI passes amounts through JavaScript numbers; keep every IRR value well
+# inside the safe-integer range. The database uses BIGINT, but accepting values
+# above this cap would make the browser lose precision before the request.
+MAX_MONEY_IRR = 1_000_000_000_000_000
 
 FinanceCategory = Literal["MEMBERSHIP", "NUTRITION", "TRAINING"]
 PlatformContractScope = Literal["DEFAULT", "GYM"]
@@ -24,7 +36,7 @@ PaymentStatus = Literal["SUCCEEDED", "FAILED", "CANCELLED"]
 PaymentOutcome = Literal["SUCCESS", "FAILURE", "CANCELLATION"]
 AllocationParty = Literal["PLATFORM", "GYM", "COACH"]
 SettlementStatus = Literal["PENDING", "COMPLETED", "CANCELLED"]
-ProgramRequestStatus = Literal["REQUESTED", "FULFILLED", "CANCELLED"]
+ProgramRequestStatus = Literal["REQUESTED", "IN_PROGRESS", "FULFILLED", "CANCELLED"]
 ProgramOrigin = Literal["LEGACY", "PURCHASED", "FREE"]
 
 
@@ -86,6 +98,7 @@ class FinancePlatformContract(SQLModel, table=True):
     )
     created_at: datetime = Field(default_factory=finance_now)
     activated_at: datetime | None = Field(default=None)
+    archived_at: datetime | None = Field(default=None)
 
 
 class FinancePlatformRate(SQLModel, table=True):
@@ -133,7 +146,7 @@ class FinanceTaxDefinition(SQLModel, table=True):
     name: str = Field(max_length=100)
     calculation: str = Field(max_length=20)
     percent_bp: int | None = Field(default=None)
-    fixed_amount_irr: int | None = Field(default=None)
+    fixed_amount_irr: int | None = Field(default=None, sa_type=BigInteger)
     is_active: bool = Field(default=True)
     is_default_vat: bool = Field(default=False)
     created_by_id: uuid.UUID | None = Field(
@@ -186,9 +199,7 @@ class FinanceCoachContract(SQLModel, table=True):
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    gym_id: uuid.UUID = Field(
-        foreign_key="gym.id", ondelete="CASCADE", index=True
-    )
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
     coach_user_id: uuid.UUID = Field(
         foreign_key="user.id", ondelete="RESTRICT", index=True
     )
@@ -209,6 +220,7 @@ class FinanceCoachContract(SQLModel, table=True):
     )
     created_at: datetime = Field(default_factory=finance_now)
     activated_at: datetime | None = Field(default=None)
+    archived_at: datetime | None = Field(default=None)
 
 
 class FinanceCoachPlan(SQLModel, table=True):
@@ -234,16 +246,14 @@ class FinanceCoachPlan(SQLModel, table=True):
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    gym_id: uuid.UUID = Field(
-        foreign_key="gym.id", ondelete="CASCADE", index=True
-    )
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
     coach_user_id: uuid.UUID = Field(
         foreign_key="user.id", ondelete="RESTRICT", index=True
     )
     category: str = Field(default="TRAINING", max_length=20)
     title: str = Field(max_length=200)
     description: str | None = Field(default=None, max_length=2000)
-    base_price_irr: int
+    base_price_irr: int = Field(sa_type=BigInteger)
     is_active: bool = Field(default=True)
     created_by_id: uuid.UUID | None = Field(
         default=None, foreign_key="user.id", ondelete="RESTRICT"
@@ -255,11 +265,9 @@ class FinanceCoachPlan(SQLModel, table=True):
 class FinanceProgramRequest(SQLModel, table=True):
     __tablename__ = "finance_program_request"
     __table_args__ = (
-        UniqueConstraint(
-            "sale_id", name="uq_finance_program_request_sale"
-        ),
+        UniqueConstraint("sale_id", name="uq_finance_program_request_sale"),
         CheckConstraint(
-            "status IN ('REQUESTED', 'FULFILLED', 'CANCELLED')",
+            "status IN ('REQUESTED', 'IN_PROGRESS', 'FULFILLED', 'CANCELLED')",
             name="ck_finance_program_request_status",
         ),
         CheckConstraint(
@@ -269,9 +277,7 @@ class FinanceProgramRequest(SQLModel, table=True):
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    gym_id: uuid.UUID = Field(
-        foreign_key="gym.id", ondelete="CASCADE", index=True
-    )
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
     athlete_user_id: uuid.UUID = Field(
         foreign_key="user.id", ondelete="RESTRICT", index=True
     )
@@ -285,8 +291,8 @@ class FinanceProgramRequest(SQLModel, table=True):
         foreign_key="finance_sale.id", ondelete="RESTRICT", index=True
     )
     plan_title: str = Field(max_length=200)
-    base_price_irr: int
-    total_amount_irr: int
+    base_price_irr: int = Field(sa_type=BigInteger)
+    total_amount_irr: int = Field(sa_type=BigInteger)
     note: str | None = Field(default=None, max_length=1000)
     status: str = Field(default="REQUESTED", max_length=20)
     created_at: datetime = Field(default_factory=finance_now)
@@ -319,22 +325,20 @@ class FinanceSale(SQLModel, table=True):
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    gym_id: uuid.UUID = Field(
-        foreign_key="gym.id", ondelete="CASCADE", index=True
-    )
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
     category: str = Field(max_length=20)
     description: str = Field(max_length=255)
     sold_on: date
-    base_amount_irr: int
-    tax_amount_irr: int = Field(default=0)
-    total_amount_irr: int
+    base_amount_irr: int = Field(sa_type=BigInteger)
+    tax_amount_irr: int = Field(default=0, sa_type=BigInteger)
+    total_amount_irr: int = Field(sa_type=BigInteger)
     status: str = Field(default="AWAITING_PAYMENT", max_length=30)
     platform_bp: int
     gym_bp: int
     coach_bp: int
-    platform_amount_irr: int
-    gym_amount_irr: int
-    coach_amount_irr: int
+    platform_amount_irr: int = Field(sa_type=BigInteger)
+    gym_amount_irr: int = Field(sa_type=BigInteger)
+    coach_amount_irr: int = Field(sa_type=BigInteger)
     coach_user_id: uuid.UUID | None = Field(
         default=None, foreign_key="user.id", ondelete="RESTRICT", index=True
     )
@@ -379,8 +383,8 @@ class FinanceSaleTax(SQLModel, table=True):
     name: str = Field(max_length=100)
     calculation: str = Field(max_length=20)
     percent_bp: int | None = Field(default=None)
-    fixed_amount_irr: int | None = Field(default=None)
-    amount_irr: int
+    fixed_amount_irr: int | None = Field(default=None, sa_type=BigInteger)
+    amount_irr: int = Field(sa_type=BigInteger)
     created_at: datetime = Field(default_factory=finance_now)
 
 
@@ -402,13 +406,11 @@ class FinancePayment(SQLModel, table=True):
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    gym_id: uuid.UUID = Field(
-        foreign_key="gym.id", ondelete="CASCADE", index=True
-    )
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
     sale_id: uuid.UUID = Field(
         foreign_key="finance_sale.id", ondelete="RESTRICT", index=True
     )
-    amount_irr: int
+    amount_irr: int = Field(sa_type=BigInteger)
     status: str = Field(max_length=20)
     outcome: str = Field(max_length=20)
     idempotency_key: str = Field(max_length=100)
@@ -431,9 +433,7 @@ class FinanceAllocation(SQLModel, table=True):
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    gym_id: uuid.UUID = Field(
-        foreign_key="gym.id", ondelete="CASCADE", index=True
-    )
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
     payment_id: uuid.UUID = Field(
         foreign_key="finance_payment.id", ondelete="CASCADE", index=True
     )
@@ -444,7 +444,7 @@ class FinanceAllocation(SQLModel, table=True):
     party_user_id: uuid.UUID | None = Field(
         default=None, foreign_key="user.id", ondelete="RESTRICT", index=True
     )
-    amount_irr: int
+    amount_irr: int = Field(sa_type=BigInteger)
     created_at: datetime = Field(default_factory=finance_now)
 
 
@@ -466,14 +466,12 @@ class FinanceSettlement(SQLModel, table=True):
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    gym_id: uuid.UUID = Field(
-        foreign_key="gym.id", ondelete="CASCADE", index=True
-    )
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
     party: str = Field(max_length=20)
     party_user_id: uuid.UUID | None = Field(
         default=None, foreign_key="user.id", ondelete="RESTRICT", index=True
     )
-    amount_irr: int
+    amount_irr: int = Field(sa_type=BigInteger)
     status: str = Field(default="PENDING", max_length=20)
     idempotency_key: str = Field(max_length=100)
     requested_at: datetime = Field(default_factory=finance_now)
@@ -501,7 +499,7 @@ class FinanceSettlementItem(SQLModel, table=True):
     allocation_id: uuid.UUID = Field(
         foreign_key="finance_allocation.id", ondelete="RESTRICT", index=True
     )
-    amount_irr: int
+    amount_irr: int = Field(sa_type=BigInteger)
 
 
 class FinanceRefund(SQLModel, table=True):
@@ -515,16 +513,14 @@ class FinanceRefund(SQLModel, table=True):
     )
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    gym_id: uuid.UUID = Field(
-        foreign_key="gym.id", ondelete="CASCADE", index=True
-    )
+    gym_id: uuid.UUID = Field(foreign_key="gym.id", ondelete="CASCADE", index=True)
     payment_id: uuid.UUID = Field(
         foreign_key="finance_payment.id", ondelete="RESTRICT", index=True
     )
     sale_id: uuid.UUID = Field(
         foreign_key="finance_sale.id", ondelete="RESTRICT", index=True
     )
-    amount_irr: int
+    amount_irr: int = Field(sa_type=BigInteger)
     status: str = Field(default="COMPLETED", max_length=20)
     idempotency_key: str = Field(max_length=100)
     reason: str = Field(max_length=500)
@@ -558,7 +554,7 @@ class FinanceRefundAdjustment(SQLModel, table=True):
     party_user_id: uuid.UUID | None = Field(
         default=None, foreign_key="user.id", ondelete="RESTRICT"
     )
-    amount_irr: int
+    amount_irr: int = Field(sa_type=BigInteger)
     created_at: datetime = Field(default_factory=finance_now)
 
 
@@ -602,6 +598,7 @@ class FinancePlatformContractPublic(SQLModel):
     effective_to: date | None = None
     rates: list[FinancePlatformRatePublic]
     activated_at: datetime | None = None
+    archived_at: datetime | None = None
     created_at: datetime
 
 
@@ -649,6 +646,7 @@ class FinanceCoachContractPublic(SQLModel):
     platform_source: str
     platform_contract_id: uuid.UUID
     activated_at: datetime | None = None
+    archived_at: datetime | None = None
     created_at: datetime
 
 
@@ -656,6 +654,8 @@ class FinanceCoachOptionPublic(SQLModel):
     user_id: uuid.UUID
     name: str
     email: str
+    is_active: bool = True
+    has_balance: bool = False
 
 
 class FinanceSalePreviewPublic(SQLModel):
@@ -723,6 +723,9 @@ class FinanceCoachPlanPublic(SQLModel):
 
 
 class FinanceProgramRequestPublic(SQLModel):
+    program_version_id: uuid.UUID | None = None
+    program_status: str | None = None
+    started_at: datetime | None = None
     id: uuid.UUID
     gym_id: uuid.UUID
     athlete_user_id: uuid.UUID
@@ -741,6 +744,7 @@ class FinanceProgramRequestPublic(SQLModel):
 
 
 class FinanceTrainingOfferPublic(SQLModel):
+    quote_token: str
     plan: FinanceCoachPlanPublic
     coach_contract_id: uuid.UUID
     taxes: list[FinanceTaxLinePublic] = Field(default_factory=list)
@@ -898,7 +902,7 @@ class FinanceTaxCreate(SQLModel):
     name: str = Field(min_length=1, max_length=100)
     calculation: TaxCalculation
     percent_bp: int | None = Field(default=None, ge=0, le=10000)
-    fixed_amount_irr: int | None = Field(default=None, gt=0)
+    fixed_amount_irr: int | None = Field(default=None, gt=0, le=MAX_MONEY_IRR)
     is_active: bool = True
     is_default_vat: bool = False
 
@@ -907,7 +911,7 @@ class FinanceTaxUpdate(SQLModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     calculation: TaxCalculation | None = None
     percent_bp: int | None = Field(default=None, ge=0, le=10000)
-    fixed_amount_irr: int | None = Field(default=None, gt=0)
+    fixed_amount_irr: int | None = Field(default=None, gt=0, le=MAX_MONEY_IRR)
     is_active: bool | None = None
     is_default_vat: bool | None = None
 
@@ -934,18 +938,19 @@ class FinanceCoachPlanCreate(SQLModel):
     coach_user_id: uuid.UUID | None = None
     title: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
-    base_price_irr: int = Field(gt=0)
+    base_price_irr: int = Field(gt=0, le=MAX_MONEY_IRR)
     is_active: bool = True
 
 
 class FinanceCoachPlanUpdate(SQLModel):
     title: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
-    base_price_irr: int = Field(gt=0)
+    base_price_irr: int = Field(gt=0, le=MAX_MONEY_IRR)
     is_active: bool = True
 
 
 class FinancePlanPurchaseCreate(SQLModel):
+    quote_token: str = Field(min_length=1, max_length=4096)
     plan_id: uuid.UUID
     note: str | None = Field(default=None, max_length=1000)
     idempotency_key: str = Field(min_length=1, max_length=100)
@@ -955,7 +960,7 @@ class FinancePlanPurchaseCreate(SQLModel):
 class FinanceSalePreviewRequest(SQLModel):
     category: FinanceCategory
     description: str = Field(default="", max_length=255)
-    base_amount_irr: int = Field(gt=0)
+    base_amount_irr: int = Field(gt=0, le=MAX_MONEY_IRR)
     tax_ids: list[uuid.UUID] = Field(default_factory=list)
     coach_user_id: uuid.UUID | None = None
     sold_on: date
@@ -974,11 +979,11 @@ class FinancePaymentSimulate(SQLModel):
 class FinanceSettlementCreate(SQLModel):
     party: AllocationParty
     party_user_id: uuid.UUID | None = None
-    amount_irr: int = Field(gt=0)
+    amount_irr: int = Field(gt=0, le=MAX_MONEY_IRR)
     idempotency_key: str = Field(min_length=1, max_length=100)
 
 
 class FinanceRefundCreate(SQLModel):
-    amount_irr: int = Field(gt=0)
+    amount_irr: int = Field(gt=0, le=MAX_MONEY_IRR)
     idempotency_key: str = Field(min_length=1, max_length=100)
     reason: str = Field(min_length=3, max_length=500)

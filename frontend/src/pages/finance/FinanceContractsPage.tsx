@@ -28,12 +28,13 @@ import {
   updateCoachContract,
 } from "@/lib/finance-api"
 import {
-  bpFromPercent,
   categoryLabel,
+  parsePercentToBp,
   percentFromBp,
   sourceLabel,
   todayIso,
 } from "@/lib/finance-ui"
+import { parseErrorMessage } from "@/lib/finance-validation"
 import { useSnackbar } from "@/snackbar"
 
 const CATEGORY_OPTIONS: { value: FinanceCategory; label: string }[] = [
@@ -42,7 +43,7 @@ const CATEGORY_OPTIONS: { value: FinanceCategory; label: string }[] = [
 ]
 
 export function FinanceContractsPage({ gymId }: { gymId: string }) {
-  const { t, formatNumber, formatDate, normalizeDigits } = useI18n()
+  const { t, formatNumber, formatDate } = useI18n()
   const queryClient = useQueryClient()
   const { show } = useSnackbar()
   const [open, setOpen] = useState(false)
@@ -71,8 +72,16 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
     enabled: open,
   })
   const platformPercent = policy.data ? policy.data.platform_bp / 100 : null
-  const gymPercent = Number(normalizeDigits(form.gymPercent)) || 0
-  const coachPercent = Number(normalizeDigits(form.coachPercent)) || 0
+  const gymParse = parsePercentToBp(form.gymPercent)
+  const coachParse = parsePercentToBp(form.coachPercent)
+  const gymPercent = gymParse.ok ? gymParse.value / 100 : 0
+  const coachPercent = coachParse.ok ? coachParse.value / 100 : 0
+  const gymFieldError = form.gymPercent
+    ? parseErrorMessage(gymParse, "percent", t)
+    : undefined
+  const coachFieldError = form.coachPercent
+    ? parseErrorMessage(coachParse, "percent", t)
+    : undefined
   const remaining =
     platformPercent === null
       ? null
@@ -91,6 +100,11 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
     if (!form.effectiveFrom) return t("finance.contracts.errorDate")
     if (form.effectiveTo && form.effectiveTo < form.effectiveFrom) {
       return t("finance.contracts.errorDates")
+    }
+    if (!gymParse.ok || !coachParse.ok) {
+      return (
+        gymFieldError ?? coachFieldError ?? t("finance.contracts.errorBounds")
+      )
     }
     if (
       gymPercent < 0 ||
@@ -136,7 +150,7 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
   }
 
   async function submit() {
-    if (formError || !policy.data) return
+    if (formError || !policy.data || !gymParse.ok || !coachParse.ok) return
     setSaving(true)
     setError(null)
     try {
@@ -145,8 +159,8 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
           effective_from: form.effectiveFrom,
           effective_to: form.effectiveTo || null,
           platform_bp: policy.data.platform_bp,
-          gym_bp: bpFromPercent(gymPercent),
-          coach_bp: bpFromPercent(coachPercent),
+          gym_bp: gymParse.value,
+          coach_bp: coachParse.value,
         })
       } else {
         await createCoachContract(gymId, {
@@ -155,8 +169,8 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
           effective_from: form.effectiveFrom,
           effective_to: form.effectiveTo || null,
           platform_bp: policy.data.platform_bp,
-          gym_bp: bpFromPercent(gymPercent),
-          coach_bp: bpFromPercent(coachPercent),
+          gym_bp: gymParse.value,
+          coach_bp: coachParse.value,
         })
       }
       await queryClient.invalidateQueries({
@@ -404,6 +418,7 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
             }
             inputMode="decimal"
             suffix="٪"
+            error={gymFieldError}
             required
             readOnly={Boolean(editingId)}
             helper={
@@ -418,6 +433,7 @@ export function FinanceContractsPage({ gymId }: { gymId: string }) {
             }
             inputMode="decimal"
             suffix="٪"
+            error={coachFieldError}
             required
           />
           <div

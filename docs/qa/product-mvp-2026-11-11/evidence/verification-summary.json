@@ -1,0 +1,77 @@
+{
+  "financial_history_unchanged": true,
+  "tables_per_database": {
+    "gym_dev": 15,
+    "gym_stage": 15
+  },
+  "source_files_match_verified_build": true,
+  "generated_routes_match": true,
+  "schema": {
+    "dev": {
+      "revision": "d4e5f6a7b8c9",
+      "drift": false,
+      "test_workout_rows": 0
+    },
+    "stage": {
+      "revision": "d4e5f6a7b8c9",
+      "drift": false,
+      "test_workout_rows": 0
+    }
+  },
+  "live_smoke": [
+    {
+      "environment": "dev",
+      "role": "owner",
+      "status": "PASS",
+      "pageErrors": [],
+      "overflow": false
+    },
+    {
+      "environment": "dev",
+      "role": "coach",
+      "status": "PASS",
+      "pageErrors": [],
+      "overflow": false
+    },
+    {
+      "environment": "dev",
+      "role": "athlete",
+      "status": "PASS",
+      "pageErrors": [],
+      "overflow": false
+    },
+    {
+      "environment": "stage",
+      "role": "owner",
+      "status": "PASS",
+      "pageErrors": [],
+      "overflow": false
+    },
+    {
+      "environment": "stage",
+      "role": "coach",
+      "status": "PASS",
+      "pageErrors": [],
+      "overflow": false
+    },
+    {
+      "environment": "stage",
+      "role": "athlete",
+      "status": "PASS",
+      "pageErrors": [],
+      "overflow": false
+    },
+    {
+      "check": "simultaneous dev/stage cookie isolation",
+      "status": "PASS"
+    }
+  ],
+  "browser_regression": {
+    "startTime": "2026-11-11T13:50:40.606Z",
+    "duration": 133261.199,
+    "expected": 154,
+    "skipped": 1,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

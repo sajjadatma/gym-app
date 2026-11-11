@@ -23,7 +23,12 @@ import {
   type TaxDefinition,
   updateTax,
 } from "@/lib/finance-api"
-import { percentFromBp, tomanToIrr } from "@/lib/finance-ui"
+import {
+  parsePercentToBp,
+  parseTomanToIrr,
+  percentFromBp,
+} from "@/lib/finance-ui"
+import { parseErrorMessage } from "@/lib/finance-validation"
 import { useSnackbar } from "@/snackbar"
 
 export function FinanceTaxesPage() {
@@ -34,6 +39,8 @@ export function FinanceTaxesPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<TaxDefinition | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [percentError, setPercentError] = useState<string | null>(null)
+  const [fixedError, setFixedError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     name: "",
@@ -59,6 +66,8 @@ export function FinanceTaxesPage() {
       isDefaultVat: false,
     })
     setError(null)
+    setPercentError(null)
+    setFixedError(null)
     setOpen(true)
   }
 
@@ -67,31 +76,49 @@ export function FinanceTaxesPage() {
     setForm({
       name: tax.name,
       calculation: tax.calculation,
-      percent: tax.percent_bp ? percentFromBp(tax.percent_bp) : "10",
-      fixedToman: tax.fixed_amount_irr
-        ? String(tax.fixed_amount_irr / 10)
-        : "50000",
+      percent: tax.percent_bp !== null ? percentFromBp(tax.percent_bp) : "",
+      fixedToman:
+        tax.fixed_amount_irr !== null ? String(tax.fixed_amount_irr / 10) : "",
       isActive: tax.is_active,
       isDefaultVat: tax.is_default_vat,
     })
     setError(null)
+    setPercentError(null)
+    setFixedError(null)
     setOpen(true)
   }
 
   async function submit() {
-    setSaving(true)
     setError(null)
+    setPercentError(null)
+    setFixedError(null)
+    let percentBp: number | null = null
+    let fixedIrr: number | null = null
+    if (form.calculation === "PERCENT") {
+      const parsed = parsePercentToBp(form.percent)
+      if (!parsed.ok) {
+        setPercentError(parseErrorMessage(parsed, "percent", t) ?? null)
+        return
+      }
+      percentBp = parsed.value
+    } else {
+      const parsed = parseTomanToIrr(form.fixedToman)
+      if (!parsed.ok || parsed.value <= 0) {
+        setFixedError(
+          parsed.ok
+            ? t("finance.validation.fixedAmountPositive")
+            : (parseErrorMessage(parsed, "amount", t) ?? null),
+        )
+        return
+      }
+      fixedIrr = parsed.value
+    }
+    setSaving(true)
     const body = {
       name: form.name.trim(),
       calculation: form.calculation,
-      percent_bp:
-        form.calculation === "PERCENT"
-          ? Math.round(Number(form.percent) * 100)
-          : null,
-      fixed_amount_irr:
-        form.calculation === "FIXED"
-          ? tomanToIrr(Number(form.fixedToman))
-          : null,
+      percent_bp: percentBp,
+      fixed_amount_irr: fixedIrr,
       is_active: form.isActive,
       is_default_vat: form.isDefaultVat,
     }
@@ -260,21 +287,28 @@ export function FinanceTaxesPage() {
             <TextField
               label={t("finance.table.percentValue")}
               value={form.percent}
-              onChange={(event) =>
+              onChange={(event) => {
                 setForm((prev) => ({ ...prev, percent: event.target.value }))
-              }
+                setPercentError(null)
+              }}
               inputMode="decimal"
               suffix="٪"
+              error={percentError ?? undefined}
             />
           ) : (
             <TextField
               label={t("finance.table.fixedValue")}
               value={form.fixedToman}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, fixedToman: event.target.value }))
-              }
+              onChange={(event) => {
+                setForm((prev) => ({
+                  ...prev,
+                  fixedToman: event.target.value,
+                }))
+                setFixedError(null)
+              }}
               inputMode="numeric"
               suffix={t("finance.unit.toman")}
+              error={fixedError ?? undefined}
             />
           )}
         </div>

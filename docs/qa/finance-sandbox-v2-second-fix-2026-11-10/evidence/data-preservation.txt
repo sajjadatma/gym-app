@@ -1,0 +1,14 @@
+Main database: gym_finance_sandbox_v2
+Alembic revision: c3f4a5b6d7e8
+finance_sale: 2
+finance_payment: 2
+finance_program_request: 1
+Backup: /private/var/folders/pk/nrxwwmj91jxc9_pgv18y6mcr0000gn/T/opencode/gym_finance_sandbox_v2_before_finance_fix.dump
+-rw-r--r--@ 1 sajad  staff   130K Nov 10 16:46 /private/var/folders/pk/nrxwwmj91jxc9_pgv18y6mcr0000gn/T/opencode/gym_finance_sandbox_v2_before_finance_fix.dump
+
+Disposable databases used for this validation:
+- gym_finance_fix_20261110_test (backend TEST_DATABASE_URL)
+- gym_app_migration_test (recreated by tests/test_migrations.py)
+- gym_finance_alembic_final_20261110_test (alembic check)
+- gym_finance_ui_final_20261110_test (targeted browser checks, port 8021)
+- gym_finance_full_ui_20261110_test (full Playwright runs, port 8022)

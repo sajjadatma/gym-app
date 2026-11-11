@@ -1,0 +1,106 @@
+TAP version 13
+# Subtest: build id changes with shell, assets or worker but is stable for identical builds
+ok 1 - build id changes with shell, assets or worker but is stable for identical builds
+  ---
+  duration_ms: 16.624917
+  type: 'test'
+  ...
+# Subtest: build injects every emitted asset into the precache list
+ok 2 - build injects every emitted asset into the precache list
+  ---
+  duration_ms: 2.434042
+  type: 'test'
+  ...
+# Subtest: build fails when emitted index is missing
+ok 3 - build fails when emitted index is missing
+  ---
+  duration_ms: 0.961708
+  type: 'test'
+  ...
+# Subtest: Motion AI Kit and M3 motion tokens are centralized with standard and expressive families
+ok 4 - Motion AI Kit and M3 motion tokens are centralized with standard and expressive families
+  ---
+  duration_ms: 3.316583
+  type: 'test'
+  ...
+# Subtest: component motion declarations use shared tokens instead of local timings
+ok 5 - component motion declarations use shared tokens instead of local timings
+  ---
+  duration_ms: 1.073125
+  type: 'test'
+  ...
+# Subtest: reduced motion is scoped to ASCORA surfaces and does not imply completed progress
+ok 6 - reduced motion is scoped to ASCORA surfaces and does not imply completed progress
+  ---
+  duration_ms: 0.491625
+  type: 'test'
+  ...
+# Subtest: motion token stylesheet is imported by the application
+ok 7 - motion token stylesheet is imported by the application
+  ---
+  duration_ms: 0.852708
+  type: 'test'
+  ...
+# Subtest: install precaches the complete build without taking over open tabs
+ok 8 - install precaches the complete build without taking over open tabs
+  ---
+  duration_ms: 15.647459
+  type: 'test'
+  ...
+# Subtest: install fails instead of caching an HTML fallback as a build asset
+ok 9 - install fails instead of caching an HTML fallback as a build asset
+  ---
+  duration_ms: 2.400083
+  type: 'test'
+  ...
+# Subtest: activation removes only obsolete FormYar caches
+ok 10 - activation removes only obsolete FormYar caches
+  ---
+  duration_ms: 1.31
+  type: 'test'
+  ...
+# Subtest: navigation bypasses the HTTP cache instead of trusting stale HTML
+ok 11 - navigation bypasses the HTTP cache instead of trusting stale HTML
+  ---
+  duration_ms: 1.262958
+  type: 'test'
+  ...
+# Subtest: navigation keeps the installed shell and never replaces it with a newer build
+ok 12 - navigation keeps the installed shell and never replaces it with a newer build
+  ---
+  duration_ms: 1.889792
+  type: 'test'
+  ...
+# Subtest: HTML fallbacks are never cached or served for asset URLs
+ok 13 - HTML fallbacks are never cached or served for asset URLs
+  ---
+  duration_ms: 0.942916
+  type: 'test'
+  ...
+# Subtest: a cached HTML fallback is evicted before fetching the real asset
+ok 14 - a cached HTML fallback is evicted before fetching the real asset
+  ---
+  duration_ms: 2.001333
+  type: 'test'
+  ...
+# Subtest: only successful static responses enter this build cache and APIs are untouched
+ok 15 - only successful static responses enter this build cache and APIs are untouched
+  ---
+  duration_ms: 1.041166
+  type: 'test'
+  ...
+# Subtest: missing offline shell returns a network error response
+ok 16 - missing offline shell returns a network error response
+  ---
+  duration_ms: 1.365875
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 73.519375

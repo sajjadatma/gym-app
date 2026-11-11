@@ -24,6 +24,7 @@ export type PlatformContract = {
   effective_to: string | null
   rates: PlatformRate[]
   activated_at: string | null
+  archived_at: string | null
   created_at: string
 }
 
@@ -71,6 +72,7 @@ export type CoachContract = {
   platform_source: string
   platform_contract_id: string
   activated_at: string | null
+  archived_at: string | null
   created_at: string
 }
 
@@ -78,6 +80,8 @@ export type CoachOption = {
   user_id: string
   name: string
   email: string
+  is_active: boolean
+  has_balance: boolean
 }
 
 export type CoachPlan = {
@@ -95,6 +99,7 @@ export type CoachPlan = {
 }
 
 export type TrainingOffer = {
+  quote_token: string
   plan: CoachPlan
   coach_contract_id: string
   taxes: TaxLine[]
@@ -121,7 +126,10 @@ export type ProgramRequest = {
   base_price_irr: number
   total_amount_irr: number
   note: string | null
-  status: "REQUESTED" | "FULFILLED" | "CANCELLED"
+  program_version_id: string | null
+  program_status: string | null
+  started_at: string | null
+  status: "REQUESTED" | "IN_PROGRESS" | "FULFILLED" | "CANCELLED"
   created_at: string
   fulfilled_at: string | null
 }
@@ -446,9 +454,15 @@ export async function archiveCoachContract(gymId: string, id: string) {
   ).data
 }
 
-export async function listGymCoaches(gymId: string) {
-  return (await api.get<CoachOption[]>(`/api/v1/finance/gyms/${gymId}/coaches`))
-    .data
+export async function listGymCoaches(
+  gymId: string,
+  options: { withBalance?: boolean } = {},
+) {
+  return (
+    await api.get<CoachOption[]>(`/api/v1/finance/gyms/${gymId}/coaches`, {
+      params: options.withBalance ? { with_balance: true } : undefined,
+    })
+  ).data
 }
 
 export async function listCoachPlans(gymId: string, coachUserId?: string) {
@@ -503,6 +517,7 @@ export async function getTrainingOffer(gymId: string) {
 export async function purchaseTrainingPlan(
   gymId: string,
   body: {
+    quote_token: string
     plan_id: string
     note?: string | null
     idempotency_key: string

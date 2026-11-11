@@ -11,6 +11,76 @@ import {
 export type Locale = "fa" | "en"
 
 const fa = {
+  "activity.cancelled": "لغوشده",
+  "common.date": "تاریخ",
+  "activity.today": "کارهای امروز",
+  "activity.requested": "منتظر شروع",
+  "activity.preparing": "در حال آماده‌سازی",
+  "activity.delivered": "منتشرشده و قابل مشاهده",
+  "activity.noProgram": "بدون برنامه فعال",
+  "activity.allRequests": "همه درخواست‌ها",
+  "activity.start": "شروع ساخت برنامه",
+  "activity.continue": "ادامه آماده‌سازی",
+  "activity.noTasks": "درخواست بازی برای پیگیری ندارید.",
+  "activity.statement": "صورت‌حساب من",
+  "activity.earned": "سهم محاسبه‌شده من",
+  "activity.refunded": "اصلاح سهم بابت بازپرداخت",
+  "activity.available": "قابل تسویه",
+  "activity.pending": "تسویه در انتظار",
+  "activity.paid": "تسویه‌شده",
+  "activity.adjustment": "اختلاف پس از تسویه؛ نیازمند بررسی مدیر",
+  "activity.statementNote":
+    "فقط سهم و تسویه‌های خودتان در این باشگاه نمایش داده می‌شود. مبالغ و تسویه‌ها آزمایشی‌اند.",
+  "activity.earningsHistory": "ریز درآمد من",
+  "activity.settlements": "سوابق تسویه من",
+  "activity.noEarnings": "هنوز درآمد یا تسویه‌ای ثبت نشده است.",
+  "activity.document": "فاکتور و رسید",
+  "activity.invoice": "فاکتور خرید",
+  "activity.receipt": "رسید پرداخت",
+  "activity.reference": "شماره پیگیری",
+  "activity.documentNote":
+    "سند داخلی خرید آزمایشی؛ هیچ پول واقعی جابه‌جا نشده است.",
+  "activity.customer": "خریدار",
+  "activity.noReceipt": "پرداخت موفقی برای صدور رسید ثبت نشده است.",
+  "activity.tracking": "پیگیری درخواست",
+  "activity.viewProgram": "مشاهده برنامه تحویل‌شده",
+  "activity.progress": "تمرین و پیشرفت",
+  "activity.logWorkout": "ثبت عملکرد این جلسه",
+  "activity.sessionDate": "تاریخ انجام جلسه",
+  "activity.sessionDone": "جلسه را انجام دادم",
+  "activity.effort": "سختی جلسه از ۱ تا ۱۰",
+  "activity.feedback": "یادداشت و بازخورد جلسه",
+  "activity.actualReps": "تکرار واقعی",
+  "activity.actualWeight": "وزنه واقعی (کیلوگرم)",
+  "activity.setDone": "ست انجام شد",
+  "activity.saveSession": "ذخیره عملکرد جلسه",
+  "activity.savedSession": "عملکرد جلسه ثبت شد.",
+  "activity.logHint":
+    "مقادیر واقعی را ثبت کنید؛ برنامه مربی تغییر نمی‌کند. ثبت تکرار و وزنه اختیاری است.",
+  "activity.history": "سوابق اجرای تمرین",
+  "activity.noHistory": "هنوز جلسه‌ای ثبت نشده است.",
+  "activity.completedSessions": "جلسات کامل ثبت‌شده در ۳۰ روز",
+  "activity.completedSets": "ست‌های انجام‌شده در ۳۰ روز",
+  "activity.comparison": "آخرین عملکرد ثبت‌شده هر حرکت",
+  "activity.previous": "جلسه قبل",
+  "activity.latest": "آخرین جلسه",
+  "activity.partial": "ناتمام",
+  "activity.complete": "انجام‌شده",
+  "activity.historyHint":
+    "تا ۱۰۰ جلسه اخیر؛ مقایسه‌ها بر اساس گزارش ورزشکار و ست هم‌شماره است.",
+  "activity.invalidNumber":
+    "تکرار، وزنه و سختی جلسه را با مقدار معتبر وارد کنید.",
+  "activity.quoteChanged":
+    "قیمت یا شرایط پیشنهاد تغییر کرده است. مبلغ به‌روز را بررسی و دوباره تأیید کنید.",
+  "errors.training_quote_changed":
+    "قیمت یا شرایط پیشنهاد تغییر کرده است؛ پیشنهاد جدید را دوباره تأیید کنید.",
+  "errors.workout_future_date": "تاریخ جلسه نمی‌تواند در آینده باشد.",
+  "errors.workout_day_mismatch": "روز انتخاب‌شده متعلق به این برنامه نیست.",
+  "errors.workout_set_mismatch":
+    "ساختار برنامه تغییر کرده است؛ صفحه را تازه کنید.",
+  "errors.workout_duplicate_set": "هر ست فقط یک بار در جلسه ثبت می‌شود.",
+  "errors.workout_retry_conflict": "ثبت هم‌زمان انجام شد؛ سوابق را تازه کنید.",
+  "errors.athlete_self_required": "فقط ورزشکار می‌تواند عملکرد خودش را ثبت کند.",
   "categories.category": "دسته‌بندی",
   "categories.add": "افزودن دسته‌بندی",
   "categories.name": "نام دسته‌بندی",
@@ -1006,6 +1076,19 @@ const fa = {
   "finance.simulationBadge":
     "محیط آزمایشی — پول واقعی جابه\u200cجا نمی\u200cشود",
   "finance.unit.toman": "تومان",
+  "finance.validation.amountRequired": "مبلغ را وارد کنید.",
+  "finance.validation.amountInvalid":
+    "مبلغ معتبر نیست؛ از ارقام و جداکننده‌های مجاز استفاده کنید.",
+  "finance.validation.amountPrecision": "مبلغ تومان حداکثر یک رقم اعشار دارد.",
+  "finance.validation.amountRange": "مبلغ بیش از سقف مجاز است.",
+  "finance.validation.percentInvalid":
+    "درصد معتبر نیست؛ از ارقام و جداکننده اعشار استفاده کنید.",
+  "finance.validation.percentPrecision": "درصد حداکثر دو رقم اعشار دارد.",
+  "finance.validation.percentRange": "درصد باید بین ۰ و ۱۰۰ باشد.",
+  "finance.validation.fixedAmountPositive":
+    "مبلغ ثابت باید بزرگ‌تر از صفر باشد.",
+  "finance.validation.previewRequired":
+    "ابتدا پیش‌نمایش را با همین اطلاعات محاسبه کنید.",
   "finance.overview.gymTitle": "نمای کلی مالی باشگاه",
   "finance.overview.globalTitle": "نمای کلی مالی سراسری",
   "finance.overview.gymSubtitle": "فروش، سهم\u200cها و تسویه\u200cهای {gym}",
@@ -1262,7 +1345,9 @@ const fa = {
   "finance.requests.emptyHint":
     "درخواست‌ها فقط پس از پرداخت موفق خرید پلن ایجاد می‌شوند.",
   "finance.requests.statusRequested": "در انتظار ساخت برنامه",
-  "finance.requests.statusFulfilled": "برنامه ساخته شده",
+  "finance.requests.statusFulfilled": "منتشرشده و قابل مشاهده",
+  "finance.requests.statusCancelled": "لغوشده پس از بازپرداخت کامل",
+  "finance.settlements.departedCoach": "مربی غیرفعال — طلب قبلی",
   "finance.sales.membershipClubOnly":
     "حق عضویت فقط به باشگاه و پلتفرم تعلق دارد؛ مربی و سهم مربی در آن وجود ندارد.",
   "finance.purchase.title": "پلن تمرینی مربی",
@@ -1314,11 +1399,88 @@ const fa = {
   "errors.athlete_access_required": "این بخش فقط برای ورزشکار است.",
   "errors.idempotency_key_reused":
     "این کلید پرداخت قبلاً برای خرید دیگری استفاده شده است.",
+  "errors.program_request_cancelled":
+    "این درخواست پس از بازپرداخت کامل خرید لغو شده است.",
+  "errors.program_purchase_refunded":
+    "خرید این درخواست کاملاً مسترد شده و مجوز ساخت برنامه نیست.",
+  "errors.program_request_payment_missing":
+    "پرداخت موفق معتبری برای این درخواست پیدا نشد.",
+  "errors.coach_earnings_not_found":
+    "طلب قابل تسویه‌ای برای این مربی در این باشگاه وجود ندارد.",
 } as const
 
 type TranslationKey = keyof typeof fa
 
 const en: Record<TranslationKey, string> = {
+  "activity.cancelled": "Cancelled",
+  "common.date": "Date",
+  "activity.today": "Tasks to act on",
+  "activity.requested": "Waiting to start",
+  "activity.preparing": "In preparation",
+  "activity.delivered": "Published and available",
+  "activity.noProgram": "Without an active program",
+  "activity.allRequests": "All requests",
+  "activity.start": "Start preparing",
+  "activity.continue": "Continue preparing",
+  "activity.noTasks": "No open program requests.",
+  "activity.statement": "My earnings statement",
+  "activity.earned": "My allocated earnings",
+  "activity.refunded": "Refund adjustments",
+  "activity.available": "Available for settlement",
+  "activity.pending": "Pending settlement",
+  "activity.paid": "Settled",
+  "activity.adjustment": "Post-settlement difference; manager review needed",
+  "activity.statementNote":
+    "Only your own earnings and settlements in this gym are shown. All payments and settlements are simulated.",
+  "activity.earningsHistory": "My earnings history",
+  "activity.settlements": "My settlement history",
+  "activity.noEarnings": "No earnings or settlements yet.",
+  "activity.document": "Invoice and receipt",
+  "activity.invoice": "Purchase invoice",
+  "activity.receipt": "Payment receipt",
+  "activity.reference": "Reference",
+  "activity.documentNote":
+    "Internal simulated-purchase document. No real money has moved.",
+  "activity.customer": "Customer",
+  "activity.noReceipt": "No successful payment is available for a receipt.",
+  "activity.tracking": "Track request",
+  "activity.viewProgram": "View delivered program",
+  "activity.progress": "Training and progress",
+  "activity.logWorkout": "Log this workout",
+  "activity.sessionDate": "Workout date",
+  "activity.sessionDone": "I completed the workout",
+  "activity.effort": "Session effort from 1 to 10",
+  "activity.feedback": "Session notes and feedback",
+  "activity.actualReps": "Actual repetitions",
+  "activity.actualWeight": "Actual weight (kg)",
+  "activity.setDone": "Set completed",
+  "activity.saveSession": "Save workout log",
+  "activity.savedSession": "Workout logged.",
+  "activity.logHint":
+    "Record actual performance without changing the coach plan. Reps and weight are optional.",
+  "activity.history": "Workout history",
+  "activity.noHistory": "No workouts logged yet.",
+  "activity.completedSessions": "Completed workouts logged in 30 days",
+  "activity.completedSets": "Completed sets logged in 30 days",
+  "activity.comparison": "Latest recorded performance by exercise",
+  "activity.previous": "Previous session",
+  "activity.latest": "Latest session",
+  "activity.partial": "Partial",
+  "activity.complete": "Completed",
+  "activity.historyHint":
+    "Up to 100 recent sessions. Comparisons use athlete-reported results for the same set number.",
+  "activity.invalidNumber": "Enter valid repetitions, weight and effort.",
+  "activity.quoteChanged":
+    "The price or terms have changed. Review the updated offer and confirm again.",
+  "errors.training_quote_changed":
+    "The price or terms changed. Confirm the updated offer.",
+  "errors.workout_future_date": "Workout date cannot be in the future.",
+  "errors.workout_day_mismatch": "This day does not belong to the program.",
+  "errors.workout_set_mismatch": "The program changed. Reload this page.",
+  "errors.workout_duplicate_set": "Each set can be logged once per session.",
+  "errors.workout_retry_conflict":
+    "A concurrent log was saved. Refresh the history.",
+  "errors.athlete_self_required": "Only the athlete can log their own workout.",
   "categories.category": "Category",
   "categories.add": "Add category",
   "categories.name": "Category name",
@@ -2324,6 +2486,22 @@ const en: Record<TranslationKey, string> = {
   "finance.nav.platformContracts": "Platform contracts",
   "finance.simulationBadge": "Test mode — no real money moves",
   "finance.unit.toman": "toman",
+  "finance.validation.amountRequired": "Enter an amount.",
+  "finance.validation.amountInvalid":
+    "Enter a valid amount using supported digits and separators.",
+  "finance.validation.amountPrecision":
+    "Toman amounts support at most one decimal place.",
+  "finance.validation.amountRange": "The amount is above the supported limit.",
+  "finance.validation.percentInvalid":
+    "Enter a valid percentage using supported digits and a decimal separator.",
+  "finance.validation.percentPrecision":
+    "Percentages support at most two decimal places.",
+  "finance.validation.percentRange":
+    "The percentage must be between 0 and 100.",
+  "finance.validation.fixedAmountPositive":
+    "The fixed amount must be greater than zero.",
+  "finance.validation.previewRequired":
+    "Calculate a preview for the current values first.",
   "finance.overview.gymTitle": "Gym finance overview",
   "finance.overview.globalTitle": "Global finance overview",
   "finance.overview.gymSubtitle": "Sales, shares and settlements for {gym}",
@@ -2578,7 +2756,9 @@ const en: Record<TranslationKey, string> = {
   "finance.requests.emptyHint":
     "Requests are created only after a successful plan purchase.",
   "finance.requests.statusRequested": "Waiting for program",
-  "finance.requests.statusFulfilled": "Program created",
+  "finance.requests.statusFulfilled": "Published and available",
+  "finance.requests.statusCancelled": "Cancelled after full refund",
+  "finance.settlements.departedCoach": "Inactive coach — previous earnings",
   "finance.sales.membershipClubOnly":
     "Membership belongs only to the gym and platform; there is no coach or coach share.",
   "finance.purchase.title": "Coach training plan",
@@ -2631,6 +2811,14 @@ const en: Record<TranslationKey, string> = {
   "errors.athlete_access_required": "This section is for athletes only.",
   "errors.idempotency_key_reused":
     "This payment key was already used for another purchase.",
+  "errors.program_request_cancelled":
+    "This request was cancelled after the purchase was fully refunded.",
+  "errors.program_purchase_refunded":
+    "This purchase has been fully refunded and cannot authorize a program.",
+  "errors.program_request_payment_missing":
+    "No valid successful payment was found for this request.",
+  "errors.coach_earnings_not_found":
+    "This coach has no payable earnings in this gym.",
 }
 
 const dictionaries: Record<Locale, Record<TranslationKey, string>> = { fa, en }

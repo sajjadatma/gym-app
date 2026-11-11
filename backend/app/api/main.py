@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.routes import (
+    activity,
     athletes,
     exercise_categories,
     exercises,
@@ -21,6 +22,7 @@ api_router.include_router(login.router)
 api_router.include_router(users.router)
 api_router.include_router(gyms.router)
 api_router.include_router(finance.router)
+api_router.include_router(activity.router)
 api_router.include_router(athletes.router)
 api_router.include_router(superuser_coaches.router)
 api_router.include_router(superuser_athletes.router)

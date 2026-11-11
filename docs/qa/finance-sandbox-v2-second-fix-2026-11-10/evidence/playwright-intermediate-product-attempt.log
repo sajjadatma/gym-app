@@ -1,0 +1,212 @@
+
+Running 141 tests using 1 worker
+
+  ✓    1 [admin-setup] › tests/admin.setup.ts:7:1 › authenticate gym admin (414ms)
+  ✓    2 [athlete-setup] › tests/athlete.setup.ts:7:1 › authenticate athlete (333ms)
+  ✓    3 [superuser] › tests/superuser-context.spec.ts:24:1 › superuser lands globally without a club context (365ms)
+  ✓    4 [superuser] › tests/superuser-context.spec.ts:35:1 › superuser with no clubs is sent to the clubs page with a create action (338ms)
+  ✓    5 [superuser] › tests/superuser-context.spec.ts:52:1 › entering a club opens its workspace and keeps the club on reload (503ms)
+  ✓    6 [superuser] › tests/superuser-context.spec.ts:70:1 › club settings live on their own route (622ms)
+  ✓    7 [superuser] › tests/superuser-context.spec.ts:85:1 › all clubs leaves the club from a workspace page and returns to the global view (760ms)
+  ✓    8 [superuser] › tests/superuser-context.spec.ts:104:1 › switching clubs from the workspace changes the club and keeps a club URL (777ms)
+  ✓    9 [superuser] › tests/superuser-context.spec.ts:120:1 › club workspace highlights the dashboard item and keeps its URL (416ms)
+  ✓   10 [superuser] › tests/superuser-context.spec.ts:142:1 › club cards on the clubs list link into the workspace (372ms)
+  ✓   11 [superuser] › tests/superuser-context.spec.ts:152:1 › the global athletes route lists athletes when no club is active (368ms)
+  ✓   12 [superuser] › tests/superuser-context.spec.ts:161:1 › superuser inside a club hides the clubs nav and can return to the global dashboard (462ms)
+  ✓   13 [superuser] › tests/superuser-context.spec.ts:194:1 › global coaches and athletes pages manage people across clubs (8.8s)
+  ✓   14 [superuser] › tests/superuser-context.spec.ts:367:1 › superuser transfers a coach and athlete between clubs (6.4s)
+  ✓   15 [superuser] › tests/superuser-context.spec.ts:468:1 › global people navigation disappears inside a club (401ms)
+  ✓   16 [superuser] › tests/superuser-context.spec.ts:479:1 › global athlete list paginates and changes page size (824ms)
+  ✓   17 [superuser] › tests/superuser-context.spec.ts:531:1 › global list state is restored from the URL and Back works (658ms)
+  ✓   18 [responsive] › tests/responsive-hardening.spec.ts:427:1 › workout duration stays visible on a phone (247ms)
+  ✓   19 [responsive] › tests/responsive-hardening.spec.ts:452:1 › overview set rows render every column in order (198ms)
+  ✓   20 [responsive] › tests/responsive-hardening.spec.ts:465:1 › coaches only see actions the overview API authorizes (262ms)
+  ✓   21 [responsive] › tests/responsive-hardening.spec.ts:491:1 › account sheet stays inside a landscape viewport and closes on Escape (554ms)
+  ✓   22 [responsive] › tests/responsive-hardening.spec.ts:519:1 › header is a single row and the account panel shows only the current role (679ms)
+  ✓   23 [responsive] › tests/responsive-hardening.spec.ts:561:1 › desktop header and account popover stay anchored (289ms)
+  ✓   24 [responsive] › tests/responsive-hardening.spec.ts:584:1 › tables follow the active locale direction (443ms)
+  ✓   25 [responsive] › tests/responsive-hardening.spec.ts:618:1 › people lists use cards instead of wide tables on phones (184ms)
+  ✓   26 [responsive] › tests/responsive-hardening.spec.ts:639:1 › global athlete cards keep the club visible on phones (184ms)
+  ✓   27 [responsive] › tests/responsive-hardening.spec.ts:658:1 › mobile action controls meet the minimum touch size (202ms)
+  ✓   28 [responsive] › tests/responsive-hardening.spec.ts:678:1 › mobile inputs stay at a readable size (134ms)
+  ✓   29 [responsive] › tests/responsive-hardening.spec.ts:691:1 › program editor labels stay legible on phones (229ms)
+  ✓   30 [responsive] › tests/responsive-hardening.spec.ts:723:1 › row action menu closes on Tab or page scroll and stays open on its own scroll (312ms)
+  ✓   31 [responsive] › tests/responsive-hardening.spec.ts:749:1 › athlete record tabs support arrow keys and expose a panel (234ms)
+  ✓   32 [responsive] › tests/responsive-hardening.spec.ts:769:1 › offline notice appears and clears when the connection returns (180ms)
+  ✓   33 [responsive] › tests/responsive-hardening.spec.ts:797:1 › offline identity failure shows recovery instead of the login form (123ms)
+  ✓   34 [responsive] › tests/responsive-hardening.spec.ts:808:1 › print deep links work when the club is supplied in the URL (132ms)
+  ✓   35 [responsive] › tests/responsive-hardening.spec.ts:826:1 › print without club context explains how to reopen it (130ms)
+  ✓   36 [responsive] › tests/responsive-hardening.spec.ts:843:1 › athlete cards use Details plus a secondary action menu (214ms)
+  ✓   37 [responsive] › tests/responsive-hardening.spec.ts:862:1 › coach overviews do not show an athlete coach chip (145ms)
+  ✓   38 [responsive] › tests/responsive-hardening.spec.ts:875:1 › archived athletes use cards with restore and delete on phones (216ms)
+  ✓   39 [responsive] › tests/responsive-hardening.spec.ts:892:1 › athlete records open on programs with a read-only profile until edit (370ms)
+  ✓   40 [responsive] › tests/responsive-hardening.spec.ts:920:1 › athlete administration actions live in an overflow menu (219ms)
+  ✓   41 [responsive] › tests/responsive-hardening.spec.ts:940:1 › mobile profile edit actions stay compact above the navigation (296ms)
+  ✓   42 [responsive] › tests/responsive-hardening.spec.ts:962:1 › saving edited profile returns to the read-only overview (360ms)
+  ✓   43 [responsive] › tests/responsive-hardening.spec.ts:995:1 › motion system uses Standard feedback, Expressive sheets and reduced-motion fallback (239ms)
+  ✓   44 [responsive] › tests/responsive-hardening.spec.ts:1073:1 › active program card opens by default and can collapse for review (247ms)
+  ✓   45 [chromium] › tests/admin.spec.ts:5:1 › admin dashboard and gym switching (464ms)
+  ✓   46 [chromium] › tests/admin.spec.ts:22:1 › athlete list, detail and editable active program builder (657ms)
+  ✓   47 [chromium] › tests/admin.spec.ts:60:1 › add-athlete validation keeps the form and shows a Persian error (817ms)
+  ✓   48 [chromium] › tests/admin.spec.ts:76:1 › language switch updates direction and translations (555ms)
+  ✓   49 [chromium] › tests/admin.spec.ts:98:1 › templates and exercise library render (355ms)
+  ✓   50 [chromium] › tests/admin.spec.ts:111:1 › owner can open gym details and sees ownership transfer (501ms)
+  ✓   51 [chromium] › tests/admin.spec.ts:138:1 › club users keep their club context on the clubs page (227ms)
+  ✓   52 [chromium] › tests/admin.spec.ts:146:1 › mobile admin keeps gym context and current role available (279ms)
+  ✓   53 [chromium] › tests/admin.spec.ts:169:1 › club users reach club settings from the workspace (418ms)
+  ✓   54 [chromium] › tests/admin.spec.ts:184:1 › club users do not get global people management (249ms)
+  ✓   55 [chromium] › tests/athlete-archive.spec.ts:27:1 › archived athletes can be restored or permanently deleted (1.8s)
+  ✓   56 [chromium] › tests/athlete-archive.spec.ts:116:1 › archived athletes can be restored in bulk (647ms)
+  ✓   57 [chromium] › tests/athlete-archive.spec.ts:153:1 › archive is available on cards and as a table bulk action (1.8s)
+  ✓   58 [chromium] › tests/athlete-import.spec.ts:12:1 › manager imports athletes from CSV after previewing rows (2.1s)
+  ✓   59 [chromium] › tests/athlete-safety.spec.ts:15:1 › archive confirmation cannot close while the mutation is pending (697ms)
+  ✓   60 [chromium] › tests/athlete-safety.spec.ts:57:3 › partial permanent deletion retries only failed athletes (500) (1.2s)
+  ✓   61 [chromium] › tests/athlete-safety.spec.ts:57:3 › partial permanent deletion retries only failed athletes (abort) (1.2s)
+  ✓   62 [chromium] › tests/athlete-safety.spec.ts:152:1 › busy permanent deletion cannot be dismissed or submitted twice (736ms)
+  ✓   63 [chromium] › tests/athlete-safety.spec.ts:234:1 › import mutation cannot be dismissed while submitting (907ms)
+  ✓   64 [chromium] › tests/athletes-list.spec.ts:3:1 › athlete list switches to a selectable table and remembers the view (732ms)
+  ✘   65 [chromium] › tests/athletes-list.spec.ts:53:1 › coach picker searches on the server and loads more (5.7s)
+  ✓   66 [chromium] › tests/auth.spec.ts:5:1 › invalid login shows a Persian error and does not store a token (298ms)
+  ✓   67 [chromium] › tests/auth.spec.ts:22:1 › unauthenticated users are redirected to login (151ms)
+  ✓   68 [chromium] › tests/auth.spec.ts:30:1 › invitation and password recovery pages validate input (175ms)
+  ✘   69 [chromium] › tests/categories.spec.ts:4:1 › admin creates catalog entries; coach selects them; day categories reach athlete and print (30.0s)
+  ✓   70 [chromium] › tests/categories.spec.ts:172:1 › category changes protect existing movements from incompatible choices (480ms)
+  ✓   71 [chromium] › tests/controls.spec.ts:5:1 › Select opens a listbox, supports keyboard selection and Escape (1.3s)
+  ✓   72 [chromium] › tests/controls.spec.ts:29:1 › searchable ComboBox filters long lists, handles no results and stays in the viewport (1.5s)
+  ✓   73 [chromium] › tests/controls.spec.ts:60:1 › required ComboBox exposes required state and keeps the form open on validation (774ms)
+  ✓   74 [chromium] › tests/controls.spec.ts:76:1 › Persian date picker selects today and submits Gregorian ISO (936ms)
+  ✓   75 [chromium] › tests/controls.spec.ts:111:1 › date picker inside a dialog is not clipped (1.2s)
+  ✓   76 [chromium] › tests/controls.spec.ts:141:1 › English locale keeps Select and DatePicker usable in LTR (1.2s)
+  ✓   77 [chromium] › tests/controls.spec.ts:168:1 › Persian leap-year date converts to the correct Gregorian ISO (1.6s)
+  ✓   78 [chromium] › tests/controls.spec.ts:195:1 › date picker clear action submits a null value (1.2s)
+  ✓   79 [chromium] › tests/controls.spec.ts:220:1 › Select, ComboBox and DatePicker remain usable in a mobile-sized modal (1.8s)
+  ✓   80 [chromium] › tests/field-labels.spec.ts:36:1 › searches and staff forms have persistent, associated labels (2.1s)
+  ✓   81 [chromium] › tests/field-labels.spec.ts:72:1 › program day and set fields retain their labels and focus while editing (718ms)
+  ✓   82 [chromium] › tests/field-labels.spec.ts:103:1 › birth dates reject future calendar days and dates keep visible labels when empty (992ms)
+  ✓   83 [chromium] › tests/field-labels.spec.ts:132:1 › athlete profile and upload controls have associated labels (707ms)
+  ✓   84 [chromium] › tests/finance-qa-regressions.spec.ts:29:1 › Persian and Arabic-Indic sale amounts produce the same valid preview (1.0s)
+  ✓   85 [chromium] › tests/finance-qa-regressions.spec.ts:63:1 › Persian tax edit persists the new percentage and rejects invalid input (1.4s)
+  ✓   86 [chromium] › tests/finance-qa-regressions.spec.ts:137:1 › changing the category invalidates the previous preview (1.3s)
+  ✓   87 [chromium] › tests/finance-qa-regressions.spec.ts:157:1 › a delayed preview response cannot validate a newer form (1.7s)
+  ✓   88 [chromium] › tests/finance-qa-regressions.spec.ts:180:1 › all gym finance pages stay RTL and overflow-free at 390 and 1280 (1.8s)
+  ✓   89 [chromium] › tests/finance-qa-regressions.spec.ts:212:1 › Persian refund and settlement amounts are converted to IRR (1.9s)
+  ✓   90 [chromium] › tests/finance-qa-regressions.spec.ts:300:1 › metadata-only plan edits preserve every IRR remainder (5.3s)
+  ✓   91 [chromium] › tests/finance-qa-regressions.spec.ts:370:1 › UI can create and re-edit a 10.5 Toman plan without changing its price (2.0s)
+  ✓   92 [chromium] › tests/finance-sandbox.spec.ts:93:1 › gym admin completes contract, sale, payment, settlement and report journey (4.6s)
+  ✓   93 [chromium] › tests/finance-sandbox.spec.ts:192:1 › finance screens stay RTL and do not overflow on mobile (668ms)
+  ✓   94 [chromium] › tests/finance-sandbox.spec.ts:225:1 › global administrator manages platform contracts and sees cross-gym overview (2.1s)
+  ✓   95 [chromium] › tests/finance-sandbox.spec.ts:267:1 › coach sells a training plan and receives an athlete request (3.9s)
+  ✓   96 [chromium] › tests/person-overview.spec.ts:3:1 › athlete and coach details open the complete overview page (643ms)
+  ✓   97 [chromium] › tests/person-overview.spec.ts:44:1 › overview keeps a clear empty state for a coach without records (425ms)
+  ✓   98 [chromium] › tests/person-overview.spec.ts:65:1 › people tables keep Details visible and secondary actions in a menu (394ms)
+  ✓   99 [chromium] › tests/program-authoring.spec.ts:4:1 › admin builds, saves and publishes a program through the UI (3.4s)
+  ✓  100 [chromium] › tests/program-authoring.spec.ts:126:1 › numbered day builder caps program days to the athlete's training-day count (1.1s)
+  ✓  101 [chromium] › tests/pwa.spec.ts:3:1 › PWA manifest and install assets are available (212ms)
+  ✓  102 [chromium] › tests/pwa.spec.ts:46:1 › production worker controls a warmed shell without caching private API data (389ms)
+  ✓  103 [chromium] › tests/pwa.spec.ts:118:1 › missing hashed assets never fall back to the HTML shell (4ms)
+  ✓  104 [chromium] › tests/responsive-hardening.spec.ts:427:1 › workout duration stays visible on a phone (252ms)
+  ✓  105 [chromium] › tests/responsive-hardening.spec.ts:452:1 › overview set rows render every column in order (222ms)
+  ✓  106 [chromium] › tests/responsive-hardening.spec.ts:465:1 › coaches only see actions the overview API authorizes (295ms)
+  ✓  107 [chromium] › tests/responsive-hardening.spec.ts:491:1 › account sheet stays inside a landscape viewport and closes on Escape (582ms)
+  ✓  108 [chromium] › tests/responsive-hardening.spec.ts:519:1 › header is a single row and the account panel shows only the current role (713ms)
+  ✓  109 [chromium] › tests/responsive-hardening.spec.ts:561:1 › desktop header and account popover stay anchored (294ms)
+  ✓  110 [chromium] › tests/responsive-hardening.spec.ts:584:1 › tables follow the active locale direction (505ms)
+  ✓  111 [chromium] › tests/responsive-hardening.spec.ts:618:1 › people lists use cards instead of wide tables on phones (225ms)
+  ✓  112 [chromium] › tests/responsive-hardening.spec.ts:639:1 › global athlete cards keep the club visible on phones (223ms)
+  ✓  113 [chromium] › tests/responsive-hardening.spec.ts:658:1 › mobile action controls meet the minimum touch size (232ms)
+  ✓  114 [chromium] › tests/responsive-hardening.spec.ts:678:1 › mobile inputs stay at a readable size (163ms)
+  ✓  115 [chromium] › tests/responsive-hardening.spec.ts:691:1 › program editor labels stay legible on phones (247ms)
+  ✓  116 [chromium] › tests/responsive-hardening.spec.ts:723:1 › row action menu closes on Tab or page scroll and stays open on its own scroll (348ms)
+  ✓  117 [chromium] › tests/responsive-hardening.spec.ts:749:1 › athlete record tabs support arrow keys and expose a panel (238ms)
+  ✓  118 [chromium] › tests/responsive-hardening.spec.ts:769:1 › offline notice appears and clears when the connection returns (230ms)
+  ✓  119 [chromium] › tests/responsive-hardening.spec.ts:797:1 › offline identity failure shows recovery instead of the login form (176ms)
+  ✓  120 [chromium] › tests/responsive-hardening.spec.ts:808:1 › print deep links work when the club is supplied in the URL (186ms)
+  ✓  121 [chromium] › tests/responsive-hardening.spec.ts:826:1 › print without club context explains how to reopen it (179ms)
+  ✓  122 [chromium] › tests/responsive-hardening.spec.ts:843:1 › athlete cards use Details plus a secondary action menu (256ms)
+  ✓  123 [chromium] › tests/responsive-hardening.spec.ts:862:1 › coach overviews do not show an athlete coach chip (241ms)
+  ✓  124 [chromium] › tests/responsive-hardening.spec.ts:875:1 › archived athletes use cards with restore and delete on phones (256ms)
+  ✓  125 [chromium] › tests/responsive-hardening.spec.ts:892:1 › athlete records open on programs with a read-only profile until edit (383ms)
+  ✓  126 [chromium] › tests/responsive-hardening.spec.ts:920:1 › athlete administration actions live in an overflow menu (252ms)
+  ✓  127 [chromium] › tests/responsive-hardening.spec.ts:940:1 › mobile profile edit actions stay compact above the navigation (327ms)
+  ✓  128 [chromium] › tests/responsive-hardening.spec.ts:962:1 › saving edited profile returns to the read-only overview (401ms)
+  ✓  129 [chromium] › tests/responsive-hardening.spec.ts:995:1 › motion system uses Standard feedback, Expressive sheets and reduced-motion fallback (313ms)
+  ✓  130 [chromium] › tests/responsive-hardening.spec.ts:1073:1 › active program card opens by default and can collapse for review (306ms)
+  ✓  131 [chromium] › tests/test-data.spec.ts:11:1 › managed athlete cleanup is idempotent and preserves seeded athletes (532ms)
+  ✓  132 [chromium] › tests/test-data.spec.ts:67:1 › managed athlete cleanup runs after a thrown test operation (332ms)
+  ✓  133 [chromium] › tests/test-data.spec.ts:109:1 › managed athlete cleanup refuses unowned email (235ms)
+  ✓  134 [mobile-admin] › tests/athlete-archive.spec.ts:27:1 › archived athletes can be restored or permanently deleted (1.8s)
+  -  135 [mobile-admin] › tests/athlete-archive.spec.ts:116:1 › archived athletes can be restored in bulk
+  ✓  136 [mobile-admin] › tests/athlete-archive.spec.ts:153:1 › archive is available on cards and as a table bulk action (1.1s)
+  ✓  137 [mobile-admin] › tests/athlete-import.spec.ts:12:1 › manager imports athletes from CSV after previewing rows (2.9s)
+  ✓  138 [mobile] › tests/athlete.spec.ts:5:1 › athlete sees active program, sets and can generate a Persian PDF (550ms)
+  ✓  139 [mobile] › tests/athlete.spec.ts:39:1 › athlete profile saves without equipment, uses numbered days and redirects to the dashboard (347ms)
+  ✓  140 [mobile] › tests/athlete.spec.ts:65:1 › athlete landing highlights the dashboard nav item (221ms)
+  ✓  141 [mobile] › tests/athlete.spec.ts:72:1 › athlete deep links to staff pages fall back to the club dashboard (254ms)
+
+
+  1) [chromium] › tests/athletes-list.spec.ts:53:1 › coach picker searches on the server and loads more 
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByRole('option')
+    Expected: 20
+    Received: 0
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveCount" getByRole('option') with timeout 5000ms
+      - waiting for getByRole('option')
+        14 × locator resolved to 0 elements
+           - unexpected value "0"
+
+
+      82 |   const picker = dialog.getByRole("combobox", { name: "مربی" })
+      83 |   await picker.click()
+    > 84 |   await expect(page.getByRole("option")).toHaveCount(20)
+         |                                          ^
+      85 |
+      86 |   await page.getByRole("button", { name: "نمایش بیشتر" }).click()
+      87 |   await expect(page.getByRole("option")).toHaveCount(25)
+        at /Users/sajad/.local/share/opencode/worktree/886215/finance-sandbox-v2/frontend/tests/athletes-list.spec.ts:84:42
+
+    Error Context: test-results/athletes-list-coach-picker-b989f-n-the-server-and-loads-more-chromium/error-context.md
+
+  2) [chromium] › tests/categories.spec.ts:4:1 › admin creates catalog entries; coach selects them; day categories reach athlete and print 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for locator('.m3-builder-add-exercise').getByRole('button', { name: 'افزودن', exact: true })
+        - locator resolved to <button disabled type="button" class="m3-button m3-button--filled m3-button--md  ">…</button>
+      - attempting click action
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+        - waiting 20ms
+        2 × waiting for element to be visible, enabled and stable
+          - element is not enabled
+        - retrying click action
+          - waiting 100ms
+        54 × waiting for element to be visible, enabled and stable
+           - element is not enabled
+         - retrying click action
+           - waiting 500ms
+
+
+      122 |   await page.keyboard.press("ArrowDown")
+      123 |   await page.keyboard.press("Enter")
+    > 124 |   await add.getByRole("button", { name: "افزودن", exact: true }).click()
+          |                                                                  ^
+      125 |   await page.getByRole("button", { name: "ذخیره پیش‌نویس", exact: true }).click()
+      126 |   await expect(page.getByText("برنامه ذخیره شد.")).toBeVisible()
+      127 |   await page.reload()
+        at /Users/sajad/.local/share/opencode/worktree/886215/finance-sandbox-v2/frontend/tests/categories.spec.ts:124:66
+
+    Error Context: test-results/categories-admin-creates-c-10be9-ies-reach-athlete-and-print-chromium/error-context.md
+
+  2 failed
+    [chromium] › tests/athletes-list.spec.ts:53:1 › coach picker searches on the server and loads more 
+    [chromium] › tests/categories.spec.ts:4:1 › admin creates catalog entries; coach selects them; day categories reach athlete and print 
+  1 skipped
+  138 passed (2.6m)

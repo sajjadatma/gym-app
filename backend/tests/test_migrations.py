@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import uuid
 from collections.abc import Generator
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -11,8 +12,10 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import URL, make_url
+from sqlmodel import Session
 
 from app.core.config import settings
+from app.services import finance as svc
 
 pytestmark = pytest.mark.migrations
 
@@ -156,6 +159,52 @@ def test_fresh_database_upgrades_to_head_and_matches_models(
         engine.dispose()
 
 
+def test_finance_money_columns_are_bigint_and_contracts_have_archive_metadata(
+    migrated_database: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_alembic_database(monkeypatch, migrated_database)
+    config = _alembic_config()
+    command.upgrade(config, "head")
+
+    engine = create_engine(migrated_database)
+    try:
+        inspector = inspect(engine)
+        expected = {
+            "finance_tax_definition": ["fixed_amount_irr"],
+            "finance_coach_plan": ["base_price_irr"],
+            "finance_program_request": ["base_price_irr", "total_amount_irr"],
+            "finance_sale": [
+                "base_amount_irr",
+                "tax_amount_irr",
+                "total_amount_irr",
+                "platform_amount_irr",
+                "gym_amount_irr",
+                "coach_amount_irr",
+            ],
+            "finance_sale_tax": ["fixed_amount_irr", "amount_irr"],
+            "finance_payment": ["amount_irr"],
+            "finance_allocation": ["amount_irr"],
+            "finance_settlement": ["amount_irr"],
+            "finance_settlement_item": ["amount_irr"],
+            "finance_refund": ["amount_irr"],
+            "finance_refund_adjustment": ["amount_irr"],
+        }
+        for table, columns in expected.items():
+            actual = {column["name"]: column for column in inspector.get_columns(table)}
+            for column in columns:
+                assert actual[column]["type"].__class__.__name__ == "BIGINT"
+        for table in (
+            "finance_platform_contract",
+            "finance_coach_contract",
+        ):
+            columns = {
+                column["name"]: column for column in inspector.get_columns(table)
+            }
+            assert "archived_at" in columns
+    finally:
+        engine.dispose()
+
+
 def test_upgrade_with_existing_data_backfills_new_columns(
     migrated_database: URL, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -268,3 +317,360 @@ def test_upgrade_with_existing_data_backfills_new_columns(
         assert version_columns["revision"]["default"] == "0"
     finally:
         engine.dispose()
+
+
+def test_finance_amounts_survive_bigint_upgrade(
+    migrated_database: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_alembic_database(monkeypatch, migrated_database)
+    config = _alembic_config()
+    command.upgrade(config, "b8d1e2f3a4c5")
+
+    user_id = uuid.uuid4()
+    gym_id = uuid.uuid4()
+    contract_id = uuid.uuid4()
+    sale_id = uuid.uuid4()
+    amount = 2_147_483_647
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO "user"
+                       (id, email, hashed_password, is_active, is_superuser,
+                        must_change_password, created_at)
+                       VALUES (:id, :email, 'x', true, false, false, now())"""
+                ),
+                {"id": user_id, "email": "finance-migration@example.com"},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO gym (id, name, owner_id, is_active, created_at)
+                       VALUES (:id, 'Finance Migration Gym', :owner_id, true, now())"""
+                ),
+                {"id": gym_id, "owner_id": user_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_platform_contract
+                       (id, name, scope, gym_id, version, status, effective_from,
+                        effective_to, created_by_id, created_at, activated_at)
+                       VALUES (:id, 'Legacy default', 'DEFAULT', NULL, 1, 'ACTIVE',
+                               current_date, NULL, :created_by, now(), now())"""
+                ),
+                {"id": contract_id, "created_by": user_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_sale
+                       (id, gym_id, category, description, sold_on,
+                        base_amount_irr, tax_amount_irr, total_amount_irr, status,
+                        platform_bp, gym_bp, coach_bp, platform_amount_irr,
+                        gym_amount_irr, coach_amount_irr, coach_user_id,
+                        coach_contract_id, platform_contract_id, platform_source,
+                        contract_snapshot, created_by_id, created_at)
+                       VALUES (:id, :gym_id, 'MEMBERSHIP', 'Legacy sale', current_date,
+                               :amount, 0, :amount, 'PAID', 1000, 9000, 0,
+                               214748364, 1932735283, 0, NULL, NULL, :contract_id,
+                               'PLATFORM_DEFAULT', '{}', :created_by, now())"""
+                ),
+                {
+                    "id": sale_id,
+                    "gym_id": gym_id,
+                    "amount": amount,
+                    "contract_id": contract_id,
+                    "created_by": user_id,
+                },
+            )
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "head")
+    command.check(config)
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as connection:
+            row = connection.execute(
+                text(
+                    "SELECT base_amount_irr, total_amount_irr FROM finance_sale WHERE id = :id"
+                ),
+                {"id": sale_id},
+            ).one()
+            assert row.base_amount_irr == amount
+            assert row.total_amount_irr == amount
+        columns = {
+            column["name"]: column
+            for column in inspect(engine).get_columns("finance_sale")
+        }
+        assert columns["base_amount_irr"]["type"].__class__.__name__ == "BIGINT"
+    finally:
+        engine.dispose()
+
+
+def test_finance_legacy_archived_overrides_are_historical_after_upgrade(
+    migrated_database: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A pre-archive-metadata override must not become current on upgrade.
+
+    Older rows have status ARCHIVED but no archived_at timestamp. They may only
+    be resolved for dates covered by an explicit effective_to, never for today.
+    """
+    _set_alembic_database(monkeypatch, migrated_database)
+    config = _alembic_config()
+    command.upgrade(config, "b8d1e2f3a4c5")
+
+    today = svc.finance_today()
+    owner_id = uuid.uuid4()
+    coach_id = uuid.uuid4()
+    gym_id = uuid.uuid4()
+    default_contract_id = uuid.uuid4()
+    legacy_override_id = uuid.uuid4()
+    historical_override_id = uuid.uuid4()
+    legacy_coach_contract_id = uuid.uuid4()
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO "user"
+                       (id, email, hashed_password, is_active, is_superuser,
+                        must_change_password, created_at)
+                       VALUES (:id, :email, 'x', true, false, false, now())"""
+                ),
+                {"id": owner_id, "email": "legacy-archive-owner@example.com"},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO "user"
+                       (id, email, hashed_password, is_active, is_superuser,
+                        must_change_password, created_at)
+                       VALUES (:id, :email, 'x', true, false, false, now())"""
+                ),
+                {"id": coach_id, "email": "legacy-archive-coach@example.com"},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO gym (id, name, owner_id, is_active, created_at)
+                       VALUES (:id, 'Legacy Archive Gym', :owner_id, true, now())"""
+                ),
+                {"id": gym_id, "owner_id": owner_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_platform_contract
+                       (id, name, scope, gym_id, version, status, effective_from,
+                        effective_to, created_by_id, created_at, activated_at)
+                       VALUES (:id, 'Default before archive metadata', 'DEFAULT',
+                               NULL, 1, 'ACTIVE', :effective_from, NULL, :created_by,
+                               now(), now())"""
+                ),
+                {
+                    "id": default_contract_id,
+                    "effective_from": today - timedelta(days=3650),
+                    "created_by": owner_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_platform_contract
+                       (id, name, scope, gym_id, version, status, effective_from,
+                        effective_to, created_by_id, created_at, activated_at)
+                       VALUES (:id, 'Legacy archived override', 'GYM', :gym_id, 1,
+                               'ARCHIVED', :effective_from, NULL, :created_by,
+                               now(), now())"""
+                ),
+                {
+                    "id": legacy_override_id,
+                    "gym_id": gym_id,
+                    "effective_from": today - timedelta(days=2),
+                    "created_by": owner_id,
+                },
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_platform_contract
+                       (id, name, scope, gym_id, version, status, effective_from,
+                        effective_to, created_by_id, created_at, activated_at)
+                       VALUES (:id, 'Legacy historical override', 'GYM', :gym_id, 2,
+                               'ARCHIVED', :effective_from, :effective_to,
+                               :created_by, now(), now())"""
+                ),
+                {
+                    "id": historical_override_id,
+                    "gym_id": gym_id,
+                    "effective_from": today - timedelta(days=3),
+                    "effective_to": today - timedelta(days=1),
+                    "created_by": owner_id,
+                },
+            )
+            for contract_id, percent_bp in (
+                (default_contract_id, 1000),
+                (legacy_override_id, 3000),
+                (historical_override_id, 3000),
+            ):
+                connection.execute(
+                    text(
+                        """INSERT INTO finance_platform_rate
+                           (id, contract_id, category, percent_bp)
+                           VALUES (:id, :contract_id, 'MEMBERSHIP', :percent_bp)"""
+                    ),
+                    {
+                        "id": uuid.uuid4(),
+                        "contract_id": contract_id,
+                        "percent_bp": percent_bp,
+                    },
+                )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_coach_contract
+                       (id, gym_id, coach_user_id, category, version, status,
+                        effective_from, effective_to, platform_bp, gym_bp, coach_bp,
+                        platform_contract_id, platform_source, created_by_id,
+                        created_at, activated_at)
+                       VALUES (:id, :gym_id, :coach_user_id, 'TRAINING', 1,
+                               'ARCHIVED', :effective_from, NULL, 1000, 4000, 5000,
+                               :platform_contract_id, 'PLATFORM_DEFAULT',
+                               :created_by, now(), now())"""
+                ),
+                {
+                    "id": legacy_coach_contract_id,
+                    "gym_id": gym_id,
+                    "coach_user_id": coach_id,
+                    "effective_from": today - timedelta(days=2),
+                    "platform_contract_id": default_contract_id,
+                    "created_by": owner_id,
+                },
+            )
+    finally:
+        engine.dispose()
+
+    command.upgrade(config, "head")
+    command.check(config)
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.connect() as connection:
+            rows = connection.execute(
+                text(
+                    """SELECT id, status, effective_to, archived_at
+                       FROM finance_platform_contract
+                       WHERE id IN (:legacy_id, :historical_id)"""
+                ),
+                {
+                    "legacy_id": legacy_override_id,
+                    "historical_id": historical_override_id,
+                },
+            ).all()
+            by_id = {row.id: row for row in rows}
+            assert by_id[legacy_override_id].status == "ARCHIVED"
+            assert by_id[legacy_override_id].effective_to is None
+            assert by_id[legacy_override_id].archived_at is None
+            assert by_id[historical_override_id].status == "ARCHIVED"
+            assert by_id[historical_override_id].effective_to == today - timedelta(
+                days=1
+            )
+            assert by_id[historical_override_id].archived_at is None
+
+        with Session(engine) as session:
+            current = svc.resolve_platform_policy(
+                session, gym_id=gym_id, category="MEMBERSHIP", on_date=today
+            )
+            assert current["source"] == "PLATFORM_DEFAULT"
+            assert current["platform_bp"] == 1000
+
+            historical = svc.resolve_platform_policy(
+                session,
+                gym_id=gym_id,
+                category="MEMBERSHIP",
+                on_date=today - timedelta(days=2),
+            )
+            assert historical["source"] == "GYM_OVERRIDE"
+            assert historical["platform_bp"] == 3000
+            assert historical["contract_id"] == historical_override_id
+
+            assert (
+                svc.resolve_coach_contract(
+                    session,
+                    gym_id=gym_id,
+                    coach_user_id=coach_id,
+                    category="TRAINING",
+                    on_date=today,
+                )
+                is None
+            )
+    finally:
+        engine.dispose()
+
+
+def test_finance_bigint_downgrade_refuses_to_truncate_large_values(
+    migrated_database: URL, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _set_alembic_database(monkeypatch, migrated_database)
+    config = _alembic_config()
+    command.upgrade(config, "head")
+
+    user_id = uuid.uuid4()
+    gym_id = uuid.uuid4()
+    contract_id = uuid.uuid4()
+    sale_id = uuid.uuid4()
+    amount = 3_000_000_000
+
+    engine = create_engine(migrated_database)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """INSERT INTO "user"
+                       (id, email, hashed_password, is_active, is_superuser,
+                        must_change_password, created_at)
+                       VALUES (:id, :email, 'x', true, false, false, now())"""
+                ),
+                {"id": user_id, "email": "finance-downgrade@example.com"},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO gym (id, name, owner_id, is_active, created_at)
+                       VALUES (:id, 'Finance Downgrade Gym', :owner_id, true, now())"""
+                ),
+                {"id": gym_id, "owner_id": user_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_platform_contract
+                       (id, name, scope, gym_id, version, status, effective_from,
+                        effective_to, created_by_id, created_at, activated_at)
+                       VALUES (:id, 'Legacy default', 'DEFAULT', NULL, 1, 'ACTIVE',
+                               current_date, NULL, :created_by, now(), now())"""
+                ),
+                {"id": contract_id, "created_by": user_id},
+            )
+            connection.execute(
+                text(
+                    """INSERT INTO finance_sale
+                       (id, gym_id, category, description, sold_on,
+                        base_amount_irr, tax_amount_irr, total_amount_irr, status,
+                        platform_bp, gym_bp, coach_bp, platform_amount_irr,
+                        gym_amount_irr, coach_amount_irr, coach_user_id,
+                        coach_contract_id, platform_contract_id, platform_source,
+                        contract_snapshot, created_by_id, created_at)
+                       VALUES (:id, :gym_id, 'MEMBERSHIP', 'Large sale', current_date,
+                               :amount, 0, :amount, 'PAID', 1000, 9000, 0,
+                               300000000, 2700000000, 0, NULL, NULL, :contract_id,
+                               'PLATFORM_DEFAULT', '{}', :created_by, now())"""
+                ),
+                {
+                    "id": sale_id,
+                    "gym_id": gym_id,
+                    "amount": amount,
+                    "contract_id": contract_id,
+                    "created_by": user_id,
+                },
+            )
+    finally:
+        engine.dispose()
+
+    with pytest.raises(RuntimeError, match="Refusing finance downgrade"):
+        command.downgrade(config, "b8d1e2f3a4c5")

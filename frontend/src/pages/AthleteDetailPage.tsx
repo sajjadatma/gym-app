@@ -54,13 +54,14 @@ import {
   TextField,
 } from "@/components/M3"
 import { type RowActionItem, RowActionMenu } from "@/components/RowActionMenu"
+import { WorkoutHistory } from "@/components/WorkoutTracking"
 import { type TranslationKey, useI18n } from "@/i18n"
 import { listGymProgramRequests, type ProgramRequest } from "@/lib/finance-api"
 import { MAX_UPLOAD_BYTES } from "@/lib/upload"
 import { useAsyncPicker } from "@/lib/use-async-picker"
 import { useSnackbar } from "@/snackbar"
 
-type Tab = "profile" | "programs" | "bodyFiles"
+type Tab = "profile" | "programs" | "bodyFiles" | "progress"
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
@@ -879,6 +880,7 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
       label: t("athletes.bodyFiles"),
       count: athlete.body_files.length,
     },
+    { value: "progress", label: t("activity.progress") },
   ]
 
   const adminActions: RowActionItem[] = []
@@ -1105,6 +1107,15 @@ export function AthleteDetailPage({ athleteId }: { athleteId: string }) {
         </div>
       ) : null}
 
+      {tab === "progress" ? (
+        <div
+          role="tabpanel"
+          id="athlete-record-panel-progress"
+          aria-labelledby="athlete-record-tab-progress"
+        >
+          <WorkoutHistory athleteId={athleteId} />
+        </div>
+      ) : null}
       {tab === "profile" ? (
         <div
           className={`stack m3-profile-stack ${editingProfile ? "is-editing" : ""}`}

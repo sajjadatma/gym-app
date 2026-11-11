@@ -1,0 +1,80 @@
+
+Running 5 tests using 1 worker
+
+(node:99019) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/5] [admin-setup] › tests/admin.setup.ts:7:1 › authenticate gym admin
+(node:99028) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[2/5] [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one input click opens exercise options and mouse selection works
+[3/5] [chromium] › tests/combobox-click.spec.ts:5:5 › 1280: one chevron click opens exercise options and mouse selection works
+[4/5] [chromium] › tests/combobox-click.spec.ts:5:5 › 390: one input click opens exercise options and mouse selection works
+  1) [chromium] › tests/combobox-click.spec.ts:5:5 › 390: one input click opens exercise options and mouse selection works 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  locator('.m3-builder-add-exercise').getByRole('combobox')
+    Expected: "true"
+    Received: "false"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" locator('.m3-builder-add-exercise').getByRole('combobox') with timeout 5000ms
+      - waiting for locator('.m3-builder-add-exercise').getByRole('combobox')
+        14 × locator resolved to <input value="" title="" data-rac="" type="text" tabindex="0" role="combobox" autocorrect="off" autocomplete="off" spellcheck="false" data-focused="true" data-hovered="true" aria-expanded="false" aria-autocomplete="list" placeholder="انتخاب حرکت" class="m3-combobox__input" id="react-aria7137669351-_r_m_" aria-labelledby="react-aria7137669351-_r_n_"/>
+           - unexpected value "false"
+
+
+      16 |       await expect(page.getByRole('option',{name:'جلوبازو هالتر · بازو',exact:true})).toBeVisible()
+      17 |       await input.fill('جلوبازو هالتر')
+    > 18 |       await expect(input).toHaveAttribute('aria-expanded','true')
+         |                           ^
+      19 |       await page.getByRole('option',{name:'جلوبازو هالتر · بازو',exact:true}).click()
+      20 |       await expect(input).toHaveValue('جلوبازو هالتر · بازو')
+      21 |       await expect(input).toHaveAttribute('aria-expanded','false')
+        at /private/tmp/gym-combobox-fix-20261111/frontend/tests/combobox-click.spec.ts:18:27
+
+    Error Context: test-results/combobox-click-390-one-inp-24402-s-and-mouse-selection-works-chromium/error-context.md
+
+
+(node:99064) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[5/5] [chromium] › tests/combobox-click.spec.ts:5:5 › 390: one chevron click opens exercise options and mouse selection works
+  2) [chromium] › tests/combobox-click.spec.ts:5:5 › 390: one chevron click opens exercise options and mouse selection works 
+
+    Error: expect(locator).toHaveAttribute(expected) failed
+
+    Locator:  locator('.m3-builder-add-exercise').getByRole('combobox')
+    Expected: "true"
+    Received: "false"
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toHaveAttribute" locator('.m3-builder-add-exercise').getByRole('combobox') with timeout 5000ms
+      - waiting for locator('.m3-builder-add-exercise').getByRole('combobox')
+        14 × locator resolved to <input value="" title="" data-rac="" type="text" tabindex="0" role="combobox" autocorrect="off" autocomplete="off" spellcheck="false" data-focused="true" aria-expanded="false" aria-autocomplete="list" placeholder="انتخاب حرکت" class="m3-combobox__input" id="react-aria6653019003-_r_m_" aria-labelledby="react-aria6653019003-_r_n_"/>
+           - unexpected value "false"
+
+
+      13 |       if(trigger==='input') await input.click()
+      14 |       else await add.locator('.m3-combobox__trigger').click()
+    > 15 |       await expect(input).toHaveAttribute('aria-expanded','true')
+         |                           ^
+      16 |       await expect(page.getByRole('option',{name:'جلوبازو هالتر · بازو',exact:true})).toBeVisible()
+      17 |       await input.fill('جلوبازو هالتر')
+      18 |       await expect(input).toHaveAttribute('aria-expanded','true')
+        at /private/tmp/gym-combobox-fix-20261111/frontend/tests/combobox-click.spec.ts:15:27
+
+    Error Context: test-results/combobox-click-390-one-che-69bf5-s-and-mouse-selection-works-chromium/error-context.md
+
+
+  2 failed
+    [chromium] › tests/combobox-click.spec.ts:5:5 › 390: one input click opens exercise options and mouse selection works 
+    [chromium] › tests/combobox-click.spec.ts:5:5 › 390: one chevron click opens exercise options and mouse selection works 
+  3 passed (14.2s)
